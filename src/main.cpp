@@ -6,19 +6,6 @@
 
 int main()
 {
-    if(setenv("DISPLAY", ":0", 1) == -1){
-        std::cerr << "Error: setenv failed" << std::endl;
-        return EXIT_FAILURE;
-    }
-    // pid_t windowManagerPID = fork();
-    // if(windowManagerPID == -1){
-    //     std::cerr << "Error: fork failed" << std::endl;
-    //     return EXIT_FAILURE;        
-    // }else{
-    //     execlp("startx", "startx", "/usr/bin/matchbox-window-manager", NULL);
-    //     std::cerr << "Error: execlp failed" << std::endl;
-    //     return EXIT_FAILURE;
-    // }
     auto window = sf::RenderWindow{ { 720, 720u }, "CMake SFML Project", sf::Style::None };
     window.setFramerateLimit(60);
     sf::Font font;
@@ -28,7 +15,7 @@ int main()
         std::cout<<"error"<<std::endl;
     }
 
-    
+    bool visibleMouse = false;
 
     while (window.isOpen())
     {
@@ -39,11 +26,13 @@ int main()
                 window.close();
             }
         }
-        window.setMouseCursorVisible(false);
+        window.setMouseCursorVisible(visibleMouse);
+        visibleMouse = !visibleMouse;
 
         window.clear(sf::Color::Black);
 
         sf::VertexArray triangle(sf::Triangles, 3);
+
 
         // define the position of the triangle's points
         triangle[0].position = sf::Vector2f(100.f, 100.f);
@@ -75,7 +64,6 @@ int main()
 
         // inside the main loop, between window.clear() and window.display()
         window.draw(text);
-
 
         // window.clear();
         window.display();
