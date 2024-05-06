@@ -1,26 +1,41 @@
 # Minimum version of CMake required
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.16)
 
 # Project name and the language used
 project(CubeCoreProject VERSION 1.0 LANGUAGES CXX)
 
-SET(PortAudio_DIR /home/cube/portaudio)
-include_directories(/home/cube/portaudio/include)
-link_directories(${PORTAUDIO_DIR}/lib)
-
-# Find ALSA library
-find_package(ALSA REQUIRED)
-include_directories(${ALSA_INCLUDE_DIRS})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 
 # Specify the C++ standard
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-# Add executable
-add_executable(cube src/main.cpp)
+find_package(Freetype REQUIRED)
 
-# Link against PortAudio and ALSA libraries
-target_link_libraries(cube portaudio ${ALSA_LIBRARIES})
+include(FetchContent)
+FetchContent_Declare(SFML
+    GIT_REPOSITORY https://github.com/SFML/SFML.git
+    GIT_TAG 2.6.x)
+FetchContent_MakeAvailable(SFML)
+
+# Add executable
+add_executable(CubeCoreProject src/main.cpp)
+
+target_link_libraries(CubeCoreProject PRIVATE sfml-graphics ${ALSA_LIBRARIES} freetype)
+target_compile_features(CubeCoreProject PRIVATE cxx_std_17)
+
+install(TARGETS CubeCoreProject)
 
 # Include directories
-target_include_directories(cube PRIVATE ${PROJECT_SOURCE_DIR}/src/libs)
+target_include_directories(CubeCoreProject PRIVATE ${PROJECT_SOURCE_DIR}/src/libs)
+
+
+
+
+
+
+
+
+
+

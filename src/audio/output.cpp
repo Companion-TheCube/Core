@@ -1,11 +1,7 @@
 #include <iostream>
 #include <cmath>
-#include "portaudio.h"
-
-#define SAMPLE_RATE 44100
-#define FRAMES_PER_BUFFER 64
 
 /*
 NOTES:
-
+Because of how the HDMI output works, we will have to have a constant output and modulate the code to change the sound.
 */
