@@ -13,8 +13,8 @@ Renderer::~Renderer()
 
 sf::Vector2f Renderer::project(Vertex& v)
 {
-    float fov = 256; // Field of View
-    float viewer_distance = 4;
+    float fov = 720; // Field of View
+    float viewer_distance = 5;
 
     // Simple perspective projection
     float factor = fov / (viewer_distance + v.z);
@@ -65,7 +65,6 @@ std::vector<Vertex> Renderer::rotateZ(float angle, std::vector<Vertex> cubeVerti
     return cubeVertices;
 }
 
-
 int Renderer::thread()
 {
 
@@ -74,7 +73,7 @@ int Renderer::thread()
         { -1, -1, 1 }, { 1, -1, 1 }, { 1, 1, 1 }, { -1, 1, 1 } // Back face
     };
 
-    this->window.create(sf::VideoMode(720, 720), "TheCube", sf::Style::Fullscreen);
+    this->window.create(sf::VideoMode(720, 720), "TheCube", sf::Style::None);
     bool visibleMouse = false;
     this->window.setFramerateLimit(60);
     this->window.setMouseCursorVisible(visibleMouse);
@@ -90,12 +89,10 @@ int Renderer::thread()
             }
         }
         this->window.clear(sf::Color::Black);
-        cubeVertices = this->rotateY(0.01f, cubeVertices);
-        cubeVertices = this->rotateX(0.023f, cubeVertices);
-        cubeVertices = this->rotateZ(0.037f, cubeVertices);
+        cubeVertices = this->rotateY(0.001f, cubeVertices);
+        cubeVertices = this->rotateX(0.007f, cubeVertices);
+        cubeVertices = this->rotateZ(0.017f, cubeVertices);
         auto drawFace = [&](int a, int b, int c, int d) -> void {
-            
-            
             sf::Vertex line[] = {
                 sf::Vertex(project(cubeVertices[a]), sf::Color::White),
                 sf::Vertex(project(cubeVertices[b]), sf::Color::White),
@@ -105,25 +102,79 @@ int Renderer::thread()
             };
             this->window.draw(line, 5, sf::LineStrip);
         };
-        drawFace(0, 1, 2, 3);
-        drawFace(4, 5, 6, 7);
-        drawFace(1, 5, 6, 2);
-        drawFace(0, 4, 7, 3);
-        drawFace(3, 2, 6, 7);
-        drawFace(0, 1, 5, 4);
+        auto drawEdge = [&](int a, int b) -> void {
+            sf::Vertex line[] = {
+                sf::Vertex(project(cubeVertices[a]), sf::Color::White),
+                sf::Vertex(project(cubeVertices[b]), sf::Color::White)
+            };
+            this->window.draw(line, 2, sf::Lines);
+        };
+        struct Edge {
+            int a, b;
+            bool toBeDrawn = false;
+        };
+        int edgeDefinitions[12][2] = {
+            { 0, 1},
+            { 1, 2},
+            { 2, 3},
+            { 3, 0},
+            { 4, 5},
+            { 5, 6},
+            { 6, 7},
+            { 7, 4},
+            { 0, 4},
+            { 1, 5},
+            { 2, 6},
+            { 3, 7}
+        };
+        std::vector<Edge> edges;
+        // find the edges that make the 3 faces closest to the camera (highest z)
+        // and draw them. This is a simple way to hide the back faces. 
+        for (int i = 0; i < 12; i++) {
+            edges.push_back({ edgeDefinitions[i][0], edgeDefinitions[i][1], false});
+        }
+        struct Face{
+            Edge* edges[4];
+        };
+        std::vector<Face> faces;
+        faces.push_back({&edges[0], &edges[1], &edges[2], &edges[3]});
+        faces.push_back({&edges[4], &edges[5], &edges[6], &edges[7]});
+        faces.push_back({&edges[8], &edges[9], &edges[10], &edges[11]});
+        faces.push_back({&edges[0], &edges[4], &edges[8], &edges[3]});
+        faces.push_back({&edges[1], &edges[5], &edges[9], &edges[2]});
+        faces.push_back({&edges[6], &edges[10], &edges[11], &edges[7]});
+        std::sort(faces.begin(), faces.end(), [&cubeVertices](Face a, Face b) -> bool {
+            float zA = 0;
+            float zB = 0;
+            for (int i = 0; i < 4; i++) {
+                zA += cubeVertices[a.edges[i]->a].z;
+                zB += cubeVertices[b.edges[i]->a].z;
+            }
+            return zA > zB;
+        });
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 4; j++) {
+                faces[i].edges[j]->toBeDrawn = true;
+            }
+        }
+        for (int i = 0; i < 12; i++) {
+            if(edges[i].toBeDrawn)
+                drawEdge(edges[i].a, edges[i].b);
+        }
+        
 
-        sf::VertexArray triangle(sf::Triangles, 3);
+        // sf::VertexArray triangle(sf::Triangles, 3);
 
-        // define the position of the triangle's points
-        triangle[0].position = sf::Vector2f(100.f, 100.f);
-        triangle[1].position = sf::Vector2f(200.f, 100.f);
-        triangle[2].position = sf::Vector2f(200.f, 200.f);
+        // // define the position of the triangle's points
+        // triangle[0].position = sf::Vector2f(100.f, 100.f);
+        // triangle[1].position = sf::Vector2f(200.f, 100.f);
+        // triangle[2].position = sf::Vector2f(200.f, 200.f);
 
-        // define the color of the triangle's points
-        triangle[0].color = sf::Color::Red;
-        triangle[1].color = sf::Color::Blue;
-        triangle[2].color = sf::Color::Green;
-        this->window.draw(triangle);
+        // // define the color of the triangle's points
+        // triangle[0].color = sf::Color::Red;
+        // triangle[1].color = sf::Color::Blue;
+        // triangle[2].color = sf::Color::Green;
+        // this->window.draw(triangle);
 
         sf::Text text;
 

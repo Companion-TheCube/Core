@@ -1,5 +1,5 @@
-#include <thread>
 #pragma once
+#include <thread>
 #include "SFML/Graphics.hpp"
 #include <iostream>
 #include "../logger/logger.h"

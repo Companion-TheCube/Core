@@ -11,6 +11,12 @@ option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+# determine if we are building on windows
+if(WIN32)
+    set(FREETYPE_INCLUDE_DIRS "C:/Users/Andrew/Documents/freetype/include")
+    set(FREETYPE_LIBRARY "C:/Users/Andrew/Documents/freetype/release static/vs2015-2022/win64/freetype.lib" "C:/Users/Andrew/Documents/freetype/release static/vs2015-2022/win32/freetype.lib")
+endif()
+
 find_package(Freetype REQUIRED)
 
 include(FetchContent)
@@ -23,13 +29,13 @@ FetchContent_MakeAvailable(SFML)
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 add_executable(CubeCoreProject ${SOURCES})
 
-target_link_libraries(CubeCoreProject PRIVATE sfml-graphics sfml-audio ${ALSA_LIBRARIES} freetype)
+target_link_libraries(CubeCoreProject PRIVATE sfml-graphics sfml-audio ${ALSA_LIBRARIES} ${FREETYPE_LIBRARY})
 target_compile_features(CubeCoreProject PRIVATE cxx_std_17)
 
 install(TARGETS CubeCoreProject)
 
 # Include directories
-target_include_directories(CubeCoreProject PRIVATE ${PROJECT_SOURCE_DIR}/src/libs)
+target_include_directories(CubeCoreProject PRIVATE ${PROJECT_SOURCE_DIR}/src/libs ${FREETYPE_INCLUDE_DIRS})
 
 
 
