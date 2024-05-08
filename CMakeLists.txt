@@ -26,7 +26,7 @@ FetchContent_Declare(SFML
 FetchContent_MakeAvailable(SFML)
 
 # Add executable
-file(GLOB_RECURSE SOURCES "src/*.cpp")
+file(GLOB_RECURSE SOURCES "src/*.cpp" "src/**/*.cpp")
 add_executable(CubeCoreProject ${SOURCES})
 
 target_link_libraries(CubeCoreProject PRIVATE sfml-graphics sfml-audio ${ALSA_LIBRARIES} ${FREETYPE_LIBRARY})

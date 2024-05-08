@@ -4,6 +4,7 @@
 #include <chrono>
 #include <sstream>
 #include <iomanip>
+#include <mutex>
 
 class CUBE_LOG_ENTRY{
     private:
@@ -31,6 +32,7 @@ class CubeLog{
     private:
         std::vector<CUBE_LOG_ENTRY> logEntries;
         std::vector<CUBE_ERROR> errors;
+        std::mutex logMutex;
     public:
         void log(std::string message, bool print);
         void error(std::string message);

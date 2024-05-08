@@ -36,12 +36,14 @@ void CubeLog::log(std::string message, bool print){
     if(print){
         std::cout<<entry.getTimestamp()<<": "<<entry.getMessage()<<std::endl;
     }
+    std::lock_guard<std::mutex> lock(this->logMutex);
     this->logEntries.push_back(entry);
 }
 
 void CubeLog::error(std::string message){
     CUBE_ERROR error = CUBE_ERROR(message);
     std::cerr<<error.getTimestamp()<<": "<<error.getMessage()<<std::endl;
+    std::lock_guard<std::mutex> lock(this->logMutex);
     this->errors.push_back(error);
 }
 
@@ -50,14 +52,17 @@ CubeLog::CubeLog(){
 }
 
 std::vector<CUBE_LOG_ENTRY> CubeLog::getLogEntries(){
+    std::lock_guard<std::mutex> lock(this->logMutex);
     return this->logEntries;
 }
 
 std::vector<CUBE_ERROR> CubeLog::getErrors(){
+    std::lock_guard<std::mutex> lock(this->logMutex);
     return this->errors;
 }
 
 std::vector<std::string> CubeLog::getLogEntriesAsStrings(){
+    std::lock_guard<std::mutex> lock(this->logMutex);
     std::vector<std::string> logEntriesAsStrings;
     for(int i = 0; i < this->logEntries.size(); i++){
         logEntriesAsStrings.push_back(this->logEntries[i].getMessage());
@@ -66,6 +71,7 @@ std::vector<std::string> CubeLog::getLogEntriesAsStrings(){
 }
 
 std::vector<std::string> CubeLog::getErrorsAsStrings(){
+    std::lock_guard<std::mutex> lock(this->logMutex);
     std::vector<std::string> errorsAsStrings;
     for(int i = 0; i < this->errors.size(); i++){
         errorsAsStrings.push_back(this->errors[i].getMessage());
@@ -74,6 +80,7 @@ std::vector<std::string> CubeLog::getErrorsAsStrings(){
 }
 
 std::vector<std::string> CubeLog::getLogsAndErrorsAsStrings(){
+    std::lock_guard<std::mutex> lock(this->logMutex);
     std::vector<std::string> logsAndErrorsAsStrings;
     // sort log entries and errors by timestamp
     std::vector<CUBE_LOG_ENTRY> logEntries = this->getLogEntries();
