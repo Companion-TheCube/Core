@@ -1,4 +1,7 @@
 #pragma once
+#ifndef __GLEW_H__
+#include "GL/glew.h"
+#endif
 #include <thread>
 #include "SFML/Graphics.hpp"
 #include <iostream>
@@ -7,12 +10,21 @@
 #include <vector>
 #include "character.h"
 #include <mutex>
+
 #include <SFML/OpenGL.hpp>
-#include <gl/GL.h>
-#include <gl/GLU.h>
+// #include <GL/gl.h>
+// #include <GL/glu.h>
+#include <SFML/Window.hpp>
+#include "shader.h"
 
 struct Vertex{
     float x, y, z;
+    float r, g, b; // Color
+};
+
+struct Face{
+    Vertex a, b, c, d;
+    float colorR, colorG, colorB;
 };
 
 class Renderer{
@@ -33,3 +45,19 @@ class Renderer{
         ~Renderer();
 };
 
+struct Vector3 {
+    float x, y, z;
+
+    // Constructor for convenience
+    Vector3(float x, float y, float z) : x(x), y(y), z(z) {}
+
+    // Cross product
+    Vector3 cross(const Vector3& v) const {
+        return Vector3(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x);
+    }
+
+    // Subtract
+    Vector3 operator-(const Vector3& v) const {
+        return Vector3(x - v.x, y - v.y, z - v.z);
+    }
+};

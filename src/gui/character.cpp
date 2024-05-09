@@ -47,6 +47,7 @@ Character* CharacterManager::getCharacterByName(std::string name)
             return character;
         }
     }
+    return nullptr;
 }
 
 std::vector<std::string> CharacterManager::getCharacterNames()

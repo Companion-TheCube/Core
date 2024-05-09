@@ -1,4 +1,5 @@
-#pragma once
+#ifndef CHARACTER_H
+#define CHARACTER_H
 #include <vector>
 #include <SFML/Graphics.hpp>
 
@@ -49,3 +50,5 @@ class CharacterManager{
         Character* getCharacterByName(std::string name);
         std::vector<std::string> getCharacterNames();
 };
+
+#endif
