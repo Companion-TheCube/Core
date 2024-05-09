@@ -19,7 +19,7 @@
 
 struct Vertex{
     float x, y, z;
-    float r, g, b; // Color
+    float r, g, b;
 };
 
 struct Face{

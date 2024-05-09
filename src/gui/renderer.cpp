@@ -26,6 +26,7 @@ int Renderer::thread()
         std::cerr << "Failed to initialize GLEW" << std::endl;
         exit(EXIT_FAILURE);
     }
+    printf("%s\n", glGetString(GL_VERSION));
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
@@ -39,8 +40,8 @@ int Renderer::thread()
     bool visibleMouse = false;
     this->window.setMouseCursorVisible(visibleMouse);
 
-    Shader shader("./shaders/edges.vs", "./shaders/edges.fs");
-
+    Shader edges("./shaders/edges.vs", "./shaders/edges.fs");
+    Shader cube("./shaders/cube.vs", "./shaders/cube.fs");
 
     int textSize = 24;
     if (!this->font.loadFromFile("/home/cube/.local/share/fonts/Hack-Regular.ttf")) {
@@ -94,7 +95,7 @@ int Renderer::thread()
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
-    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    glPolygonMode(GL_FRONT, GL_LINE);
 
     this->logger->log("Renderer initialized. Starting Loop...", true);
     float rotation = 0;
@@ -109,25 +110,44 @@ int Renderer::thread()
         this->window.setActive();
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);  // Set clear color to black
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        shader.use();
+        glBindVertexArray(VAO);
+        edges.use();
         glm::mat4 projection = glm::perspective(glm::radians(45.0f), 720.f / 720.f, 0.1f, 100.0f);
         glm::mat4 view = glm::lookAt(
             glm::vec3(0.0f, 0.0f, 6.0f),
             glm::vec3(0.0f, 0.0f, 0.0f),
             glm::vec3(0.0f, 1.0f, 0.0f)
         );
-        shader.setMat4("projection", projection);
-        shader.setMat4("view", view);
+        edges.setMat4("projection", projection);
+        edges.setMat4("view", view);
         glm::mat4 model = glm::mat4(1.0f);  // Start with the identity matrix
         model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // No translation
-        model = glm::rotate(model, glm::radians(45.0f), glm::vec3(1.0f, 0.0f, 0.0f)); // Rotate 45 degrees around the x-axis
+        model = glm::rotate(model, glm::radians(rotation), glm::vec3(1.0f, 0.0f, 0.0f)); // Rotate 45 degrees around the x-axis
         model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f)); // No scaling
-        shader.setMat4("model", model);
-        glBindVertexArray(VAO);
+        edges.setMat4("model", model);
+        glDepthMask(GL_FALSE);
+        glDrawElements(GL_LINE_LOOP, 36, GL_UNSIGNED_INT, 0);
+        glDepthMask(GL_TRUE);
+        cube.use();
+        glm::mat4 projection2 = glm::perspective(glm::radians(45.0f), 720.f / 720.f, 0.1f, 100.0f);
+        glm::mat4 view2 = glm::lookAt(
+            glm::vec3(0.0f, 0.0f, 6.0f),
+            glm::vec3(0.0f, 0.0f, 0.0f),
+            glm::vec3(0.0f, 1.0f, 0.0f)
+        );
+        cube.setMat4("projection2", projection2);
+        cube.setMat4("view2", view2);
+        glm::mat4 model2 = glm::mat4(1.0f);  // Start with the identity matrix
+        model2 = glm::translate(model2, glm::vec3(0.0f, 0.0f, 0.0f)); // No translation
+        model2 = glm::rotate(model2, glm::radians(rotation), glm::vec3(1.0f, 0.0f, 0.0f)); // Rotate 45 degrees around the x-axis
+        model2 = glm::scale(model2, glm::vec3(1.0f, 1.0f, 1.0f)); // No scaling
+        cube.setMat4("model2", model2);
+        glDepthMask(GL_FALSE);
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+        glDepthMask(GL_TRUE);
         glBindVertexArray(0);
         this->window.display();
+        rotation+=1;
     }
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);

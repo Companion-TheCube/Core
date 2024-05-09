@@ -106,6 +106,7 @@ std::string Shader::readShader(std::string path)
     catch (std::ifstream::failure e)
     {
         std::cerr << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ" << std::endl;
+        exit(EXIT_FAILURE);
     }
     return shaderCode;
 }
