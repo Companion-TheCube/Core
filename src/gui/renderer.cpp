@@ -32,7 +32,7 @@ int Renderer::thread()
     glDepthRange(0.f, 1.f);
     glClearDepth(1.f);
     glMatrixMode(GL_PROJECTION);
-    gluPerspective(90.0f, float(window.getSize().x) / float(window.getSize().y), 1.0f, 500.0f);
+    // gluPerspective(90.0f, float(window.getSize().x) / float(window.getSize().y), 1.0f, 500.0f);
     glViewport(0, 0, window.getSize().x, window.getSize().y);
     glDepthFunc(GL_LESS);
 

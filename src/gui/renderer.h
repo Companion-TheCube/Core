@@ -17,8 +17,6 @@
 #include "shader.h"
 #include "characterManager.h"
 
-
-
 struct Face{
     Vertex a, b, c, d;
     float colorR, colorG, colorB;

@@ -89,6 +89,8 @@ std::vector<MeshObject*> MeshLoader::loadMesh(std::string path)
             this->logger->log("MeshLoader: Scaling all objects by: " + std::to_string(scale), true);
         }
         else if(type == "$CUBES"){
+            this->logger->log("MeshLoader: Loading cubes...", true);
+            unsigned int count = 0;
             while(std::getline(file, line)){
                 if(line[0] == '$'){
                     break;
@@ -106,7 +108,9 @@ std::vector<MeshObject*> MeshLoader::loadMesh(std::string path)
                 objects.push_back(new Cube(this->shader));
                 objects.at(objects.size() - 1)->translate(glm::vec3(x, y, z));
                 objects.at(objects.size() - 1)->uniformScale(0.5f * scale);
+                count++;
             }
+            this->logger->log("MeshLoader: Loaded " + std::to_string(count) + " cubes", true);
         }
         else if(type == "$PYRAMIDS"){
             while(std::getline(file, line)){

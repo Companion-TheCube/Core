@@ -64,7 +64,7 @@ void TheCube::animateRandomFunny()
 
     this->objects.at(3)->rotateAbout(2.f, glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f));
     for(auto object: this->parts.at(0)->objects){
-        object->rotateAbout(2.1f, glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 0.0f, -35.0f));
+        object->rotateAbout(2.1f, glm::vec3(0.0f, 2.0f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
     }
 }
 
