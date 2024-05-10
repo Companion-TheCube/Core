@@ -5,8 +5,17 @@
 #include <sstream>
 #include <iomanip>
 #include <mutex>
+#include <fstream>
+#include <filesystem>
 
-class CUBE_LOG_ENTRY{
+class ENTRY{
+    public:
+        virtual std::string getMessage() = 0;
+        virtual std::string getTimestamp() = 0;
+        virtual std::string getEntry() = 0;
+};
+
+class CUBE_LOG_ENTRY: public ENTRY{
     private:
         std::string message;
         static int logEntryCount;
@@ -15,9 +24,10 @@ class CUBE_LOG_ENTRY{
         CUBE_LOG_ENTRY(std::string message);
         std::string getMessage();
         std::string getTimestamp();
+        std::string getEntry();
 };
 
-class CUBE_ERROR{
+class CUBE_ERROR: public ENTRY{
     private:
         std::string message;
         static int errorCount;
@@ -25,6 +35,7 @@ class CUBE_ERROR{
     public:
         CUBE_ERROR(std::string message);
         std::string getMessage();
+        std::string getEntry();
         std::string getTimestamp();
 };
 
@@ -42,6 +53,7 @@ class CubeLog{
         std::vector<std::string> getErrorsAsStrings();
         std::vector<std::string> getLogsAndErrorsAsStrings();
         CubeLog();
+        void writeOutLogs();
 };
 
 std::string convertTimestampToString(std::chrono::time_point<std::chrono::system_clock> timestamp);

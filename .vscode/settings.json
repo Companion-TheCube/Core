@@ -86,7 +86,8 @@
         "xtree": "cpp",
         "xutility": "cpp",
         "condition_variable": "cpp",
-        "mutex": "cpp"
+        "mutex": "cpp",
+        "filesystem": "cpp"
     },
     "cSpell.words": [
         "CHARACTERMANAGER",

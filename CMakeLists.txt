@@ -31,6 +31,22 @@ FetchContent_Declare(SFML
     GIT_TAG 2.6.x)
 FetchContent_MakeAvailable(SFML)
 
+include(FetchContent)
+
+FetchContent_Declare(
+    rtaudio
+    GIT_REPOSITORY https://github.com/thestk/rtaudio.git
+    GIT_TAG master # You can specify a particular tag or commit if needed
+)
+FetchContent_MakeAvailable(rtaudio)
+FetchContent_GetProperties(rtaudio)
+if(NOT rtaudio_POPULATED)
+  FetchContent_Populate(rtaudio)
+  add_subdirectory(${rtaudio_SOURCE_DIR} ${rtaudio_BINARY_DIR})
+  include_directories(${rtaudio_SOURCE_DIR})
+endif()
+
+
 include_directories(${CMAKE_SOURCE_DIR}/src/logger)
 
 # Define the source and destination directories
@@ -47,14 +63,14 @@ file(MAKE_DIRECTORY ${MESHES_DEST_DIR})
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/**/*.cpp" "src/**/**/*.cpp")
 add_executable(CubeCoreProject ${SOURCES})
 
-target_link_libraries(CubeCoreProject PRIVATE sfml-graphics sfml-audio ${ALSA_LIBRARIES} ${FREETYPE_LIBRARY} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES})
+target_link_libraries(CubeCoreProject PRIVATE sfml-graphics sfml-audio rtaudio ${ALSA_LIBRARIES} ${FREETYPE_LIBRARY} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES})
 target_compile_features(CubeCoreProject PRIVATE cxx_std_17)
 
 
 
 # Include directories
 if(WIN32)
-    target_include_directories(CubeCoreProject PRIVATE ${PROJECT_SOURCE_DIR}/src/libs ${FREETYPE_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIRS} ${GLEW_INCLUDE_DIRS} ${SFML_INCLUDE_DIR} "C:/Users/Andrew/Documents/glm-1.0.1-light")
+    target_include_directories(CubeCoreProject PRIVATE ${RTAUDIO_INCLUDE_DIR} ${PROJECT_SOURCE_DIR}/src/libs ${FREETYPE_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIRS} ${GLEW_INCLUDE_DIRS} ${SFML_INCLUDE_DIR} "C:/Users/Andrew/Documents/glm-1.0.1-light")
 else()
     target_include_directories(CubeCoreProject PRIVATE ${PROJECT_SOURCE_DIR}/src/libs ${FREETYPE_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIRS} ${GLEW_INCLUDE_DIRS} ${SFML_INCLUDE_DIR})
 endif()
