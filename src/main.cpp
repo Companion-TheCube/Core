@@ -21,7 +21,7 @@ int main()
     #ifdef __linux__
     if(setenv("DISPLAY", ":0", 1) != 0)
     {
-        std::cout<<"error"<<std::endl;
+        std::cout<<"Error setting DISPLAY=:0 environment variable. Exiting."<<std::endl;
         return 1;
     }
     #endif
@@ -54,7 +54,7 @@ int main()
     sineWaveSound.play();
 
     auto renderer = new Renderer(logger);
-    
+    logger->log("Entering main loop...", true);
     while(true)
     {
         #ifdef __linux__

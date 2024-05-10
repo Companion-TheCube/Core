@@ -88,5 +88,11 @@
         "condition_variable": "cpp",
         "mutex": "cpp"
     },
+    "cSpell.words": [
+        "CHARACTERMANAGER",
+        "glew",
+        "GLEW",
+        "antialiasing"
+    ],
     
 }

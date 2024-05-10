@@ -16,15 +16,17 @@
 #include "SFML/Graphics.hpp"
 #include <SFML/OpenGL.hpp>
 #include <SFML/Window.hpp>
+#include <logger.h>
 
 class Shader{
     private:
         std::string vertexShader;
         std::string fragmentShader;
         std::string readShader(std::string path);
+        CubeLog* logger;
     public:
         unsigned int ID;
-        Shader(std::string vertexShaderPath, std::string fragmentShaderPath);
+        Shader(std::string vertexShaderPath, std::string fragmentShaderPath, CubeLog* lgr);
         ~Shader();
         void use();
         void setBool(const std::string &name, bool value) const;

@@ -10,17 +10,14 @@
 #include <vector>
 #include "character.h"
 #include <mutex>
-
 #include <SFML/OpenGL.hpp>
 // #include <GL/gl.h>
 // #include <GL/glu.h>
 #include <SFML/Window.hpp>
 #include "shader.h"
+#include "characterManager.h"
 
-struct Vertex{
-    float x, y, z;
-    float r, g, b;
-};
+
 
 struct Face{
     Vertex a, b, c, d;
