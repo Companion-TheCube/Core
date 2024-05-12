@@ -84,4 +84,5 @@ public:
     void scale(glm::vec3 scale);
     void uniformScale(float scale);
     void rotateAbout(float angle, glm::vec3 axis, glm::vec3 point);
+    glm::vec3 getCenterPoint();
 };

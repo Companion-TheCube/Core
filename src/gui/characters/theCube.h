@@ -11,6 +11,7 @@
 struct CharacterPart{
     std::string name;
     std::vector<MeshObject*> objects;
+    glm::vec3 centerPoint;
 };
 
 class TheCube: public Character{
@@ -24,6 +25,7 @@ class TheCube: public Character{
         CubeLog* logger;
         MeshLoader* loader;
         std::vector<CharacterPart*> parts;
+        unsigned long long animationFrame;
     public:
         TheCube(Shader* sh, CubeLog* lgr);
         ~TheCube();

@@ -105,5 +105,10 @@ void Cube::rotateAbout(float angle, glm::vec3 axis, glm::vec3 point) {
     modelMatrix = tempMat * modelMatrix; // Apply the new transformation to the existing model matrix
 }
 
+glm::vec3 Cube::getCenterPoint(){
+    // get the center of the cube form the model matrix
+    glm::vec4 center = modelMatrix * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+    return glm::vec3(center.x, center.y, center.z);
+}
 
 // Path: src/gui/characters/meshes/cube.h
