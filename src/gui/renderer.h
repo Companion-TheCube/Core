@@ -25,7 +25,6 @@ struct Face{
 class Renderer{
     private:
         int thread();
-        sf::RenderWindow window;
         sf::Font font;
         std::thread t;
         CubeLog *logger;
@@ -35,9 +34,15 @@ class Renderer{
         std::vector<Vertex> rotateY(float angle, std::vector<Vertex> cubeVertices);
         std::vector<Vertex> rotateX(float angle, std::vector<Vertex> cubeVertices);
         std::vector<Vertex> rotateZ(float angle, std::vector<Vertex> cubeVertices);
+        bool running = true;
+        sf::RenderWindow window;
+        std::vector<sf::Event> events;
     public:
         Renderer(CubeLog *logger);
         ~Renderer();
+        void stop();
+        std::vector<sf::Event> getEvents();
+        bool getIsRunning();
 };
 
 struct Vector3 {

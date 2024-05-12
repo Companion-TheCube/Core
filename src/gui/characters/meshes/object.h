@@ -18,6 +18,7 @@ public:
     virtual void rotate(float angle, glm::vec3 axis) = 0;
     virtual void scale(glm::vec3 scale) = 0;
     virtual void uniformScale(float scale) = 0;
+    virtual void rotateAbout(float angle, glm::vec3 point) = 0;
     virtual void rotateAbout(float angle, glm::vec3 axis, glm::vec3 point) = 0;
     virtual glm::vec3 getCenterPoint() = 0;
 };

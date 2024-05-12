@@ -24,8 +24,10 @@ TheCube::TheCube(Shader* sh, CubeLog* lgr)
     this->objects.at(objects.size()-1)->translate(glm::vec3(-1.f, -1.f, -0.5f));
     this->objects.at(objects.size()-1)->uniformScale(0.25f);
 
-
-    this->loader = new MeshLoader(this->logger, this->shader);
+    std::vector<std::string> toLoad;
+    toLoad.push_back("shoeL");
+    toLoad.push_back("shoeR");
+    this->loader = new MeshLoader(this->logger, this->shader, toLoad);
     // find the "shoe" collection in loader
     for(auto collection: this->loader->collections){
         this->parts.push_back(new CharacterPart());
@@ -59,7 +61,7 @@ TheCube::TheCube(Shader* sh, CubeLog* lgr)
         }
     }
 
-    for(auto object: this->parts[0]->objects){
+    for(auto object: this->getPartByName("shoeL")->objects){
         object->translate(glm::vec3(6.0f, 0.0f, 0.0f));
     }
 
@@ -91,12 +93,12 @@ void TheCube::animateRandomFunny()
     // this->animationFrame continuously counts up. We need to calculate an angle based on this frame
     // count that results in a smooth animation. We can use sin() to achieve this.
     float angle = sin((double)this->animationFrame/10.f) * 0.7f;
-    for(auto object: this->parts[0]->objects){
-        object->rotateAbout(angle, glm::vec3(2.f/3.f, 0.0f, -1.0f), this->parts[0]->centerPoint);
+    for(auto object: this->getPartByName("shoeR")->objects){
+        object->rotateAbout(angle, glm::vec3(2.f/3.f, 0.0f, -1.0f), this->parts[0]->centerPoint);;
     }
     // calculate the angle for the second part of the character, several frames behind the first part
     angle = sin((double)(this->animationFrame + 45)/10.f ) * 0.7f;
-    for(auto object: this->parts[1]->objects){
+    for(auto object: this->getPartByName("shoeL")->objects){
         object->rotateAbout(angle, glm::vec3(2.f/3.f, 0.f, -1.0f), this->parts[1]->centerPoint);
     }
 }
@@ -157,4 +159,13 @@ void TheCube::scale(float x, float y, float z)
         glm::vec3 axis = glm::vec3(x, y, z);
         object->scale(axis);
     }
+}
+
+CharacterPart* TheCube::getPartByName(std::string name){
+    for(auto part: this->parts){
+        if(part->name == name){
+            return part;
+        }
+    }
+    return nullptr;
 }

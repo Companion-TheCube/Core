@@ -13,6 +13,10 @@
 #include "logger/logger.h"
 #include <RtAudio.h>
 #include <cmath>
+#include <functional>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #ifdef _WIN32
 #define M_PI 3.14159265358979323846
@@ -31,8 +35,10 @@ int saw(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, doubl
     // Write interleaved audio data.
     for (i = 0; i < nBufferFrames; i++) {
         for (j = 0; j < 2; j++) {
-            if(lastValues[2]==0)*buffer++ = 0.0;
-            else *buffer++ = lastValues[j];
+            if (lastValues[2] == 0)
+                *buffer++ = 0.0;
+            else
+                *buffer++ = lastValues[j];
 
             lastValues[j] += 0.005 * (j + 1 + (j * 0.1));
             if (lastValues[j] >= 1.0)
@@ -88,7 +94,7 @@ int main()
         exit(0);
     }
     logger->log("Audio devices found: " + std::to_string(deviceIds.size()), true);
-    for(auto device: deviceNames){
+    for (auto device : deviceNames) {
         logger->log("Device: " + device, true);
     }
 
@@ -132,12 +138,19 @@ int main()
         if (input == "exit") {
             break;
         } else if (input == "sound") {
-            if(data[2] == 0) data[2] = 1;
-            else data[2] = 0;
+            if (data[2] == 0)
+                data[2] = 1;
+            else
+                data[2] = 0;
         }
     }
     logger->log("Exiting main loop...", true);
-    // std::cout<<"Exiting..."<<std::endl;
+    std::cout<<"Exiting..."<<std::endl;
+    // sineWaveSound.stop();
+    delete gui;
     logger->writeOutLogs();
+    dac.stopStream();
+    if (dac.isStreamOpen())
+        dac.closeStream();
     return 0;
 }

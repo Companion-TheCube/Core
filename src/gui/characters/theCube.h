@@ -38,4 +38,5 @@ class TheCube: public Character{
         void animateJumpRightThroughWall();
         void expression(Expression);
         std::string getName();
+        CharacterPart* getPartByName(std::string name);
 };

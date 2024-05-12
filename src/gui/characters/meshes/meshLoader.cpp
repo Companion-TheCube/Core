@@ -1,11 +1,15 @@
 #include "meshLoader.h"
 
-MeshLoader::MeshLoader(CubeLog* lgr, Shader* shdr)
+MeshLoader::MeshLoader(CubeLog* lgr, Shader* shdr, std::vector<std::string> toLoad)
 {
     this->logger = lgr;
     this->shader = shdr;
     std::vector<std::string> filenames = this->getMeshFileNames();
     for(auto filename: filenames){
+        std::string name = filename.substr(filename.find_last_of('/') + 1, filename.find(".mesh") - filename.find_last_of('/') - 1);
+        if(std::find(toLoad.begin(), toLoad.end(), name) == toLoad.end()){
+            continue;
+        }
         this->logger->log("MeshLoader: Found mesh file: " + filename, true);
         this->logger->log("Attempting to load mesh file: " + filename, true);
         std::vector<MeshObject*> objects = this->loadMesh(filename);
@@ -88,6 +92,7 @@ std::vector<MeshObject*> MeshLoader::loadMesh(std::string path)
             scale = sc;
             this->logger->log("MeshLoader: Scaling all objects by: " + std::to_string(scale), true);
         }
+        // TODO: change this to use RRGGBB data for shape type
         else if(type == "$CUBES"){
             this->logger->log("MeshLoader: Loading cubes...", true);
             unsigned int count = 0;

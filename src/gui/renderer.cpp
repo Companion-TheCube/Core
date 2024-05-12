@@ -9,6 +9,14 @@ Renderer::Renderer(CubeLog* logger)
 
 Renderer::~Renderer()
 {
+    this->stop();
+    this->t.join();
+    this->logger->log("Renderer destroyed", true);
+}
+
+void Renderer::stop()
+{
+    this->running = false;
 }
 
 int Renderer::thread()
@@ -50,10 +58,9 @@ int Renderer::thread()
     Character* character = characterManager->getCharacterByName("TheCube");
     characterManager->setCharacter(character);
     this->logger->log("Renderer initialized. Starting Loop...", true);
-    bool running = true;
     while (running) {
         for (auto event = sf::Event {}; this->window.pollEvent(event);) {
-            if (event.type == sf::Event::Closed) running = false;
+            this->events.push_back(event);
         }
         this->window.setActive();
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);  // Set clear color to black
@@ -65,4 +72,19 @@ int Renderer::thread()
         this->window.display();
     }
     return 0;
+}
+
+std::vector<sf::Event> Renderer::getEvents()
+{
+    std::vector<sf::Event> events;
+    for (auto event : this->events) {
+        events.push_back(event);
+    }
+    this->events.clear();
+    return events;
+}
+
+bool Renderer::getIsRunning()
+{
+    return this->running;
 }

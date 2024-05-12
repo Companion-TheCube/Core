@@ -97,6 +97,16 @@ void Cube::uniformScale(float scale){
     this->scale(glm::vec3(scale, scale, scale));
 }
 
+void Cube::rotateAbout(float angle, glm::vec3 point) {
+    // calculate the axis of rotation based on the models current position and the point of rotation
+    glm::vec3 axis = point - getCenterPoint();
+    glm::mat4 tempMat = glm::mat4(1.0f); // Start with an identity matrix
+    tempMat = glm::translate(tempMat, point);
+    tempMat = glm::rotate(tempMat, glm::radians(angle), axis);
+    tempMat = glm::translate(tempMat, -point);
+    modelMatrix = tempMat * modelMatrix; // Apply the new transformation to the existing model matrix
+}
+
 void Cube::rotateAbout(float angle, glm::vec3 axis, glm::vec3 point) {
     glm::mat4 tempMat = glm::mat4(1.0f); // Start with an identity matrix
     tempMat = glm::translate(tempMat, point);
