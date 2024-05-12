@@ -79,7 +79,7 @@ std::vector<MeshObject*> MeshLoader::loadMesh(std::string path)
         std::istringstream iss(line);
         std::string type;
         iss >> type;
-        if(line.contains("@SCALE")){
+        if(line.find("@SCALE") != std::string::npos){
             // the scale value is the next token on the line
             std::string floatStr = line.substr(6);
             std::istringstream iss(floatStr);
@@ -95,6 +95,7 @@ std::vector<MeshObject*> MeshLoader::loadMesh(std::string path)
                 if(line[0] == '$'){
                     break;
                 }
+                // std::cout<<".";
                 std::istringstream iss(line);
                 float x, y, z;
                 iss >> x >> y >> z;

@@ -3,8 +3,8 @@
 
 #define CUBE_VERTICES_CONST 1.0f
 #define EDGE_VERTICES_OFFSET 0.05f
-#define BLACK_FLOATS 0.0f, 0.0f, 0.0f
-#define WHITE_FLOATS 1.f, 1.f, 1.f
+#define BLACK_FLOATS 0.0f
+#define WHITE_FLOATS 1.f
 
 class Cube : public MeshObject {
 public:

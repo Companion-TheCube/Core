@@ -8,7 +8,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 
 # Specify the C++ standard
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # determine if we are building on windows
@@ -65,8 +65,6 @@ add_executable(CubeCoreProject ${SOURCES})
 
 target_link_libraries(CubeCoreProject PRIVATE sfml-graphics sfml-audio rtaudio ${ALSA_LIBRARIES} ${FREETYPE_LIBRARY} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES})
 target_compile_features(CubeCoreProject PRIVATE cxx_std_17)
-
-
 
 # Include directories
 if(WIN32)
