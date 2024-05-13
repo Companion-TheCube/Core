@@ -44,7 +44,7 @@ int Renderer::thread()
     glDepthFunc(GL_LESS);
 
 
-    this->window.setMouseCursorVisible(false);
+    // this->window.setMouseCursorVisible(false);
 
     Shader edges("./shaders/edges.vs", "./shaders/edges.fs", logger);
 
@@ -68,6 +68,9 @@ int Renderer::thread()
             characterManager->getCharacter()->draw();
             characterManager->getCharacter()->animateRandomFunny();
         }
+        for(auto object : this->objects){
+            object->draw();
+        }
         this->window.display();
     }
     return 0;
@@ -86,4 +89,9 @@ std::vector<sf::Event> Renderer::getEvents()
 bool Renderer::getIsRunning()
 {
     return this->running;
+}
+
+void Renderer::addObject(Object* object)
+{
+    this->objects.push_back(object);
 }

@@ -7,6 +7,11 @@
  */
 EventHandler::EventHandler(CubeLog *logger){
     this->logger = logger;
+    this->logger->log("Event handler created with default values.", true);
+    this->name = "";
+    this->eventType = sf::Event::EventType::Count;
+    this->specificEventType = SpecificEventTypes::NULL_EVENT;
+    this->action = nullptr;
 }
 
 /**
@@ -21,8 +26,14 @@ EventHandler::~EventHandler(){
  * @brief Trigger the event
  * 
  */
-void EventHandler::triggerEvent(void* data){
+bool EventHandler::triggerEvent(void* data){
+    if(this->action == nullptr){
+        this->logger->error("No action set for event: " + this->name);
+        return false;
+    }
+    this->logger->log("Event triggered: " + this->name, true);
     this->action(data);
+    return true;
 }
 
 /**
@@ -31,6 +42,7 @@ void EventHandler::triggerEvent(void* data){
  * @param action std::function<void(void*)> action
  */
 void EventHandler::setAction(std::function<void(void*)> action){
+    this->logger->log("Action set for event: " + this->name, true);
     this->action = action;
 }
 
@@ -68,6 +80,24 @@ sf::Event::EventType EventHandler::getEventType(){
  */
 void EventHandler::setEventType(sf::Event::EventType eventType){
     this->eventType = eventType;
+}
+
+/**
+ * @brief Set the specific event type
+ * 
+ * @param specificEventType SpecificEventTypes
+ */
+void EventHandler::setSpecificEventType(SpecificEventTypes specificEventType){
+    this->specificEventType = specificEventType;
+}
+
+/**
+ * @brief Get the specific event type
+ * 
+ * @return SpecificEventTypes 
+ */
+SpecificEventTypes EventHandler::getSpecificEventType(){
+    return this->specificEventType;
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -232,6 +262,23 @@ bool EventManager::triggerEvent(std::string eventName, void* data){
 bool EventManager::triggerEvent(sf::Event::EventType eventType, void* data){
     for (int i = 0; i < this->events.size(); i++){
         if (this->events[i]->getEventType() == eventType){
+            this->events[i]->triggerEvent(data);
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * @brief Trigger an event by SpecificEventTypes
+ * 
+ * @param specificEventType 
+ * @return true if event was triggered
+ * @return false if event was not triggered
+ */
+bool EventManager::triggerEvent(SpecificEventTypes specificEventType, void* data){
+    for (int i = 0; i < this->events.size(); i++){
+        if (this->events[i]->getSpecificEventType() == specificEventType){
             this->events[i]->triggerEvent(data);
             return true;
         }

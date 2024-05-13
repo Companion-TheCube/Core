@@ -87,7 +87,8 @@
         "xutility": "cpp",
         "condition_variable": "cpp",
         "mutex": "cpp",
-        "filesystem": "cpp"
+        "filesystem": "cpp",
+        "codecvt": "cpp"
     },
     "cSpell.words": [
         "CHARACTERMANAGER",

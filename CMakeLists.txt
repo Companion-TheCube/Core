@@ -51,9 +51,18 @@ include_directories(${CMAKE_SOURCE_DIR}/src/logger)
 
 # Define the source and destination directories
 set(SHADER_SOURCE_DIR "${CMAKE_SOURCE_DIR}/src/gui/shaders")
-set(SHADER_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders")
+if(WIN32)
+    set(SHADER_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Debug/shaders")
+else()
+    set(SHADER_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders")
+endif()
+
 set(MESHES_SOURCE_DIR "${CMAKE_SOURCE_DIR}/src/gui/characters/meshes/meshFiles")
-set(MESHES_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/meshes")
+if(WIN32)
+    set(MESHES_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Debug/meshes")
+else()
+    set(MESHES_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/meshes")
+endif()
 
 # Create the destination directory
 file(MAKE_DIRECTORY ${SHADER_DEST_DIR})

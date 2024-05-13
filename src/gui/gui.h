@@ -2,6 +2,13 @@
 #include "renderer.h"
 #include <thread>
 #include "eventHandler/eventHandler.h"
+#include <functional>
+#include <vector>
+#include <string>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <filesystem>
 
 class GUI{
 public:
@@ -22,13 +29,3 @@ public:
     virtual void onRightClick(void*) = 0;
 };
 
-class Menu: public Clickable{
-private:
-    CubeLog *logger;
-    bool visible;
-public:
-    Menu(CubeLog *logger);
-    ~Menu();
-    void onClick(void*);
-    void onRightClick(void*);
-};

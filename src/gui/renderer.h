@@ -25,6 +25,7 @@ class Renderer{
         bool running = true;
         sf::RenderWindow window;
         std::vector<sf::Event> events;
+        std::vector<Object*> objects;
     public:
         Renderer(CubeLog *logger);
         ~Renderer();

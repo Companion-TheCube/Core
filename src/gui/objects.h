@@ -40,6 +40,14 @@ class Character : public Object{
         virtual std::string getName() = 0;
 };
 
+class M_Box: public Object{
+public:
+    M_Box(CubeLog *logger, std::string message, sf::Vector2f position, sf::Vector2f size, sf::Font font, sf::Color color);
+    virtual void setPosition(sf::Vector2f position) = 0;
+    virtual void setColor(sf::Color color) = 0;
+    virtual void setFont(sf::Font font) = 0;
+};
+
 struct Vertex{
     float x, y, z;
     float r, g, b;
