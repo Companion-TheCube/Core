@@ -21,7 +21,13 @@ enum Expression{
     DEAD
 };
 
-class Character{
+class Object{
+    public:
+        virtual ~Object(){};
+        virtual void draw() = 0;
+};
+
+class Character : public Object{
     public:
         virtual ~Character(){};
         virtual void animateRandomFunny() = 0;
@@ -31,7 +37,6 @@ class Character{
         virtual void animateJumpLeftThroughWall() = 0;
         virtual void animateJumpRightThroughWall() = 0;
         virtual void expression(Expression) = 0;
-        virtual void draw() = 0;
         virtual std::string getName() = 0;
 };
 

@@ -35,11 +35,10 @@ public:
     bool removeEvent(std::string eventName); // removes event from the list
     EventHandler* getEvent(int index); // returns event by index
     EventHandler* getEvent(std::string eventName); // returns event by name
-    bool triggerEvent(sf::Event event); // triggers event by sf::Event
-    bool triggerEvent(int index); // triggers event by index
-    bool triggerEvent(std::string eventName); // triggers event by name
-    bool triggerEvent(sf::Event::EventType eventType); // triggers event by sf::Event::EventType
+    bool triggerEvent(sf::Event event, void* data); // triggers event by sf::Event
+    bool triggerEvent(int index, void* data); // triggers event by index
+    bool triggerEvent(std::string eventName, void* data); // triggers event by name
+    bool triggerEvent(sf::Event::EventType eventType, void* data); // triggers event by sf::Event::EventType
     std::vector<EventHandler*> getEvents();
-
 };
 

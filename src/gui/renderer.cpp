@@ -25,7 +25,7 @@ int Renderer::thread()
     settings.antialiasingLevel = 4.0;
     settings.depthBits = 24;
     this->window.create(sf::VideoMode(720, 720), "TheCube", sf::Style::None, settings);
-    // window.setVerticalSyncEnabled(true);
+    window.setVerticalSyncEnabled(true);
     this->window.setFramerateLimit(30);
     glewExperimental = GL_TRUE; // Enable full GLEW functionality
     if (GLEW_OK != glewInit()) {
@@ -40,7 +40,6 @@ int Renderer::thread()
     glDepthRange(0.f, 1.f);
     glClearDepth(1.f);
     glMatrixMode(GL_PROJECTION);
-    // gluPerspective(90.0f, float(window.getSize().x) / float(window.getSize().y), 1.0f, 500.0f);
     glViewport(0, 0, window.getSize().x, window.getSize().y);
     glDepthFunc(GL_LESS);
 

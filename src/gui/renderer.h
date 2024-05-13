@@ -8,19 +8,13 @@
 #include "../logger/logger.h"
 #include <cmath>
 #include <vector>
-#include "character.h"
+#include "objects.h"
 #include <mutex>
 #include <SFML/OpenGL.hpp>
-// #include <GL/gl.h>
-// #include <GL/glu.h>
 #include <SFML/Window.hpp>
 #include "shader.h"
 #include "characterManager.h"
 
-struct Face{
-    Vertex a, b, c, d;
-    float colorR, colorG, colorB;
-};
 
 class Renderer{
     private:
@@ -28,12 +22,6 @@ class Renderer{
         sf::Font font;
         std::thread t;
         CubeLog *logger;
-        float viewer_distance = 5;
-        bool viewer_distance_increment = true;
-        sf::Vector2f project(Vertex& v);
-        std::vector<Vertex> rotateY(float angle, std::vector<Vertex> cubeVertices);
-        std::vector<Vertex> rotateX(float angle, std::vector<Vertex> cubeVertices);
-        std::vector<Vertex> rotateZ(float angle, std::vector<Vertex> cubeVertices);
         bool running = true;
         sf::RenderWindow window;
         std::vector<sf::Event> events;
@@ -43,21 +31,5 @@ class Renderer{
         void stop();
         std::vector<sf::Event> getEvents();
         bool getIsRunning();
-};
-
-struct Vector3 {
-    float x, y, z;
-
-    // Constructor for convenience
-    Vector3(float x, float y, float z) : x(x), y(y), z(z) {}
-
-    // Cross product
-    Vector3 cross(const Vector3& v) const {
-        return Vector3(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x);
-    }
-
-    // Subtract
-    Vector3 operator-(const Vector3& v) const {
-        return Vector3(x - v.x, y - v.y, z - v.z);
-    }
+        void addObject(Object *object);
 };

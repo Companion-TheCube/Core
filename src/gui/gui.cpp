@@ -1,5 +1,10 @@
 #include "./gui.h"
 
+/**
+ * @brief Construct a new GUI::GUI object
+ * 
+ * @param logger a CubeLog object
+ */
 GUI::GUI(CubeLog* logger)
 {
     this->logger = logger;
@@ -10,6 +15,10 @@ GUI::GUI(CubeLog* logger)
     this->logger->log("GUI initialized", true);
 }
 
+/**
+ * @brief Destroy the GUI::GUI object
+ * 
+ */
 GUI::~GUI()
 {
     delete this->renderer;
@@ -17,6 +26,10 @@ GUI::~GUI()
     this->eventLoopThread.join();
 }
 
+/**
+ * @brief Start the event loop. This method will run until the renderer is no longer running or stop() is called
+ * 
+ */
 void GUI::eventLoop()
 {
     // create an event handler for KeyPressed events
@@ -24,15 +37,17 @@ void GUI::eventLoop()
     EventHandler* keyPressHandler = this->eventManager->getEvent(keyPressIndex);
     keyPressHandler->setAction([&](void* data) {
         sf::Event* event = (sf::Event*)data;
-        this->logger->log("Key pressed: " + std::to_string(event->key.code), true);
+        if(event!=nullptr) this->logger->log("Key pressed: " + std::to_string(event->key.code), true);
+        else this->logger->log("Key pressed: nullptr", true);
     });
     keyPressHandler->setName("KeyPressed");
     keyPressHandler->setEventType(sf::Event::KeyPressed);
+
     this->logger->log("Starting event handler loop...", true);
     while (this->renderer->getIsRunning()) {
         std::vector<sf::Event> events = this->renderer->getEvents();
         for(int i = 0; i < events.size(); i++){
-            this->eventManager->triggerEvent(events[i].type);
+            this->eventManager->triggerEvent(events[i].type, &events[i]);
         }
 #ifdef __linux__
         usleep(1000);
@@ -41,4 +56,40 @@ void GUI::eventLoop()
         Sleep(1);
 #endif
     }
+}
+
+/**
+ * @brief Stop the event loop
+ * 
+ */
+void GUI::stop(){
+    this->renderer->stop();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+/**
+ * @brief Construct a new Menu:: Menu object
+ * 
+ * @param logger a CubeLog object
+ */
+
+Menu::Menu(CubeLog* logger){
+    this->logger = logger;
+}
+
+/**
+ * @brief Destroy the Menu:: Menu object
+ * 
+ */
+Menu::~Menu(){
+    this->logger->log("Menu destroyed", true);
+}
+
+void Menu::onClick(void* data){
+    this->logger->log("Menu clicked", true);
+}
+
+void Menu::onRightClick(void* data){
+    this->logger->log("Menu right clicked", true);
 }

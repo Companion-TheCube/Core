@@ -1,6 +1,6 @@
 #pragma once
 #include <vector>
-#include "character.h"
+#include "objects.h"
 #include "characters/theCube.h"
 #include <iostream>
 #include "shader.h"
