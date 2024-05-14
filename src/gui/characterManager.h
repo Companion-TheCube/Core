@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 #include "objects.h"
-#include "characters/theCube.h"
+#include "renderables/theCube.h"
 #include <iostream>
 #include "shader.h"
 #include <logger.h>

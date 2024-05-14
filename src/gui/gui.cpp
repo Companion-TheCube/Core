@@ -54,6 +54,11 @@ void GUI::eventLoop()
     keyAPressedHandler->setEventType(sf::Event::KeyPressed);
     keyAPressedHandler->setSpecificEventType(SpecificEventTypes::KEYPRESS_A);
 
+    auto menu = new Menu(this->logger, "menu.txt", this->renderer->getShader());
+    for(auto object : menu->getObjects()){
+        this->renderer->addObject(object);
+    }
+
     this->logger->log("Starting event handler loop...", true);
     while (this->renderer->getIsRunning()) {
         std::vector<EventHandler*> managerEvents = this->eventManager->getEvents();

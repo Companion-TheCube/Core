@@ -2,7 +2,7 @@
 #include <vector>
 #include "../objects.h"
 #include "../shader.h"
-#include "meshes/object.h"
+#include "meshObject.h"
 #include "meshes/cube.h"
 #include "cmath"
 #include <logger.h>

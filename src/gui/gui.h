@@ -9,6 +9,7 @@
 #include <fstream>
 #include <sstream>
 #include <filesystem>
+#include "menu/menu.h"
 
 class GUI{
 public:
@@ -21,11 +22,5 @@ private:
     Renderer *renderer;
     std::thread eventLoopThread;
     EventManager *eventManager;
-};
-
-class Clickable{
-public:
-    virtual void onClick(void*) = 0;
-    virtual void onRightClick(void*) = 0;
 };
 

@@ -5,9 +5,10 @@
  * @param logger a CubeLog object
  */
 
-Menu::Menu(CubeLog* logger, std::string filename){
+Menu::Menu(CubeLog* logger, std::string filename, Shader* shader){
     this->logger = logger;
     this->loadObjects(filename);
+    this->objects.push_back(new MenuBox(logger, {0, 0}, {10, 10}, shader));
 }
 
 /**
@@ -58,4 +59,49 @@ bool Menu::loadObjects(std::string filename){
         // parse the file loading all the objects
     }
     return true;
+}
+
+std::vector<Object*> Menu::getObjects(){
+    return this->objects;
+}
+//////////////////////////////////////////////////////////////////////////
+
+/**
+ * @brief Construct a new Menu Box:: Menu Box object
+ * 
+ * @param logger a CubeLog object
+ * @param position the position of the box
+ * @param size the size of the box
+ */
+MenuBox::MenuBox(CubeLog* logger, glm::vec2 position, glm::vec2 size, Shader* shader){
+    this->logger = logger;
+    this->position = position;
+    this->size = size;
+    this->objects.push_back(new M_Arc(logger, shader, 50, 0.5, 0, 90, {position.x, position.y, -2.0}));
+    this->logger->log("MenuBox created of size: " + std::to_string(size.x) + "x" + std::to_string(size.y) + " at position: " + std::to_string(position.x) + "x" + std::to_string(position.y), true);
+}
+
+/**
+ * @brief Destroy the Menu Box:: Menu Box object
+ * 
+ */
+MenuBox::~MenuBox(){
+    for(auto object: this->objects){
+        delete object;
+    }
+    this->logger->log("MenuBox destroyed", true);
+}
+
+void MenuBox::setPosition(glm::vec2 position){
+    this->position = position;
+}
+
+void MenuBox::setSize(glm::vec2 size){
+    this->size = size;
+}
+
+void MenuBox::draw(){
+    for(auto object: this->objects){
+        object->draw();
+    }
 }

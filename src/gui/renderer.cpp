@@ -47,6 +47,7 @@ int Renderer::thread()
     // this->window.setMouseCursorVisible(false);
 
     Shader edges("./shaders/edges.vs", "./shaders/edges.fs", logger);
+    this->shader = &edges;
 
     // int textSize = 24;
     // if (!this->font.loadFromFile("/home/cube/.local/share/fonts/Hack-Regular.ttf")) {
@@ -94,4 +95,9 @@ bool Renderer::getIsRunning()
 void Renderer::addObject(Object* object)
 {
     this->objects.push_back(object);
+}
+
+Shader* Renderer::getShader()
+{
+    return this->shader;
 }

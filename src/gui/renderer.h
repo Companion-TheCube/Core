@@ -26,6 +26,7 @@ class Renderer{
         sf::RenderWindow window;
         std::vector<sf::Event> events;
         std::vector<Object*> objects;
+        Shader* shader;
     public:
         Renderer(CubeLog *logger);
         ~Renderer();
@@ -33,4 +34,5 @@ class Renderer{
         std::vector<sf::Event> getEvents();
         bool getIsRunning();
         void addObject(Object *object);
+        Shader* getShader();
 };

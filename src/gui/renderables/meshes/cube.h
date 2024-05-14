@@ -1,5 +1,5 @@
 #pragma once
-#include "object.h"
+#include "../meshObject.h"
 
 #define CUBE_VERTICES_CONST 1.0f
 #define EDGE_VERTICES_OFFSET 0.05f

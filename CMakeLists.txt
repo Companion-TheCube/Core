@@ -57,7 +57,7 @@ else()
     set(SHADER_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders")
 endif()
 
-set(MESHES_SOURCE_DIR "${CMAKE_SOURCE_DIR}/src/gui/characters/meshes/meshFiles")
+set(MESHES_SOURCE_DIR "${CMAKE_SOURCE_DIR}/src/gui/renderables/meshes/meshFiles")
 if(WIN32)
     set(MESHES_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Debug/meshes")
 else()

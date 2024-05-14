@@ -2,6 +2,8 @@
 #define CHARACTER_H
 #include <vector>
 #include <SFML/Graphics.hpp>
+#include <logger.h>
+#include <glm/glm.hpp>
 
 enum Expression{
     NEUTRAL,
@@ -42,10 +44,14 @@ class Character : public Object{
 
 class M_Box: public Object{
 public:
-    M_Box(CubeLog *logger, std::string message, sf::Vector2f position, sf::Vector2f size, sf::Font font, sf::Color color);
-    virtual void setPosition(sf::Vector2f position) = 0;
-    virtual void setColor(sf::Color color) = 0;
-    virtual void setFont(sf::Font font) = 0;
+    virtual void setPosition(glm::vec2 position) = 0;
+    virtual void setSize(glm::vec2 size) = 0;
+};
+
+class Clickable{
+public:
+    virtual void onClick(void*) = 0;
+    virtual void onRightClick(void*) = 0;
 };
 
 struct Vertex{

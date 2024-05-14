@@ -5,7 +5,7 @@
 #include <iostream>
 #include <logger.h>
 #include "cube.h"
-#include "object.h"
+#include "../meshObject.h"
 #include "../../shader.h"
 
 struct ObjectCollection{
