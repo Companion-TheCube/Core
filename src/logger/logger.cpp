@@ -113,7 +113,7 @@ std::vector<std::string> CubeLog::getLogsAndErrorsAsStrings(){
 
 void CubeLog::writeOutLogs(){
     // std::lock_guard<std::mutex> lock(this->logMutex);
-    std::vector<std::string> logsAndErrors = this->getLogsAndErrorsAsStrings();
+    std::vector<std::string> logsAndErrors = this->getLogsAndErrorsAsStrings();   
     // write to file
     // We'll have to read through the file first to see if there are any existing logs.
     // Then we'll append the new logs to the end of the file.
@@ -151,7 +151,7 @@ void CubeLog::writeOutLogs(){
     }
     // find the first log entry in logsAndErrors that is not in existingLogs
     int i = 0;
-    while(i < logsAndErrors.size() && std::find(existingLogs.begin(), existingLogs.end(), logsAndErrors[i]) != existingLogs.end()){
+    while(i < logsAndErrors.size() && std::find(existingLogs.begin(), existingLogs.end(), logsAndErrors.at(i)) != existingLogs.end()){
         i++;
     }
     // write the new logs to the file

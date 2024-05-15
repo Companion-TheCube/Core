@@ -7,6 +7,7 @@
 #include <mutex>
 #include <fstream>
 #include <filesystem>
+#include <algorithm>
 
 class ENTRY{
     public:
