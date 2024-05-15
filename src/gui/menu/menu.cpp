@@ -7,8 +7,10 @@
 
 Menu::Menu(CubeLog* logger, std::string filename, Shader* shader){
     this->logger = logger;
-    this->loadObjects(filename);
-    this->objects.push_back(new MenuBox(logger, {0, 0}, {10, 10}, shader));
+    this->filename = filename;
+    this->shader = shader;
+    this->visible = false;
+    this->logger->log("Menu created", true);   
 }
 
 /**
@@ -19,12 +21,26 @@ Menu::~Menu(){
     this->logger->log("Menu destroyed", true);
 }
 
+void Menu::setup(){
+    this->loadObjects(filename);
+    this->objects.push_back(new MenuBox(logger, {0, 0}, {1, 1}, shader));
+    std::lock_guard<std::mutex> lock(this->mutex);
+    this->ready = true;
+    this->logger->log("Menu setup done", true);
+}
+
 void Menu::onClick(void* data){
     this->logger->log("Menu clicked", true);
+    if(this->action != nullptr && this->visible){
+        this->action(data);
+    }
 }
 
 void Menu::onRightClick(void* data){
     this->logger->log("Menu right clicked", true);
+    if(this->rightAction != nullptr && this->visible){
+        this->rightAction(data);
+    }
 }
 
 void Menu::setVisible(bool visible){
@@ -64,6 +80,11 @@ bool Menu::loadObjects(std::string filename){
 std::vector<Object*> Menu::getObjects(){
     return this->objects;
 }
+
+bool Menu::isReady(){
+    std::lock_guard<std::mutex> lock(this->mutex);
+    return this->ready;
+}
 //////////////////////////////////////////////////////////////////////////
 
 /**
@@ -77,7 +98,7 @@ MenuBox::MenuBox(CubeLog* logger, glm::vec2 position, glm::vec2 size, Shader* sh
     this->logger = logger;
     this->position = position;
     this->size = size;
-    this->objects.push_back(new M_Arc(logger, shader, 50, 0.5, 0, 90, {position.x, position.y, -2.0}));
+    this->objects.push_back(new M_Arc(logger, shader, 50, 0.1, 0, 90, {position.x+0.5, position.y+0.5, 3.0}));
     this->logger->log("MenuBox created of size: " + std::to_string(size.x) + "x" + std::to_string(size.y) + " at position: " + std::to_string(position.x) + "x" + std::to_string(position.y), true);
 }
 

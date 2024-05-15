@@ -167,6 +167,7 @@ public:
     bool triggerEvent(std::string eventName, void* data); // triggers event by name
     bool triggerEvent(sf::Event::EventType eventType, void* data); // triggers event by sf::Event::EventType
     bool triggerEvent(SpecificEventTypes specificEventType, void* data); // triggers event by SpecificEventTypes
+    bool triggerEvent(SpecificEventTypes specificEventType, sf::Event::EventType eventType, void* data); // triggers event by SpecificEventTypes
     std::vector<EventHandler*> getEvents();
 };
 

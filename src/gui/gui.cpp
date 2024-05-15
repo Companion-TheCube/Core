@@ -9,6 +9,14 @@ GUI::GUI(CubeLog* logger)
 {
     this->logger = logger;
     this->renderer = new Renderer(this->logger);
+    while(!this->renderer->isReady()){
+        #ifdef __linux__
+        usleep(1000);
+        #endif
+        #ifdef _WIN32
+        Sleep(1);
+        #endif
+    }
     this->eventManager = new EventManager(this->logger);
     this->eventLoopThread = std::thread(&GUI::eventLoop, this);
     // need to implement a method of waiting for hte rendering thread to be ready
@@ -54,26 +62,42 @@ void GUI::eventLoop()
     keyAPressedHandler->setEventType(sf::Event::KeyPressed);
     keyAPressedHandler->setSpecificEventType(SpecificEventTypes::KEYPRESS_A);
 
+    int mouseClickIndex = this->eventManager->createEvent("MouseClick");
+    EventHandler* mouseClickHandler = this->eventManager->getEvent(mouseClickIndex);
+    mouseClickHandler->setAction([&](void* data) {
+        sf::Event* event = (sf::Event*)data;
+        if(event!=nullptr) this->logger->log("Mouse clicked at location: " + std::to_string(event->mouseButton.x) + ", " + std::to_string(event->mouseButton.y), true);
+        else this->logger->log("Mouse clicked: nullptr", true);
+    });
+    mouseClickHandler->setName("MouseClick");
+    mouseClickHandler->setEventType(sf::Event::MouseButtonPressed);
+
     auto menu = new Menu(this->logger, "menu.txt", this->renderer->getShader());
-    for(auto object : menu->getObjects()){
-        this->renderer->addObject(object);
+    this->renderer->addSetupTask([&](){
+        menu->setup();
+    });
+    while(!menu->isReady()){
+        #ifdef __linux__
+        usleep(1000);
+        #endif
+        #ifdef _WIN32
+        Sleep(1);
+        #endif
     }
+    this->renderer->addLoopTask([&](){
+        for(auto object: menu->getObjects()){
+            object->draw();
+        }
+    });
 
     this->logger->log("Starting event handler loop...", true);
     while (this->renderer->getIsRunning()) {
         std::vector<EventHandler*> managerEvents = this->eventManager->getEvents();
         std::vector<sf::Event> events = this->renderer->getEvents();
         for(int i = 0; i < events.size(); i++){
-            for(auto event : managerEvents){
-                if(event->getEventType() == events[i].type){
-                    this->eventManager->triggerEvent(event->getEventType(), &events[i]);
-                }
-            }
-            for(auto event : managerEvents){
-                if(event->getSpecificEventType() == events[i].key.code && events[i].type == sf::Event::KeyPressed){
-                    this->eventManager->triggerEvent(event->getSpecificEventType(), &events[i]);
-                }
-            }
+            this->eventManager->triggerEvent(events[i].type, &events[i]);
+            this->eventManager->triggerEvent(static_cast<SpecificEventTypes>(events[i].key.code), &events[i]);
+            this->eventManager->triggerEvent(static_cast<SpecificEventTypes>(events[i].key.code), events[i].type, &events[i]);
         }
 #ifdef __linux__
         usleep(1000);

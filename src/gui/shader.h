@@ -17,6 +17,7 @@
 #include <SFML/OpenGL.hpp>
 #include <SFML/Window.hpp>
 #include <logger.h>
+#include <mutex>
 
 class Shader{
     private:
@@ -24,6 +25,7 @@ class Shader{
         std::string fragmentShader;
         std::string readShader(std::string path);
         CubeLog* logger;
+        std::mutex mutex;
     public:
         unsigned int ID;
         Shader(std::string vertexShaderPath, std::string fragmentShaderPath, CubeLog* lgr);

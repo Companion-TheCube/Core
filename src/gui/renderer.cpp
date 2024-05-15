@@ -43,7 +43,6 @@ int Renderer::thread()
     glViewport(0, 0, window.getSize().x, window.getSize().y);
     glDepthFunc(GL_LESS);
 
-
     // this->window.setMouseCursorVisible(false);
 
     Shader edges("./shaders/edges.vs", "./shaders/edges.fs", logger);
@@ -57,19 +56,23 @@ int Renderer::thread()
     auto characterManager = new CharacterManager(&edges, logger);
     Character* character = characterManager->getCharacterByName("TheCube");
     characterManager->setCharacter(character);
+    this->setupTasksRun();
     this->logger->log("Renderer initialized. Starting Loop...", true);
+    this->ready = true;
     while (running) {
         for (auto event = sf::Event {}; this->window.pollEvent(event);) {
             this->events.push_back(event);
         }
+        this->setupTasksRun();
         this->window.setActive();
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);  // Set clear color to black
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // Set clear color to black
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        if(characterManager->getCharacter() != nullptr){
+        this->loopTasksRun();
+        if (characterManager->getCharacter() != nullptr) {
             characterManager->getCharacter()->draw();
             characterManager->getCharacter()->animateRandomFunny();
         }
-        for(auto object : this->objects){
+        for (auto object : this->objects) {
             object->draw();
         }
         this->window.display();
@@ -100,4 +103,42 @@ void Renderer::addObject(Object* object)
 Shader* Renderer::getShader()
 {
     return this->shader;
+}
+
+void Renderer::addLoopTask(std::function<void()> task)
+{
+    this->loopQueue.push(task);
+}
+
+void Renderer::addSetupTask(std::function<void()> task)
+{
+    this->setupQueue.push(task);
+}
+
+void Renderer::setupTasksRun()
+{
+    while (this->setupQueue.size() > 0) {
+        auto task = this->setupQueue.pop();
+        task();   
+    }
+}
+
+void Renderer::loopTasksRun()
+{
+    if(this->loopQueue.size() == 0) return;
+    TaskQueue queue;
+    while (this->loopQueue.size() > 0) {
+        auto task = this->loopQueue.pop();
+        queue.push(task);
+    }
+    while (queue.size() > 0) {
+        auto task = queue.pop();
+        task();
+        this->addLoopTask(task);
+    }
+}
+
+bool Renderer::isReady()
+{
+    return this->ready;
 }

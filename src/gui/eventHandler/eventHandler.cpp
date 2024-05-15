@@ -261,7 +261,7 @@ bool EventManager::triggerEvent(std::string eventName, void* data){
  */
 bool EventManager::triggerEvent(sf::Event::EventType eventType, void* data){
     for (int i = 0; i < this->events.size(); i++){
-        if (this->events[i]->getEventType() == eventType){
+        if (this->events[i]->getEventType() == eventType && this->events[i]->getSpecificEventType() == SpecificEventTypes::NULL_EVENT){
             this->events[i]->triggerEvent(data);
             return true;
         }
@@ -278,7 +278,17 @@ bool EventManager::triggerEvent(sf::Event::EventType eventType, void* data){
  */
 bool EventManager::triggerEvent(SpecificEventTypes specificEventType, void* data){
     for (int i = 0; i < this->events.size(); i++){
-        if (this->events[i]->getSpecificEventType() == specificEventType){
+        if (this->events[i]->getSpecificEventType() == specificEventType && this->events[i]->getEventType() == sf::Event::Count){
+            this->events[i]->triggerEvent(data);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool EventManager::triggerEvent(SpecificEventTypes specificEventType, sf::Event::EventType eventType, void* data){
+    for (int i = 0; i < this->events.size(); i++){
+        if (this->events[i]->getEventType() == eventType && this->events[i]->getSpecificEventType() == specificEventType){
             this->events[i]->triggerEvent(data);
             return true;
         }

@@ -9,7 +9,7 @@ M_Arc::M_Arc(CubeLog* logger, Shader* sh, unsigned int numSegments, float radius
     this->endAngle = endAngle;
     this->centerPoint = centerPoint;
     for(unsigned int i = 0; i <= this->numSegments; i++){
-        float theta = this->startAngle + i * (this->endAngle - this->startAngle) / this->numSegments;
+        float theta = glm::radians(this->startAngle) + i * (glm::radians(this->endAngle) - glm::radians(this->startAngle)) / this->numSegments;
         float x = this->centerPoint.x + this->radius * cos(theta);
         float y = this->centerPoint.y + this->radius * sin(theta);
         float z = this->centerPoint.z;
@@ -47,6 +47,7 @@ void M_Arc::draw(){
     shader->setMat4("view", viewMatrix);
     shader->setMat4("projection", projectionMatrix);
     glBindVertexArray(VAO[0]);
+    // glDrawElements(GL_LINE_STRIP, this->vertexData.size(), GL_UNSIGNED_INT, 0);
     glDrawArrays(GL_LINE_STRIP, 0, this->vertexData.size());
     glBindVertexArray(0);
 }

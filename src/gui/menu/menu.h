@@ -10,6 +10,7 @@
 #include "./../renderables/meshObject.h"
 #include "./../renderables/meshes/arc.h"
 #include "./../objects.h"
+#include <typeinfo>
 
 class Menu: public Clickable{
 private:
@@ -20,9 +21,14 @@ private:
     std::string name;
     std::vector<Object*> objects;
     bool loadObjects(std::string filename);
+    Shader* shader;
+    std::string filename;
+    bool ready = false;
+    std::mutex mutex;
 public:
     Menu(CubeLog *logger, std::string filename, Shader* shader);
     ~Menu();
+    void setup();
     void onClick(void*);
     void onRightClick(void*);
     void setVisible(bool visible);
@@ -30,6 +36,7 @@ public:
     void setOnClick(std::function<void(void*)> action);
     void setOnRightClick(std::function<void(void*)> action);
     std::vector<Object*> getObjects();
+    bool isReady();
 };
 
 class MenuBox:public M_Box{

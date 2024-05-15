@@ -57,6 +57,7 @@ Shader::~Shader()
 
 void Shader::use()
 {
+    std::lock_guard<std::mutex> lock(this->mutex);
     glUseProgram(ID);
 }
 
