@@ -98,6 +98,7 @@ MenuBox::MenuBox(CubeLog* logger, glm::vec2 position, glm::vec2 size, Shader* sh
     this->logger = logger;
     this->position = position;
     this->size = size;
+    // TODO: finish making this draw the box. That'll include making a line object, and making the black interior parts.
     this->objects.push_back(new M_Arc(logger, shader, 50, 0.1, 0, 90, {position.x+0.5, position.y+0.5, 3.0}));
     this->logger->log("MenuBox created of size: " + std::to_string(size.x) + "x" + std::to_string(size.y) + " at position: " + std::to_string(position.x) + "x" + std::to_string(position.y), true);
 }
