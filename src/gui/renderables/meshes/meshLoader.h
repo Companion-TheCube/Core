@@ -4,7 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <logger.h>
-#include "cube.h"
+#include "shapes.h"
 #include "../meshObject.h"
 #include "../../shader.h"
 

@@ -27,6 +27,7 @@ class Object{
     public:
         virtual ~Object(){};
         virtual void draw() = 0;
+        virtual bool setVisible(bool visible) = 0;
 };
 
 class Character : public Object{
@@ -40,12 +41,14 @@ class Character : public Object{
         virtual void animateJumpRightThroughWall() = 0;
         virtual void expression(Expression) = 0;
         virtual std::string getName() = 0;
+        virtual bool setVisible(bool visible) = 0;
 };
 
 class M_Box: public Object{
 public:
     virtual void setPosition(glm::vec2 position) = 0;
     virtual void setSize(glm::vec2 size) = 0;
+    virtual bool setVisible(bool visible) = 0;
 };
 
 class Clickable{

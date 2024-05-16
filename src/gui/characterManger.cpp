@@ -69,3 +69,4 @@ std::vector<std::string> CharacterManager::getCharacterNames()
     this->logger->log("getCharacterNames(): Returning " + std::to_string(names.size()) + " names.", true);
     return names;
 }
+

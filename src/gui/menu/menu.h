@@ -8,7 +8,7 @@
 #include <sstream>
 #include <filesystem>
 #include "./../renderables/meshObject.h"
-#include "./../renderables/meshes/arc.h"
+#include "./../renderables/meshes/shapes.h"
 #include "./../objects.h"
 #include <typeinfo>
 
@@ -31,7 +31,7 @@ public:
     void setup();
     void onClick(void*);
     void onRightClick(void*);
-    void setVisible(bool visible);
+    bool setVisible(bool visible);
     bool getVisible();
     void setOnClick(std::function<void(void*)> action);
     void setOnRightClick(std::function<void(void*)> action);
@@ -45,10 +45,13 @@ private:
     glm::vec2 position;
     glm::vec2 size;
     std::vector<MeshObject*> objects;
+    bool visible;
 public:
     MenuBox(CubeLog* logger, glm::vec2 position, glm::vec2 size, Shader* shader);
     ~MenuBox();
     void setPosition(glm::vec2 position);
     void setSize(glm::vec2 size);
     void draw();
+    bool setVisible(bool visible);
+    bool getVisible();
 };

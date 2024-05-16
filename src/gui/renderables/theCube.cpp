@@ -132,6 +132,9 @@ std::string TheCube::getName(){
 }
 
 void TheCube::draw(){
+    if(!this->visible){
+        return;
+    }
     for(auto object: this->objects){
         object->draw();
     }
@@ -168,4 +171,10 @@ CharacterPart* TheCube::getPartByName(std::string name){
         }
     }
     return nullptr;
+}
+
+bool TheCube::setVisible(bool visible){
+    bool temp = this->visible;
+    this->visible = visible;
+    return temp;
 }

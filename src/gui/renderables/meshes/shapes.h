@@ -1,6 +1,119 @@
 #pragma once
 #include "../meshObject.h"
 
+class M_PartCircle : public MeshObject {
+private:
+    CubeLog* logger;
+    Shader* shader;
+    std::vector<Vertex> vertexData;
+    GLuint VAO[1], VBO[1];
+    glm::mat4 projectionMatrix;
+    glm::mat4 viewMatrix;
+    glm::mat4 modelMatrix;
+    float radius;
+    glm::vec3 centerPoint;
+    unsigned int numSegments;
+    float startAngle;
+    float endAngle;
+public:
+    M_PartCircle(CubeLog* logger, Shader* sh, unsigned int numSegments, float radius, glm::vec3 centerPoint, float startAngle, float endAngle, float fillColor);
+    ~M_PartCircle();
+    void draw();
+    void setProjectionMatrix(glm::mat4 projectionMatrix);
+    void setViewMatrix(glm::vec3 viewMatrix);
+    void setModelMatrix(glm::mat4 modelMatrix);
+    void translate(glm::vec3 translation);
+    void rotate(float angle, glm::vec3 axis);
+    void scale(glm::vec3 scale);
+    void uniformScale(float scale);
+    void rotateAbout(float angle, glm::vec3 axis, glm::vec3 point);
+    void rotateAbout(float angle, glm::vec3 point);
+    glm::vec3 getCenterPoint();
+};
+
+class M_Rect : public MeshObject {
+private:
+    CubeLog* logger;
+    Shader* shader;
+    std::vector<Vertex> vertexDataFill;
+    std::vector<Vertex> vertexDataBorder;
+    glm::vec3 fillColor;
+    glm::vec3 borderColor;
+    GLuint VAO[2], VBO[2];
+    glm::mat4 projectionMatrix;
+    glm::mat4 viewMatrix;
+    glm::mat4 modelMatrix;
+public:
+    M_Rect(CubeLog* logger, Shader* sh, glm::vec3 position, glm::vec2 size,  float fillColor, float borderColor);
+    ~M_Rect();
+    void draw();
+    void setProjectionMatrix(glm::mat4 projectionMatrix);
+    void setViewMatrix(glm::vec3 viewMatrix);
+    void setModelMatrix(glm::mat4 modelMatrix);
+    void translate(glm::vec3 translation);
+    void rotate(float angle, glm::vec3 axis);
+    void scale(glm::vec3 scale);
+    void uniformScale(float scale);
+    void rotateAbout(float angle, glm::vec3 axis, glm::vec3 point);
+    void rotateAbout(float angle, glm::vec3 point);
+    glm::vec3 getCenterPoint();
+};
+
+class M_Line : public MeshObject {
+private:
+    CubeLog* logger;
+    Shader* shader;
+    std::vector<Vertex> vertexData;
+    GLuint VAO[1], VBO[1];
+    glm::mat4 projectionMatrix;
+    glm::mat4 viewMatrix;
+    glm::mat4 modelMatrix;
+public:
+    M_Line(CubeLog* logger, Shader* sh, glm::vec3 start, glm::vec3 end);
+    ~M_Line();
+    void draw();
+    void setProjectionMatrix(glm::mat4 projectionMatrix);
+    void setViewMatrix(glm::vec3 viewMatrix);
+    void setModelMatrix(glm::mat4 modelMatrix);
+    void translate(glm::vec3 translation);
+    void rotate(float angle, glm::vec3 axis);
+    void scale(glm::vec3 scale);
+    void uniformScale(float scale);
+    void rotateAbout(float angle, glm::vec3 axis, glm::vec3 point);
+    void rotateAbout(float angle, glm::vec3 point);
+    glm::vec3 getCenterPoint();
+};
+
+class M_Arc: public MeshObject{
+private:
+    CubeLog* logger;
+    unsigned int numSegments;
+    float radius;
+    float startAngle;
+    float endAngle;
+    glm::vec3 centerPoint;
+    Shader* shader;
+    std::vector<Vertex> vertexData;
+    GLuint VAO[1], VBO[1];
+    glm::mat4 projectionMatrix;
+    glm::mat4 viewMatrix;
+    glm::mat4 modelMatrix;
+public:
+    M_Arc(CubeLog* logger, Shader* sh, unsigned int numSegments, float radius, float startAngle, float endAngle, glm::vec3 centerPoint);
+    ~M_Arc();
+    void draw();
+    void setProjectionMatrix(glm::mat4 projectionMatrix);
+    void setViewMatrix(glm::vec3 viewMatrix);
+    void setModelMatrix(glm::mat4 modelMatrix);
+    void translate(glm::vec3 translation);
+    void rotate(float angle, glm::vec3 axis);
+    void scale(glm::vec3 scale);
+    void uniformScale(float scale);
+    void rotateAbout(float angle, glm::vec3 point);
+    void rotateAbout(float angle, glm::vec3 axis, glm::vec3 point);
+    glm::vec3 getCenterPoint();
+};
+
 #define CUBE_VERTICES_CONST 1.0f
 #define EDGE_VERTICES_OFFSET 0.05f
 #define BLACK_FLOATS 0.0f

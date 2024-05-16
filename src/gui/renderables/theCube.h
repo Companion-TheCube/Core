@@ -3,7 +3,7 @@
 #include "../objects.h"
 #include "../shader.h"
 #include "meshObject.h"
-#include "meshes/cube.h"
+#include "meshes/shapes.h"
 #include "cmath"
 #include <logger.h>
 #include "meshes/meshLoader.h"
@@ -26,6 +26,7 @@ class TheCube: public Character{
         MeshLoader* loader;
         std::vector<CharacterPart*> parts;
         unsigned long long animationFrame;
+        bool visible;
     public:
         TheCube(Shader* sh, CubeLog* lgr);
         ~TheCube();
@@ -39,4 +40,5 @@ class TheCube: public Character{
         void expression(Expression);
         std::string getName();
         CharacterPart* getPartByName(std::string name);
+        bool setVisible(bool visible);
 };
