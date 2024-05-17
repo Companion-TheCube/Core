@@ -21,12 +21,19 @@ Menu::Menu(CubeLog* logger, std::string filename, Shader* shader){
  */
 Menu::~Menu(){
     this->logger->log("Menu destroyed", true);
+    for(auto object: this->objects){
+        delete object;
+    }
 }
 
 void Menu::setup(){
     this->loadObjects(filename);
-    this->objects.push_back(new MenuBox(logger, {0.5, 0.5}, {1.0, 1.0}, shader));
+    this->objects.push_back(new MenuBox(logger, {0.4, 0.0}, {1.2, 2.0}, shader));
     this->objects.at(0)->setVisible(true);
+    this->objects.push_back(new MenuBox(logger, {0.4, 0.4}, {1.2, 0.3}, shader));
+    this->objects.at(1)->setVisible(true);
+    this->objects.push_back(new MenuBox(logger, {0.4, 0.1}, {1.2, 0.3}, shader));
+    this->objects.at(2)->setVisible(true);
     std::lock_guard<std::mutex> lock(this->mutex);
     this->ready = true;
     this->logger->log("Menu setup done", true);
@@ -91,6 +98,7 @@ bool Menu::isReady(){
     return this->ready;
 }
 //////////////////////////////////////////////////////////////////////////
+float MenuBox::index = 0;
 
 /**
  * @brief Construct a new Menu Box:: Menu Box object
@@ -100,6 +108,7 @@ bool Menu::isReady(){
  * @param size the size of the box
  */
 MenuBox::MenuBox(CubeLog* logger, glm::vec2 position, glm::vec2 size, Shader* shader){
+    this->index+=0.001;
     this->logger = logger;
     this->position = position;
     this->size = size;
@@ -109,27 +118,27 @@ MenuBox::MenuBox(CubeLog* logger, glm::vec2 position, glm::vec2 size, Shader* sh
     float diameter = radius * 2;
     float xStart = position.x - size.x/2;
     float yStart = position.y - size.y/2;
-    this->objects.push_back(new M_Rect(logger, shader, {xStart + radius, yStart + radius, Z_DISTANCE}, {size.x - diameter, size.y - diameter}, 0.0, 0.0)); // main box
+    this->objects.push_back(new M_Rect(logger, shader, {xStart + radius, yStart + radius, Z_DISTANCE+this->index}, {size.x - diameter, size.y - diameter}, 0.0, 0.0)); // main box
 
-    this->objects.push_back(new M_Rect(logger, shader, {xStart, yStart+radius, Z_DISTANCE}, {radius, size.y - diameter}, 0.0, 0.0)); // left
-    this->objects.push_back(new M_Rect(logger, shader, {xStart+size.x-radius, yStart+radius, Z_DISTANCE}, {radius, size.y - diameter}, 0.0, 0.0)); // right
-    this->objects.push_back(new M_Rect(logger, shader, {xStart+radius, yStart, Z_DISTANCE}, {size.x - diameter, radius}, 0.0, 0.0)); // top
-    this->objects.push_back(new M_Rect(logger, shader, {xStart+radius, yStart+size.y-radius, Z_DISTANCE}, {size.x - diameter, radius}, 0.0, 0.0)); // bottom
+    this->objects.push_back(new M_Rect(logger, shader, {xStart, yStart+radius, Z_DISTANCE+this->index}, {radius, size.y - diameter}, 0.0, 0.0)); // left
+    this->objects.push_back(new M_Rect(logger, shader, {xStart+size.x-radius, yStart+radius, Z_DISTANCE+this->index}, {radius, size.y - diameter}, 0.0, 0.0)); // right
+    this->objects.push_back(new M_Rect(logger, shader, {xStart+radius, yStart, Z_DISTANCE+this->index}, {size.x - diameter, radius}, 0.0, 0.0)); // top
+    this->objects.push_back(new M_Rect(logger, shader, {xStart+radius, yStart+size.y-radius, Z_DISTANCE+this->index}, {size.x - diameter, radius}, 0.0, 0.0)); // bottom
 
-    this->objects.push_back(new M_PartCircle(logger, shader, 50, radius, {xStart+size.x-radius, yStart+size.y-radius, Z_DISTANCE}, 0, 90, 0.0)); // top right
-    this->objects.push_back(new M_PartCircle(logger, shader, 50, radius, {xStart+radius, yStart+size.y-radius, Z_DISTANCE}, 90, 180, 0.0)); // top left
-    this->objects.push_back(new M_PartCircle(logger, shader, 50, radius, {xStart+radius, yStart+radius, Z_DISTANCE}, 180, 270, 0.0)); // bottom left
-    this->objects.push_back(new M_PartCircle(logger, shader, 50, radius, {xStart+size.x-radius, yStart+radius, Z_DISTANCE}, 270, 360, 0.0)); // bottom right
+    this->objects.push_back(new M_PartCircle(logger, shader, 50, radius, {xStart+size.x-radius, yStart+size.y-radius, Z_DISTANCE+this->index}, 0, 90, 0.0)); // top right
+    this->objects.push_back(new M_PartCircle(logger, shader, 50, radius, {xStart+radius, yStart+size.y-radius, Z_DISTANCE+this->index}, 90, 180, 0.0)); // top left
+    this->objects.push_back(new M_PartCircle(logger, shader, 50, radius, {xStart+radius, yStart+radius, Z_DISTANCE+this->index}, 180, 270, 0.0)); // bottom left
+    this->objects.push_back(new M_PartCircle(logger, shader, 50, radius, {xStart+size.x-radius, yStart+radius, Z_DISTANCE+this->index}, 270, 360, 0.0)); // bottom right
     
-    this->objects.push_back(new M_Line(logger, shader, {xStart + radius, yStart + size.y, Z_DISTANCE+0.01}, {xStart + size.x - radius, yStart + size.y, Z_DISTANCE+0.01})); // top
-    this->objects.push_back(new M_Line(logger, shader, {xStart + size.x, yStart + radius, Z_DISTANCE+0.01}, {xStart + size.x, yStart + size.y - radius, Z_DISTANCE+0.01})); // right
-    this->objects.push_back(new M_Line(logger, shader, {xStart + radius, yStart, Z_DISTANCE+0.01}, {xStart + size.x - radius, yStart, Z_DISTANCE+0.01})); // bottom
-    this->objects.push_back(new M_Line(logger, shader, {xStart, yStart + radius, Z_DISTANCE+0.01}, {xStart, yStart + size.y - radius, Z_DISTANCE+0.01})); // left
+    this->objects.push_back(new M_Line(logger, shader, {xStart + radius, yStart + size.y, Z_DISTANCE+0.001+this->index}, {xStart + size.x - radius, yStart + size.y, Z_DISTANCE+0.001+this->index})); // top
+    this->objects.push_back(new M_Line(logger, shader, {xStart + size.x, yStart + radius, Z_DISTANCE+0.001+this->index}, {xStart + size.x, yStart + size.y - radius, Z_DISTANCE+0.001+this->index})); // right
+    this->objects.push_back(new M_Line(logger, shader, {xStart + radius, yStart, Z_DISTANCE+0.001+this->index}, {xStart + size.x - radius, yStart, Z_DISTANCE+0.001+this->index})); // bottom
+    this->objects.push_back(new M_Line(logger, shader, {xStart, yStart + radius, Z_DISTANCE+0.001+this->index}, {xStart, yStart + size.y - radius, Z_DISTANCE+0.001+this->index})); // left
 
-    this->objects.push_back(new M_Arc(logger, shader, 50, radius, 0, 90, {xStart+size.x-radius, yStart+size.y-radius, Z_DISTANCE+0.01})); // top right
-    this->objects.push_back(new M_Arc(logger, shader, 50, radius, 360, 270, {xStart+size.x-radius, yStart+radius, Z_DISTANCE+0.01})); // bottom right
-    this->objects.push_back(new M_Arc(logger, shader, 50, radius, 180, 270, {xStart+radius, yStart+radius, Z_DISTANCE+0.01})); // bottom left
-    this->objects.push_back(new M_Arc(logger, shader, 50, radius, 180, 90, {xStart+radius, yStart+size.y-radius, Z_DISTANCE+0.01})); // top left
+    this->objects.push_back(new M_Arc(logger, shader, 50, radius, 0, 90, {xStart+size.x-radius, yStart+size.y-radius, Z_DISTANCE+0.001+this->index})); // top right
+    this->objects.push_back(new M_Arc(logger, shader, 50, radius, 360, 270, {xStart+size.x-radius, yStart+radius, Z_DISTANCE+0.001+this->index})); // bottom right
+    this->objects.push_back(new M_Arc(logger, shader, 50, radius, 180, 270, {xStart+radius, yStart+radius, Z_DISTANCE+0.001+this->index})); // bottom left
+    this->objects.push_back(new M_Arc(logger, shader, 50, radius, 180, 90, {xStart+radius, yStart+size.y-radius, Z_DISTANCE+0.001+this->index})); // top left
 
     this->logger->log("MenuBox created of size: " + std::to_string(size.x) + "x" + std::to_string(size.y) + " at position: " + std::to_string(position.x) + "x" + std::to_string(position.y), true);
 }

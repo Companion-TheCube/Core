@@ -46,7 +46,9 @@ private:
     glm::vec2 size;
     std::vector<MeshObject*> objects;
     bool visible;
+    static float index;
 public:
+    // TODO: add bool: border to constructor
     MenuBox(CubeLog* logger, glm::vec2 position, glm::vec2 size, Shader* shader);
     ~MenuBox();
     void setPosition(glm::vec2 position);
