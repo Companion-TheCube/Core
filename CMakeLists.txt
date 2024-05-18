@@ -68,9 +68,17 @@ else()
     set(MESHES_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/meshes")
 endif()
 
+set(FONTS_SOURCE_DIR "${CMAKE_SOURCE_DIR}/fonts")
+if(WIN32)
+    set(FONTS_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Debug/fonts")
+else()
+    set(FONTS_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/fonts")
+endif()
+
 # Create the destination directory
 file(MAKE_DIRECTORY ${SHADER_DEST_DIR})
 file(MAKE_DIRECTORY ${MESHES_DEST_DIR})
+file(MAKE_DIRECTORY ${FONTS_DEST_DIR})
 
 # Add executable
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/**/*.cpp" "src/**/**/*.cpp")
@@ -102,6 +110,15 @@ add_custom_command(
     ${MESHES_SOURCE_DIR}
     ${MESHES_DEST_DIR}
     COMMENT "Copying meshess to output directory"
+)
+
+# Add a custom command to copy the fonts directory
+add_custom_command(
+    TARGET CubeCoreProject POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${FONTS_SOURCE_DIR}
+    ${FONTS_DEST_DIR}
+    COMMENT "Copying fonts to output directory"
 )
 
 # if win32 move executable up one folder

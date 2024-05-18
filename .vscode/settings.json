@@ -89,13 +89,21 @@
         "mutex": "cpp",
         "filesystem": "cpp",
         "codecvt": "cpp",
-        "xstddef": "cpp"
+        "xstddef": "cpp",
+        "xthread": "cpp",
+        "xmemory0": "cpp"
     },
     "cSpell.words": [
+        "antialiasing",
         "CHARACTERMANAGER",
+        "Clickables",
         "glew",
         "GLEW",
-        "antialiasing"
+        "Parameteri",
+        "Roboto",
+        "Storei",
+        "xpos",
+        "ypos"
     ],
     
 }

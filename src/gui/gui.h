@@ -23,4 +23,3 @@ private:
     std::thread eventLoopThread;
     EventManager *eventManager;
 };
-

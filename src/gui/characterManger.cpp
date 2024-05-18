@@ -20,12 +20,12 @@ CharacterManager::~CharacterManager()
     }
 }
 
-Character* CharacterManager::getCharacter()
+C_Character* CharacterManager::getCharacter()
 {
     return this->currentCharacter;
 }
 
-void CharacterManager::setCharacter(Character* character)
+void CharacterManager::setCharacter(C_Character* character)
 {
     this->currentCharacter = character;
 }
@@ -48,7 +48,7 @@ bool CharacterManager::setCharacterByName(std::string name)
     return false;
 }
 
-Character* CharacterManager::getCharacterByName(std::string name)
+C_Character* CharacterManager::getCharacterByName(std::string name)
 {
     for(auto character: this->characters){
         if(character->getName().compare(name) == 0){

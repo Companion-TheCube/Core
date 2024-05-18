@@ -73,6 +73,7 @@ void GUI::eventLoop()
     mouseClickHandler->setEventType(sf::Event::MouseButtonPressed);
 
     auto menu = new Menu(this->logger, "menu.txt", this->renderer->getShader());
+    menu->setVisible(true);
     this->renderer->addSetupTask([&](){
         menu->setup();
     });
@@ -85,9 +86,7 @@ void GUI::eventLoop()
         #endif
     }
     this->renderer->addLoopTask([&](){
-        for(auto object: menu->getObjects()){
-            object->draw();
-        }
+        menu->draw();
     });
 
     this->logger->log("Starting event handler loop...", true);

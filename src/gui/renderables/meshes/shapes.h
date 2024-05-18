@@ -1,5 +1,46 @@
 #pragma once
 #include "../meshObject.h"
+#include <ft2build.h>
+#include FT_FREETYPE_H
+
+struct Character {
+    unsigned int TextureID;  // ID handle of the glyph texture
+    glm::ivec2   Size;       // Size of glyph
+    glm::ivec2   Bearing;    // Offset from baseline to left/top of glyph
+    unsigned int Advance;    // Offset to advance to next glyph
+};
+
+class M_Text : public MeshObject {
+private:
+    CubeLog* logger;
+    Shader* shader;
+    std::vector<Vertex> vertexData;
+    GLuint VAO, VBO;
+    glm::mat4 projectionMatrix;
+    glm::mat4 viewMatrix;
+    glm::mat4 modelMatrix;
+    std::string text;
+    float fontSize;
+    glm::vec3 color;
+    glm::vec3 centerPoint;
+    glm::vec2 position;
+    float scale_;
+    std::map<char, Character> Characters;
+public:
+    M_Text(CubeLog* logger, Shader* sh, std::string text, float fontSize, glm::vec3 color, glm::vec2 position);
+    ~M_Text();
+    void draw();
+    void setProjectionMatrix(glm::mat4 projectionMatrix);
+    void setViewMatrix(glm::vec3 viewMatrix);
+    void setModelMatrix(glm::mat4 modelMatrix);
+    void translate(glm::vec3 translation);
+    void rotate(float angle, glm::vec3 axis);
+    void scale(glm::vec3 scale);
+    void uniformScale(float scale);
+    void rotateAbout(float angle, glm::vec3 axis, glm::vec3 point);
+    void rotateAbout(float angle, glm::vec3 point);
+    glm::vec3 getCenterPoint();
+};
 
 class M_PartCircle : public MeshObject {
 private:

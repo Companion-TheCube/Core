@@ -178,3 +178,7 @@ bool TheCube::setVisible(bool visible){
     this->visible = visible;
     return temp;
 }
+
+bool TheCube::getVisible(){
+    return this->visible;
+}

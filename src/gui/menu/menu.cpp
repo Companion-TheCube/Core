@@ -1,6 +1,7 @@
 #include "menu.h"
 
 #define Z_DISTANCE 3.57
+#define BOX_RADIUS 0.05
 
 /**
  * @brief Construct a new Menu:: Menu object
@@ -30,10 +31,11 @@ void Menu::setup(){
     this->loadObjects(filename);
     this->objects.push_back(new MenuBox(logger, {0.4, 0.0}, {1.2, 2.0}, shader));
     this->objects.at(0)->setVisible(true);
-    this->objects.push_back(new MenuBox(logger, {0.4, 0.4}, {1.2, 0.3}, shader));
-    this->objects.at(1)->setVisible(true);
-    this->objects.push_back(new MenuBox(logger, {0.4, 0.1}, {1.2, 0.3}, shader));
-    this->objects.at(2)->setVisible(true);
+    Shader* textShader = new Shader("shaders/text.vs", "shaders/text.fs", logger);
+    float textX = mapRange(0.f, -1.f, 1.f, 0.f, 720.f);
+    float textY = mapRange(0.f, 1.f, -1.f, 0.f, 720.f);
+    this->childrenClickables.push_back(new MenuEntry(logger, "Test", textShader, {textX, textY}, 24));
+    this->childrenClickables.at(0)->setVisible(true);
     std::lock_guard<std::mutex> lock(this->mutex);
     this->ready = true;
     this->logger->log("Menu setup done", true);
@@ -89,13 +91,30 @@ bool Menu::loadObjects(std::string filename){
     return true;
 }
 
-std::vector<Object*> Menu::getObjects(){
-    return this->objects;
+std::vector<MeshObject*> Menu::getObjects(){
+    // create a vector of objects
+    std::vector<MeshObject*> objects;
+    // add all the objects to the vector
+    
+    // return the vector
+    return objects;
 }
 
 bool Menu::isReady(){
     std::lock_guard<std::mutex> lock(this->mutex);
     return this->ready;
+}
+
+void Menu::draw(){
+    if(!this->visible){
+        return;
+    }
+    for(auto object: this->objects){
+        object->draw();
+    }
+    for(auto clickable: this->childrenClickables){
+        clickable->draw();
+    }
 }
 //////////////////////////////////////////////////////////////////////////
 float MenuBox::index = 0;
@@ -114,7 +133,8 @@ MenuBox::MenuBox(CubeLog* logger, glm::vec2 position, glm::vec2 size, Shader* sh
     this->size = size;
     this->visible = false;
     // radius is the 1/5 of the smaller of the two sides
-    float radius = size.x < size.y ? size.x/5 : size.y/5;
+    // float radius = size.x < size.y ? size.x/5 : size.y/5;
+    float radius = BOX_RADIUS;
     float diameter = radius * 2;
     float xStart = position.x - size.x/2;
     float yStart = position.y - size.y/2;
@@ -181,4 +201,82 @@ bool MenuBox::setVisible(bool visible){
 
 bool MenuBox::getVisible(){
     return this->visible;
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+/**
+ * @brief Construct a new Menu Entry:: Menu Entry object
+ * 
+ * @param logger a CubeLog object
+ * @param text the text to display
+ */
+MenuEntry::MenuEntry(CubeLog* logger, std::string text, Shader* shader, glm::vec2 position, float size){
+    this->logger = logger;
+    this->text = text;
+    this->visible = false;
+    this->shader = shader;
+    this->objects.push_back(new M_Text(logger, shader, text, size, {1.f,1.f,1.f,}, position));
+    this->logger->log("MenuEntry created with text: " + text, true);
+}
+
+MenuEntry::~MenuEntry(){
+    for(auto object: this->objects){
+        delete object;
+    }
+    this->logger->log("MenuEntry destroyed", true);
+}
+
+void MenuEntry::onClick(void* data){
+    this->logger->log("MenuEntry clicked", true);
+    if(this->action != nullptr && this->visible){
+        this->action(data);
+    }
+}
+
+void MenuEntry::onRightClick(void* data){
+    this->logger->log("MenuEntry right clicked", true);
+    if(this->rightAction != nullptr && this->visible){
+        this->rightAction(data);
+    }
+}
+
+bool MenuEntry::setVisible(bool visible){
+    bool temp = this->visible;
+    this->visible = visible;
+    return temp;
+}
+
+bool MenuEntry::getVisible(){
+    return this->visible;
+}
+
+void MenuEntry::setOnClick(std::function<void(void*)> action){
+    this->action = action;
+}
+
+void MenuEntry::setOnRightClick(std::function<void(void*)> action){
+    this->rightAction = action;
+}
+
+std::vector<MeshObject*> MenuEntry::getObjects(){
+    return this->objects;
+}
+
+void MenuEntry::draw(){
+    if(!this->visible){
+        return;
+    }
+    for(auto object: this->objects){
+        object->draw();
+    }
+}
+
+void MenuEntry::setPosition(glm::vec2 position){
+    this->position = position;
+    // TODO: update the position of all the objects
+}
+
+void MenuEntry::setVisibleWidth(float width){
+    // TODO: update the position of the text so that it scrolls if the visible width is less than 100% (1.f)
 }

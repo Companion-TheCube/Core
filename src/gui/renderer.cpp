@@ -42,6 +42,8 @@ int Renderer::thread()
     glMatrixMode(GL_PROJECTION);
     glViewport(0, 0, window.getSize().x, window.getSize().y);
     glDepthFunc(GL_LESS);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); 
 
     // this->window.setMouseCursorVisible(false);
 
@@ -54,7 +56,7 @@ int Renderer::thread()
     // }
 
     auto characterManager = new CharacterManager(&edges, logger);
-    Character* character = characterManager->getCharacterByName("TheCube");
+    C_Character* character = characterManager->getCharacterByName("TheCube");
     characterManager->setCharacter(character);
     this->setupTasksRun();
     this->logger->log("Renderer initialized. Starting Loop...", true);

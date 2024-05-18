@@ -14,7 +14,7 @@ struct CharacterPart{
     glm::vec3 centerPoint;
 };
 
-class TheCube: public Character{
+class TheCube: public C_Character{
     private:
         void rotate(float angle, float x, float y, float z);
         void translate(float x, float y, float z);
@@ -41,4 +41,5 @@ class TheCube: public Character{
         std::string getName();
         CharacterPart* getPartByName(std::string name);
         bool setVisible(bool visible);
+        bool getVisible();
 };

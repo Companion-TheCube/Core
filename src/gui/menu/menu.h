@@ -25,6 +25,7 @@ private:
     std::string filename;
     bool ready = false;
     std::mutex mutex;
+    std::vector<Clickable*> childrenClickables;
 public:
     Menu(CubeLog *logger, std::string filename, Shader* shader);
     ~Menu();
@@ -35,8 +36,9 @@ public:
     bool getVisible();
     void setOnClick(std::function<void(void*)> action);
     void setOnRightClick(std::function<void(void*)> action);
-    std::vector<Object*> getObjects();
+    std::vector<MeshObject*> getObjects();
     bool isReady();
+    void draw();
 };
 
 class MenuBox:public M_Box{
@@ -56,4 +58,29 @@ public:
     void draw();
     bool setVisible(bool visible);
     bool getVisible();
+};
+
+class MenuEntry:public Clickable{
+private:
+    CubeLog *logger;
+    std::string text;
+    std::function<void(void*)> action;
+    std::function<void(void*)> rightAction;
+    bool visible;
+    Shader* shader;
+    std::vector<MeshObject*> objects;
+    glm::vec2 position;
+public:
+    MenuEntry(CubeLog* logger, std::string text, Shader* shader, glm::vec2 position, float size);
+    ~MenuEntry();
+    void onClick(void*);
+    void onRightClick(void*);
+    std::vector<MeshObject*> getObjects();
+    bool setVisible(bool visible);
+    bool getVisible();
+    void setOnClick(std::function<void(void*)> action);
+    void setOnRightClick(std::function<void(void*)> action);
+    void draw();
+    void setPosition(glm::vec2 position);
+    void setVisibleWidth(float width);
 };
