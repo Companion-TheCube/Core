@@ -62,6 +62,12 @@ void GUI::eventLoop()
     keyAPressedHandler->setEventType(sf::Event::KeyPressed);
     keyAPressedHandler->setSpecificEventType(SpecificEventTypes::KEYPRESS_A);
 
+    auto menu = new Menu(this->logger, "menu.txt", this->renderer->getShader());
+    // menu->setVisible(false);
+    this->renderer->addSetupTask([&](){
+        menu->setup();
+    });
+
     int mouseClickIndex = this->eventManager->createEvent("MouseClick");
     EventHandler* mouseClickHandler = this->eventManager->getEvent(mouseClickIndex);
     mouseClickHandler->setAction([&](void* data) {
@@ -72,11 +78,8 @@ void GUI::eventLoop()
     mouseClickHandler->setName("MouseClick");
     mouseClickHandler->setEventType(sf::Event::MouseButtonPressed);
 
-    auto menu = new Menu(this->logger, "menu.txt", this->renderer->getShader());
-    menu->setVisible(true);
-    this->renderer->addSetupTask([&](){
-        menu->setup();
-    });
+    
+    
     while(!menu->isReady()){
         #ifdef __linux__
         usleep(1000);
@@ -88,6 +91,9 @@ void GUI::eventLoop()
     this->renderer->addLoopTask([&](){
         menu->draw();
     });
+    for(auto area: menu->getClickableAreas()){
+        this->eventManager->addClickableArea(area);
+    }
 
     this->logger->log("Starting event handler loop...", true);
     while (this->renderer->getIsRunning()) {
@@ -105,6 +111,8 @@ void GUI::eventLoop()
         Sleep(1);
 #endif
     }
+    this->logger->log("Event handler loop stopped", true);
+    delete menu;
 }
 
 /**

@@ -4,6 +4,7 @@
 #include <logger.h>
 #include <tuple>
 #include <SFML/Graphics.hpp>
+#include "../objects.h"
 
 enum SpecificEventTypes: unsigned int{
     KEYPRESS_A,
@@ -136,6 +137,7 @@ private:
     std::string name;
     sf::Event::EventType eventType;
     SpecificEventTypes specificEventType;
+    // ClickableArea* clickableArea;
 public:
     EventHandler(CubeLog *logger);
     ~EventHandler();
@@ -145,14 +147,18 @@ public:
     void setName(std::string name);
     sf::Event::EventType getEventType();
     void setEventType(sf::Event::EventType eventType);
+    // void setEventType(sf::Event::EventType eventType, ClickableArea* cl_Area);
     void setSpecificEventType(SpecificEventTypes specificEventType);
     SpecificEventTypes getSpecificEventType();
+    // ClickableArea* getClickableArea();
 };
 
 class EventManager{
 private:
     std::vector<EventHandler*> events;
+    std::vector<ClickableArea*> clickableAreas;
     CubeLog *logger;
+    bool checkClickableAreas(sf::Event event);
 public:
     EventManager(CubeLog *logger);
     ~EventManager();
@@ -169,5 +175,7 @@ public:
     bool triggerEvent(SpecificEventTypes specificEventType, void* data); // triggers event by SpecificEventTypes
     bool triggerEvent(SpecificEventTypes specificEventType, sf::Event::EventType eventType, void* data); // triggers event by SpecificEventTypes
     std::vector<EventHandler*> getEvents();
+    void addClickableArea(ClickableArea* clickableArea);
+
 };
 

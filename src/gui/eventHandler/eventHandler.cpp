@@ -12,6 +12,7 @@ EventHandler::EventHandler(CubeLog *logger){
     this->eventType = sf::Event::EventType::Count;
     this->specificEventType = SpecificEventTypes::NULL_EVENT;
     this->action = nullptr;
+    // this->clickableArea = nullptr;
 }
 
 /**
@@ -20,6 +21,9 @@ EventHandler::EventHandler(CubeLog *logger){
  */
 EventHandler::~EventHandler(){
     this->logger->log("Event handler destroyed", true);
+    // if(this->clickableArea != nullptr){
+    //     delete this->clickableArea;
+    // }
 }
 
 /**
@@ -99,6 +103,26 @@ void EventHandler::setSpecificEventType(SpecificEventTypes specificEventType){
 SpecificEventTypes EventHandler::getSpecificEventType(){
     return this->specificEventType;
 }
+
+// /**
+//  * @brief Get the clickable area
+//  * 
+//  * @return ClickableArea* 
+//  */
+// ClickableArea* EventHandler::getClickableArea(){
+//     return this->clickableArea;
+// }
+
+// /**
+//  * @brief Set the event type and clickable area
+//  * 
+//  * @param eventType sf::Event::EventType
+//  * @param cl_Area ClickableArea*
+//  */
+// void EventHandler::setEventType(sf::Event::EventType eventType, ClickableArea* cl_Area){
+//     this->eventType = eventType;
+//     this->clickableArea = cl_Area;
+// }
 
 /////////////////////////////////////////////////////////////////////////////////
 
@@ -214,6 +238,9 @@ EventHandler* EventManager::getEvent(std::string eventName){
  * @return false if event was not triggered 
  */
 bool EventManager::triggerEvent(sf::Event event, void* data){
+    if(checkClickableAreas(*((sf::Event*)data))){
+        return true;
+    }
     for (int i = 0; i < this->events.size(); i++){
         if (this->events[i]->getEventType() == event.type){
             this->events[i]->triggerEvent(data);
@@ -231,6 +258,9 @@ bool EventManager::triggerEvent(sf::Event event, void* data){
  * @return false if event was not triggered
  */
 bool EventManager::triggerEvent(int index, void* data){
+    if(checkClickableAreas(*((sf::Event*)data))){
+        return true;
+    }
     this->events[index]->triggerEvent(data);
     return true;
 }
@@ -243,6 +273,9 @@ bool EventManager::triggerEvent(int index, void* data){
  * @return false if event was not triggered
  */
 bool EventManager::triggerEvent(std::string eventName, void* data){
+    if(checkClickableAreas(*((sf::Event*)data))){
+        return true;
+    }
     for (int i = 0; i < this->events.size(); i++){
         if (this->events[i]->getName() == eventName){
             this->events[i]->triggerEvent(data);
@@ -260,6 +293,9 @@ bool EventManager::triggerEvent(std::string eventName, void* data){
  * @return false if event was not triggered
  */
 bool EventManager::triggerEvent(sf::Event::EventType eventType, void* data){
+    if(checkClickableAreas(*((sf::Event*)data))){
+        return true;
+    }
     for (int i = 0; i < this->events.size(); i++){
         if (this->events[i]->getEventType() == eventType && this->events[i]->getSpecificEventType() == SpecificEventTypes::NULL_EVENT){
             this->events[i]->triggerEvent(data);
@@ -277,6 +313,9 @@ bool EventManager::triggerEvent(sf::Event::EventType eventType, void* data){
  * @return false if event was not triggered
  */
 bool EventManager::triggerEvent(SpecificEventTypes specificEventType, void* data){
+    // if(checkClickableAreas(*((sf::Event*)data))){
+    //     return true;
+    // }
     for (int i = 0; i < this->events.size(); i++){
         if (this->events[i]->getSpecificEventType() == specificEventType && this->events[i]->getEventType() == sf::Event::Count){
             this->events[i]->triggerEvent(data);
@@ -287,6 +326,9 @@ bool EventManager::triggerEvent(SpecificEventTypes specificEventType, void* data
 }
 
 bool EventManager::triggerEvent(SpecificEventTypes specificEventType, sf::Event::EventType eventType, void* data){
+    // if(checkClickableAreas(*((sf::Event*)data))){
+    //     return true;
+    // }
     for (int i = 0; i < this->events.size(); i++){
         if (this->events[i]->getEventType() == eventType && this->events[i]->getSpecificEventType() == specificEventType){
             this->events[i]->triggerEvent(data);
@@ -296,4 +338,43 @@ bool EventManager::triggerEvent(SpecificEventTypes specificEventType, sf::Event:
     return false;
 }
 
+/**
+ * @brief Add a clickable area to the event manager
+ * 
+ * @param clickableArea 
+ */
+void EventManager::addClickableArea(ClickableArea* clickableArea){
+    this->clickableAreas.push_back(clickableArea);
+}
+
+/**
+ * @brief Check the clickable areas for events
+ * 
+ * @param event 
+ * @param data 
+ */
+bool EventManager::checkClickableAreas(sf::Event event){
+    if(event.type != sf::Event::MouseButtonPressed){
+        return false;
+    }
+    for(ClickableArea* area: this->clickableAreas){
+        //get the x and y from the event
+        int x = event.mouseButton.x;
+        int y = event.mouseButton.y;
+        //check if the x and y are within the area
+        if(x < area->xMax && x > area->xMin && y < area->yMax && y > area->yMin){
+            if(event.mouseButton.button == sf::Mouse::Left){
+                area->clickableObject->onClick(&event);
+                return true;
+            }
+            if(event.mouseButton.button == sf::Mouse::Right){
+                area->clickableObject->onRightClick(&event);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+/////////////////////////////////////////////////////////////////////////////////
 // Path src/gui/eventHandler/eventHandler.cpp

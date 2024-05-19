@@ -45,15 +45,10 @@ int Renderer::thread()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); 
 
-    // this->window.setMouseCursorVisible(false);
+    this->window.setMouseCursorVisible(false);
 
     Shader edges("./shaders/edges.vs", "./shaders/edges.fs", logger);
     this->shader = &edges;
-
-    // int textSize = 24;
-    // if (!this->font.loadFromFile("/home/cube/.local/share/fonts/Hack-Regular.ttf")) {
-    //     this->logger->error("Could not load font");
-    // }
 
     auto characterManager = new CharacterManager(&edges, logger);
     C_Character* character = characterManager->getCharacterByName("TheCube");

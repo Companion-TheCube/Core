@@ -13,7 +13,17 @@ Menu::Menu(CubeLog* logger, std::string filename, Shader* shader){
     this->filename = filename;
     this->shader = shader;
     this->visible = false;
-    this->logger->log("Menu created", true);   
+    this->logger->log("Menu created", true);
+    this->clickArea = ClickableArea();
+    this->clickArea.clickableObject = this;
+    this->clickArea.xMin = 0;
+    this->clickArea.xMax = 720;
+    this->clickArea.yMin = 0;
+    this->clickArea.yMax = 720;
+    this->setOnClick([&](void* data){
+        this->setVisible(!this->getVisible());
+        this->logger->log("Menu clicked", true);
+    });
 }
 
 /**
@@ -34,7 +44,7 @@ void Menu::setup(){
     Shader* textShader = new Shader("shaders/text.vs", "shaders/text.fs", logger);
     float textX = mapRange(0.f, -1.f, 1.f, 0.f, 720.f);
     float textY = mapRange(0.f, 1.f, -1.f, 0.f, 720.f);
-    this->childrenClickables.push_back(new MenuEntry(logger, "Test", textShader, {textX, textY}, 24));
+    this->childrenClickables.push_back(new MenuEntry(logger, "Test", textShader, {textX, textY}, 36));
     this->childrenClickables.at(0)->setVisible(true);
     std::lock_guard<std::mutex> lock(this->mutex);
     this->ready = true;
@@ -42,10 +52,10 @@ void Menu::setup(){
 }
 
 void Menu::onClick(void* data){
-    this->logger->log("Menu clicked", true);
-    if(this->action != nullptr && this->visible){
+    // this->logger->log("Menu clicked", true);
+    // if(this->action != nullptr && this->visible){
         this->action(data);
-    }
+    // }
 }
 
 void Menu::onRightClick(void* data){
@@ -58,6 +68,17 @@ void Menu::onRightClick(void* data){
 bool Menu::setVisible(bool visible){
     bool temp = this->visible;
     this->visible = visible;
+    if(this->visible){
+        this->clickArea.xMin = 595;
+        this->clickArea.xMax = 720;
+        this->clickArea.yMin = 0;
+        this->clickArea.yMax = 125;
+    }else{
+        this->clickArea.xMin = 0;
+        this->clickArea.xMax = 720;
+        this->clickArea.yMin = 0;
+        this->clickArea.yMax = 720;
+    }
     return temp;
 }
 
@@ -116,6 +137,16 @@ void Menu::draw(){
         clickable->draw();
     }
 }
+
+std::vector<ClickableArea*> Menu::getClickableAreas(){
+    std::vector<ClickableArea*> areas;
+    areas.push_back(&this->clickArea);
+    for(auto clickable: this->childrenClickables){
+        areas.push_back(&clickable->clickArea);
+    }
+    return areas;
+}
+
 //////////////////////////////////////////////////////////////////////////
 float MenuBox::index = 0;
 
@@ -216,6 +247,12 @@ MenuEntry::MenuEntry(CubeLog* logger, std::string text, Shader* shader, glm::vec
     this->text = text;
     this->visible = false;
     this->shader = shader;
+    this->clickArea = ClickableArea();
+    this->clickArea.clickableObject = this;
+    this->clickArea.xMin = position.x;
+    this->clickArea.xMax = position.x + text.size() * size * 0.6;
+    this->clickArea.yMin = position.y;
+    this->clickArea.yMax = position.y + size;
     this->objects.push_back(new M_Text(logger, shader, text, size, {1.f,1.f,1.f,}, position));
     this->logger->log("MenuEntry created with text: " + text, true);
 }
@@ -280,3 +317,9 @@ void MenuEntry::setPosition(glm::vec2 position){
 void MenuEntry::setVisibleWidth(float width){
     // TODO: update the position of the text so that it scrolls if the visible width is less than 100% (1.f)
 }
+
+//////////////////////////////////////////////////////////////////////////
+
+
+
+//////////////////////////////////////////////////////////////////////////

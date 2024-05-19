@@ -26,6 +26,7 @@ private:
     bool ready = false;
     std::mutex mutex;
     std::vector<Clickable*> childrenClickables;
+    ClickableArea clickArea;
 public:
     Menu(CubeLog *logger, std::string filename, Shader* shader);
     ~Menu();
@@ -39,6 +40,7 @@ public:
     std::vector<MeshObject*> getObjects();
     bool isReady();
     void draw();
+    std::vector<ClickableArea*> getClickableAreas();
 };
 
 class MenuBox:public M_Box{
@@ -70,6 +72,7 @@ private:
     Shader* shader;
     std::vector<MeshObject*> objects;
     glm::vec2 position;
+    ClickableArea clickArea;
 public:
     MenuEntry(CubeLog* logger, std::string text, Shader* shader, glm::vec2 position, float size);
     ~MenuEntry();

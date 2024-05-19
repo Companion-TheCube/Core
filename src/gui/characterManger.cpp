@@ -53,6 +53,7 @@ C_Character* CharacterManager::getCharacterByName(std::string name)
     for(auto character: this->characters){
         if(character->getName().compare(name) == 0){
             this->logger->log("getCharacterByName(" + name + "): found!", true);
+            character->setVisible(true);
             return character;
         }
     }

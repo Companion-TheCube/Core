@@ -5,6 +5,21 @@
 #include <logger.h>
 #include <glm/glm.hpp>
 
+class Clickable;
+
+struct ClickableArea{
+    ClickableArea(){};
+    ClickableArea(unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax, Clickable* clickableObject){
+        this->xMin = xMin;
+        this->xMax = xMax;
+        this->yMin = yMin;
+        this->yMax = yMax;
+        this->clickableObject = clickableObject;
+    }
+    Clickable* clickableObject;
+    unsigned int xMin, xMax, yMin, yMax;
+};
+
 class MeshObject {
 public:
     virtual void draw() = 0;
@@ -71,6 +86,8 @@ public:
 
 class Clickable: public Object{
 public:
+    virtual ~Clickable(){};
+    ClickableArea clickArea;
     virtual void onClick(void*) = 0;
     virtual void onRightClick(void*) = 0;
     virtual std::vector<MeshObject*> getObjects() = 0;

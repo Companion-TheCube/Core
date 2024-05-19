@@ -4,7 +4,7 @@ TheCube::TheCube(Shader* sh, CubeLog* lgr)
 {
     this->logger = lgr;
     this->shader = sh;
-
+    this->visible = true;
     this->animationFrame = 0;
 
     this->objects.push_back(new Cube(this->shader));
