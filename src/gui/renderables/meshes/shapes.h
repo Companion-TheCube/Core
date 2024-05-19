@@ -40,6 +40,10 @@ public:
     void rotateAbout(float angle, glm::vec3 axis, glm::vec3 point);
     void rotateAbout(float angle, glm::vec3 point);
     glm::vec3 getCenterPoint();
+    std::vector<Vertex> getVertices();
+    void setPosition(glm::vec2 position);
+    void setText(std::string text);
+    void buildText();
 };
 
 class M_PartCircle : public MeshObject {
@@ -70,6 +74,7 @@ public:
     void rotateAbout(float angle, glm::vec3 axis, glm::vec3 point);
     void rotateAbout(float angle, glm::vec3 point);
     glm::vec3 getCenterPoint();
+    std::vector<Vertex> getVertices();
 };
 
 class M_Rect : public MeshObject {
@@ -98,6 +103,7 @@ public:
     void rotateAbout(float angle, glm::vec3 axis, glm::vec3 point);
     void rotateAbout(float angle, glm::vec3 point);
     glm::vec3 getCenterPoint();
+    std::vector<Vertex> getVertices();
 };
 
 class M_Line : public MeshObject {
@@ -123,6 +129,7 @@ public:
     void rotateAbout(float angle, glm::vec3 axis, glm::vec3 point);
     void rotateAbout(float angle, glm::vec3 point);
     glm::vec3 getCenterPoint();
+    std::vector<Vertex> getVertices();
 };
 
 class M_Arc: public MeshObject{
@@ -153,6 +160,7 @@ public:
     void rotateAbout(float angle, glm::vec3 point);
     void rotateAbout(float angle, glm::vec3 axis, glm::vec3 point);
     glm::vec3 getCenterPoint();
+    std::vector<Vertex> getVertices();
 };
 
 #define CUBE_VERTICES_CONST 1.0f
@@ -240,4 +248,5 @@ public:
     void rotateAbout(float angle, glm::vec3 axis, glm::vec3 point);
     void rotateAbout(float angle, glm::vec3 point);
     glm::vec3 getCenterPoint();
+    std::vector<Vertex> getVertices();
 };

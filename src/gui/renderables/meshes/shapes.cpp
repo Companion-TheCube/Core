@@ -8,6 +8,11 @@ M_Text::M_Text(CubeLog* logger, Shader* sh, std::string text, float fontSize, gl
     this->fontSize = fontSize;
     this->color = color;
     this->position = position;
+    this->buildText();
+    this->logger->log("Created Text", true);
+}
+
+void M_Text::buildText(){
     FT_Library ft;
     if (FT_Init_FreeType(&ft)) {
         this->logger->log("ERROR::FREETYPE: Could not init FreeType Library", true);
@@ -68,7 +73,6 @@ M_Text::M_Text(CubeLog* logger, Shader* sh, std::string text, float fontSize, gl
     modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, 0.0f));
     modelMatrix = glm::scale(modelMatrix, glm::vec3(1.0f, 1.0f, 1.0f));
     setModelMatrix(modelMatrix);
-    this->logger->log("Created Text", true);
 }
 
 M_Text::~M_Text()
@@ -120,6 +124,7 @@ void M_Text::draw()
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glDrawArrays(GL_TRIANGLES, 0, 6);
         xTemp += (ch.Advance >> 6);
+        // add the vertices to vertexData
     }
     glBindVertexArray(0);
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -193,6 +198,22 @@ void M_Text::rotateAbout(float angle, glm::vec3 axis, glm::vec3 point)
 glm::vec3 M_Text::getCenterPoint()
 {
     return {this->position.x, this->position.y, 0.f};
+}
+
+std::vector<Vertex> M_Text::getVertices(){
+    std::vector<Vertex> vertices;
+    return vertices;
+}
+
+void M_Text::setPosition(glm::vec2 position)
+{
+    this->position = position;
+}
+
+void M_Text::setText(std::string text)
+{
+    this->text = text;
+    this->buildText();
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -344,6 +365,11 @@ void M_PartCircle::rotateAbout(float angle, glm::vec3 axis, glm::vec3 point)
 glm::vec3 M_PartCircle::getCenterPoint()
 {
     return this->centerPoint;
+}
+
+std::vector<Vertex> M_PartCircle::getVertices()
+{
+    return this->vertexData;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -509,6 +535,11 @@ glm::vec3 M_Rect::getCenterPoint()
     return glm::vec3((this->vertexDataFill[0].x + this->vertexDataFill[2].x) / 2, (this->vertexDataFill[0].y + this->vertexDataFill[2].y) / 2, (this->vertexDataFill[0].z + this->vertexDataFill[2].z) / 2);
 }
 
+std::vector<Vertex> M_Rect::getVertices()
+{
+    return this->vertexDataFill;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////
 
 M_Line::M_Line(CubeLog* logger, Shader* sh, glm::vec3 start, glm::vec3 end)
@@ -639,6 +670,11 @@ glm::vec3 M_Line::getCenterPoint()
     return glm::vec3((this->vertexData[0].x + this->vertexData[1].x) / 2, (this->vertexData[0].y + this->vertexData[1].y) / 2, (this->vertexData[0].z + this->vertexData[1].z) / 2);
 }
 
+std::vector<Vertex> M_Line::getVertices()
+{
+    return this->vertexData;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////
 
 M_Arc::M_Arc(CubeLog* logger, Shader* sh, unsigned int numSegments, float radius, float startAngle, float endAngle, glm::vec3 centerPoint)
@@ -739,6 +775,11 @@ void M_Arc::rotateAbout(float angle, glm::vec3 axis, glm::vec3 point) { }
 glm::vec3 M_Arc::getCenterPoint()
 {
     return this->centerPoint;
+}
+
+std::vector<Vertex> M_Arc::getVertices()
+{
+    return this->vertexData;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -878,4 +919,13 @@ glm::vec3 Cube::getCenterPoint()
     // get the center of the cube form the model matrix
     glm::vec4 center = modelMatrix * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
     return glm::vec3(center.x, center.y, center.z);
+}
+
+std::vector<Vertex> Cube::getVertices()
+{
+    std::vector<Vertex> vertices;
+    for (int i = 0; i < 8; i++) {
+        vertices.push_back(cubeVertices[i]);
+    }
+    return vertices;
 }

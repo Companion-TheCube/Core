@@ -12,6 +12,8 @@
 #include "./../objects.h"
 #include <typeinfo>
 
+class MenuStencil;
+
 class Menu: public Clickable{
 private:
     CubeLog *logger;
@@ -27,6 +29,9 @@ private:
     std::mutex mutex;
     std::vector<Clickable*> childrenClickables;
     ClickableArea clickArea;
+    MenuStencil* stencil;
+    Shader* textShader;
+    float menuItemTextSize = 36.f;
 public:
     Menu(CubeLog *logger, std::string filename, Shader* shader);
     ~Menu();
@@ -41,6 +46,9 @@ public:
     bool isReady();
     void draw();
     std::vector<ClickableArea*> getClickableAreas();
+    void addMenuEntry(std::string text, std::function<void(void*)> action);
+    void addMenuEntry(std::string text, std::function<void(void*)> action, std::function<void(void*)> rightAction);
+    void addHorizontalRule();
 };
 
 class MenuBox:public M_Box{
@@ -60,6 +68,48 @@ public:
     void draw();
     bool setVisible(bool visible);
     bool getVisible();
+};
+
+class MenuHorizontalRule:public M_Box{  
+private:
+    CubeLog *logger;
+    glm::vec2 position;
+    glm::vec2 size;
+    std::vector<MeshObject*> objects;
+    bool visible;
+public:
+    MenuHorizontalRule(CubeLog* logger, glm::vec2 position, glm::vec2 size, Shader* shader);
+    ~MenuHorizontalRule();
+    void setPosition(glm::vec2 position);
+    void setSize(glm::vec2 size);
+    void draw();
+    bool setVisible(bool visible);
+    bool getVisible();
+};
+
+class MenuStencil: public Object{
+private:
+    CubeLog *logger;
+    glm::vec2 position;
+    glm::vec2 size;
+    Shader* shader;
+    GLuint VAO, VBO, EBO;
+    std::vector<MeshObject*> objects;
+    std::vector<Vertex> vertices;
+    unsigned int indices[6] = {
+        0, 1, 2,
+        2, 3, 0
+    };
+public:
+    MenuStencil(CubeLog* logger, glm::vec2 position, glm::vec2 size, Shader* shader);
+    ~MenuStencil();
+    void setPosition(glm::vec2 position);
+    void setSize(glm::vec2 size);
+    void draw();
+    bool setVisible(bool visible);
+    bool getVisible();
+    void enable();
+    void disable();
 };
 
 class MenuEntry:public Clickable{

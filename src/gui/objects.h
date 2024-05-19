@@ -4,8 +4,14 @@
 #include <SFML/Graphics.hpp>
 #include <logger.h>
 #include <glm/glm.hpp>
+#include <functional>
 
 class Clickable;
+
+struct Vertex{
+    float x, y, z;
+    float r, g, b;
+};
 
 struct ClickableArea{
     ClickableArea(){};
@@ -33,6 +39,7 @@ public:
     virtual void rotateAbout(float angle, glm::vec3 point) = 0;
     virtual void rotateAbout(float angle, glm::vec3 axis, glm::vec3 point) = 0;
     virtual glm::vec3 getCenterPoint() = 0;
+    virtual std::vector<Vertex> getVertices() = 0;
 };
 
 enum Expression{
@@ -91,12 +98,11 @@ public:
     virtual void onClick(void*) = 0;
     virtual void onRightClick(void*) = 0;
     virtual std::vector<MeshObject*> getObjects() = 0;
+    virtual void setOnClick(std::function<void(void*)> action) = 0;
+    virtual void setOnRightClick(std::function<void(void*)> action) = 0;
 };
 
-struct Vertex{
-    float x, y, z;
-    float r, g, b;
-};
+
 
 template<typename T>
 T mapRange(T value, T fromLow, T fromHigh, T toLow, T toHigh) {

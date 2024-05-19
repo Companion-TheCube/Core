@@ -22,7 +22,6 @@ Menu::Menu(CubeLog* logger, std::string filename, Shader* shader){
     this->clickArea.yMax = 720;
     this->setOnClick([&](void* data){
         this->setVisible(!this->getVisible());
-        this->logger->log("Menu clicked", true);
     });
 }
 
@@ -37,15 +36,48 @@ Menu::~Menu(){
     }
 }
 
+void Menu::addMenuEntry(std::string text, std::function<void(void*)> action){
+    // TODO: fix this to dynamically adjust y position
+    Shader* textShader = new Shader("shaders/text.vs", "shaders/text.fs", logger);
+    float textX = mapRange(0.f, -1.f, 1.f, 0.f, 720.f);
+    float textY = mapRange(0.f, 1.f, -1.f, 0.f, 720.f);
+    this->childrenClickables.push_back(new MenuEntry(logger, text, textShader, {textX, textY}, menuItemTextSize));
+    this->childrenClickables.at(this->childrenClickables.size()-1)->setVisible(true);
+    this->childrenClickables.at(this->childrenClickables.size()-1)->setOnClick(action);
+}
+
+void Menu::addMenuEntry(std::string text, std::function<void(void*)> action, std::function<void(void*)> rightAction){
+    // TODO: fix this to dynamically adjust y position
+    float textX = mapRange(0.f, -1.f, 1.f, 0.f, 720.f);
+    float textY = mapRange(0.f, 1.f, -1.f, 0.f, 720.f);
+    this->childrenClickables.push_back(new MenuEntry(logger, text, textShader, {textX, textY}, menuItemTextSize));
+    this->childrenClickables.at(this->childrenClickables.size()-1)->setVisible(true);
+    this->childrenClickables.at(this->childrenClickables.size()-1)->setOnClick(action);
+    this->childrenClickables.at(this->childrenClickables.size()-1)->setOnRightClick(rightAction);
+}
+
+void Menu::addHorizontalRule(){
+    Shader* textShader = new Shader("shaders/text.vs", "shaders/text.fs", logger);
+    float textX = mapRange(0.f, -1.f, 1.f, 0.f, 720.f);
+    float textY = mapRange(0.f, 1.f, -1.f, 0.f, 720.f);
+    // TODO: add a box that is the width of the screen and 1 pixel high
+}
+
 void Menu::setup(){
     this->loadObjects(filename);
     this->objects.push_back(new MenuBox(logger, {0.4, 0.0}, {1.2, 2.0}, shader));
     this->objects.at(0)->setVisible(true);
-    Shader* textShader = new Shader("shaders/text.vs", "shaders/text.fs", logger);
+    Shader* stencilShader = new Shader("shaders/menuStencil.vs", "shaders/menuStencil.fs", logger);
+    this->stencil = new MenuStencil(logger, {0.4, 0.0}, {1.2, 1.9}, stencilShader);
+    this->textShader = new Shader("shaders/text.vs", "shaders/text.fs", logger);
     float textX = mapRange(0.f, -1.f, 1.f, 0.f, 720.f);
     float textY = mapRange(0.f, 1.f, -1.f, 0.f, 720.f);
-    this->childrenClickables.push_back(new MenuEntry(logger, "Test", textShader, {textX, textY}, 36));
+    this->childrenClickables.push_back(new MenuEntry(logger, "Test", textShader, {textX, textY}, menuItemTextSize));
     this->childrenClickables.at(0)->setVisible(true);
+    this->childrenClickables.push_back(new MenuEntry(logger, "Test2", textShader, {textX, textY+menuItemTextSize}, menuItemTextSize));
+    this->childrenClickables.at(1)->setVisible(true);
+    this->childrenClickables.push_back(new MenuEntry(logger, "Test3", textShader, {textX, textY+350}, menuItemTextSize));
+    this->childrenClickables.at(2)->setVisible(true);
     std::lock_guard<std::mutex> lock(this->mutex);
     this->ready = true;
     this->logger->log("Menu setup done", true);
@@ -130,12 +162,15 @@ void Menu::draw(){
     if(!this->visible){
         return;
     }
+    
     for(auto object: this->objects){
         object->draw();
     }
+    this->stencil->enable();
     for(auto clickable: this->childrenClickables){
         clickable->draw();
     }
+    this->stencil->disable();
 }
 
 std::vector<ClickableArea*> Menu::getClickableAreas(){
@@ -320,6 +355,92 @@ void MenuEntry::setVisibleWidth(float width){
 
 //////////////////////////////////////////////////////////////////////////
 
+MenuStencil::MenuStencil(CubeLog* logger, glm::vec2 position, glm::vec2 size, Shader* shader){
+    this->logger = logger;
+    this->position = position;
+    this->size = size;
+    this->shader = shader;
+
+    // position is the center of the box
+    glm::vec2 pos = {position.x - size.x/2, position.y - size.y/2};
+
+    // create vertices for the stencil
+    this->vertices.push_back({pos.x, pos.y, Z_DISTANCE, 1.0});
+    this->vertices.push_back({pos.x, pos.y + size.y, Z_DISTANCE, 1.0});
+    this->vertices.push_back({pos.x + size.x, pos.y + size.y, Z_DISTANCE, 1.0});
+    this->vertices.push_back({pos.x + size.x, pos.y, Z_DISTANCE, 1.0});
+    
+    // create the VAO, VBO and EBO    
+    glGenVertexArrays(1, &this->VAO);
+    glGenBuffers(1, &this->VBO);
+    glGenBuffers(1, &this->EBO);
+
+    glBindVertexArray(this->VAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
+    glBufferData(GL_ARRAY_BUFFER, this->vertices.size() * sizeof(Vertex), &this->vertices[0], GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+
+    this->logger->log("MenuStencil created", true);
+}
+
+MenuStencil::~MenuStencil(){
+    glDeleteVertexArrays(1, &this->VAO);
+    glDeleteBuffers(1, &this->VBO);
+    glDeleteBuffers(1, &this->EBO);
+    this->logger->log("MenuStencil destroyed", true);
+}
+
+void MenuStencil::setPosition(glm::vec2 position){
+    this->position = position;
+}
+
+void MenuStencil::setSize(glm::vec2 size){
+    this->size = size;
+}
+
+void MenuStencil::draw(){
+    
+}
+
+bool MenuStencil::setVisible(bool visible){
+    return true;
+}
+
+bool MenuStencil::getVisible(){
+    return true;
+}
+
+void MenuStencil::enable(){
+    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+    glDepthMask(GL_FALSE);
+    glStencilOp(GL_KEEP, GL_REPLACE, GL_KEEP);
+    glStencilFunc(GL_EQUAL, 1, 0xFF);
+    glEnable(GL_STENCIL_TEST);
+    glUseProgram(this->shader->ID);
+    glBindVertexArray(this->VAO);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+    glUseProgram(0);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    glDepthMask(GL_TRUE);
+}
+
+void MenuStencil::disable(){
+    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+    glStencilFunc(GL_ALWAYS, 1, 0xFF);
+    glDisable(GL_STENCIL_TEST);
+}
 
 
 //////////////////////////////////////////////////////////////////////////

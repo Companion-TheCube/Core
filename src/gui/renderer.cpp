@@ -34,6 +34,7 @@ int Renderer::thread()
     }
     this->logger->log("OpenGL Version: " + std::string((char*)glGetString(GL_VERSION)), true);
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_STENCIL_TEST);
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
     glFrontFace(GL_CW);
@@ -45,7 +46,7 @@ int Renderer::thread()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); 
 
-    this->window.setMouseCursorVisible(false);
+    // this->window.setMouseCursorVisible(false);
 
     Shader edges("./shaders/edges.vs", "./shaders/edges.fs", logger);
     this->shader = &edges;
@@ -63,7 +64,7 @@ int Renderer::thread()
         this->setupTasksRun();
         this->window.setActive();
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // Set clear color to black
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); // Clear the color buffer, the depth buffer and the stencil buffer
         this->loopTasksRun();
         if (characterManager->getCharacter() != nullptr) {
             characterManager->getCharacter()->draw();
