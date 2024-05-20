@@ -97,9 +97,12 @@ private:
     std::vector<MeshObject*> objects;
     std::vector<Vertex> vertices;
     unsigned int indices[6] = {
-        0, 1, 2,
-        2, 3, 0
+        0, 3, 2,
+        2, 1, 0
     };
+    glm::mat4 projectionMatrix;
+    // glm::mat4 viewMatrix;
+    // glm::mat4 modelMatrix;
 public:
     MenuStencil(CubeLog* logger, glm::vec2 position, glm::vec2 size, Shader* shader);
     ~MenuStencil();
@@ -110,6 +113,9 @@ public:
     bool getVisible();
     void enable();
     void disable();
+    // void setProjectionMatrix(glm::mat4 projectionMatrix);
+    // void setViewMatrix(glm::vec3 viewMatrix);
+    // void setModelMatrix(glm::mat4 modelMatrix);
 };
 
 class MenuEntry:public Clickable{

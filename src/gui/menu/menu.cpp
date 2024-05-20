@@ -67,9 +67,18 @@ void Menu::setup(){
     this->loadObjects(filename);
     this->objects.push_back(new MenuBox(logger, {0.4, 0.0}, {1.2, 2.0}, shader));
     this->objects.at(0)->setVisible(true);
-    Shader* stencilShader = new Shader("shaders/menuStencil.vs", "shaders/menuStencil.fs", logger);
-    this->stencil = new MenuStencil(logger, {0.4, 0.0}, {1.2, 1.9}, stencilShader);
+
     this->textShader = new Shader("shaders/text.vs", "shaders/text.fs", logger);
+
+    Shader* stencilShader = new Shader("shaders/menuStencil.vs", "shaders/menuStencil.fs", logger);
+    float stencilX_start_temp = 0.4f - 1.2f/2;
+    float stencilY_start_temp = 0.0f - 2.0f/2;
+    float stencilX_start = mapRange(stencilX_start_temp, -1.f, 1.f, 0.f, 720.f);
+    float stencilY_start = mapRange(stencilY_start_temp, 1.f, -1.f, 0.f, 720.f);
+    float stencilWidth = mapRange(1.2f, -1.f, 1.f, 0.f, 720.f);
+    float stencilHeight = mapRange(2.0f, 1.f, -1.f, 0.f, 720.f);
+    this->stencil = new MenuStencil(logger, {0, 0}, {720, 720}, stencilShader);
+    
     float textX = mapRange(0.f, -1.f, 1.f, 0.f, 720.f);
     float textY = mapRange(0.f, 1.f, -1.f, 0.f, 720.f);
     this->childrenClickables.push_back(new MenuEntry(logger, "Test", textShader, {textX, textY}, menuItemTextSize));
@@ -362,13 +371,18 @@ MenuStencil::MenuStencil(CubeLog* logger, glm::vec2 position, glm::vec2 size, Sh
     this->shader = shader;
 
     // position is the center of the box
-    glm::vec2 pos = {position.x - size.x/2, position.y - size.y/2};
+    // glm::vec2 pos = {position.x - size.x/2, position.y - size.y/2};
+    glm::vec2 pos = position;
 
     // create vertices for the stencil
-    this->vertices.push_back({pos.x, pos.y, Z_DISTANCE, 1.0});
-    this->vertices.push_back({pos.x, pos.y + size.y, Z_DISTANCE, 1.0});
-    this->vertices.push_back({pos.x + size.x, pos.y + size.y, Z_DISTANCE, 1.0});
-    this->vertices.push_back({pos.x + size.x, pos.y, Z_DISTANCE, 1.0});
+    this->vertices.push_back({pos.x, pos.y, 1.0, 1.0});
+    this->vertices.push_back({pos.x + size.x, pos.y, 1.0, 1.0});
+    this->vertices.push_back({pos.x + size.x, pos.y + size.y, 1.0, 1.0});
+    this->vertices.push_back({pos.x, pos.y + size.y, 1.0, 1.0});
+
+    // this->modelMatrix = glm::mat4(1.0f);
+    // this->viewMatrix = glm::mat4(1.0f);
+    this->projectionMatrix = glm::ortho(0.0f, 720.0f, 720.0f, 0.0f, 0.f, 1.0f);
     
     // create the VAO, VBO and EBO    
     glGenVertexArrays(1, &this->VAO);
@@ -381,7 +395,7 @@ MenuStencil::MenuStencil(CubeLog* logger, glm::vec2 position, glm::vec2 size, Sh
     glBufferData(GL_ARRAY_BUFFER, this->vertices.size() * sizeof(Vertex), &this->vertices[0], GL_STATIC_DRAW);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * 6, indices, GL_STATIC_DRAW);
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
     glEnableVertexAttribArray(0);
@@ -422,18 +436,39 @@ bool MenuStencil::getVisible(){
 }
 
 void MenuStencil::enable(){
-    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-    glDepthMask(GL_FALSE);
-    glStencilOp(GL_KEEP, GL_REPLACE, GL_KEEP);
-    glStencilFunc(GL_EQUAL, 1, 0xFF);
+    if (true) {
+        // In debug mode, draw the mask with a solid color to verify its size and position
+        glDisable(GL_STENCIL_TEST);
+        this->shader->use();
+        // shader->setMat4("model", modelMatrix);
+        // shader->setMat4("view", viewMatrix);
+        shader->setMat4("projection", projectionMatrix);
+        glBindVertexArray(VAO);
+        // glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindVertexArray(0);
+        glUseProgram(0);
+        return;
+    }
     glEnable(GL_STENCIL_TEST);
+    glClear(GL_STENCIL_BUFFER_BIT);
+    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+    
+    glDepthMask(GL_FALSE);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_ZERO);
+    glStencilFunc(GL_LESS, 1, 0xFF);
+    
     glUseProgram(this->shader->ID);
+    // this->shader->setMat4("model", this->modelMatrix);
+    // this->shader->setMat4("view", this->viewMatrix);
+    this->shader->setMat4("projection", this->projectionMatrix);
     glBindVertexArray(this->VAO);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
     glUseProgram(0);
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     glDepthMask(GL_TRUE);
+    glStencilMask(0x00);
 }
 
 void MenuStencil::disable(){
