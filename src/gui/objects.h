@@ -103,6 +103,7 @@ public:
     virtual void setOnRightClick(std::function<void(void*)> action) = 0;
     virtual ClickableArea* getClickableArea() = 0;
     virtual void setVisibleWidth(float width) = 0;
+    virtual void setClickAreaSize(unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax) = 0;
 };
 
 

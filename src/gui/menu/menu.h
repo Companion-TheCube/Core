@@ -15,7 +15,7 @@
 #define Z_DISTANCE 3.57
 #define BOX_RADIUS 0.05
 #define STENCIL_INSET_PX 6
-#define MENU_ITEM_TEXT_SIZE 36.f
+#define MENU_ITEM_TEXT_SIZE 28.f
 #define MENU_ITEM_PADDING_PX 15.f
 #define MENU_TOP_PADDING_PX 35.f
 #define MENU_HEIGHT_SCREEN_RELATIVE 2.0f
@@ -59,7 +59,7 @@ private:
     MenuStencil* stencil;
     Shader* textShader;
     float menuItemTextSize = MENU_ITEM_TEXT_SIZE;
-    long scrollPosition = 0;
+    long scrollVertPosition = 0;
     bool onClickEnabled = true;
 public:
     Menu(CubeLog *logger, std::string filename, Shader* shader);
@@ -78,9 +78,10 @@ public:
     void addMenuEntry(std::string text, std::function<void(void*)> action);
     void addMenuEntry(std::string text, std::function<void(void*)> action, std::function<void(void*)> rightAction);
     void addHorizontalRule();
-    void scroll(int x);
+    void scrollVert(int y);
     ClickableArea* getClickableArea();
     void setVisibleWidth(float width){}
+    void setClickAreaSize(unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax){}
 };
 
 class MenuBox:public M_Box{
@@ -127,6 +128,7 @@ public:
     void setOnRightClick(std::function<void(void*)> action);
     ClickableArea* getClickableArea();
     void setVisibleWidth(float width){}
+    void setClickAreaSize(unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax){}
 };
 
 class MenuStencil: public Object{
@@ -185,4 +187,5 @@ public:
     void setPosition(glm::vec2 position);
     void setVisibleWidth(float width);
     ClickableArea* getClickableArea();
+    void setClickAreaSize(unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax);
 };

@@ -36,12 +36,17 @@ Menu::~Menu(){
 }
 
 void Menu::addMenuEntry(std::string text, std::function<void(void*)> action){
-    float startY = ((menuItemTextSize + MENU_ITEM_PADDING_PX) * this->childrenClickables.size()) + MENU_TOP_PADDING_PX;
+    float startY = (((menuItemTextSize * 1.8) + MENU_ITEM_PADDING_PX) * this->childrenClickables.size()) + MENU_TOP_PADDING_PX;
     float textX = mapRange(MENU_POSITION_SCREEN_RELATIVE_X_LEFT, SCREEN_RELATIVE_MIN_X, SCREEN_RELATIVE_MAX_X, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X) + (STENCIL_INSET_PX * 2);
     float textY = mapRange(MENU_POSITION_SCREEN_RELATIVE_Y_TOP, SCREEN_RELATIVE_MIN_Y, SCREEN_RELATIVE_MAX_Y, SCREEN_PX_MIN_Y, SCREEN_PX_MAX_Y) - startY - (STENCIL_INSET_PX * 2) - this->menuItemTextSize;
     this->childrenClickables.push_back(new MenuEntry(logger, text, textShader, {textX, textY}, menuItemTextSize));
     float menuWidthPx = mapRange(MENU_WIDTH_SCREEN_RELATIVE, SCREEN_RELATIVE_MIN_WIDTH, SCREEN_RELATIVE_MAX_WIDTH, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X);
     this->childrenClickables.at(this->childrenClickables.size()-1)->setVisibleWidth(menuWidthPx - (STENCIL_INSET_PX * 2));
+    auto yMinTemp = this->childrenClickables.at(this->childrenClickables.size()-1)->getClickableArea()->yMin;
+    auto yMaxTemp = this->childrenClickables.at(this->childrenClickables.size()-1)->getClickableArea()->yMax;
+    yMinTemp -= (MENU_ITEM_PADDING_PX);
+    yMaxTemp += (MENU_ITEM_PADDING_PX);
+    this->childrenClickables.at(this->childrenClickables.size()-1)->setClickAreaSize(textX, textX + (menuWidthPx - (STENCIL_INSET_PX * 2)), yMinTemp, yMaxTemp);
     this->childrenClickables.at(this->childrenClickables.size()-1)->setVisible(true);
     this->childrenClickables.at(this->childrenClickables.size()-1)->setOnClick(action);
     this->logger->log("MenuEntry added with text: " + text +" and clickable area: " + std::to_string(this->childrenClickables.at(this->childrenClickables.size()-1)->getClickableArea()->xMin) + "x" + std::to_string(this->childrenClickables.at(this->childrenClickables.size()-1)->getClickableArea()->yMin) + " to " + std::to_string(this->childrenClickables.at(this->childrenClickables.size()-1)->getClickableArea()->xMax) + "x" + std::to_string(this->childrenClickables.at(this->childrenClickables.size()-1)->getClickableArea()->yMax), true);
@@ -53,18 +58,18 @@ void Menu::addMenuEntry(std::string text, std::function<void(void*)> action, std
 }
 
 void Menu::addHorizontalRule(){
-    float startY = ((menuItemTextSize + MENU_ITEM_PADDING_PX) * this->childrenClickables.size()) + MENU_TOP_PADDING_PX + ((menuItemTextSize + (MENU_ITEM_PADDING_PX * 2)) / 2);
+    float startY = (((menuItemTextSize * 1.8) + MENU_ITEM_PADDING_PX) * this->childrenClickables.size()) + MENU_TOP_PADDING_PX + ((menuItemTextSize + (MENU_ITEM_PADDING_PX * 2)) / 2);
     // get startx from screen relative position of menu
     float startX = mapRange(MENU_POSITION_SCREEN_RELATIVE_X_LEFT, SCREEN_RELATIVE_MIN_X, SCREEN_RELATIVE_MAX_X, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X) + (STENCIL_INSET_PX * 2) + 30;
     this->childrenClickables.push_back(new MenuHorizontalRule(logger, {startX, startY}, 350, shader));
     this->childrenClickables.at(this->childrenClickables.size()-1)->setVisible(true);    
 }
 
-void Menu::scroll(int x){
+void Menu::scrollVert(int y){
     // TODO: get the scroll data into this function
-    this->scrollPosition += x;
-    if(this->scrollPosition < 0){
-        this->scrollPosition = 0;
+    this->scrollVertPosition += y;
+    if(this->scrollVertPosition < 0){
+        this->scrollVertPosition = 0;
     }
 }
 
@@ -82,6 +87,7 @@ void Menu::setup(){
     float stencilHeight = mapRange(MENU_HEIGHT_SCREEN_RELATIVE, SCREEN_RELATIVE_MIN_HEIGHT, SCREEN_RELATIVE_MAX_HEIGHT, SCREEN_PX_MIN_Y, SCREEN_PX_MAX_Y) - (STENCIL_INSET_PX * 2);
     this->stencil = new MenuStencil(logger, {stencilX_start, stencilY_start}, {stencilWidth, stencilHeight}, stencilShader);
     
+    /////// TESTING ////////////
     this->addMenuEntry("Test addMenuEntry() 1 kljshdfjkhsdfkjhsdf", [&](void* data){
         this->logger->log("Test clicked", true);
     });
@@ -95,7 +101,7 @@ void Menu::setup(){
     this->addMenuEntry("addMenuEntry() 3", [&](void* data){
         this->logger->log("Test clicked", true);
     });
-
+    ////////// END TESTING //////////
 
     std::lock_guard<std::mutex> lock(this->mutex);
     this->ready = true;
@@ -410,6 +416,13 @@ void MenuEntry::setVisibleWidth(float width){
 
 ClickableArea* MenuEntry::getClickableArea(){
     return &this->clickArea;
+}
+
+void MenuEntry::setClickAreaSize(unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax){
+    this->clickArea.xMin = xMin;
+    this->clickArea.xMax = xMax;
+    this->clickArea.yMin = yMin;
+    this->clickArea.yMax = yMax;
 }
 
 //////////////////////////////////////////////////////////////////////////
