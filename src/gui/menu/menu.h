@@ -12,6 +12,33 @@
 #include "./../objects.h"
 #include <typeinfo>
 
+#define Z_DISTANCE 3.57
+#define BOX_RADIUS 0.05
+#define STENCIL_INSET_PX 6
+#define MENU_ITEM_TEXT_SIZE 36.f
+#define MENU_ITEM_PADDING_PX 15.f
+#define MENU_TOP_PADDING_PX 35.f
+#define MENU_HEIGHT_SCREEN_RELATIVE 2.0f
+#define MENU_WIDTH_SCREEN_RELATIVE 1.2f
+#define MENU_POSITION_SCREEN_RELATIVE_X_CENTER 0.4f
+#define MENU_POSITION_SCREEN_RELATIVE_Y_CENTER 0.0f
+#define MENU_POSITION_SCREEN_RELATIVE_X_LEFT (MENU_POSITION_SCREEN_RELATIVE_X_CENTER - (MENU_WIDTH_SCREEN_RELATIVE / 2))
+#define MENU_POSITION_SCREEN_RELATIVE_X_RIGHT (MENU_POSITION_SCREEN_RELATIVE_X_CENTER + (MENU_WIDTH_SCREEN_RELATIVE / 2))
+#define MENU_POSITION_SCREEN_RELATIVE_Y_TOP (MENU_POSITION_SCREEN_RELATIVE_Y_CENTER + (MENU_HEIGHT_SCREEN_RELATIVE / 2))
+#define MENU_POSITION_SCREEN_RELATIVE_Y_BOTTOM (MENU_POSITION_SCREEN_RELATIVE_Y_CENTER - (MENU_HEIGHT_SCREEN_RELATIVE / 2))
+#define SCREEN_RELATIVE_MAX_X 1.0f
+#define SCREEN_RELATIVE_MAX_Y 1.0f
+#define SCREEN_RELATIVE_MIN_X -1.0f
+#define SCREEN_RELATIVE_MIN_Y -1.0f
+#define SCREEN_RELATIVE_MAX_WIDTH 2.0f
+#define SCREEN_RELATIVE_MAX_HEIGHT 2.0f
+#define SCREEN_RELATIVE_MIN_WIDTH 0.0f
+#define SCREEN_RELATIVE_MIN_HEIGHT 0.0f
+#define SCREEN_PX_MAX_X 720.f
+#define SCREEN_PX_MAX_Y 720.f
+#define SCREEN_PX_MIN_X 0.f
+#define SCREEN_PX_MIN_Y 0.f
+
 class MenuStencil;
 
 class Menu: public Clickable{
@@ -31,7 +58,9 @@ private:
     ClickableArea clickArea;
     MenuStencil* stencil;
     Shader* textShader;
-    float menuItemTextSize = 36.f;
+    float menuItemTextSize = MENU_ITEM_TEXT_SIZE;
+    long scrollPosition = 0;
+    bool onClickEnabled = true;
 public:
     Menu(CubeLog *logger, std::string filename, Shader* shader);
     ~Menu();
@@ -49,6 +78,8 @@ public:
     void addMenuEntry(std::string text, std::function<void(void*)> action);
     void addMenuEntry(std::string text, std::function<void(void*)> action, std::function<void(void*)> rightAction);
     void addHorizontalRule();
+    void scroll(int x);
+    ClickableArea* getClickableArea();
 };
 
 class MenuBox:public M_Box{
@@ -70,21 +101,30 @@ public:
     bool getVisible();
 };
 
-class MenuHorizontalRule:public M_Box{  
+class MenuHorizontalRule:public Clickable{
 private:
     CubeLog *logger;
     glm::vec2 position;
-    glm::vec2 size;
+    float size;
     std::vector<MeshObject*> objects;
     bool visible;
+    Shader* shader;
+    ClickableArea clickArea;
 public:
-    MenuHorizontalRule(CubeLog* logger, glm::vec2 position, glm::vec2 size, Shader* shader);
+    MenuHorizontalRule(CubeLog* logger, glm::vec2 position, float size, Shader* shader);
     ~MenuHorizontalRule();
     void setPosition(glm::vec2 position);
     void setSize(glm::vec2 size);
+    void setSize(float size);
     void draw();
     bool setVisible(bool visible);
     bool getVisible();
+    void onClick(void*);
+    void onRightClick(void*);
+    std::vector<MeshObject*> getObjects();
+    void setOnClick(std::function<void(void*)> action);
+    void setOnRightClick(std::function<void(void*)> action);
+    ClickableArea* getClickableArea();
 };
 
 class MenuStencil: public Object{
@@ -95,14 +135,12 @@ private:
     Shader* shader;
     GLuint VAO, VBO, EBO;
     std::vector<MeshObject*> objects;
-    std::vector<Vertex> vertices;
+    std::vector<glm::vec2> vertices;
     unsigned int indices[6] = {
         0, 3, 2,
         2, 1, 0
     };
     glm::mat4 projectionMatrix;
-    // glm::mat4 viewMatrix;
-    // glm::mat4 modelMatrix;
 public:
     MenuStencil(CubeLog* logger, glm::vec2 position, glm::vec2 size, Shader* shader);
     ~MenuStencil();
@@ -113,9 +151,6 @@ public:
     bool getVisible();
     void enable();
     void disable();
-    // void setProjectionMatrix(glm::mat4 projectionMatrix);
-    // void setViewMatrix(glm::vec3 viewMatrix);
-    // void setModelMatrix(glm::mat4 modelMatrix);
 };
 
 class MenuEntry:public Clickable{
@@ -129,6 +164,7 @@ private:
     std::vector<MeshObject*> objects;
     glm::vec2 position;
     ClickableArea clickArea;
+    glm::vec2 size;
 public:
     MenuEntry(CubeLog* logger, std::string text, Shader* shader, glm::vec2 position, float size);
     ~MenuEntry();
@@ -142,4 +178,5 @@ public:
     void draw();
     void setPosition(glm::vec2 position);
     void setVisibleWidth(float width);
+    ClickableArea* getClickableArea();
 };

@@ -100,6 +100,7 @@ public:
     virtual std::vector<MeshObject*> getObjects() = 0;
     virtual void setOnClick(std::function<void(void*)> action) = 0;
     virtual void setOnRightClick(std::function<void(void*)> action) = 0;
+    virtual ClickableArea* getClickableArea() = 0;
 };
 
 

@@ -67,12 +67,12 @@ void M_Text::buildText(){
     glBindVertexArray(0);
 
     setProjectionMatrix(glm::ortho(0.0f, 720.f, 0.0f, 720.f));
-    setViewMatrix(glm::vec3(0.0f, 0.0f, 6.0f));
-    glm::mat4 modelMatrix = glm::mat4(1.0f);
-    modelMatrix = glm::rotate(modelMatrix, glm::radians(0.f), glm::vec3(1.0f, 0.0f, 0.0f));
-    modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, 0.0f));
-    modelMatrix = glm::scale(modelMatrix, glm::vec3(1.0f, 1.0f, 1.0f));
-    setModelMatrix(modelMatrix);
+    // setViewMatrix(glm::vec3(0.0f, 0.0f, 6.0f));
+    // glm::mat4 modelMatrix = glm::mat4(1.0f);
+    // modelMatrix = glm::rotate(modelMatrix, glm::radians(0.f), glm::vec3(1.0f, 0.0f, 0.0f));
+    // modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, 0.0f));
+    // modelMatrix = glm::scale(modelMatrix, glm::vec3(1.0f, 1.0f, 1.0f));
+    // setModelMatrix(modelMatrix);
 }
 
 M_Text::~M_Text()
@@ -137,12 +137,12 @@ void M_Text::setProjectionMatrix(glm::mat4 projectionMatrix)
 
 void M_Text::setViewMatrix(glm::vec3 viewMatrix)
 {
-    this->viewMatrix = glm::lookAt(viewMatrix, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    // this->viewMatrix = glm::lookAt(viewMatrix, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 }
 
 void M_Text::setModelMatrix(glm::mat4 modelMatrix)
 {
-    this->modelMatrix = modelMatrix;
+    // this->modelMatrix = modelMatrix;
 }
 
 void M_Text::translate(glm::vec3 translation)

@@ -362,6 +362,7 @@ bool EventManager::checkClickableAreas(sf::Event event){
         int x = event.mouseButton.x;
         int y = event.mouseButton.y;
         //check if the x and y are within the area
+        this->logger->log("Checking clickable area: x:" + std::to_string(x) + " y:" + std::to_string(y) + " area: xMin:" + std::to_string(area->xMin) + " xMax:" + std::to_string(area->xMax) + " yMin:" + std::to_string(area->yMin) + " yMax:" + std::to_string(area->yMax), true);
         if(x < area->xMax && x > area->xMin && y < area->yMax && y > area->yMin){
             if(event.mouseButton.button == sf::Mouse::Left){
                 area->clickableObject->onClick(&event);

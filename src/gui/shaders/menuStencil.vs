@@ -2,10 +2,10 @@
 precision highp float;
 
 layout(location = 0) in vec3 aPos;   // Correct use: specifies the location of vertex attribute
-layout(location = 1) in float aColor; // Correct use: specifies the location of another vertex attribute
+// layout(location = 1) in float aColor; // Correct use: specifies the location of another vertex attribute
 
 out vec3 vertexColor; // Pass color to fragment shader
-
+float aColor = 1.0; // Hardcoded color
 uniform mat4 projection;
 
 void main() {

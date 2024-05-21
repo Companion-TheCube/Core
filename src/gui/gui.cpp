@@ -91,6 +91,7 @@ void GUI::eventLoop()
     this->renderer->addLoopTask([&](){
         menu->draw();
     });
+    
     for(auto area: menu->getClickableAreas()){
         this->eventManager->addClickableArea(area);
     }
