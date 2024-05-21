@@ -80,6 +80,7 @@ public:
     void addHorizontalRule();
     void scroll(int x);
     ClickableArea* getClickableArea();
+    void setVisibleWidth(float width){}
 };
 
 class MenuBox:public M_Box{
@@ -125,6 +126,7 @@ public:
     void setOnClick(std::function<void(void*)> action);
     void setOnRightClick(std::function<void(void*)> action);
     ClickableArea* getClickableArea();
+    void setVisibleWidth(float width){}
 };
 
 class MenuStencil: public Object{
@@ -165,6 +167,10 @@ private:
     glm::vec2 position;
     ClickableArea clickArea;
     glm::vec2 size;
+    bool scrolling = false;
+    float visibleWidth = 0;
+    float scrollPosition = 0;
+    float scrollWait = 0;
 public:
     MenuEntry(CubeLog* logger, std::string text, Shader* shader, glm::vec2 position, float size);
     ~MenuEntry();

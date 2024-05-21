@@ -26,6 +26,7 @@ private:
     glm::vec2 position;
     float scale_;
     std::map<char, Character> Characters;
+    float width = 0.f;
 public:
     M_Text(CubeLog* logger, Shader* sh, std::string text, float fontSize, glm::vec3 color, glm::vec2 position);
     ~M_Text();
@@ -44,6 +45,7 @@ public:
     void setPosition(glm::vec2 position);
     void setText(std::string text);
     void buildText();
+    float getWidth();
 };
 
 class M_PartCircle : public MeshObject {
@@ -75,6 +77,7 @@ public:
     void rotateAbout(float angle, glm::vec3 point);
     glm::vec3 getCenterPoint();
     std::vector<Vertex> getVertices();
+    float getWidth();
 };
 
 class M_Rect : public MeshObject {
@@ -104,6 +107,7 @@ public:
     void rotateAbout(float angle, glm::vec3 point);
     glm::vec3 getCenterPoint();
     std::vector<Vertex> getVertices();
+    float getWidth();
 };
 
 class M_Line : public MeshObject {
@@ -130,6 +134,7 @@ public:
     void rotateAbout(float angle, glm::vec3 point);
     glm::vec3 getCenterPoint();
     std::vector<Vertex> getVertices();
+    float getWidth();
 };
 
 class M_Arc: public MeshObject{
@@ -161,6 +166,7 @@ public:
     void rotateAbout(float angle, glm::vec3 axis, glm::vec3 point);
     glm::vec3 getCenterPoint();
     std::vector<Vertex> getVertices();
+    float getWidth();
 };
 
 #define CUBE_VERTICES_CONST 1.0f
@@ -249,4 +255,5 @@ public:
     void rotateAbout(float angle, glm::vec3 point);
     glm::vec3 getCenterPoint();
     std::vector<Vertex> getVertices();
+    float getWidth();
 };

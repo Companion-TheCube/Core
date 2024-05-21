@@ -40,6 +40,7 @@ public:
     virtual void rotateAbout(float angle, glm::vec3 axis, glm::vec3 point) = 0;
     virtual glm::vec3 getCenterPoint() = 0;
     virtual std::vector<Vertex> getVertices() = 0;
+    virtual float getWidth() = 0;
 };
 
 enum Expression{
@@ -101,6 +102,7 @@ public:
     virtual void setOnClick(std::function<void(void*)> action) = 0;
     virtual void setOnRightClick(std::function<void(void*)> action) = 0;
     virtual ClickableArea* getClickableArea() = 0;
+    virtual void setVisibleWidth(float width) = 0;
 };
 
 

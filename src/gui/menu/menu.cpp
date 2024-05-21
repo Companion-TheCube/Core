@@ -40,6 +40,8 @@ void Menu::addMenuEntry(std::string text, std::function<void(void*)> action){
     float textX = mapRange(MENU_POSITION_SCREEN_RELATIVE_X_LEFT, SCREEN_RELATIVE_MIN_X, SCREEN_RELATIVE_MAX_X, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X) + (STENCIL_INSET_PX * 2);
     float textY = mapRange(MENU_POSITION_SCREEN_RELATIVE_Y_TOP, SCREEN_RELATIVE_MIN_Y, SCREEN_RELATIVE_MAX_Y, SCREEN_PX_MIN_Y, SCREEN_PX_MAX_Y) - startY - (STENCIL_INSET_PX * 2) - this->menuItemTextSize;
     this->childrenClickables.push_back(new MenuEntry(logger, text, textShader, {textX, textY}, menuItemTextSize));
+    float menuWidthPx = mapRange(MENU_WIDTH_SCREEN_RELATIVE, SCREEN_RELATIVE_MIN_WIDTH, SCREEN_RELATIVE_MAX_WIDTH, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X);
+    this->childrenClickables.at(this->childrenClickables.size()-1)->setVisibleWidth(menuWidthPx - (STENCIL_INSET_PX * 2));
     this->childrenClickables.at(this->childrenClickables.size()-1)->setVisible(true);
     this->childrenClickables.at(this->childrenClickables.size()-1)->setOnClick(action);
     this->logger->log("MenuEntry added with text: " + text +" and clickable area: " + std::to_string(this->childrenClickables.at(this->childrenClickables.size()-1)->getClickableArea()->xMin) + "x" + std::to_string(this->childrenClickables.at(this->childrenClickables.size()-1)->getClickableArea()->yMin) + " to " + std::to_string(this->childrenClickables.at(this->childrenClickables.size()-1)->getClickableArea()->xMax) + "x" + std::to_string(this->childrenClickables.at(this->childrenClickables.size()-1)->getClickableArea()->yMax), true);
@@ -80,17 +82,17 @@ void Menu::setup(){
     float stencilHeight = mapRange(MENU_HEIGHT_SCREEN_RELATIVE, SCREEN_RELATIVE_MIN_HEIGHT, SCREEN_RELATIVE_MAX_HEIGHT, SCREEN_PX_MIN_Y, SCREEN_PX_MAX_Y) - (STENCIL_INSET_PX * 2);
     this->stencil = new MenuStencil(logger, {stencilX_start, stencilY_start}, {stencilWidth, stencilHeight}, stencilShader);
     
-    this->addMenuEntry("Test addMenuEntry() 1", [&](void* data){
+    this->addMenuEntry("Test addMenuEntry() 1 kljshdfjkhsdfkjhsdf", [&](void* data){
         this->logger->log("Test clicked", true);
     });
 
-    this->addMenuEntry("Test addMenuEntry() 2", [&](void* data){
+    this->addMenuEntry("addMenuEntry() 2", [&](void* data){
         this->logger->log("Test clicked", true);
     });
 
     this->addHorizontalRule();
 
-    this->addMenuEntry("Test addMenuEntry() 3", [&](void* data){
+    this->addMenuEntry("addMenuEntry() 3", [&](void* data){
         this->logger->log("Test clicked", true);
     });
 
@@ -303,17 +305,20 @@ MenuEntry::MenuEntry(CubeLog* logger, std::string text, Shader* shader, glm::vec
     this->text = text;
     this->visible = true;
     this->shader = shader;
-    this->size.x = size;
+
+    this->objects.push_back(new M_Text(logger, shader, text, size, {1.f,1.f,1.f,}, position));
+
+    this->size.x = this->objects.at(0)->getWidth();
     this->size.y = size;
     this->position = position;
     // this->clickArea = ClickableArea();
     this->clickArea.clickableObject = this;
     float clickY = mapRange(float(position.y), 0.f, 720.f, 720.f, 0.f);
     this->clickArea.xMin = position.x;
-    this->clickArea.xMax = position.x + text.size() * size * 0.6;
-    this->clickArea.yMin = clickY - size;
+    this->clickArea.xMax = position.x + text.size() * this->size.x;
+    this->clickArea.yMin = clickY - this->size.y;
     this->clickArea.yMax = clickY;
-    this->objects.push_back(new M_Text(logger, shader, text, size, {1.f,1.f,1.f,}, position));
+    
     this->logger->log("MenuEntry created with text: " + text + " with click area: " + std::to_string(this->clickArea.xMin) + "x" + std::to_string(this->clickArea.yMin) + " to " + std::to_string(this->clickArea.xMax) + "x" + std::to_string(this->clickArea.yMax), true);
 }
 
@@ -366,6 +371,21 @@ void MenuEntry::draw(){
     if(!this->visible){
         return;
     }
+    if(this->scrolling){
+        if(this->scrollWait++ > 60){
+            this->scrollPosition += 1;
+            for(auto object: this->objects){
+                object->translate({-1.f,0.f,0.f});
+            }
+            if(this->scrollPosition > this->size.x){
+                for(auto object: this->objects){
+                    object->translate({this->scrollPosition,0.f,0.f});
+                }   
+                this->scrollPosition = 0;
+                this->scrollWait = 0;
+            }
+        }
+    }
     for(auto object: this->objects){
         object->draw();
     }
@@ -382,6 +402,10 @@ void MenuEntry::setPosition(glm::vec2 position){
 
 void MenuEntry::setVisibleWidth(float width){
     // TODO: update the position of the text so that it scrolls if the visible width is less than 100%
+    this->visibleWidth = width;
+    if(width < this->size.x){
+        this->scrolling = true;
+    }
 }
 
 ClickableArea* MenuEntry::getClickableArea(){

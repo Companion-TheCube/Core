@@ -53,6 +53,13 @@ void M_Text::buildText(){
         };
         Characters.insert(std::pair<char, Character>(c, character));
     }
+    std::string::const_iterator c;
+    float xTemp = this->position.x;
+    for (c = this->text.begin(); c != this->text.end(); c++) {
+        Character ch = Characters[*c];
+        float xpos = xTemp + ch.Bearing.x;
+        this->width += ch.Size.x;
+    }
     glBindTexture(GL_TEXTURE_2D, 0);
     FT_Done_Face(face);
     FT_Done_FreeType(ft);
@@ -98,6 +105,7 @@ void M_Text::draw()
         float xpos = xTemp + ch.Bearing.x;
         float ypos = this->position.y - (ch.Size.y - ch.Bearing.y);
         float w = ch.Size.x;
+        this->width += w;
         float h = ch.Size.y;
         // float vertices[6][4] = {
         //     { xpos,     ypos + h,   0.0, 0.0 },
@@ -214,6 +222,11 @@ void M_Text::setText(std::string text)
 {
     this->text = text;
     this->buildText();
+}
+
+float M_Text::getWidth()
+{
+    return this->width;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -370,6 +383,11 @@ glm::vec3 M_PartCircle::getCenterPoint()
 std::vector<Vertex> M_PartCircle::getVertices()
 {
     return this->vertexData;
+}
+
+float M_PartCircle::getWidth()
+{
+    return this->radius;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -540,6 +558,11 @@ std::vector<Vertex> M_Rect::getVertices()
     return this->vertexDataFill;
 }
 
+float M_Rect::getWidth()
+{
+    return this->vertexDataFill[0].x - this->vertexDataFill[1].x;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////
 
 M_Line::M_Line(CubeLog* logger, Shader* sh, glm::vec3 start, glm::vec3 end)
@@ -675,6 +698,11 @@ std::vector<Vertex> M_Line::getVertices()
     return this->vertexData;
 }
 
+float M_Line::getWidth()
+{
+    return this->vertexData[0].x - this->vertexData[1].x;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////
 
 M_Arc::M_Arc(CubeLog* logger, Shader* sh, unsigned int numSegments, float radius, float startAngle, float endAngle, glm::vec3 centerPoint)
@@ -780,6 +808,11 @@ glm::vec3 M_Arc::getCenterPoint()
 std::vector<Vertex> M_Arc::getVertices()
 {
     return this->vertexData;
+}
+
+float M_Arc::getWidth()
+{
+    return this->radius;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -928,4 +961,9 @@ std::vector<Vertex> Cube::getVertices()
         vertices.push_back(cubeVertices[i]);
     }
     return vertices;
+}
+
+float Cube::getWidth()
+{
+    return cubeVertices[0].x - cubeVertices[1].x;
 }
