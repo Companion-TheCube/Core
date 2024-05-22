@@ -53,13 +53,13 @@ void M_Text::buildText(){
         };
         Characters.insert(std::pair<char, Character>(c, character));
     }
+    // This loop adds the width of each character to the width of the text
     std::string::const_iterator c;
-    float xTemp = this->position.x;
     for (c = this->text.begin(); c != this->text.end(); c++) {
         Character ch = Characters[*c];
-        float xpos = xTemp + ch.Bearing.x;
-        this->width += ch.Size.x;
+        this->width += (ch.Advance >> 6);
     }
+
     glBindTexture(GL_TEXTURE_2D, 0);
     FT_Done_Face(face);
     FT_Done_FreeType(ft);
@@ -105,7 +105,6 @@ void M_Text::draw()
         float xpos = xTemp + ch.Bearing.x;
         float ypos = this->position.y - (ch.Size.y - ch.Bearing.y);
         float w = ch.Size.x;
-        this->width += w;
         float h = ch.Size.y;
         // float vertices[6][4] = {
         //     { xpos,     ypos + h,   0.0, 0.0 },
