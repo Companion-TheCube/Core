@@ -53,11 +53,11 @@ void M_Text::buildText(){
         };
         Characters.insert(std::pair<char, Character>(c, character));
     }
-    // This loop adds the width of each character to the width of the text
+    // This loop adds up the widths of each character in the text
     std::string::const_iterator c;
     for (c = this->text.begin(); c != this->text.end(); c++) {
-        Character ch = Characters[*c];
-        this->width += (ch.Advance >> 6);
+        Character ch = this->Characters[*c]; // Get the character from the map
+        this->width += (ch.Advance >> 6); // Bitshift by 6 to get value in pixels (2^6 = 64)
     }
 
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -74,12 +74,6 @@ void M_Text::buildText(){
     glBindVertexArray(0);
 
     setProjectionMatrix(glm::ortho(0.0f, 720.f, 0.0f, 720.f));
-    // setViewMatrix(glm::vec3(0.0f, 0.0f, 6.0f));
-    // glm::mat4 modelMatrix = glm::mat4(1.0f);
-    // modelMatrix = glm::rotate(modelMatrix, glm::radians(0.f), glm::vec3(1.0f, 0.0f, 0.0f));
-    // modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, 0.0f));
-    // modelMatrix = glm::scale(modelMatrix, glm::vec3(1.0f, 1.0f, 1.0f));
-    // setModelMatrix(modelMatrix);
 }
 
 M_Text::~M_Text()
@@ -93,8 +87,6 @@ void M_Text::draw()
 {
     this->shader->use();
     shader->setVec3("textColor", this->color.x, this->color.y, this->color.z);
-    // shader->setMat4("model", modelMatrix);
-    // shader->setMat4("view", viewMatrix);
     shader->setMat4("projection", projectionMatrix);
     glActiveTexture(GL_TEXTURE0);
     glBindVertexArray(VAO);
@@ -106,32 +98,22 @@ void M_Text::draw()
         float ypos = this->position.y - (ch.Size.y - ch.Bearing.y);
         float w = ch.Size.x;
         float h = ch.Size.y;
-        // float vertices[6][4] = {
-        //     { xpos,     ypos + h,   0.0, 0.0 },
-        //     { xpos,     ypos,       0.0, 1.0 },
-        //     { xpos + w, ypos,       1.0, 1.0 },
-        //     { xpos,     ypos + h,   0.0, 0.0 },
-        //     { xpos + w, ypos,       1.0, 1.0 },
-        //     { xpos + w, ypos + h,   1.0, 0.0 }
-        // };
         float vertices[6][4] = {
-            // Positions         // Texture Coords
-            { xpos, ypos + h, 0.0f, 0.0f }, // Top-left
-            { xpos + w, ypos, 1.0f, 1.0f }, // Bottom-right
-            { xpos, ypos, 0.0f, 1.0f }, // Bottom-left
+            // Positions            // Texture Coords
+            { xpos, ypos + h,       0.0f, 0.0f }, // Top-left
+            { xpos + w, ypos,       1.0f, 1.0f }, // Bottom-right
+            { xpos, ypos,           0.0f, 1.0f }, // Bottom-left
 
-            { xpos, ypos + h, 0.0f, 0.0f }, // Top-left
-            { xpos + w, ypos + h, 1.0f, 0.0f }, // Top-right
-            { xpos + w, ypos, 1.0f, 1.0f } // Bottom-right
+            { xpos, ypos + h,       0.0f, 0.0f }, // Top-left
+            { xpos + w, ypos + h,   1.0f, 0.0f }, // Top-right
+            { xpos + w, ypos,       1.0f, 1.0f }  // Bottom-right
         };
-
         glBindTexture(GL_TEXTURE_2D, ch.TextureID);
         glBindBuffer(GL_ARRAY_BUFFER, VBO);
         glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glDrawArrays(GL_TRIANGLES, 0, 6);
         xTemp += (ch.Advance >> 6);
-        // add the vertices to vertexData
     }
     glBindVertexArray(0);
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -144,12 +126,12 @@ void M_Text::setProjectionMatrix(glm::mat4 projectionMatrix)
 
 void M_Text::setViewMatrix(glm::vec3 viewMatrix)
 {
-    // this->viewMatrix = glm::lookAt(viewMatrix, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    return; // do nothing
 }
 
 void M_Text::setModelMatrix(glm::mat4 modelMatrix)
 {
-    // this->modelMatrix = modelMatrix;
+    return; // do nothing
 }
 
 void M_Text::translate(glm::vec3 translation)
@@ -160,10 +142,7 @@ void M_Text::translate(glm::vec3 translation)
 
 void M_Text::rotate(float angle, glm::vec3 axis)
 {
-    // glm::mat4 tempMat = glm::mat4(1.0f);
-    // tempMat = glm::rotate(tempMat, glm::radians(angle), axis);
-    // glm::vec4 point = tempMat * glm::vec4(this->position.x, this->position.y, 1.0f);
-    // this->position = { point.x, point.y};
+    // TODO: Implement rotation of text
 }
 
 void M_Text::scale(glm::vec3 scale)
@@ -183,23 +162,12 @@ void M_Text::uniformScale(float scale)
 
 void M_Text::rotateAbout(float angle, glm::vec3 point)
 {
-    // glm::vec3 axis = point - this->position;
-    // glm::mat4 tempMat = glm::mat4(1.0f); // Start with an identity matrix
-    // tempMat = glm::translate(tempMat, point);
-    // tempMat = glm::rotate(tempMat, glm::radians(angle), axis);
-    // tempMat = glm::translate(tempMat, -point);
-    // glm::vec4 newPoint = tempMat * glm::vec4(this->position.x, this->position.y, this->position.z, 1.0f);
-    // this->position = { newPoint.x, newPoint.y, newPoint.z };
+    // TODO: Implement rotation of text
 }
 
 void M_Text::rotateAbout(float angle, glm::vec3 axis, glm::vec3 point)
 {
-    // glm::mat4 tempMat = glm::mat4(1.0f); // Start with an identity matrix
-    // tempMat = glm::translate(tempMat, point);
-    // tempMat = glm::rotate(tempMat, glm::radians(angle), axis);
-    // tempMat = glm::translate(tempMat, -point);
-    // glm::vec4 newPoint = tempMat * glm::vec4(this->position.x, this->position.y, this->position.z, 1.0f);
-    // this->position = { newPoint.x, newPoint.y, newPoint.z };
+    // TODO: Implement rotation of text
 }
 
 glm::vec3 M_Text::getCenterPoint()

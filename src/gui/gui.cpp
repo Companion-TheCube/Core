@@ -9,6 +9,7 @@ GUI::GUI(CubeLog* logger)
 {
     this->logger = logger;
     this->renderer = new Renderer(this->logger);
+    // TODO: use std::barrier instead of this while loop
     while(!this->renderer->isReady()){
         #ifdef __linux__
         usleep(1000);
@@ -18,8 +19,7 @@ GUI::GUI(CubeLog* logger)
         #endif
     }
     this->eventManager = new EventManager(this->logger);
-    this->eventLoopThread = std::thread(&GUI::eventLoop, this);
-    // need to implement a method of waiting for hte rendering thread to be ready
+    this->eventLoopThread = std::jthread(&GUI::eventLoop, this);
     this->logger->log("GUI initialized", true);
 }
 
@@ -78,8 +78,7 @@ void GUI::eventLoop()
     mouseClickHandler->setName("MouseClick");
     mouseClickHandler->setEventType(sf::Event::MouseButtonPressed);
 
-    
-    
+    // TODO: use std::barrier instead of this while loop
     while(!menu->isReady()){
         #ifdef __linux__
         usleep(1000);

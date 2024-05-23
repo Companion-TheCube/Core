@@ -4,8 +4,9 @@
 
 /**
  * @brief Construct a new Menu:: Menu object
- * 
  * @param logger a CubeLog object
+ * @param filename the file to load the menu objects from
+ * @param shader the shader to use for the menu objects
  */
 Menu::Menu(CubeLog* logger, std::string filename, Shader* shader){
     this->logger = logger;
@@ -35,6 +36,12 @@ Menu::~Menu(){
     }
 }
 
+/**
+ * @brief Add a menu entry to the menu
+ * 
+ * @param text The text to display
+ * @param action The action to take when the menu entry is clicked
+ */
 void Menu::addMenuEntry(std::string text, std::function<void(void*)> action){
     float startY = (((menuItemTextSize * 1.8) + MENU_ITEM_PADDING_PX) * this->childrenClickables.size()) + MENU_TOP_PADDING_PX;
     float textX = mapRange(MENU_POSITION_SCREEN_RELATIVE_X_LEFT, SCREEN_RELATIVE_MIN_X, SCREEN_RELATIVE_MAX_X, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X) + (STENCIL_INSET_PX * 2);
@@ -52,11 +59,22 @@ void Menu::addMenuEntry(std::string text, std::function<void(void*)> action){
     this->logger->log("MenuEntry added with text: " + text +" and clickable area: " + std::to_string(this->childrenClickables.at(this->childrenClickables.size()-1)->getClickableArea()->xMin) + "x" + std::to_string(this->childrenClickables.at(this->childrenClickables.size()-1)->getClickableArea()->yMin) + " to " + std::to_string(this->childrenClickables.at(this->childrenClickables.size()-1)->getClickableArea()->xMax) + "x" + std::to_string(this->childrenClickables.at(this->childrenClickables.size()-1)->getClickableArea()->yMax), true);
 }
 
+/**
+ * @brief Add a menu entry to the menu with a right click action
+ * 
+ * @param text The text to display
+ * @param action The action to take when the menu entry is clicked
+ * @param rightAction The action to take when the menu entry is right clicked
+ */
 void Menu::addMenuEntry(std::string text, std::function<void(void*)> action, std::function<void(void*)> rightAction){
     this->addMenuEntry(text, action);
     this->childrenClickables.at(this->childrenClickables.size()-1)->setOnRightClick(rightAction);
 }
 
+/**
+ * @brief Add a horizontal rule to the menu
+ * 
+ */
 void Menu::addHorizontalRule(){
     float startY = (((menuItemTextSize * 1.8) + MENU_ITEM_PADDING_PX) * this->childrenClickables.size()) + MENU_TOP_PADDING_PX + ((menuItemTextSize + (MENU_ITEM_PADDING_PX * 2)) / 2);
     // get startx from screen relative position of menu
@@ -65,6 +83,11 @@ void Menu::addHorizontalRule(){
     this->childrenClickables.at(this->childrenClickables.size()-1)->setVisible(true);    
 }
 
+/**
+ * @brief Scroll the menu vertically
+ * 
+ * @param y the amount to scroll
+ */
 void Menu::scrollVert(int y){
     // TODO: get the scroll data into this function
     this->scrollVertPosition += y;
@@ -73,6 +96,10 @@ void Menu::scrollVert(int y){
     }
 }
 
+/**
+ * @brief Setup the menu
+ * 
+ */
 void Menu::setup(){
     this->loadObjects(filename);
     this->objects.push_back(new MenuBox(logger, {MENU_POSITION_SCREEN_RELATIVE_X_CENTER, MENU_POSITION_SCREEN_RELATIVE_Y_CENTER}, {MENU_WIDTH_SCREEN_RELATIVE, MENU_HEIGHT_SCREEN_RELATIVE}, shader));
@@ -108,6 +135,11 @@ void Menu::setup(){
     this->logger->log("Menu setup done", true);
 }
 
+/**
+ * @brief Handle the click event
+ * 
+ * @param data the data to pass to the action
+ */
 void Menu::onClick(void* data){
     // this->logger->log("Menu clicked", true);
     if(this->action != nullptr && this->onClickEnabled){
@@ -115,6 +147,11 @@ void Menu::onClick(void* data){
     }
 }
 
+/**
+ * @brief Handle the right click event
+ * 
+ * @param data the data to pass to the action
+ */
 void Menu::onRightClick(void* data){
     this->logger->log("Menu right clicked", true);
     if(this->rightAction != nullptr && this->visible){
@@ -122,6 +159,12 @@ void Menu::onRightClick(void* data){
     }
 }
 
+/**
+ * @brief Set the visibility of the menu
+ * 
+ * @param visible the visibility of the menu
+ * @return bool the previous visibility
+ */
 bool Menu::setVisible(bool visible){
     bool temp = this->visible;
     this->visible = visible;
@@ -139,18 +182,40 @@ bool Menu::setVisible(bool visible){
     return temp;
 }
 
+/**
+ * @brief Get the visibility of the menu
+ * 
+ * @return bool the visibility of the menu
+ */
 bool Menu::getVisible(){
     return this->visible;
 }
 
+/**
+ * @brief Set the action to take when the menu is clicked
+ * 
+ * @param action the action to take
+ */
 void Menu::setOnClick(std::function<void(void*)> action){
     this->action = action;
 }
 
+/**
+ * @brief Set the action to take when the menu is right clicked
+ * 
+ * @param action the action to take
+ */
 void Menu::setOnRightClick(std::function<void(void*)> action){
     this->rightAction = action;
 }
 
+/**
+ * @brief Load the objects from the file
+ * 
+ * @param filename the file to load the objects from
+ * @return true if the objects were loaded successfully
+ * @return false if the objects were not loaded successfully
+ */
 bool Menu::loadObjects(std::string filename){
     this->logger->log("Loading objects as defined in file: " + filename, true);
     // check to see if the file exists
@@ -169,6 +234,11 @@ bool Menu::loadObjects(std::string filename){
     return true;
 }
 
+/**
+ * @brief Get the objects in the menu
+ * 
+ * @return std::vector<MeshObject*> the objects in the menu
+ */
 std::vector<MeshObject*> Menu::getObjects(){
     // create a vector of objects
     std::vector<MeshObject*> objects;
@@ -178,11 +248,21 @@ std::vector<MeshObject*> Menu::getObjects(){
     return objects;
 }
 
+/**
+ * @brief Check if the menu is ready
+ * 
+ * @return true if the menu is ready
+ * @return false if the menu is not ready
+ */
 bool Menu::isReady(){
     std::lock_guard<std::mutex> lock(this->mutex);
     return this->ready;
 }
 
+/**
+ * @brief Draw the menu
+ * 
+ */
 void Menu::draw(){
     if(!this->visible){
         return;
@@ -198,6 +278,11 @@ void Menu::draw(){
     this->stencil->disable();
 }
 
+/**
+ * @brief Get the clickable areas in the menu
+ * 
+ * @return std::vector<ClickableArea*> the clickable areas in the menu
+ */
 std::vector<ClickableArea*> Menu::getClickableAreas(){
     std::vector<ClickableArea*> areas;
     areas.push_back(&this->clickArea);
@@ -207,6 +292,11 @@ std::vector<ClickableArea*> Menu::getClickableAreas(){
     return areas;
 }
 
+/**
+ * @brief Get the clickable area of the menu
+ * 
+ * @return ClickableArea* 
+ */
 ClickableArea* Menu::getClickableArea(){
     return &this->clickArea;
 }
@@ -269,16 +359,30 @@ MenuBox::~MenuBox(){
     this->logger->log("MenuBox destroyed", true);
 }
 
+/**
+ * @brief Set the position of the menu box
+ * 
+ * @param position the position of the menu box
+ */
 void MenuBox::setPosition(glm::vec2 position){
     this->position = position;
     // TODO: update the position of all the objects
 }
 
+/**
+ * @brief Set the size of the menu box
+ * 
+ * @param size the size of the menu box
+ */
 void MenuBox::setSize(glm::vec2 size){
     this->size = size;
     // TODO: update the size and positions of all the objects
 }
 
+/**
+ * @brief Draw the menu box and all its objects
+ * 
+ */
 void MenuBox::draw(){
     if(!this->visible){
         return;
@@ -288,12 +392,23 @@ void MenuBox::draw(){
     }
 }
 
+/**
+ * @brief Set the visibility of the menu box
+ * 
+ * @param visible the visibility of the menu box
+ * @return bool the previous visibility
+ */
 bool MenuBox::setVisible(bool visible){
     bool temp = this->visible;
     this->visible = visible;
     return temp;
 }
 
+/**
+ * @brief Get the visibility of the menu box
+ * 
+ * @return bool the visibility of the menu box
+ */
 bool MenuBox::getVisible(){
     return this->visible;
 }
@@ -328,6 +443,10 @@ MenuEntry::MenuEntry(CubeLog* logger, std::string text, Shader* shader, glm::vec
     this->logger->log("MenuEntry created with text: " + text + " with click area: " + std::to_string(this->clickArea.xMin) + "x" + std::to_string(this->clickArea.yMin) + " to " + std::to_string(this->clickArea.xMax) + "x" + std::to_string(this->clickArea.yMax), true);
 }
 
+/**
+ * @brief Destroy the Menu Entry:: Menu Entry object
+ * 
+ */
 MenuEntry::~MenuEntry(){
     for(auto object: this->objects){
         delete object;
@@ -335,6 +454,11 @@ MenuEntry::~MenuEntry(){
     this->logger->log("MenuEntry destroyed", true);
 }
 
+/**
+ * @brief Handle the click event
+ * 
+ * @param data the data to pass to the action
+ */
 void MenuEntry::onClick(void* data){
     this->logger->log("MenuEntry clicked", true);
     if(this->action != nullptr && this->visible){
@@ -434,18 +558,12 @@ MenuStencil::MenuStencil(CubeLog* logger, glm::vec2 position, glm::vec2 size, Sh
     this->size = size;
     this->shader = shader;
 
-    // position is the center of the box
-    // glm::vec2 pos = {position.x - size.x/2, position.y - size.y/2};
-    glm::vec2 pos = position;
-
     // create vertices for the stencil
-    this->vertices.push_back({pos.x, pos.y});
-    this->vertices.push_back({pos.x + size.x, pos.y});
-    this->vertices.push_back({pos.x + size.x, pos.y + size.y});
-    this->vertices.push_back({pos.x, pos.y + size.y});
+    this->vertices.push_back({position.x, position.y});
+    this->vertices.push_back({position.x + size.x, position.y});
+    this->vertices.push_back({position.x + size.x, position.y + size.y});
+    this->vertices.push_back({position.x, position.y + size.y});
 
-    // this->modelMatrix = glm::mat4(1.0f);
-    // this->viewMatrix = glm::mat4(1.0f);
     this->projectionMatrix = glm::ortho(0.0f, 720.0f, 0.0f, 720.0f);
     
     // create the VAO, VBO and EBO    
@@ -499,18 +617,15 @@ bool MenuStencil::getVisible(){
 }
 
 void MenuStencil::enable(){
-    if (false) {
+    if (false) { // set to true for debugging
         // In debug mode, draw the mask with a solid color to verify its size and position
         glDisable(GL_STENCIL_TEST);
         glDisable(GL_DEPTH_TEST);
         glDepthMask(GL_FALSE);
         this->shader->use();
-        // shader->setMat4("model", modelMatrix);
-        // shader->setMat4("view", viewMatrix);
         shader->setMat4("projection", projectionMatrix);
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-        // glDrawArrays(GL_TRIANGLES, 0, 6);
         glBindVertexArray(0);
         glUseProgram(0);
         glEnable(GL_DEPTH_TEST);
@@ -528,8 +643,6 @@ void MenuStencil::enable(){
     glStencilFunc(GL_ALWAYS, 1, 0xFF);
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
     glStencilMask(0xFF);
-    
-
     // Draw the mask
     shader->use();
     shader->setMat4("projection", projectionMatrix);
@@ -537,10 +650,8 @@ void MenuStencil::enable(){
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
     glUseProgram(0);
-
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     glDepthMask(GL_TRUE);
-
     // Configure stencil function to only pass where stencil buffer is set to 1
     glStencilFunc(GL_EQUAL, 1, 0xFF);
     glStencilMask(0x00);
@@ -552,7 +663,6 @@ void MenuStencil::disable(){
     glDisable(GL_STENCIL_TEST);
     glClear(GL_STENCIL_BUFFER_BIT);
 }
-
 
 //////////////////////////////////////////////////////////////////////////
 

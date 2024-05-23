@@ -10,6 +10,7 @@
 #include <sstream>
 #include <filesystem>
 #include "menu/menu.h"
+#include <barrier>
 
 
 
@@ -22,6 +23,6 @@ public:
 private:
     CubeLog *logger;
     Renderer *renderer;
-    std::thread eventLoopThread;
+    std::jthread eventLoopThread;
     EventManager *eventManager;
 };
