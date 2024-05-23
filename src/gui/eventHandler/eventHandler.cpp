@@ -1,5 +1,7 @@
 #include "eventHandler.h"
 
+// TODO: add click-drag functionality
+
 /**
  * @brief Construct a new Event Handler:: Event Handler object
  * 
@@ -12,7 +14,6 @@ EventHandler::EventHandler(CubeLog *logger){
     this->eventType = sf::Event::EventType::Count;
     this->specificEventType = SpecificEventTypes::NULL_EVENT;
     this->action = nullptr;
-    // this->clickableArea = nullptr;
 }
 
 /**
@@ -103,26 +104,6 @@ void EventHandler::setSpecificEventType(SpecificEventTypes specificEventType){
 SpecificEventTypes EventHandler::getSpecificEventType(){
     return this->specificEventType;
 }
-
-// /**
-//  * @brief Get the clickable area
-//  * 
-//  * @return ClickableArea* 
-//  */
-// ClickableArea* EventHandler::getClickableArea(){
-//     return this->clickableArea;
-// }
-
-// /**
-//  * @brief Set the event type and clickable area
-//  * 
-//  * @param eventType sf::Event::EventType
-//  * @param cl_Area ClickableArea*
-//  */
-// void EventHandler::setEventType(sf::Event::EventType eventType, ClickableArea* cl_Area){
-//     this->eventType = eventType;
-//     this->clickableArea = cl_Area;
-// }
 
 /////////////////////////////////////////////////////////////////////////////////
 
