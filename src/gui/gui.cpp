@@ -8,16 +8,9 @@
 GUI::GUI(CubeLog* logger)
 {
     this->logger = logger;
-    this->renderer = new Renderer(this->logger);
-    // TODO: use std::barrier instead of this while loop
-    while(!this->renderer->isReady()){
-        #ifdef __linux__
-        usleep(1000);
-        #endif
-        #ifdef _WIN32
-        Sleep(1);
-        #endif
-    }
+    std::latch latch(1);
+    this->renderer = new Renderer(this->logger, latch);
+    latch.wait();
     this->eventManager = new EventManager(this->logger);
     this->eventLoopThread = std::jthread(&GUI::eventLoop, this);
     this->logger->log("GUI initialized", true);
@@ -62,31 +55,23 @@ void GUI::eventLoop()
     keyAPressedHandler->setEventType(sf::Event::KeyPressed);
     keyAPressedHandler->setSpecificEventType(SpecificEventTypes::KEYPRESS_A);
 
-    auto menu = new Menu(this->logger, "menu.txt", this->renderer->getShader());
+    std::latch latch(1);
+    auto menu = new Menu(this->logger, "menu.txt", this->renderer->getShader(), latch);
     // menu->setVisible(false);
     this->renderer->addSetupTask([&](){
         menu->setup();
     });
 
-    int mouseClickIndex = this->eventManager->createEvent("MouseClick");
-    EventHandler* mouseClickHandler = this->eventManager->getEvent(mouseClickIndex);
-    mouseClickHandler->setAction([&](void* data) {
-        sf::Event* event = (sf::Event*)data;
-        if(event!=nullptr) this->logger->log("Mouse clicked at location: " + std::to_string(event->mouseButton.x) + ", " + std::to_string(event->mouseButton.y), true);
-        else this->logger->log("Mouse clicked: nullptr", true);
-    });
-    mouseClickHandler->setName("MouseClick");
-    mouseClickHandler->setEventType(sf::Event::MouseButtonPressed);
-
-    // TODO: use std::barrier instead of this while loop
-    while(!menu->isReady()){
-        #ifdef __linux__
-        usleep(1000);
-        #endif
-        #ifdef _WIN32
-        Sleep(1);
-        #endif
-    }
+    // int mouseClickIndex = this->eventManager->createEvent("MouseClick");
+    // EventHandler* mouseClickHandler = this->eventManager->getEvent(mouseClickIndex);
+    // mouseClickHandler->setAction([&](void* data) {
+    //     sf::Event* event = (sf::Event*)data;
+    //     if(event!=nullptr) this->logger->log("Mouse clicked at location: " + std::to_string(event->mouseButton.x) + ", " + std::to_string(event->mouseButton.y), true);
+    //     else this->logger->log("Mouse clicked: nullptr", true);
+    // });
+    // mouseClickHandler->setName("MouseClick");
+    // mouseClickHandler->setEventType(sf::Event::MouseButtonPressed);
+    latch.wait();
     this->renderer->addLoopTask([&](){
         menu->draw();
     });

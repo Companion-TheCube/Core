@@ -1,10 +1,11 @@
 // Path: src/gui/renderer.h
 #include "renderer.h"
 
-Renderer::Renderer(CubeLog* logger)
+Renderer::Renderer(CubeLog* logger, std::latch& latch)
 {
     this->t = std::thread(&Renderer::thread, this);
     this->logger = logger;
+    this->latch = &latch;
 }
 
 Renderer::~Renderer()
@@ -47,7 +48,12 @@ int Renderer::thread()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); 
 
-    // this->window.setMouseCursorVisible(false);
+#ifdef _WIN32
+    this->window.setMouseCursorVisible(true);
+#endif
+#ifdef __linux__
+    this->window.setMouseCursorVisible(false);
+#endif
 
     Shader edges("./shaders/edges.vs", "./shaders/edges.fs", logger);
     this->shader = &edges;
@@ -58,6 +64,7 @@ int Renderer::thread()
     this->setupTasksRun();
     this->logger->log("Renderer initialized. Starting Loop...", true);
     this->ready = true;
+    latch->count_down();
     while (running) {
         for (auto event = sf::Event {}; this->window.pollEvent(event);) {
             this->events.push_back(event);

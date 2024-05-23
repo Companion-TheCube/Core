@@ -18,6 +18,7 @@
 #include <queue>
 #include <functional>
 #include <condition_variable>
+#include <latch>
 
 class TaskQueue {
 public:
@@ -64,8 +65,9 @@ class Renderer{
         TaskQueue setupQueue;
         TaskQueue loopQueue;
         std::atomic<bool> ready = false;
+        std::latch* latch;
     public:
-        Renderer(CubeLog *logger);
+        Renderer(CubeLog *logger, std::latch& latch);
         ~Renderer();
         void stop();
         std::vector<sf::Event> getEvents();

@@ -61,8 +61,9 @@ private:
     float menuItemTextSize = MENU_ITEM_TEXT_SIZE;
     long scrollVertPosition = 0;
     bool onClickEnabled = true;
+    std::latch* latch;
 public:
-    Menu(CubeLog *logger, std::string filename, Shader* shader);
+    Menu(CubeLog *logger, std::string filename, Shader* shader, std::latch& latch);
     ~Menu();
     void setup();
     void onClick(void*);

@@ -51,6 +51,9 @@ endif()
 
 
 include_directories(${CMAKE_SOURCE_DIR}/src/logger)
+if(WIN32)
+    include_directories("C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.39.33519/include")
+endif()
 
 # Define the source and destination directories
 set(SHADER_SOURCE_DIR "${CMAKE_SOURCE_DIR}/src/gui/shaders")
