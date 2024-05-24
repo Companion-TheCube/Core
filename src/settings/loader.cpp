@@ -1,6 +1,6 @@
 #include "loader.h"
 
-SettingsLoader::SettingsLoader(CubeLog *logger, settings_ns::GlobalSettings *settings){
+SettingsLoader::SettingsLoader(CubeLog *logger, GlobalSettings *settings){
     this->logger = logger;
     this->settings = nlohmann::json();
     this->settingsFile = "settings.json";
@@ -20,7 +20,7 @@ bool SettingsLoader::loadSettings(){
     // now we open the file and load the settings
     std::ifstream file(this->settingsFile);
     if(!file.is_open()){
-        this->logger->log("Failed to open settings file", true, std::source_location::current());
+        this->logger->error("Failed to open settings file");
         return false;
     }
     file>>this->settings;
@@ -40,7 +40,7 @@ bool SettingsLoader::saveSettings(){
     this->settings = this->globalSettings->getSettings();
     std::ofstream file(this->settingsFile);
     if(!file.is_open()){
-        this->logger->log("Failed to open settings file", true, std::source_location::current());
+        this->logger->error("Failed to open settings file");
         return false;
     }
     file<<this->settings.dump(4);

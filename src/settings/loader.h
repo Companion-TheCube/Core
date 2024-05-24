@@ -11,9 +11,9 @@ private:
     CubeLog *logger;
     nlohmann::json settings;
     std::string settingsFile;
-    settings_ns::GlobalSettings *globalSettings;
+    GlobalSettings *globalSettings;
 public:
-    SettingsLoader(CubeLog *logger, settings_ns::GlobalSettings *globalSettings);
+    SettingsLoader(CubeLog *logger, GlobalSettings *globalSettings);
     ~SettingsLoader();
     bool loadSettings();
     bool saveSettings();

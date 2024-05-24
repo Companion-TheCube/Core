@@ -3,10 +3,31 @@
 int CUBE_LOG_ENTRY::logEntryCount = 0;
 int CUBE_ERROR::errorCount = 0;
 
-CUBE_LOG_ENTRY::CUBE_LOG_ENTRY(std::string message){
-    this->message = message;
-    this->logEntryCount++;
+CUBE_LOG_ENTRY::CUBE_LOG_ENTRY(std::string message, std::source_location* location, LogVerbosity verbosity){
     this->timestamp = std::chrono::system_clock::now();
+    this->logEntryCount++;
+    this->message = message;
+    std::string fileName = getFileNameFromPath(location->file_name());
+    switch(verbosity){
+        case LogVerbosity::MINIMUM:
+            this->messageFull = message;
+            break;
+        case LogVerbosity::TIMESTAMP:
+            this->messageFull = this->getTimestamp() + ": " + message;
+            break;
+        case LogVerbosity::TIMESTAMP_AND_FILE:
+            this->messageFull = this->getTimestamp() + ": " + fileName + ": " + message;
+            break;
+        case LogVerbosity::TIMESTAMP_AND_FILE_AND_LINE:
+            this->messageFull = this->getTimestamp() + ": " + fileName + "(" + std::to_string(location->line()) + "): " + message;
+            break;
+        case LogVerbosity::TIMESTAMP_AND_FILE_AND_LINE_AND_FUNCTION:
+            this->messageFull = this->getTimestamp() + ": " + fileName + "(" + std::to_string(location->line()) + "): " + location->function_name() + ": " + message;
+            break;
+        default:
+            this->messageFull = this->getTimestamp() + ": " + fileName + "(" + std::to_string(location->line()) + "): " + location->function_name() + ": " + message + " (" + std::to_string(CUBE_LOG_ENTRY::logEntryCount) + ")";
+            break;
+    }
 }
 
 std::string CUBE_LOG_ENTRY::getMessage(){
@@ -21,10 +42,37 @@ std::string CUBE_LOG_ENTRY::getTimestamp(){
     return convertTimestampToString(this->timestamp);
 }
 
-CUBE_ERROR::CUBE_ERROR(std::string message){
-    this->message = message;
-    this->errorCount++;
+std::string CUBE_LOG_ENTRY::getMessageFull(){
+    return this->messageFull;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+CUBE_ERROR::CUBE_ERROR(std::string message, std::source_location* location, LogVerbosity verbosity){
     this->timestamp = std::chrono::system_clock::now();
+    this->errorCount++;
+    this->message = message;
+    std::string fileName = getFileNameFromPath(location->file_name());
+    switch(verbosity){
+        case LogVerbosity::MINIMUM:
+            this->messageFull = message;
+            break;
+        case LogVerbosity::TIMESTAMP:
+            this->messageFull = this->getTimestamp() + ": " + message;
+            break;
+        case LogVerbosity::TIMESTAMP_AND_FILE:
+            this->messageFull = this->getTimestamp() + ": " + fileName + ": " + message;
+            break;
+        case LogVerbosity::TIMESTAMP_AND_FILE_AND_LINE:
+            this->messageFull = this->getTimestamp() + ": " + fileName + "(" + std::to_string(location->line()) + "): " + message;
+            break;
+        case LogVerbosity::TIMESTAMP_AND_FILE_AND_LINE_AND_FUNCTION:
+            this->messageFull = this->getTimestamp() + ": " + fileName + "(" + std::to_string(location->line()) + "): " + location->function_name() + ": " + message;
+            break;
+        default:
+            this->messageFull = this->getTimestamp() + ": " + fileName + "(" + std::to_string(location->line()) + "): " + location->function_name() + ": " + message + " (" + std::to_string(CUBE_ERROR::errorCount) + ")";
+            break;
+    }
 }
 
 std::string CUBE_ERROR::getMessage(){
@@ -39,59 +87,24 @@ std::string CUBE_ERROR::getTimestamp(){
     return convertTimestampToString(this->timestamp);
 }
 
+std::string CUBE_ERROR::getMessageFull(){
+    return this->messageFull;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void CubeLog::log(std::string message, bool print, std::source_location location){
-    CUBE_LOG_ENTRY entry = CUBE_LOG_ENTRY(message);
+    CUBE_LOG_ENTRY entry = CUBE_LOG_ENTRY(message, &location, this->verbosity);
     if(print){
-        std::string fileName = getFileNameFromPath(location.file_name());
-        switch(this->verbosity){
-            case LogVerbosity::MINIMUM:
-                std::cout<<entry.getMessage()<<std::endl;
-                break;
-            case LogVerbosity::TIMESTAMP:
-                std::cout<<entry.getTimestamp()<<": "<<entry.getMessage()<<std::endl;
-                break;
-            case LogVerbosity::TIMESTAMP_AND_FILE:
-                std::cout<<entry.getTimestamp()<<": "<<fileName<<": "<<entry.getMessage()<<std::endl;
-                break;
-            case LogVerbosity::TIMESTAMP_AND_FILE_AND_LINE:
-                std::cout<<entry.getTimestamp()<<": "<<fileName<<"("<<location.line()<<"): "<<entry.getMessage()<<std::endl;
-                break;
-            case LogVerbosity::TIMESTAMP_AND_FILE_AND_LINE_AND_FUNCTION:
-                std::cout<<entry.getTimestamp()<<": "<<fileName<<"("<<location.line()<<"): "<<location.function_name()<<": "<<entry.getMessage()<<std::endl;
-                break;
-            default:
-                std::cout<<entry.getTimestamp()<<": "<<fileName<<"("<<location.line()<<"): "<<location.function_name()<<": "<<entry.getMessage()<<" ("<<CUBE_LOG_ENTRY::logEntryCount<<")"<<std::endl;
-                break;
-        }
+        std::cout << entry.getMessageFull() << std::endl;
     }
     std::lock_guard<std::mutex> lock(this->logMutex);
     this->logEntries.push_back(entry);
 }
 
 void CubeLog::error(std::string message, std::source_location location){
-    CUBE_ERROR error = CUBE_ERROR(message);
-    std::string fileName = getFileNameFromPath(location.file_name());
-    switch(this->verbosity){
-        case LogVerbosity::MINIMUM:
-            std::cerr<<error.getMessage()<<std::endl;
-            break;
-        case LogVerbosity::TIMESTAMP:
-            std::cerr<<error.getTimestamp()<<": "<<error.getMessage()<<std::endl;
-            break;
-        case LogVerbosity::TIMESTAMP_AND_FILE:
-            std::cerr<<error.getTimestamp()<<": "<<fileName<<": "<<error.getMessage()<<std::endl;
-            break;
-        case LogVerbosity::TIMESTAMP_AND_FILE_AND_LINE:
-            std::cerr<<error.getTimestamp()<<": "<<fileName<<"("<<location.line()<<"): "<<error.getMessage()<<std::endl;
-            break;
-        case LogVerbosity::TIMESTAMP_AND_FILE_AND_LINE_AND_FUNCTION:
-            std::cerr<<error.getTimestamp()<<": "<<fileName<<"("<<location.line()<<"): "<<location.function_name()<<": "<<error.getMessage()<<std::endl;
-            break;
-        default:
-            std::cerr<<error.getTimestamp()<<": "<<fileName<<"("<<location.line()<<"): "<<location.function_name()<<": "<<error.getMessage()<<" ("<<CUBE_ERROR::errorCount<<")"<<std::endl;
-            break;
-    }
-
+    CUBE_ERROR error = CUBE_ERROR(message, &location, this->verbosity);
+    std::cerr << error.getMessageFull() << std::endl;
     std::lock_guard<std::mutex> lock(this->logMutex);
     this->errors.push_back(error);
 }
@@ -111,42 +124,60 @@ std::vector<CUBE_ERROR> CubeLog::getErrors(){
     return this->errors;
 }
 
-std::vector<std::string> CubeLog::getLogEntriesAsStrings(){
+std::vector<std::string> CubeLog::getLogEntriesAsStrings(bool fullMessages){
     std::lock_guard<std::mutex> lock(this->logMutex);
     std::vector<std::string> logEntriesAsStrings;
     for(int i = 0; i < this->logEntries.size(); i++){
-        logEntriesAsStrings.push_back(this->logEntries[i].getMessage());
+        if(fullMessages)
+            logEntriesAsStrings.push_back(this->logEntries[i].getMessageFull());
+        else
+            logEntriesAsStrings.push_back(this->logEntries[i].getMessage());
     }
     return logEntriesAsStrings;
 }
 
-std::vector<std::string> CubeLog::getErrorsAsStrings(){
+std::vector<std::string> CubeLog::getErrorsAsStrings(bool fullMessages){
     std::lock_guard<std::mutex> lock(this->logMutex);
     std::vector<std::string> errorsAsStrings;
     for(int i = 0; i < this->errors.size(); i++){
-        errorsAsStrings.push_back(this->errors[i].getMessage());
+        if(fullMessages)
+            errorsAsStrings.push_back(this->errors[i].getMessageFull());
+        else
+            errorsAsStrings.push_back(this->errors[i].getMessage());
     }
     return errorsAsStrings;
 }
 
-std::vector<std::string> CubeLog::getLogsAndErrorsAsStrings(){
+std::vector<std::string> CubeLog::getLogsAndErrorsAsStrings(bool fullMessages){
     std::vector<std::string> logsAndErrorsAsStrings;
     std::vector<CUBE_LOG_ENTRY> logEntries = this->getLogEntries();
     std::vector<CUBE_ERROR> errors = this->getErrors();
     while(logEntries.size() > 0 || errors.size() > 0){
         if(logEntries.size() > 0 && errors.size() > 0){ // both have entries
             if(logEntries[0].getTimestamp() < errors[0].getTimestamp()){ // log entry is older
-                logsAndErrorsAsStrings.push_back(logEntries[0].getEntry());
+                if(fullMessages)
+                    logsAndErrorsAsStrings.push_back(logEntries[0].getMessageFull());
+                else
+                    logsAndErrorsAsStrings.push_back(logEntries[0].getEntry());
                 logEntries.erase(logEntries.begin());
             }else{ // error is older
-                logsAndErrorsAsStrings.push_back(errors[0].getEntry());
+                if(fullMessages)
+                    logsAndErrorsAsStrings.push_back(errors[0].getMessageFull());
+                else
+                    logsAndErrorsAsStrings.push_back(errors[0].getEntry());
                 errors.erase(errors.begin());
             }
         }else if(logEntries.size() > 0){ // only log entries left
-            logsAndErrorsAsStrings.push_back(logEntries[0].getEntry());
+            if(fullMessages)
+                logsAndErrorsAsStrings.push_back(logEntries[0].getMessageFull());
+            else
+                logsAndErrorsAsStrings.push_back(logEntries[0].getEntry());
             logEntries.erase(logEntries.begin());
         }else if(errors.size() > 0){ // only errors left
-            logsAndErrorsAsStrings.push_back(errors[0].getEntry());
+            if(fullMessages)
+                logsAndErrorsAsStrings.push_back(errors[0].getMessageFull());
+            else
+                logsAndErrorsAsStrings.push_back(errors[0].getEntry());
             errors.erase(errors.begin());
         }
     }
@@ -154,15 +185,8 @@ std::vector<std::string> CubeLog::getLogsAndErrorsAsStrings(){
 }
 
 void CubeLog::writeOutLogs(){
-    // std::lock_guard<std::mutex> lock(this->logMutex);
     std::vector<std::string> logsAndErrors = this->getLogsAndErrorsAsStrings();   
     // write to file
-    // We'll have to read through the file first to see if there are any existing logs.
-    // Then we'll append the new logs to the end of the file.
-    // We have to check if the file exists first.
-    // We also have to check if the first log entry in logsAndErrors already exists in the file.
-    
-    // check if the file exists
     std::filesystem::path p("logs.txt");
     if(!std::filesystem::exists(p)){
         std::ofstream file("logs.txt");

@@ -56,7 +56,7 @@ int main()
         return 1;
     }
 #endif
-    settings_ns::GlobalSettings settings;
+    GlobalSettings settings;
     auto logger = new CubeLog();
     auto settingsLoader = new SettingsLoader(logger, &settings);
     settingsLoader->loadSettings();
