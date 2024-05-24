@@ -17,10 +17,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#ifdef _WIN32
-#define M_PI 3.14159265358979323846
-#endif
+#include "settings/loader.h"
 
 // Two-channel sawtooth wave generator.
 int saw(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData)
@@ -52,38 +49,21 @@ int saw(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, doubl
 int main()
 {
     std::cout << "Starting..." << std::endl;
+    // Set the display environment variable for linux
 #ifdef __linux__
     if (setenv("DISPLAY", ":0", 1) != 0) {
         std::cout << "Error setting DISPLAY=:0 environment variable. Exiting." << std::endl;
         return 1;
     }
 #endif
-
+    settings_ns::GlobalSettings settings;
     auto logger = new CubeLog();
+    auto settingsLoader = new SettingsLoader(logger, &settings);
+    settingsLoader->loadSettings();
+    logger->setVerbosity(settings.logVerbosity);
+    logger->log("Logger initialized.", true);
+    logger->log("Settings loaded.", true);
 
-    // const double sampleRate = 44100;
-    // const double frequency = 473;
-
-    // // Calculate the number of periods needed for a zero crossing at both ends
-    // double numPeriods = sampleRate / frequency;
-
-    // // Calculate the total number of samples
-    // int numSamples = sampleRate;// static_cast<int>(numPeriods * frequency);
-
-    // // Generate the samples
-    // std::vector<sf::Int16> sineWaveSamples;
-    // for (int i = 0; i < numSamples; ++i) {
-    //     sf::Int16 sample = 10000 * std::sin(2 * M_PI * frequency * i / sampleRate);
-    //     sineWaveSamples.push_back(sample);
-    // }
-
-    // sf::SoundBuffer sineWaveBuffer;
-    // sineWaveBuffer.loadFromSamples(&sineWaveSamples[0], sineWaveSamples.size(), 1, sampleRate);
-
-    // sf::Sound sineWaveSound;
-    // sineWaveSound.setBuffer(sineWaveBuffer);
-    // sineWaveSound.setLoop(true);
-    // sineWaveSound.play();
 
     /////////////////////////////////////////////////////////////////
     RtAudio dac;
@@ -135,7 +115,7 @@ int main()
         // get cin and check if it's "exit"
         std::string input;
         std::cin >> input;
-        if (input == "exit") {
+        if (input == "exit" || input == "quit" || input == "q" || input == "e") {
             break;
         } else if (input == "sound") {
             if (data[2] == 0)
@@ -148,9 +128,12 @@ int main()
     std::cout<<"Exiting..."<<std::endl;
     // sineWaveSound.stop();
     delete gui;
+    delete settingsLoader;
     logger->writeOutLogs();
     dac.stopStream();
     if (dac.isStreamOpen())
         dac.closeStream();
+    delete logger;
     return 0;
 }
+

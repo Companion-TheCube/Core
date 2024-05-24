@@ -39,23 +39,65 @@ std::string CUBE_ERROR::getTimestamp(){
     return convertTimestampToString(this->timestamp);
 }
 
-void CubeLog::log(std::string message, bool print){
+void CubeLog::log(std::string message, bool print, std::source_location location){
     CUBE_LOG_ENTRY entry = CUBE_LOG_ENTRY(message);
     if(print){
-        std::cout<<entry.getTimestamp()<<": "<<entry.getMessage()<<std::endl;
+        std::string fileName = getFileNameFromPath(location.file_name());
+        switch(this->verbosity){
+            case LogVerbosity::MINIMUM:
+                std::cout<<entry.getMessage()<<std::endl;
+                break;
+            case LogVerbosity::TIMESTAMP:
+                std::cout<<entry.getTimestamp()<<": "<<entry.getMessage()<<std::endl;
+                break;
+            case LogVerbosity::TIMESTAMP_AND_FILE:
+                std::cout<<entry.getTimestamp()<<": "<<fileName<<": "<<entry.getMessage()<<std::endl;
+                break;
+            case LogVerbosity::TIMESTAMP_AND_FILE_AND_LINE:
+                std::cout<<entry.getTimestamp()<<": "<<fileName<<"("<<location.line()<<"): "<<entry.getMessage()<<std::endl;
+                break;
+            case LogVerbosity::TIMESTAMP_AND_FILE_AND_LINE_AND_FUNCTION:
+                std::cout<<entry.getTimestamp()<<": "<<fileName<<"("<<location.line()<<"): "<<location.function_name()<<": "<<entry.getMessage()<<std::endl;
+                break;
+            default:
+                std::cout<<entry.getTimestamp()<<": "<<fileName<<"("<<location.line()<<"): "<<location.function_name()<<": "<<entry.getMessage()<<" ("<<CUBE_LOG_ENTRY::logEntryCount<<")"<<std::endl;
+                break;
+        }
     }
     std::lock_guard<std::mutex> lock(this->logMutex);
     this->logEntries.push_back(entry);
 }
 
-void CubeLog::error(std::string message){
+void CubeLog::error(std::string message, std::source_location location){
     CUBE_ERROR error = CUBE_ERROR(message);
-    std::cerr<<error.getTimestamp()<<": "<<error.getMessage()<<std::endl;
+    std::string fileName = getFileNameFromPath(location.file_name());
+    switch(this->verbosity){
+        case LogVerbosity::MINIMUM:
+            std::cerr<<error.getMessage()<<std::endl;
+            break;
+        case LogVerbosity::TIMESTAMP:
+            std::cerr<<error.getTimestamp()<<": "<<error.getMessage()<<std::endl;
+            break;
+        case LogVerbosity::TIMESTAMP_AND_FILE:
+            std::cerr<<error.getTimestamp()<<": "<<fileName<<": "<<error.getMessage()<<std::endl;
+            break;
+        case LogVerbosity::TIMESTAMP_AND_FILE_AND_LINE:
+            std::cerr<<error.getTimestamp()<<": "<<fileName<<"("<<location.line()<<"): "<<error.getMessage()<<std::endl;
+            break;
+        case LogVerbosity::TIMESTAMP_AND_FILE_AND_LINE_AND_FUNCTION:
+            std::cerr<<error.getTimestamp()<<": "<<fileName<<"("<<location.line()<<"): "<<location.function_name()<<": "<<error.getMessage()<<std::endl;
+            break;
+        default:
+            std::cerr<<error.getTimestamp()<<": "<<fileName<<"("<<location.line()<<"): "<<location.function_name()<<": "<<error.getMessage()<<" ("<<CUBE_ERROR::errorCount<<")"<<std::endl;
+            break;
+    }
+
     std::lock_guard<std::mutex> lock(this->logMutex);
     this->errors.push_back(error);
 }
 
-CubeLog::CubeLog(){
+CubeLog::CubeLog(LogVerbosity verbosity){
+    this->verbosity = verbosity;
     CubeLog::log("Logger initialized", true);
 }
 
@@ -162,6 +204,11 @@ void CubeLog::writeOutLogs(){
     
 }
 
+void CubeLog::setVerbosity(LogVerbosity verbosity){
+    this->log("Setting verbosity to " + std::to_string(verbosity), true);
+    this->verbosity = verbosity;
+}
+
 std::string convertTimestampToString(std::chrono::time_point<std::chrono::system_clock> timestamp){
     auto time = std::chrono::system_clock::to_time_t(timestamp);
     std::ostringstream ss;
@@ -169,4 +216,9 @@ std::string convertTimestampToString(std::chrono::time_point<std::chrono::system
     ss << std::put_time(std::localtime(&time), "%Y-%m-%d %H:%M:%S.") << std::setfill('0') << std::setw(3) << milliseconds.count();
     
     return ss.str();
+}
+
+std::string getFileNameFromPath(std::string path){
+    std::filesystem::path p(path);
+    return p.filename().string();
 }

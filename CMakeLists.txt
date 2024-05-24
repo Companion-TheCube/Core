@@ -27,6 +27,11 @@ endif()
 
 find_package(Freetype REQUIRED)
 
+include(FetchContent)
+
+FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
+FetchContent_MakeAvailable(json)
+
 # find_package(GLEW REQUIRED)
 
 include(FetchContent)
@@ -86,7 +91,7 @@ file(MAKE_DIRECTORY ${FONTS_DEST_DIR})
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/**/*.cpp" "src/**/**/*.cpp")
 add_executable(CubeCoreProject ${SOURCES})
 
-target_link_libraries(CubeCoreProject PRIVATE sfml-graphics sfml-audio rtaudio ${ALSA_LIBRARIES} ${FREETYPE_LIBRARY} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES})
+target_link_libraries(CubeCoreProject PRIVATE sfml-graphics sfml-audio rtaudio ${ALSA_LIBRARIES} ${FREETYPE_LIBRARY} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} nlohmann_json::nlohmann_json)
 target_compile_features(CubeCoreProject PRIVATE cxx_std_17)
 
 # Include directories
