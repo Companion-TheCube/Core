@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "settings/loader.h"
+#include "api/api.h"
 
 // Two-channel sawtooth wave generator.
 int saw(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData)
@@ -64,7 +65,13 @@ int main()
     logger->log("Logger initialized.", true);
     logger->log("Settings loaded.", true);
 
-
+    auto api = new API(logger);
+    api->addEndpoint("exit", "/exit", true, [&]() {
+        api->stop();
+        exit(0);
+    });
+    /////////////////////////////////////////////////////////////////
+    // RtAudio setup
     /////////////////////////////////////////////////////////////////
     RtAudio dac;
     std::vector<unsigned int> deviceIds = dac.getDeviceIds();
@@ -127,12 +134,15 @@ int main()
     logger->log("Exiting main loop...", true);
     std::cout<<"Exiting..."<<std::endl;
     // sineWaveSound.stop();
+    
     delete gui;
     delete settingsLoader;
     logger->writeOutLogs();
     dac.stopStream();
     if (dac.isStreamOpen())
         dac.closeStream();
+    // api->stop();
+    delete api;
     delete logger;
     return 0;
 }

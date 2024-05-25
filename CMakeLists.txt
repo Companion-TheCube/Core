@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.16)
 
 # Project name and the language used
-project(CubeCoreProject VERSION 1.0 LANGUAGES CXX)
+project(CubeCore VERSION 1.0 LANGUAGES CXX)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
@@ -14,6 +14,17 @@ else()
     set(CMAKE_CXX_STANDARD 23)
 endif()
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+
+set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+
+find_package(Boost REQUIRED COMPONENTS system thread)
+
+if(Boost_FOUND)
+    include_directories(${Boost_INCLUDE_DIRS})
+else()
+    message(FATAL_ERROR "Boost not found")
+endif()
 
 # determine if we are building on windows
 if(WIN32)
@@ -31,8 +42,6 @@ include(FetchContent)
 
 FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
 FetchContent_MakeAvailable(json)
-
-# find_package(GLEW REQUIRED)
 
 include(FetchContent)
 FetchContent_Declare(SFML
@@ -89,21 +98,21 @@ file(MAKE_DIRECTORY ${FONTS_DEST_DIR})
 
 # Add executable
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/**/*.cpp" "src/**/**/*.cpp")
-add_executable(CubeCoreProject ${SOURCES})
+add_executable(CubeCore ${SOURCES})
 
-target_link_libraries(CubeCoreProject PRIVATE sfml-graphics sfml-audio rtaudio ${ALSA_LIBRARIES} ${FREETYPE_LIBRARY} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} nlohmann_json::nlohmann_json)
-target_compile_features(CubeCoreProject PRIVATE cxx_std_17)
+target_link_libraries(CubeCore PRIVATE sfml-graphics sfml-audio sfml-network rtaudio ${ALSA_LIBRARIES} ${FREETYPE_LIBRARY} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} nlohmann_json::nlohmann_json Boost::system Boost::thread)
+target_compile_features(CubeCore PRIVATE cxx_std_17)
 
 # Include directories
 if(WIN32)
-    target_include_directories(CubeCoreProject PRIVATE ${RTAUDIO_INCLUDE_DIR} ${PROJECT_SOURCE_DIR}/src/libs ${FREETYPE_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIRS} ${GLEW_INCLUDE_DIRS} ${SFML_INCLUDE_DIR} "C:/Users/Andrew/Documents/glm-1.0.1-light")
+    target_include_directories(CubeCore PRIVATE ${RTAUDIO_INCLUDE_DIR} ${PROJECT_SOURCE_DIR}/src/libs ${FREETYPE_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIRS} ${GLEW_INCLUDE_DIRS} ${SFML_INCLUDE_DIR} "C:/Users/Andrew/Documents/glm-1.0.1-light")
 else()
-    target_include_directories(CubeCoreProject PRIVATE ${PROJECT_SOURCE_DIR}/src/libs ${FREETYPE_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIRS} ${GLEW_INCLUDE_DIRS} ${SFML_INCLUDE_DIR})
+    target_include_directories(CubeCore PRIVATE ${PROJECT_SOURCE_DIR}/src/libs ${FREETYPE_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIRS} ${GLEW_INCLUDE_DIRS} ${SFML_INCLUDE_DIR})
 endif()
 
-# Add a custom command to copy the shaders directory
+# Add a custom command to copy the shaders directory 
 add_custom_command(
-    TARGET CubeCoreProject POST_BUILD
+    TARGET CubeCore POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${SHADER_SOURCE_DIR}
     ${SHADER_DEST_DIR}
@@ -112,7 +121,7 @@ add_custom_command(
 
 # Add a custom command to copy the meshes directory
 add_custom_command(
-    TARGET CubeCoreProject POST_BUILD
+    TARGET CubeCore POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${MESHES_SOURCE_DIR}
     ${MESHES_DEST_DIR}
@@ -121,7 +130,7 @@ add_custom_command(
 
 # Add a custom command to copy the fonts directory
 add_custom_command(
-    TARGET CubeCoreProject POST_BUILD
+    TARGET CubeCore POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${FONTS_SOURCE_DIR}
     ${FONTS_DEST_DIR}
@@ -139,4 +148,4 @@ add_custom_command(
 #     )
 # endif()
 
-install(TARGETS CubeCoreProject)
+install(TARGETS CubeCore)

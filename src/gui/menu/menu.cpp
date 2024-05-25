@@ -83,7 +83,7 @@ void Menu::addMenuEntry(std::string text, std::function<void(void*)> action, std
 void Menu::addHorizontalRule()
 {
     this->logger->log("Adding horizontal rule", true);
-    float startY = (((menuItemTextSize * 1.8) + MENU_ITEM_PADDING_PX) * this->childrenClickables.size()) + MENU_TOP_PADDING_PX + ((menuItemTextSize + (MENU_ITEM_PADDING_PX * 2)) / 2);
+    float startY = (((menuItemTextSize * 1.2) + MENU_ITEM_PADDING_PX) * this->childrenClickables.size()) + MENU_TOP_PADDING_PX + ((menuItemTextSize + (MENU_ITEM_PADDING_PX * 2)) / 2);
     // get startx from screen relative position of menu
     float startX = mapRange(MENU_POSITION_SCREEN_RELATIVE_X_LEFT, SCREEN_RELATIVE_MIN_X, SCREEN_RELATIVE_MAX_X, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X) + (STENCIL_INSET_PX * 2) + 30;
     this->childrenClickables.push_back(new MenuHorizontalRule(logger, { startX, startY }, 350, shader));
@@ -125,6 +125,13 @@ void Menu::setup()
     this->stencil = new MenuStencil(logger, { stencilX_start, stencilY_start }, { stencilWidth, stencilHeight }, stencilShader);
 
     this->loadObjects(filename);
+
+    this->addMenuEntry("< Settings", [&](void* data) {
+        this->logger->log("Settings clicked", true);
+        this->setVisible(false);
+    });
+
+    this->addHorizontalRule();
     /////// TESTING ////////////
     this->addMenuEntry("Test addMenuEntry() 1 kljshdfjkhsdfkjhsdf", [&](void* data) {
         this->logger->log("Test clicked", true);
