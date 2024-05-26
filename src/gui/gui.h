@@ -1,4 +1,5 @@
 #pragma once
+#define WIN32_LEAN_AND_MEAN
 #include "renderer.h"
 #include <thread>
 #include "eventHandler/eventHandler.h"
@@ -11,15 +12,17 @@
 #include <filesystem>
 #include "menu/menu.h"
 #include <latch>
+#include "../api/api.h"
 
-
-
-class GUI{
+class GUI : public I_API_Interface{
 public:
     GUI(CubeLog *logger);
     ~GUI();
     void eventLoop();
     void stop();
+    std::vector<std::pair<bool,std::function<void()>>> getEndpointData();
+    std::vector<std::string> getEndpointNames();
+    std::string getIntefaceName() const;
 private:
     CubeLog *logger;
     Renderer *renderer;

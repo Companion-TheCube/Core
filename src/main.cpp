@@ -4,6 +4,7 @@
 #include <unistd.h>
 #endif
 #ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
 #endif
@@ -18,7 +19,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "settings/loader.h"
-#include "api/api.h"
+#include "api/builder.h"
+
 
 // Two-channel sawtooth wave generator.
 int saw(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData)
@@ -65,11 +67,7 @@ int main()
     logger->log("Logger initialized.", true);
     logger->log("Settings loaded.", true);
 
-    auto api = new API(logger);
-    api->addEndpoint("exit", "/exit", true, [&]() {
-        api->stop();
-        exit(0);
-    });
+    
     /////////////////////////////////////////////////////////////////
     // RtAudio setup
     /////////////////////////////////////////////////////////////////
@@ -110,9 +108,16 @@ int main()
 
     /////////////////////////////////////////////////////////////////
 
-    auto gui = new GUI(logger);
+    // auto gui = new GUI(logger);
+    auto gui = std::make_shared<GUI>(logger);
+    auto api = new API(logger);
+    // auto api = std::make_shared<API>(logger);
+    API_Builder api_builder(logger, api);
+    api_builder.addInterface(gui);
+    api_builder.start();
+    bool running = true;
     logger->log("Entering main loop...", true);
-    while (true) {
+    while (running) {
 #ifdef __linux__
         sleep(1);
 #endif
@@ -135,7 +140,6 @@ int main()
     std::cout<<"Exiting..."<<std::endl;
     // sineWaveSound.stop();
     
-    delete gui;
     delete settingsLoader;
     logger->writeOutLogs();
     dac.stopStream();

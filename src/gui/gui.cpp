@@ -108,6 +108,31 @@ void GUI::stop(){
     this->renderer->stop();
 }
 
+std::vector<std::pair<bool,std::function<void()>>> GUI::getEndpointData()
+{
+    std::vector<std::pair<bool,std::function<void()>>> actions;
+    actions.push_back({true, [&](){
+        this->stop();
+    }});
+    actions.push_back({true, [&](){
+        this->logger->log("Endpoint action 2", true);
+    }});
+    return actions;
+}
+
+std::vector<std::string> GUI::getEndpointNames()
+{
+    std::vector<std::string> names;
+    names.push_back("stop");
+    names.push_back("action2");
+    return names;
+}
+
+std::string GUI::getIntefaceName() const
+{
+    return "GUI";
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 

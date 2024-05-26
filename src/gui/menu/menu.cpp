@@ -84,7 +84,7 @@ void Menu::addHorizontalRule()
 {
     this->logger->log("Adding horizontal rule", true);
     float startY = (((menuItemTextSize * 1.2) + MENU_ITEM_PADDING_PX) * this->childrenClickables.size()) + MENU_TOP_PADDING_PX + ((menuItemTextSize + (MENU_ITEM_PADDING_PX * 2)) / 2);
-    // get startx from screen relative position of menu
+    // get start x from screen relative position of menu
     float startX = mapRange(MENU_POSITION_SCREEN_RELATIVE_X_LEFT, SCREEN_RELATIVE_MIN_X, SCREEN_RELATIVE_MAX_X, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X) + (STENCIL_INSET_PX * 2) + 30;
     this->childrenClickables.push_back(new MenuHorizontalRule(logger, { startX, startY }, 350, shader));
     this->childrenClickables.at(this->childrenClickables.size() - 1)->setVisible(true);

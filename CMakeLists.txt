@@ -15,17 +15,6 @@ else()
 endif()
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-
-set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
-
-find_package(Boost REQUIRED COMPONENTS system thread)
-
-if(Boost_FOUND)
-    include_directories(${Boost_INCLUDE_DIRS})
-else()
-    message(FATAL_ERROR "Boost not found")
-endif()
-
 # determine if we are building on windows
 if(WIN32)
     set(FREETYPE_INCLUDE_DIRS "C:/Users/Andrew/Documents/freetype/include")
@@ -65,6 +54,7 @@ endif()
 
 
 include_directories(${CMAKE_SOURCE_DIR}/src/logger)
+include_directories(${CMAKE_SOURCE_DIR}/libraries)
 if(WIN32)
     include_directories("C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.39.33519/include")
 endif()
@@ -100,7 +90,7 @@ file(MAKE_DIRECTORY ${FONTS_DEST_DIR})
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/**/*.cpp" "src/**/**/*.cpp")
 add_executable(CubeCore ${SOURCES})
 
-target_link_libraries(CubeCore PRIVATE sfml-graphics sfml-audio sfml-network rtaudio ${ALSA_LIBRARIES} ${FREETYPE_LIBRARY} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} nlohmann_json::nlohmann_json Boost::system Boost::thread)
+target_link_libraries(CubeCore PRIVATE sfml-graphics sfml-audio sfml-network rtaudio ${ALSA_LIBRARIES} ${FREETYPE_LIBRARY} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} nlohmann_json::nlohmann_json)
 target_compile_features(CubeCore PRIVATE cxx_std_17)
 
 # Include directories
