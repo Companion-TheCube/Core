@@ -55,12 +55,19 @@ void GUI::eventLoop()
     keyAPressedHandler->setEventType(sf::Event::KeyPressed);
     keyAPressedHandler->setSpecificEventType(SpecificEventTypes::KEYPRESS_A);
 
-    std::latch latch(1);
-    auto menu = new Menu(this->logger, "menu.txt", this->renderer->getShader(), latch);
+    std::latch latch(2); // make sure this accounts for all of the setup tasks
+    auto menu = new Menu(this->logger, this->renderer->getShader(), latch);
+    auto messageBox = new CubeMessageBox(this->logger, this->renderer->getShader(), this->renderer->getTextShader(), latch);
     // menu->setVisible(false);
     this->renderer->addSetupTask([&](){
         menu->setup();
+        messageBox->setup();
     });
+    
+
+    // TODO: make this not visible by default. Add a method for showing message box messages that checks if the menu is visible so
+    // that we don't draw on top of the menu. Then, in the loop, if the messagebox is pending, and the menu gets closed, show the messagebox.
+    messageBox->setVisible(true); 
 
     // int mouseClickIndex = this->eventManager->createEvent("MouseClick");
     // EventHandler* mouseClickHandler = this->eventManager->getEvent(mouseClickIndex);
@@ -74,6 +81,7 @@ void GUI::eventLoop()
     latch.wait();
     this->renderer->addLoopTask([&](){
         menu->draw();
+        messageBox->draw();
     });
     
     for(auto area: menu->getClickableAreas()){
@@ -82,7 +90,7 @@ void GUI::eventLoop()
 
     this->logger->log("Starting event handler loop...", true);
     while (this->renderer->getIsRunning()) {
-        std::vector<EventHandler*> managerEvents = this->eventManager->getEvents();
+        // std::vector<EventHandler*> managerEvents = this->eventManager->getEvents();
         std::vector<sf::Event> events = this->renderer->getEvents();
         for(int i = 0; i < events.size(); i++){
             this->eventManager->triggerEvent(events[i].type, &events[i]);
@@ -98,6 +106,7 @@ void GUI::eventLoop()
     }
     this->logger->log("Event handler loop stopped", true);
     delete menu;
+    delete messageBox;
 }
 
 /**

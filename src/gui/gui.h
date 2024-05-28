@@ -11,8 +11,10 @@
 #include <sstream>
 #include <filesystem>
 #include "menu/menu.h"
+#include "messageBox/messageBox.h"
 #include <latch>
 #include "../api/api.h"
+
 
 class GUI : public I_API_Interface{
 public:

@@ -27,6 +27,7 @@ private:
     float scale_;
     std::map<char, Character> Characters;
     float width = 0.f;
+    void buildText();
 public:
     M_Text(CubeLog* logger, Shader* sh, std::string text, float fontSize, glm::vec3 color, glm::vec2 position);
     ~M_Text();
@@ -44,7 +45,6 @@ public:
     std::vector<Vertex> getVertices();
     void setPosition(glm::vec2 position);
     void setText(std::string text);
-    void buildText();
     float getWidth();
 };
 

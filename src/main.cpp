@@ -212,7 +212,6 @@ int main(int argc, char* argv[])
 
     /////////////////////////////////////////////////////////////////
     {
-        // auto gui = new GUI(logger);
         auto gui = std::make_shared<GUI>(logger);
         auto api = new API(logger);
         // auto api = std::make_shared<API>(logger);
