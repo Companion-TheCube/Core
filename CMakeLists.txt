@@ -52,6 +52,24 @@ if(NOT rtaudio_POPULATED)
   include_directories(${rtaudio_SOURCE_DIR})
 endif()
 
+# Create libraries directory if it doesn't exist
+file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/libraries)
+
+# Download httplib.h if not already downloaded
+set(HTTPLIB_HEADER ${CMAKE_SOURCE_DIR}/libraries/httplib.h)
+if(NOT EXISTS ${HTTPLIB_HEADER})
+    file(DOWNLOAD
+        https://raw.githubusercontent.com/yhirose/cpp-httplib/master/httplib.h
+        ${HTTPLIB_HEADER}
+    )
+endif()
+set(ARGPARSE_HEADER ${CMAKE_SOURCE_DIR}/libraries/argparse.hpp)
+if(NOT EXISTS ${ARGPARSE_HEADER})
+    file(DOWNLOAD
+        https://raw.githubusercontent.com/p-ranav/argparse/master/include/argparse/argparse.hpp
+        ${ARGPARSE_HEADER}
+    )
+endif()
 
 include_directories(${CMAKE_SOURCE_DIR}/src/logger)
 include_directories(${CMAKE_SOURCE_DIR}/libraries)

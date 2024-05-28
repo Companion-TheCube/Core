@@ -108,14 +108,19 @@ void GUI::stop(){
     this->renderer->stop();
 }
 
-std::vector<std::pair<bool,std::function<void()>>> GUI::getEndpointData()
+EndPointData_t GUI::getEndpointData()
 {
-    std::vector<std::pair<bool,std::function<void()>>> actions;
-    actions.push_back({true, [&](){
+    EndPointData_t actions;
+    actions.push_back({true, [&](std::string response, EndPointParams_t params){
         this->stop();
+        return "Stop called";
     }});
-    actions.push_back({true, [&](){
-        this->logger->log("Endpoint action 2", true);
+    actions.push_back({true, [&](std::string response, EndPointParams_t params){
+        this->logger->log("Endpoint action 2: " + response, true);
+        for(auto param : params){
+            this->logger->log(param.first + ": " + param.second, true);
+        }
+        return "\"Endpoint action 2\" logged";
     }});
     return actions;
 }

@@ -1,4 +1,13 @@
+// TODO: flush logs to file every so often (every 1000 logs or so) to prevent memory issues with large logs
+// TODO: flush logs based on time (every 5 minutes or so)
+// --- should probably keep the most recent 100 or so logs in memory so they can be available in the GUI
+
+// TODO: add log levels (INFO, WARNING, ERROR, DEBUG, etc.)
+
 #include "logger.h"
+
+#define COUNTER_MOD 100
+#define CUBE_LOG_ENTRY_MAX 50000
 
 int CUBE_LOG_ENTRY::logEntryCount = 0;
 int CUBE_ERROR::errorCount = 0;
@@ -40,6 +49,10 @@ std::string CUBE_LOG_ENTRY::getEntry(){
 
 std::string CUBE_LOG_ENTRY::getTimestamp(){
     return convertTimestampToString(this->timestamp);
+}
+
+unsigned long long CUBE_LOG_ENTRY::getTimestampAsLong(){
+    return std::chrono::duration_cast<std::chrono::milliseconds>(this->timestamp.time_since_epoch()).count();
 }
 
 std::string CUBE_LOG_ENTRY::getMessageFull(){
@@ -85,6 +98,10 @@ std::string CUBE_ERROR::getEntry(){
 
 std::string CUBE_ERROR::getTimestamp(){
     return convertTimestampToString(this->timestamp);
+}
+
+unsigned long long CUBE_ERROR::getTimestampAsLong(){
+    return std::chrono::duration_cast<std::chrono::milliseconds>(this->timestamp.time_since_epoch()).count();
 }
 
 std::string CUBE_ERROR::getMessageFull(){
@@ -149,42 +166,30 @@ std::vector<std::string> CubeLog::getErrorsAsStrings(bool fullMessages){
 }
 
 std::vector<std::string> CubeLog::getLogsAndErrorsAsStrings(bool fullMessages){
+    // time how long this function takes
+    auto start = std::chrono::high_resolution_clock::now();
     std::vector<std::string> logsAndErrorsAsStrings;
     std::vector<CUBE_LOG_ENTRY> logEntries = this->getLogEntries();
     std::vector<CUBE_ERROR> errors = this->getErrors();
-    while(logEntries.size() > 0 || errors.size() > 0){
-        if(logEntries.size() > 0 && errors.size() > 0){ // both have entries
-            if(logEntries[0].getTimestamp() < errors[0].getTimestamp()){ // log entry is older
-                if(fullMessages)
-                    logsAndErrorsAsStrings.push_back(logEntries[0].getMessageFull());
-                else
-                    logsAndErrorsAsStrings.push_back(logEntries[0].getEntry());
-                logEntries.erase(logEntries.begin());
-            }else{ // error is older
-                if(fullMessages)
-                    logsAndErrorsAsStrings.push_back(errors[0].getMessageFull());
-                else
-                    logsAndErrorsAsStrings.push_back(errors[0].getEntry());
-                errors.erase(errors.begin());
-            }
-        }else if(logEntries.size() > 0){ // only log entries left
-            if(fullMessages)
-                logsAndErrorsAsStrings.push_back(logEntries[0].getMessageFull());
-            else
-                logsAndErrorsAsStrings.push_back(logEntries[0].getEntry());
-            logEntries.erase(logEntries.begin());
-        }else if(errors.size() > 0){ // only errors left
-            if(fullMessages)
-                logsAndErrorsAsStrings.push_back(errors[0].getMessageFull());
-            else
-                logsAndErrorsAsStrings.push_back(errors[0].getEntry());
-            errors.erase(errors.begin());
-        }
+    std::vector<std::pair<unsigned long long, std::string>> logsAndErrorsAsPairs;
+    for(auto entry : logEntries){
+        logsAndErrorsAsPairs.push_back({entry.getTimestampAsLong(), entry.getMessageFull()});
     }
+    for(auto error : errors){
+        logsAndErrorsAsPairs.push_back({error.getTimestampAsLong(), error.getMessageFull()});
+    }
+    std::stable_sort(logsAndErrorsAsPairs.begin(), logsAndErrorsAsPairs.end());
+    for(auto pair : logsAndErrorsAsPairs){
+        logsAndErrorsAsStrings.push_back(pair.second);
+    }
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration = end - start;
+    std::cout << "getLogsAndErrorsAsStrings took " << duration.count() << " seconds" << std::endl;
     return logsAndErrorsAsStrings;
 }
 
 void CubeLog::writeOutLogs(){
+    std::cout << "Writing logs to file..." << std::endl;
     std::vector<std::string> logsAndErrors = this->getLogsAndErrorsAsStrings();   
     // write to file
     std::filesystem::path p("logs.txt");
@@ -195,34 +200,54 @@ void CubeLog::writeOutLogs(){
     std::ifstream file("logs.txt");
     std::string line;
     std::vector<std::string> existingLogs;
+    size_t counter = 0;
     if(file.is_open()){
         while(std::getline(file, line)){
             existingLogs.push_back(line);
+            counter++;
+            if(counter % COUNTER_MOD == 0) std::cout << ".";
         }
         file.close();
     }
     std::ofstream outFile("logs.txt"); // overwrites the file
     // get count of existing logs
-    int existingLogsCount = existingLogs.size();
+    long long existingLogsCount = existingLogs.size();
     // add to count of new logs
-    int newLogsCount = logsAndErrors.size();
-    // if the total number of logs is greater than 10000, remove the oldest logs
-    if(existingLogsCount + newLogsCount > 10000){
-        int numToRemove = existingLogsCount + newLogsCount - 10000;
-        existingLogs.erase(existingLogs.begin(), existingLogs.begin() + numToRemove);
+    long long newLogsCount = logsAndErrors.size();
+    // if the total number of logs is greater than CUBE_LOG_ENTRY_MAX, remove the oldest logs
+    counter = 0;
+    if(existingLogsCount + newLogsCount > CUBE_LOG_ENTRY_MAX){
+        long long numToRemove = existingLogsCount + newLogsCount - CUBE_LOG_ENTRY_MAX;
+        if(numToRemove > existingLogsCount){
+            existingLogs.clear();
+            numToRemove = 0;
+        }else{
+            existingLogs.erase(existingLogs.begin(), existingLogs.begin() + numToRemove);
+        }
+        counter++;
+        if(counter % COUNTER_MOD == 0) std::cout << ".";
     }
     // write the existing logs to the file
-    for(int i = 0; i < existingLogs.size(); i++){
+    counter = 0;
+    for(size_t i = 0; i < existingLogs.size(); i++){
         outFile<<existingLogs[i]<<std::endl;
+        counter++;
+        if(counter % COUNTER_MOD == 0) std::cout << ".";
     }
     // find the first log entry in logsAndErrors that is not in existingLogs
-    int i = 0;
+    size_t i = 0;
+    counter = 0;
     while(i < logsAndErrors.size() && std::find(existingLogs.begin(), existingLogs.end(), logsAndErrors.at(i)) != existingLogs.end()){
         i++;
+        counter++;
+        if(counter % COUNTER_MOD == 0) std::cout << ".";
     }
     // write the new logs to the file
+    counter = 0;
     for(; i < logsAndErrors.size(); i++){
         outFile<<logsAndErrors[i]<<std::endl;
+        counter++;
+        if(counter % COUNTER_MOD == 0) std::cout << ".";
     }
     outFile.close();
     

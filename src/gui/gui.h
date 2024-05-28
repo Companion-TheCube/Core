@@ -20,7 +20,7 @@ public:
     ~GUI();
     void eventLoop();
     void stop();
-    std::vector<std::pair<bool,std::function<void()>>> getEndpointData();
+    EndPointData_t getEndpointData();
     std::vector<std::string> getEndpointNames();
     std::string getIntefaceName() const;
 private:

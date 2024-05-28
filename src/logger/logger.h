@@ -16,7 +16,8 @@ enum LogVerbosity {
     TIMESTAMP_AND_FILE,
     TIMESTAMP_AND_FILE_AND_LINE,
     TIMESTAMP_AND_FILE_AND_LINE_AND_FUNCTION,
-    TIMESTAMP_AND_FILE_AND_LINE_AND_FUNCTION_AND_NUMBEROFLOGS
+    TIMESTAMP_AND_FILE_AND_LINE_AND_FUNCTION_AND_NUMBEROFLOGS,
+    LOGVERBOSITYCOUNT
 };
 
 class ENTRY{
@@ -29,6 +30,7 @@ public:
     virtual std::string getTimestamp() = 0;
     virtual std::string getEntry() = 0;
     virtual std::string getMessageFull() = 0;
+    virtual unsigned long long getTimestampAsLong() = 0;
 };
 
 class CUBE_LOG_ENTRY: public ENTRY{
@@ -43,6 +45,7 @@ public:
     std::string getTimestamp();
     std::string getEntry();
     std::string getMessageFull();
+    unsigned long long getTimestampAsLong();
 };
 
 class CUBE_ERROR: public ENTRY{
@@ -57,6 +60,7 @@ public:
     std::string getEntry();
     std::string getTimestamp();
     std::string getMessageFull();
+    unsigned long long getTimestampAsLong();
 };
 
 class CubeLog{

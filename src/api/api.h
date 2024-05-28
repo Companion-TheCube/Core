@@ -18,11 +18,26 @@
 #include <memory>
 #include <latch>
 
+typedef std::vector<std::pair<std::string, std::string>> EndPointParams_t;
+typedef std::vector<std::pair<bool,std::function<std::string(std::string, EndPointParams_t)>>> EndPointData_t;
+
+
 class I_API_Interface {
 public:
     virtual ~I_API_Interface() = default;
     virtual std::string getIntefaceName() const = 0;
-    virtual std::vector<std::pair<bool,std::function<void()>>> getEndpointData() = 0; // bool: public, function: action
+    /**
+     * @brief Get the Endpoint Data object
+     * 
+     * @return std::vector<std::pair<bool,std::function<std::string(std::string, std::vector<std::pair<std::string, std::string>>)>>>
+     * The function element of the pair is the action to be executed when the endpoint is hit and
+     * should return as soon as possible. This function will be executed on the API thread and should
+     * not block the thread. Make sure that the function is thread safe. The bool element of the pair
+     * is whether the endpoint is public or not. If the endpoint is public, it will be accessible from
+     * any client on the network. If the endpoint is not public, it will only be accessible only from
+     * authenticated clients.
+     **/
+    virtual EndPointData_t getEndpointData() = 0;
     virtual std::vector<std::string> getEndpointNames() = 0;
 };
 
@@ -31,16 +46,16 @@ private:
     std::string name;
     std::string path;
     bool publicEndpoint;
-    std::function<void()> action;
+    std::function<std::string(std::string, EndPointParams_t)> action;
 public:
     Endpoint(bool publicEndpoint, std::string name, std::string path);
     ~Endpoint();
     std::string getName();
     std::string getPath();
     bool isPublic();
-    void setAction(std::function<void()> action);
-    void doAction();
-    std::function<void()> getAction();
+    void setAction(std::function<std::string(std::string, EndPointParams_t)> action);
+    std::string doAction(std::string, EndPointParams_t);
+    std::function<std::string(std::string, EndPointParams_t)> getAction();
 };
 
 class CubeHttpServer {
@@ -75,7 +90,7 @@ public:
     void start();
     void stop();
     void restart();
-    void addEndpoint(std::string name, std::string path, bool publicEndpoint, std::function<void()> action);
+    void addEndpoint(std::string name, std::string path, bool publicEndpoint, std::function<std::string(std::string response, std::vector<std::pair<std::string, std::string>> params)> action);
     std::vector<Endpoint*> getEndpoints();
     Endpoint* getEndpointByName(std::string name);
     bool removeEndpoint(std::string name);

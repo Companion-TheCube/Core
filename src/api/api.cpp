@@ -33,7 +33,7 @@ void API::restart(){
     this->start();
 }
 
-void API::addEndpoint(std::string name, std::string path, bool publicEndpoint, std::function<void()> action){
+void API::addEndpoint(std::string name, std::string path, bool publicEndpoint, std::function<std::string(std::string response, std::vector<std::pair<std::string, std::string>> params)> action){
     // add an endpoint
     this->logger->log("Adding endpoint: " + name + " at " + path, true);
     Endpoint *endpoint = new Endpoint(publicEndpoint, name, path);
@@ -72,23 +72,32 @@ void API::httpApiThreadFn(){
     this->logger->log("API listener thread starting...", true);
     try{
         this->server = new CubeHttpServer(this->logger, "0.0.0.0", 55280);
+        // TODO: set up authentication
         for(size_t i = 0; i < this->endpoints.size(); i++){
             if(this->endpoints.at(i)->isPublic()){
                 this->logger->log("Adding public endpoint: " + this->endpoints.at(i)->getName() + " at " + this->endpoints.at(i)->getPath(), true);
                 this->server->addEndpoint(this->endpoints[i]->getPath(), [&, i](const httplib::Request &req, httplib::Response &res){
                     std::string response;
                     response += "Endpoint: " + this->endpoints.at(i)->getName() + "\n\n";
+                    response += "Method: " + req.method + "\n";
+                    response += "Path: " + req.path + "\n";
+                    response += "Body: " + req.body + "\n";
+                    response += "Params: \n";
+                    std::vector<std::pair<std::string, std::string>> params;
                     for(auto param : req.params){
                         response += param.first + ": " + param.second + "\n";
+                        params.push_back({param.first, param.second});
                     }
                     res.set_content(response, "text/plain");
-                    this->endpoints.at(i)->doAction();
+                    std::string returned = this->endpoints.at(i)->doAction(response, params);
+                    this->logger->log("Endpoint action returned: " + returned, true);
                 });
             }else{
                 this->server->addEndpoint(this->endpoints.at(i)->getPath(), [&](const httplib::Request &req, httplib::Response &res){
                     res.set_content("Endpoint not public", "text/plain");
-                    res.status = 403;
+                    res.status = httplib::StatusCode::Forbidden_403;
                 });
+                // TODO: add non public endpoints
             }
         }
         this->server->start();
@@ -133,15 +142,15 @@ bool Endpoint::isPublic(){
     return this->publicEndpoint;
 }
 
-void Endpoint::setAction(std::function<void()> action){
+void Endpoint::setAction(std::function<std::string(std::string response, EndPointParams_t params)> action){
     this->action = action;
 }
 
-void Endpoint::doAction(){
-    this->action();
+std::string Endpoint::doAction(std::string response, EndPointParams_t params){
+    return this->action(response, params);
 }
 
-std::function <void()> Endpoint::getAction(){
+std::function <std::string(std::string response, EndPointParams_t params)> Endpoint::getAction(){
     return this->action;
 }
 

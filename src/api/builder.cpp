@@ -19,6 +19,10 @@ void API_Builder::start(){
         this->logger->log("Building interface object: " + name, true);
         auto endpointNames = i_face_obj->getEndpointNames();
         auto endpointData = i_face_obj->getEndpointData();
+        if(endpointNames.size() != endpointData.size()){
+            this->logger->error("Error: Size of endpoint names and data do not match for interface: " + name + ". Skipping.");
+            continue;
+        }
         for(int i = 0; i < endpointNames.size(); i++){
             this->logger->log("Adding endpoint: " + endpointNames[i] + " at " + name + "/" + endpointNames[i], true);
             std::string endpointPath = name + "-" + endpointNames.at(i);
