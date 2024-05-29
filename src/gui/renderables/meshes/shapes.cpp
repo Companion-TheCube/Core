@@ -19,19 +19,23 @@ M_Text::M_Text(CubeLog* logger, Shader* sh, std::string text, float fontSize, gl
     this->logger->log("Created Text", true);
 }
 
+void M_Text::reloadFont()
+{
+    FT_Done_Face(face);
+    FT_Done_FreeType(ft);
+    faceInitialized = false;
+}
+
 FT_Library M_Text::ft;
 FT_Face M_Text::face;
 bool M_Text::faceInitialized = false;
 
 void M_Text::buildText(){
-    
     if(!faceInitialized){
-        // FT_Library ft;
         if (FT_Init_FreeType(&ft)) {
             this->logger->log("ERROR::FREETYPE: Could not init FreeType Library", true);
         }
-        // FT_Face face;
-        if (FT_New_Face(ft, "fonts/Roboto/Roboto-Regular.ttf", 0, &face)) {
+        if (FT_New_Face(ft, GlobalSettings::selectedFontPath, 0, &face)) {
             this->logger->log("ERROR::FREETYPE: Failed to load font", true);
         }
         faceInitialized = true;

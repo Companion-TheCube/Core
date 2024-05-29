@@ -73,6 +73,7 @@ endif()
 
 include_directories(${CMAKE_SOURCE_DIR}/src/logger)
 include_directories(${CMAKE_SOURCE_DIR}/libraries)
+include_directories(${CMAKE_SOURCE_DIR}/src/settings)
 if(WIN32)
     include_directories("C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.39.33519/include")
 endif()

@@ -20,37 +20,6 @@
 #include <condition_variable>
 #include <latch>
 
-// class TaskQueue {
-// public:
-//     void push(std::function<void()> task) {
-//         std::lock_guard<std::mutex> lock(mutex_);
-//         tasks_.push(std::move(task));
-//         condition_.notify_one();
-//     }
-
-//     std::function<void()> pop() {
-//         std::unique_lock<std::mutex> lock(mutex_);
-//         condition_.wait(lock, [this] { return !tasks_.empty(); });
-//         auto task = std::move(tasks_.front());
-//         tasks_.pop();
-//         return task;
-//     }
-
-//     size_t size() {
-//         std::lock_guard<std::mutex> lock(mutex_);
-//         return tasks_.size();
-//     }
-
-//     std::queue<std::function<void()>> getTasks() {
-//         return tasks_;
-//     }
-
-// private:
-//     std::queue<std::function<void()>> tasks_;
-//     std::mutex mutex_;
-//     std::condition_variable condition_;
-// };
-
 class TaskQueue {
 public:
     void push(std::function<void()> task) {

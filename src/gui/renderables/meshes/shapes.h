@@ -1,4 +1,5 @@
 #pragma once
+#include <globalSettings.h>
 #include "../meshObject.h"
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -49,6 +50,7 @@ public:
     void setPosition(glm::vec2 position);
     void setText(std::string text);
     float getWidth();
+    void reloadFont();
 };
 
 class M_PartCircle : public MeshObject {
