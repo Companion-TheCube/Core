@@ -19,7 +19,7 @@ M_Text::M_Text(CubeLog* logger, Shader* sh, std::string text, float fontSize, gl
     this->logger->log("Created Text", true);
 }
 
-void M_Text::reloadFont()
+void M_Text::reloadFont() // TODO: verify / test this function
 {
     FT_Done_Face(face);
     FT_Done_FreeType(ft);
@@ -33,10 +33,10 @@ bool M_Text::faceInitialized = false;
 void M_Text::buildText(){
     if(!faceInitialized){
         if (FT_Init_FreeType(&ft)) {
-            this->logger->log("ERROR::FREETYPE: Could not init FreeType Library", true);
+            this->logger->error("ERROR::FREETYPE: Could not init FreeType Library");
         }
-        if (FT_New_Face(ft, GlobalSettings::selectedFontPath, 0, &face)) {
-            this->logger->log("ERROR::FREETYPE: Failed to load font", true);
+        if (FT_New_Face(ft, GlobalSettings::selectedFontPath.c_str(), 0, &face)) {
+            this->logger->error("ERROR::FREETYPE: Failed to load font");
         }
         faceInitialized = true;
     }
@@ -45,7 +45,7 @@ void M_Text::buildText(){
     checkGLError("0.1");
     for (unsigned char c = 0; c < 128; c++) {
         if (FT_Load_Char(face, c, FT_LOAD_RENDER)) {
-            this->logger->log("ERROR::FREETYPE: Failed to load Glyph", true);
+            this->logger->error("ERROR::FREETYPE: Failed to load Glyph");
             continue;
         }
         GLuint texture;
@@ -110,7 +110,7 @@ M_Text::~M_Text()
     for (unsigned char c = 0; c < 128; c++) {
         glDeleteTextures(1, &Characters[c].TextureID);
     }
-    this->logger->log("Destroyed Text", true);
+    this->logger->info("Destroyed Text");
 }
 
 void M_Text::draw()
@@ -118,7 +118,6 @@ void M_Text::draw()
     this->shader->use();
     shader->setVec3("textColor", this->color.x, this->color.y, this->color.z);
     shader->setMat4("projection", projectionMatrix);
-    checkGLError("1");
     glActiveTexture(GL_TEXTURE0);
     glBindVertexArray(this->VAO);
     std::string::const_iterator c;
@@ -218,6 +217,9 @@ void M_Text::setPosition(glm::vec2 position)
 
 void M_Text::setText(std::string text)
 {
+    for (unsigned char c = 0; c < 128; c++) {
+        glDeleteTextures(1, &Characters[c].TextureID);
+    }
     this->text = text;
     this->buildText();
 }

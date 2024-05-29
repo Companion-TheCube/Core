@@ -13,52 +13,41 @@
 enum LogVerbosity {
     MINIMUM,
     TIMESTAMP,
-    TIMESTAMP_AND_FILE,
-    TIMESTAMP_AND_FILE_AND_LINE,
-    TIMESTAMP_AND_FILE_AND_LINE_AND_FUNCTION,
-    TIMESTAMP_AND_FILE_AND_LINE_AND_FUNCTION_AND_NUMBEROFLOGS,
+    TIMESTAMP_AND_LEVEL,
+    TIMESTAMP_AND_LEVEL_AND_FILE,
+    TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE,
+    TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE_AND_FUNCTION,
+    TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE_AND_FUNCTION_AND_NUMBEROFLOGS,
     LOGVERBOSITYCOUNT
 };
 
-class ENTRY{
-private:
-    std::string message;
-    std::chrono::time_point<std::chrono::system_clock> timestamp;
-    std::string messageFull;
-public:
-    virtual std::string getMessage() = 0;
-    virtual std::string getTimestamp() = 0;
-    virtual std::string getEntry() = 0;
-    virtual std::string getMessageFull() = 0;
-    virtual unsigned long long getTimestampAsLong() = 0;
+enum LogLevel {
+    LOGGER_INFO,
+    LOGGER_WARNING,
+    LOGGER_ERROR,
+    LOGGER_CRITICAL,
+    LOGGER_LOGLEVELCOUNT
 };
 
-class CUBE_LOG_ENTRY: public ENTRY{
+const std::string logLevelStrings[] = {
+    "INFO",
+    "WARNING",
+    "ERROR",
+    "CRITICAL"
+};
+
+class CUBE_LOG_ENTRY{
 private:
     std::string message;
     std::chrono::time_point<std::chrono::system_clock> timestamp;
     std::string messageFull;
 public:
+    LogLevel level;
     static int logEntryCount;
-    CUBE_LOG_ENTRY(std::string message, std::source_location* location, LogVerbosity verbosity);
+    CUBE_LOG_ENTRY(std::string message, std::source_location* location, LogVerbosity verbosity, LogLevel level = LogLevel::LOGGER_INFO);
     std::string getMessage();
     std::string getTimestamp();
     std::string getEntry();
-    std::string getMessageFull();
-    unsigned long long getTimestampAsLong();
-};
-
-class CUBE_ERROR: public ENTRY{
-private:
-    std::string message;
-    std::chrono::time_point<std::chrono::system_clock> timestamp;
-    std::string messageFull;
-public:
-    static int errorCount;
-    CUBE_ERROR(std::string message, std::source_location* location, LogVerbosity verbosity);
-    std::string getMessage();
-    std::string getEntry();
-    std::string getTimestamp();
     std::string getMessageFull();
     unsigned long long getTimestampAsLong();
 };
@@ -66,20 +55,24 @@ public:
 class CubeLog{
 private:
     std::vector<CUBE_LOG_ENTRY> logEntries;
-    std::vector<CUBE_ERROR> errors;
     std::mutex logMutex;
     LogVerbosity verbosity;
+    LogLevel printLevel;
+    LogLevel fileLevel;
 public:
-    void log(std::string message, bool print, std::source_location location = std::source_location::current());
+    void log(std::string message, bool print, LogLevel level = LogLevel::LOGGER_INFO, std::source_location location = std::source_location::current());
     void error(std::string message, std::source_location location = std::source_location::current());
-    std::vector<CUBE_LOG_ENTRY> getLogEntries();
-    std::vector<CUBE_ERROR> getErrors();
+    void info(std::string message, std::source_location location = std::source_location::current());
+    void warning(std::string message, std::source_location location = std::source_location::current());
+    void critical(std::string message, std::source_location location = std::source_location::current());
+    std::vector<CUBE_LOG_ENTRY> getLogEntries(LogLevel level = LogLevel::LOGGER_INFO);
     std::vector<std::string> getLogEntriesAsStrings(bool fullMessages = true);
     std::vector<std::string> getErrorsAsStrings(bool fullMessages = true);
     std::vector<std::string> getLogsAndErrorsAsStrings(bool fullMessages = true);
-    CubeLog(LogVerbosity verbosity = LogVerbosity::TIMESTAMP_AND_FILE_AND_LINE_AND_FUNCTION);
+    CubeLog(LogVerbosity verbosity = LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE_AND_FUNCTION, LogLevel printLevel = LogLevel::LOGGER_INFO, LogLevel fileLevel = LogLevel::LOGGER_INFO);
     void writeOutLogs();
-    void setVerbosity(LogVerbosity verbosity);  
+    void setVerbosity(LogVerbosity verbosity);
+    void setLogLevel(LogLevel printLevel, LogLevel fileLevel);
 };
 
 std::string convertTimestampToString(std::chrono::time_point<std::chrono::system_clock> timestamp);

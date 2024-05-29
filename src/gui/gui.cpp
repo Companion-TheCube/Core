@@ -1,3 +1,5 @@
+// TODO: Need to add a sort of status bar to the top of the screen. It should show the time and whether or not a person is detected. probably more.
+
 #include "./gui.h"
 
 /**

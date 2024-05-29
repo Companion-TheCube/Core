@@ -123,7 +123,8 @@ int main(int argc, char* argv[])
 #endif
     versionInfo += "\nAuthor: Andrew McDaniel\nCopyright: 2024\n";
     bool customLogVerbosity = false;
-    bool customLogLevel = false;
+    bool customLogLevelP = false;
+    bool customLogLevelF = false;
     argparse::ArgumentParser argumentParser("Companion, TheCube - CORE", versionInfo);
     argumentParser.add_argument("-l", "--logVerbosity")
     .help("Set log verbosity")
@@ -134,13 +135,24 @@ int main(int argc, char* argv[])
         customLogVerbosity = true;
         return std::stoi(value); 
     });
-    argumentParser.add_argument("-L", "--LogLevel")
-    .help("Set log level")
+    argumentParser.add_argument("-L", "--LogLevelP")
+    .help("Set log level for printing to console")
     .default_value(3)
+    .choices("0", "1", "2", "3", "4", "5", "6")
     .action([&](const std::string& value) {
         if(LogVerbosity(std::stoi(value)) >= LogVerbosity::LOGVERBOSITYCOUNT)
             throw std::runtime_error("Invalid log level.");
-        customLogLevel = true;
+        customLogLevelP = true;
+        return std::stoi(value); 
+    });
+    argumentParser.add_argument("-f", "--LogLevelF")
+    .help("Set log level for writing to file")
+    .default_value(3)
+    .choices("0", "1", "2", "3")
+    .action([&](const std::string& value) {
+        if(LogVerbosity(std::stoi(value)) >= LogLevel::LOGGER_LOGLEVELCOUNT)
+            throw std::runtime_error("Invalid log level.");
+        customLogLevelF = true;
         return std::stoi(value); 
     });
     argumentParser.add_argument("-p", "--print")
@@ -156,7 +168,8 @@ int main(int argc, char* argv[])
     }
     std::cout << versionInfo << std::endl;
     auto logVerbosity = argumentParser.get<int>("--logVerbosity");
-    auto logLevel = argumentParser.get<int>("--LogLevel");
+    auto logLevelPrint = argumentParser.get<int>("--LogLevelP");
+    auto logLevelFile = argumentParser.get<int>("--LogLevelF");
     /////////////////////////////////////////////////////////////////
     GlobalSettings settings;
     auto logger = new CubeLog();
@@ -169,6 +182,11 @@ int main(int argc, char* argv[])
         settings.logVerbosity = LogVerbosity(logVerbosity);
     logger->setVerbosity(settings.logVerbosity);
     // TODO: logger->setLogLevel(settings.logLevel);
+    if(customLogLevelP)
+        settings.setSetting("LogLevelP", logLevelPrint);
+    if(customLogLevelF)
+        settings.setSetting("LogLevelF", logLevelFile);
+    logger->setLogLevel(settings.logLevelPrint, settings.logLevelFile);
     logger->log("Logger initialized.", true);
     logger->log("Settings loaded.", true);
 

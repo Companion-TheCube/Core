@@ -5,7 +5,9 @@
 struct GlobalSettings {
     static LogVerbosity logVerbosity; // = LogVerbosity::TIMESTAMP_AND_FILE_AND_LINE_AND_FUNCTION_AND_NUMBEROFLOGS;
     static std::vector<std::string> fontPaths;
-    static const char* selectedFontPath;
+    static std::string selectedFontPath;
+    static LogLevel logLevelPrint;
+    static LogLevel logLevelFile;
 
     bool setSetting(std::string key, nlohmann::json::value_type value){
         if(key == "logVerbosity"){
@@ -19,18 +21,35 @@ struct GlobalSettings {
             // get the value from the void pointer
             std::string tempVal = value.get<std::string>();
             // convert to LogVerbosity
-            this->selectedFontPath = tempVal.c_str();
+            this->selectedFontPath = tempVal;
+            return true;
+        }
+        if(key == "logLevelP"){
+            // get the value from the void pointer
+            int tempVal = value.get<int>();
+            // convert to LogVerbosity
+            this->logLevelPrint = static_cast<LogLevel>(tempVal);
+            return true;
+        }
+        if(key == "logLevelF"){
+            // get the value from the void pointer
+            int tempVal = value.get<int>();
+            // convert to LogVerbosity
+            this->logLevelFile = static_cast<LogLevel>(tempVal);
             return true;
         }
         return false;
     }
     nlohmann::json getSettings(){
         return nlohmann::json({
-            {"logVerbosity", this->logVerbosity}
+            {"logVerbosity", this->logVerbosity},
+            {"selectedFontPath", this->selectedFontPath},
+            {"logLevelP", this->logLevelPrint},
+            {"logLevelF", this->logLevelFile}
         });
     }
     std::vector<std::string> getSettingsNames(){
-        return {"logVerbosity"};
+        return {"logVerbosity", "selectedFontPath", "logLevelP", "logLevelF"};
     }
     enum FontPathIndices:unsigned int{
         ROBOTO_REGULAR,

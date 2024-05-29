@@ -10,12 +10,12 @@
 #define CUBE_LOG_ENTRY_MAX 50000
 
 int CUBE_LOG_ENTRY::logEntryCount = 0;
-int CUBE_ERROR::errorCount = 0;
 
-CUBE_LOG_ENTRY::CUBE_LOG_ENTRY(std::string message, std::source_location* location, LogVerbosity verbosity){
+CUBE_LOG_ENTRY::CUBE_LOG_ENTRY(std::string message, std::source_location* location, LogVerbosity verbosity, LogLevel level){
     this->timestamp = std::chrono::system_clock::now();
     this->logEntryCount++;
     this->message = message;
+    this->level = level;
     std::string fileName = getFileNameFromPath(location->file_name());
     switch(verbosity){
         case LogVerbosity::MINIMUM:
@@ -24,17 +24,20 @@ CUBE_LOG_ENTRY::CUBE_LOG_ENTRY(std::string message, std::source_location* locati
         case LogVerbosity::TIMESTAMP:
             this->messageFull = this->getTimestamp() + ": " + message;
             break;
-        case LogVerbosity::TIMESTAMP_AND_FILE:
-            this->messageFull = this->getTimestamp() + ": " + fileName + ": " + message;
+        case LogVerbosity::TIMESTAMP_AND_LEVEL:
+            this->messageFull = this->getTimestamp() + ": " + message + " (" + logLevelStrings[level] + ")";
             break;
-        case LogVerbosity::TIMESTAMP_AND_FILE_AND_LINE:
-            this->messageFull = this->getTimestamp() + ": " + fileName + "(" + std::to_string(location->line()) + "): " + message;
+        case LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE:
+            this->messageFull = this->getTimestamp() + ": " + fileName + ": " + message + " (" + logLevelStrings[level] + ")";
             break;
-        case LogVerbosity::TIMESTAMP_AND_FILE_AND_LINE_AND_FUNCTION:
-            this->messageFull = this->getTimestamp() + ": " + fileName + "(" + std::to_string(location->line()) + "): " + location->function_name() + ": " + message;
+        case LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE:
+            this->messageFull = this->getTimestamp() + ": " + fileName + "(" + std::to_string(location->line()) + "): " + message + " (" + logLevelStrings[level] + ")";
+            break;
+        case LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE_AND_FUNCTION:
+            this->messageFull = this->getTimestamp() + ": " + fileName + "(" + std::to_string(location->line()) + "): " + location->function_name() + ": " + message + " (" + logLevelStrings[level] + ")";
             break;
         default:
-            this->messageFull = this->getTimestamp() + ": " + fileName + "(" + std::to_string(location->line()) + "): " + location->function_name() + ": " + message + " (" + std::to_string(CUBE_LOG_ENTRY::logEntryCount) + ")";
+            this->messageFull = this->getTimestamp() + ": " + fileName + "(" + std::to_string(location->line()) + "): " + location->function_name() + ": " + message + " (" + std::to_string(CUBE_LOG_ENTRY::logEntryCount) + ")" + " (" + logLevelStrings[level] + ")";
             break;
     }
 }
@@ -59,60 +62,12 @@ std::string CUBE_LOG_ENTRY::getMessageFull(){
     return this->messageFull;
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-CUBE_ERROR::CUBE_ERROR(std::string message, std::source_location* location, LogVerbosity verbosity){
-    this->timestamp = std::chrono::system_clock::now();
-    this->errorCount++;
-    this->message = message;
-    std::string fileName = getFileNameFromPath(location->file_name());
-    switch(verbosity){
-        case LogVerbosity::MINIMUM:
-            this->messageFull = message;
-            break;
-        case LogVerbosity::TIMESTAMP:
-            this->messageFull = this->getTimestamp() + ": " + message;
-            break;
-        case LogVerbosity::TIMESTAMP_AND_FILE:
-            this->messageFull = this->getTimestamp() + ": " + fileName + ": " + message;
-            break;
-        case LogVerbosity::TIMESTAMP_AND_FILE_AND_LINE:
-            this->messageFull = this->getTimestamp() + ": " + fileName + "(" + std::to_string(location->line()) + "): " + message;
-            break;
-        case LogVerbosity::TIMESTAMP_AND_FILE_AND_LINE_AND_FUNCTION:
-            this->messageFull = this->getTimestamp() + ": " + fileName + "(" + std::to_string(location->line()) + "): " + location->function_name() + ": " + message;
-            break;
-        default:
-            this->messageFull = this->getTimestamp() + ": " + fileName + "(" + std::to_string(location->line()) + "): " + location->function_name() + ": " + message + " (" + std::to_string(CUBE_ERROR::errorCount) + ")";
-            break;
-    }
-}
-
-std::string CUBE_ERROR::getMessage(){
-    return this->message;
-}
-
-std::string CUBE_ERROR::getEntry(){
-    return this->getTimestamp() + ": " + this->getMessage();
-}
-
-std::string CUBE_ERROR::getTimestamp(){
-    return convertTimestampToString(this->timestamp);
-}
-
-unsigned long long CUBE_ERROR::getTimestampAsLong(){
-    return std::chrono::duration_cast<std::chrono::milliseconds>(this->timestamp.time_since_epoch()).count();
-}
-
-std::string CUBE_ERROR::getMessageFull(){
-    return this->messageFull;
-}
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void CubeLog::log(std::string message, bool print, std::source_location location){
-    CUBE_LOG_ENTRY entry = CUBE_LOG_ENTRY(message, &location, this->verbosity);
-    if(print){
+void CubeLog::log(std::string message, bool print, LogLevel level, std::source_location location){
+    CUBE_LOG_ENTRY entry = CUBE_LOG_ENTRY(message, &location, this->verbosity, level);
+    if(print && level >= this->printLevel){
         std::cout << entry.getMessageFull() << std::endl;
     }
     std::lock_guard<std::mutex> lock(this->logMutex);
@@ -120,25 +75,36 @@ void CubeLog::log(std::string message, bool print, std::source_location location
 }
 
 void CubeLog::error(std::string message, std::source_location location){
-    CUBE_ERROR error = CUBE_ERROR(message, &location, this->verbosity);
-    std::cerr << error.getMessageFull() << std::endl;
-    std::lock_guard<std::mutex> lock(this->logMutex);
-    this->errors.push_back(error);
+    this->log(message, true, LogLevel::LOGGER_ERROR, location);
 }
 
-CubeLog::CubeLog(LogVerbosity verbosity){
+void CubeLog::info(std::string message, std::source_location location){
+    this->log(message, true, LogLevel::LOGGER_INFO, location);
+}
+
+void CubeLog::warning(std::string message, std::source_location location){
+    this->log(message, true, LogLevel::LOGGER_WARNING, location);
+}
+
+void CubeLog::critical(std::string message, std::source_location location){
+    this->log(message, true, LogLevel::LOGGER_CRITICAL, location);
+}
+
+CubeLog::CubeLog(LogVerbosity verbosity, LogLevel printLevel, LogLevel fileLevel){
     this->verbosity = verbosity;
+    this->printLevel = printLevel;
+    this->fileLevel = fileLevel;
     CubeLog::log("Logger initialized", true);
 }
 
-std::vector<CUBE_LOG_ENTRY> CubeLog::getLogEntries(){
+std::vector<CUBE_LOG_ENTRY> CubeLog::getLogEntries(LogLevel level){
     std::lock_guard<std::mutex> lock(this->logMutex);
+    std::vector<CUBE_LOG_ENTRY> logEntries;
+    for(int i = 0; i < this->logEntries.size(); i++){
+        if(this->logEntries[i].level == level)
+            logEntries.push_back(this->logEntries[i]);
+    }
     return this->logEntries;
-}
-
-std::vector<CUBE_ERROR> CubeLog::getErrors(){
-    std::lock_guard<std::mutex> lock(this->logMutex);
-    return this->errors;
 }
 
 std::vector<std::string> CubeLog::getLogEntriesAsStrings(bool fullMessages){
@@ -153,30 +119,14 @@ std::vector<std::string> CubeLog::getLogEntriesAsStrings(bool fullMessages){
     return logEntriesAsStrings;
 }
 
-std::vector<std::string> CubeLog::getErrorsAsStrings(bool fullMessages){
-    std::lock_guard<std::mutex> lock(this->logMutex);
-    std::vector<std::string> errorsAsStrings;
-    for(int i = 0; i < this->errors.size(); i++){
-        if(fullMessages)
-            errorsAsStrings.push_back(this->errors[i].getMessageFull());
-        else
-            errorsAsStrings.push_back(this->errors[i].getMessage());
-    }
-    return errorsAsStrings;
-}
-
 std::vector<std::string> CubeLog::getLogsAndErrorsAsStrings(bool fullMessages){
     // time how long this function takes
     auto start = std::chrono::high_resolution_clock::now();
     std::vector<std::string> logsAndErrorsAsStrings;
-    std::vector<CUBE_LOG_ENTRY> logEntries = this->getLogEntries();
-    std::vector<CUBE_ERROR> errors = this->getErrors();
+    std::vector<CUBE_LOG_ENTRY> logEntries = this->getLogEntries(this->fileLevel);
     std::vector<std::pair<unsigned long long, std::string>> logsAndErrorsAsPairs;
     for(auto entry : logEntries){
         logsAndErrorsAsPairs.push_back({entry.getTimestampAsLong(), entry.getMessageFull()});
-    }
-    for(auto error : errors){
-        logsAndErrorsAsPairs.push_back({error.getTimestampAsLong(), error.getMessageFull()});
     }
     std::stable_sort(logsAndErrorsAsPairs.begin(), logsAndErrorsAsPairs.end());
     for(auto pair : logsAndErrorsAsPairs){
@@ -270,4 +220,9 @@ std::string convertTimestampToString(std::chrono::time_point<std::chrono::system
 std::string getFileNameFromPath(std::string path){
     std::filesystem::path p(path);
     return p.filename().string();
+}
+
+void CubeLog::setLogLevel(LogLevel printLevel, LogLevel fileLevel){
+    this->printLevel = printLevel;
+    this->fileLevel = fileLevel;
 }

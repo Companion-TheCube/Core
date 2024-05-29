@@ -3,7 +3,7 @@
 #include <nlohmann/json.hpp>
 #include <globalSettings.h>
 
-LogVerbosity GlobalSettings::logVerbosity = LogVerbosity::TIMESTAMP_AND_FILE_AND_LINE_AND_FUNCTION_AND_NUMBEROFLOGS;
+LogVerbosity GlobalSettings::logVerbosity = LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE_AND_FUNCTION_AND_NUMBEROFLOGS;
 std::vector<std::string> GlobalSettings::fontPaths = {
     "fonts/Roboto/Roboto-Regular.ttf",
     "fonts/Roboto/Roboto-Bold.ttf",
@@ -33,4 +33,6 @@ std::vector<std::string> GlobalSettings::fontPaths = {
     "fonts/RadioCanadaBig/RadioCanadaBig-SemiBold.ttf",
     "fonts/RadioCanadaBig/RadioCanadaBig-SemiBoldItalic.ttf"
 };
-const char* GlobalSettings::selectedFontPath = GlobalSettings::fontPaths[GlobalSettings::FontPathIndices::ROBOTO_REGULAR].c_str();
+std::string GlobalSettings::selectedFontPath = GlobalSettings::fontPaths[GlobalSettings::FontPathIndices::ROBOTO_REGULAR].c_str();
+LogLevel GlobalSettings::logLevelPrint = LogLevel::LOGGER_INFO;
+LogLevel GlobalSettings::logLevelFile = LogLevel::LOGGER_INFO;
