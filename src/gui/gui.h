@@ -30,4 +30,5 @@ private:
     Renderer *renderer;
     std::jthread eventLoopThread;
     EventManager *eventManager;
+    CubeMessageBox* messageBox;
 };

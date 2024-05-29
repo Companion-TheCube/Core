@@ -136,7 +136,7 @@ void Renderer::setupTasksRun()
 {
     while (this->setupQueue.size() > 0) {
         auto task = this->setupQueue.pop();
-        task();   
+        task();
     }
 }
 

@@ -19,14 +19,22 @@ M_Text::M_Text(CubeLog* logger, Shader* sh, std::string text, float fontSize, gl
     this->logger->log("Created Text", true);
 }
 
+FT_Library M_Text::ft;
+FT_Face M_Text::face;
+bool M_Text::faceInitialized = false;
+
 void M_Text::buildText(){
-    FT_Library ft;
-    if (FT_Init_FreeType(&ft)) {
-        this->logger->log("ERROR::FREETYPE: Could not init FreeType Library", true);
-    }
-    FT_Face face;
-    if (FT_New_Face(ft, "fonts/Roboto/Roboto-Regular.ttf", 0, &face)) {
-        this->logger->log("ERROR::FREETYPE: Failed to load font", true);
+    
+    if(!faceInitialized){
+        // FT_Library ft;
+        if (FT_Init_FreeType(&ft)) {
+            this->logger->log("ERROR::FREETYPE: Could not init FreeType Library", true);
+        }
+        // FT_Face face;
+        if (FT_New_Face(ft, "fonts/Roboto/Roboto-Regular.ttf", 0, &face)) {
+            this->logger->log("ERROR::FREETYPE: Failed to load font", true);
+        }
+        faceInitialized = true;
     }
     FT_Set_Pixel_Sizes(face, 0, this->fontSize);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
@@ -73,8 +81,8 @@ void M_Text::buildText(){
 
     glBindTexture(GL_TEXTURE_2D, 0);
     checkGLError("0.5");
-    FT_Done_Face(face);
-    FT_Done_FreeType(ft);
+    // FT_Done_Face(face);
+    // FT_Done_FreeType(ft);
     glGenVertexArrays(1, &this->VAO);
     glGenBuffers(1, &this->VBO);
     glBindVertexArray(this->VAO);
@@ -92,8 +100,12 @@ void M_Text::buildText(){
 
 M_Text::~M_Text()
 {
+    // delete all the openGl stuff
     glDeleteVertexArrays(1, &this->VAO);
     glDeleteBuffers(1, &this->VBO);
+    for (unsigned char c = 0; c < 128; c++) {
+        glDeleteTextures(1, &Characters[c].TextureID);
+    }
     this->logger->log("Destroyed Text", true);
 }
 

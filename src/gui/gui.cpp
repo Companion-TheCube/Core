@@ -57,7 +57,7 @@ void GUI::eventLoop()
 
     std::latch latch(2); // make sure this accounts for all of the setup tasks
     auto menu = new Menu(this->logger, this->renderer->getShader(), latch);
-    auto messageBox = new CubeMessageBox(this->logger, this->renderer->getShader(), this->renderer->getTextShader(), latch);
+    messageBox = new CubeMessageBox(this->logger, this->renderer->getShader(), this->renderer->getTextShader(), this->renderer, latch);
     // menu->setVisible(false);
     this->renderer->addSetupTask([&](){
         menu->setup();
@@ -121,7 +121,15 @@ EndPointData_t GUI::getEndpointData()
 {
     EndPointData_t actions;
     actions.push_back({true, [&](std::string response, EndPointParams_t params){
-        this->stop();
+        // this->stop();
+        std::string p = "no param";
+        for(auto param : params){
+            if(param.first == "text"){
+                this->messageBox->setText(param.second);
+                p = param.second;
+            }
+        }
+        this->logger->log("Endpoint stop called and message set to: " + p, true);
         return "Stop called";
     }});
     actions.push_back({true, [&](std::string response, EndPointParams_t params){

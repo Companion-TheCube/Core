@@ -1,5 +1,4 @@
 #pragma once
-#include "./../gui.h"
 #include <functional>
 #include <vector>
 #include <string>
@@ -7,11 +6,13 @@
 #include <fstream>
 #include <sstream>
 #include <filesystem>
+#include <latch>
+#include <typeinfo>
 #include "./../renderables/meshObject.h"
 #include "./../renderables/meshes/shapes.h"
 #include "./../objects.h"
-#include <typeinfo>
 #include "./../shader.h"
+#include "./../renderer.h"
 
 #define Z_DISTANCE 3.57
 #define BOX_RADIUS 0.05
@@ -31,8 +32,9 @@ private:
     std::latch* latch;
     std::mutex mutex;
     std::vector<size_t> textMeshIndices;
+    Renderer* renderer;
 public:
-    CubeMessageBox(CubeLog *logger, Shader* shader, Shader* textShader, std::latch& latch);
+    CubeMessageBox(CubeLog *logger, Shader* shader, Shader* textShader, Renderer* renderer, std::latch& latch);
     ~CubeMessageBox();
     void setup();
     bool setVisible(bool visible);

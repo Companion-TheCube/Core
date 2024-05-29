@@ -28,6 +28,9 @@ private:
     std::map<char, Character> Characters;
     float width = 0.f;
     void buildText();
+    static FT_Library ft;
+    static FT_Face face;
+    static bool faceInitialized;
 public:
     M_Text(CubeLog* logger, Shader* sh, std::string text, float fontSize, glm::vec3 color, glm::vec2 position);
     ~M_Text();
