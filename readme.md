@@ -39,7 +39,6 @@ make
 * [OpenGL](https://www.opengl.org/) - The Industry's Foundation for High Performance Graphics.
 * [GLFW](https://www.glfw.org/) - A multi-platform library for OpenGL, OpenGL ES, Vulkan, window and input.
 * [GLEW](http://glew.sourceforge.net/) - The OpenGL Extension Wrangler Library.
-* [Boost](https://www.boost.org/) - Boost provides free peer-reviewed portable C++ source lib
 * [argparse](https://github.com/p-ranav/argparse) - Command line argument parser for C++.
 * [cpp-httplib](https://github.com/yhirose/cpp-httplib) - C++ HTTP server/client library.
 * [FreeType](https://www.freetype.org/) - A freely available software library to render fonts.
