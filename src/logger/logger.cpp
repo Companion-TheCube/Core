@@ -4,6 +4,8 @@
 
 // TODO: add log levels (INFO, WARNING, ERROR, DEBUG, etc.)
 
+// TODO: replace logger with https://github.com/gabime/spdlog
+
 #include "logger.h"
 
 #define COUNTER_MOD 100

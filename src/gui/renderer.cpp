@@ -1,3 +1,4 @@
+//TODO: migrate from SFML to GLFW since we aren't using any SFML specific features
 // Path: src/gui/renderer.h
 #include "renderer.h"
 
