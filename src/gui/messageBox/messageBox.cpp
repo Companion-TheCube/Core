@@ -24,6 +24,7 @@ void CubeMessageBox::setup()
     float xStart = -0.2;
     float yStart = -0.2;
     glm::vec2 size = { 1.f, 1.f };
+    // TODO: make the outline more like a thought box
     this->objects.push_back(new M_Rect(logger, shader, { xStart + radius, yStart + radius, Z_DISTANCE + this->index }, { size.x - diameter, size.y - diameter }, 0.0, 0.0)); // main box
 
     this->objects.push_back(new M_Rect(logger, shader, { xStart, yStart + radius, Z_DISTANCE + this->index }, { radius, size.y - diameter }, 0.0, 0.0)); // left
