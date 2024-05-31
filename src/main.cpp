@@ -1,3 +1,5 @@
+#define SW_VERSION "0.1.0"
+
 #include "main.h"
 
 // Two-channel sawtooth wave generator.
@@ -47,7 +49,9 @@ int main(int argc, char* argv[])
     }
 #endif
     /////////////////////////////////////////////////////////////////
-    std::string versionInfo = "Companion, TheCube - CORE 0.1\n";
+    std::string versionInfo = "Companion, TheCube - CORE ver.";
+    versionInfo += SW_VERSION;
+    versionInfo += "\n";
     versionInfo += "Built on: " + std::string(__DATE__) + " " + std::string(__TIME__) + "\n";
     versionInfo += "Built on: ";
 #ifdef __linux__
@@ -135,7 +139,7 @@ int main(int argc, char* argv[])
             return std::stoi(value);
         });
     argumentParser.add_argument("-p", "--print")
-        .help("Print settings to console")
+        .help("Print settings to console and exit.")
         .default_value(false)
         .implicit_value(true);
     try {
@@ -155,12 +159,12 @@ int main(int argc, char* argv[])
     auto settingsLoader = new SettingsLoader(logger, &settings);
     settingsLoader->loadSettings();
     if (argumentParser["--print"] == true) {
-        // TODO: settingsLoader->printSettings();
+        std::cout << "\n\n" + settings.toString() << std::endl;
+        exit(0);
     }
     if (customLogVerbosity)
         settings.logVerbosity = LogVerbosity(logVerbosity);
     logger->setVerbosity(settings.logVerbosity);
-    // TODO: logger->setLogLevel(settings.logLevel);
     if (customLogLevelP)
         settings.setSetting("LogLevelP", logLevelPrint);
     if (customLogLevelF)
@@ -173,7 +177,6 @@ int main(int argc, char* argv[])
     } else {
         logger->info("No colors supported.");
     }
-    // logger->setColorType(LogColorType::EXTENDED); // TODO: Implement color type setting
     logger->log("Logger initialized.", true);
     logger->log("Settings loaded.", true);
 
