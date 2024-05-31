@@ -14,7 +14,7 @@ SettingsLoader::~SettingsLoader(){
 bool SettingsLoader::loadSettings(){
     // first check to see if the file exists
     if(!std::filesystem::exists(this->settingsFile)){
-        this->logger->log("Settings file does not exist, creating new one", true, std::source_location::current());
+        this->logger->info("Settings file does not exist, creating new one");
         this->saveSettings();
     }
     // now we open the file and load the settings
@@ -26,16 +26,16 @@ bool SettingsLoader::loadSettings(){
     file>>this->settings;
     // iterate through all the settings and set them
     for(auto it = this->settings.begin(); it != this->settings.end(); ++it){
-        this->logger->log("Setting " + it.key() + " to " + it.value().dump(), true, std::source_location::current());
+        this->logger->info("Setting " + it.key() + " to " + it.value().dump());
         this->globalSettings->setSetting(it.key(), it.value());
     }
     file.close();
-    this->logger->log("Settings loaded", true, std::source_location::current());
+    this->logger->info("Settings loaded");
     return true;
 }
 
 bool SettingsLoader::saveSettings(){
-    this->logger->log("Attempting to save settings", true, std::source_location::current());
+    this->logger->info("Attempting to save settings");
     // convert the GlobalSettings object to a json object
     this->settings = this->globalSettings->getSettings();
     std::ofstream file(this->settingsFile);
@@ -45,12 +45,12 @@ bool SettingsLoader::saveSettings(){
     }
     file<<this->settings.dump(4);
     file.close();
-    this->logger->log("Settings saved", true, std::source_location::current());
+    this->logger->info("Settings saved");
     return true;
 }
 
 bool SettingsLoader::setSetting(std::string key, std::string value){
-    this->logger->log("Setting " + key + " to " + value, true, std::source_location::current());
+    this->logger->info("Setting " + key + " to " + value);
     this->settings[key] = value;
     return true;
 }

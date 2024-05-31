@@ -158,3 +158,20 @@ add_custom_command(
 # endif()
 
 install(TARGETS CubeCore)
+
+# Add tests
+FetchContent_Declare(
+    googletest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG main
+)
+
+FetchContent_MakeAvailable(googletest)
+
+# Add tests
+file(GLOB_RECURSE TEST_SOURCES "tests/*.cpp" "tests/**/*.cpp" "tests/**/**/*.cpp")
+add_executable(CubeCoreTests ${TEST_SOURCES})
+target_link_libraries(CubeCoreTests PRIVATE gtest gtest_main sfml-graphics sfml-audio sfml-network rtaudio ${ALSA_LIBRARIES} ${FREETYPE_LIBRARY} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} nlohmann_json::nlohmann_json)
+
+enable_testing()
+add_test(NAME CubeCoreTests COMMAND CubeCoreTests)

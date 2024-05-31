@@ -35,6 +35,7 @@ void M_Text::buildText(){
         if (FT_Init_FreeType(&ft)) {
             this->logger->error("ERROR::FREETYPE: Could not init FreeType Library");
         }
+        // TODO: check that the font file exists before trying to load it. If it doesn't exist, use a default font.
         if (FT_New_Face(ft, GlobalSettings::selectedFontPath.c_str(), 0, &face)) {
             this->logger->error("ERROR::FREETYPE: Failed to load font");
         }
