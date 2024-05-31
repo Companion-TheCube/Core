@@ -77,3 +77,79 @@ public:
 
 std::string convertTimestampToString(std::chrono::time_point<std::chrono::system_clock> timestamp);
 std::string getFileNameFromPath(std::string path);
+
+namespace Color {
+    enum Code {
+        FG_RED          = 31,
+        FG_GREEN        = 32,
+        FG_BLUE         = 34,
+        FG_MAGENTA      = 35,
+        FG_CYAN         = 36,
+        FG_LIGHT_GRAY   = 37,
+        FG_DARK_GRAY    = 90,
+        FG_LIGHT_RED    = 91,
+        FG_LIGHT_GREEN  = 92,
+        FG_LIGHT_YELLOW = 93,
+        FG_LIGHT_BLUE   = 94,
+        FG_LIGHT_MAGENTA= 95,
+        FG_LIGHT_CYAN   = 96,
+        FG_WHITE        = 97,
+        FG_DEFAULT      = 39,
+        BG_RED          = 41,
+        BG_GREEN        = 42,
+        BG_BLUE         = 44,
+        BG_MAGENTA      = 45,
+        BG_CYAN         = 46,
+        BG_LIGHT_GRAY   = 47,
+        BG_DARK_GRAY    = 100,
+        BG_LIGHT_RED    = 101,
+        BG_LIGHT_GREEN  = 102,
+        BG_LIGHT_YELLOW = 103,
+        BG_LIGHT_BLUE   = 104,
+        BG_LIGHT_MAGENTA= 105,
+        BG_LIGHT_CYAN   = 106,
+        BG_WHITE        = 107,
+        BG_DEFAULT      = 49,
+        TEXT_DEFAULT    = 0,
+        TEXT_BOLD       = 1,
+        TEXT_NO_BOLD    = 21,
+        TEXT_UNDERLINE  = 4,
+        TEXT_NO_UNDERLINE= 24,
+        TEXT_BLINK      = 5,
+        TEXT_NO_BLINK   = 25,
+        TEXT_REVERSE    = 7,
+        TEXT_NO_REVERSE = 27,
+        TEXT_INVISIBLE  = 8,
+        TEXT_VISIBLE    = 28,
+        TEXT_STRIKE     = 9,
+        TEXT_NO_STRIKE  = 29
+    };
+    class Modifier {
+        Code code;
+    public:
+        Modifier(Code pCode) : code(pCode) {}
+        friend std::ostream&
+        operator<<(std::ostream& os, const Modifier& mod) {
+            return os << "\033[" << mod.code << "m";
+        }
+    };
+    class ExtendedModifier {
+        unsigned int value;
+        bool foreground;
+    public:
+        ExtendedModifier(unsigned int pValue, bool pForeground = true) : value(pValue), foreground(pForeground) {}
+        friend std::ostream&
+        operator<<(std::ostream& os, const ExtendedModifier& mod) {
+            if(mod.value>256)return os;
+            if(mod.foreground)return os << "\033[38;5;" << mod.value << "m";
+            else return os << "\033[48;5;" << mod.value << "m";
+        }
+    };
+}
+/**
+int main() {
+    Color::Modifier red(Color::FG_RED);
+    Color::Modifier def(Color::FG_DEFAULT);
+    std::cout << "This ->" << red << "word" << def << "<- is red." << std::endl;
+}
+ */

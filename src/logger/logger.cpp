@@ -69,8 +69,9 @@ std::string CUBE_LOG_ENTRY::getMessageFull(){
 
 void CubeLog::log(std::string message, bool print, LogLevel level, std::source_location location){
     CUBE_LOG_ENTRY entry = CUBE_LOG_ENTRY(message, &location, this->verbosity, level);
+    Color::ExtendedModifier color(226);
     if(print && level >= this->printLevel){
-        std::cout << entry.getMessageFull() << std::endl;
+        std::cout << color << entry.getMessageFull() << std::endl;
     }
     std::lock_guard<std::mutex> lock(this->logMutex);
     this->logEntries.push_back(entry);
