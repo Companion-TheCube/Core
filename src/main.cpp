@@ -1,25 +1,4 @@
-#include <cstdlib>
-#ifdef __linux__
-#include <sys/wait.h>
-#include <unistd.h>
-#endif
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
-#endif
-#include "gui/gui.h"
-#include <iostream>
-#include "api/builder.h"
-#include "logger/logger.h"
-#include "settings/loader.h"
-#include <RtAudio.h>
-#include <cmath>
-#include <functional>
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include "argparse.hpp"
+#include "main.h"
 
 // Two-channel sawtooth wave generator.
 int saw(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData)
@@ -90,32 +69,32 @@ int main(int argc, char* argv[])
     versionInfo += "\nC++ Standard: ";
 #ifdef __cplusplus
 #ifdef _MSVC_LANG
-    if(_MSVC_LANG == 202300L)
+    if (_MSVC_LANG == 202300L)
         versionInfo += "C++23";
-    else if(_MSVC_LANG == 202100L)
+    else if (_MSVC_LANG == 202100L)
         versionInfo += "C++21";
-    else if(_MSVC_LANG == 202002L)
+    else if (_MSVC_LANG == 202002L)
         versionInfo += "C++20";
-    else if(_MSVC_LANG == 201703L)
+    else if (_MSVC_LANG == 201703L)
         versionInfo += "C++17";
-    else if(_MSVC_LANG == 201402L)
+    else if (_MSVC_LANG == 201402L)
         versionInfo += "C++14";
-    else if(_MSVC_LANG == 201103L)
+    else if (_MSVC_LANG == 201103L)
         versionInfo += "C++11";
     else
         versionInfo += std::to_string(_MSVC_LANG);
 #else
-    if(__cplusplus == 202300L)
+    if (__cplusplus == 202300L)
         versionInfo += "C++23";
-    else if(__cplusplus == 202100L)
+    else if (__cplusplus == 202100L)
         versionInfo += "C++21";
-    else if(__cplusplus == 202002L)
+    else if (__cplusplus == 202002L)
         versionInfo += "C++20";
-    else if(__cplusplus == 201703L)
+    else if (__cplusplus == 201703L)
         versionInfo += "C++17";
-    else if(__cplusplus == 201402L)
+    else if (__cplusplus == 201402L)
         versionInfo += "C++14";
-    else if(__cplusplus == 201103L)
+    else if (__cplusplus == 201103L)
         versionInfo += "C++11";
     else
         versionInfo += std::to_string(__cplusplus);
@@ -127,38 +106,38 @@ int main(int argc, char* argv[])
     bool customLogLevelF = false;
     argparse::ArgumentParser argumentParser("Companion, TheCube - CORE", versionInfo);
     argumentParser.add_argument("-l", "--logVerbosity")
-    .help("Set log verbosity")
-    .default_value(3)
-    .action([&](const std::string& value) {
-        if(LogVerbosity(std::stoi(value)) >= LogVerbosity::LOGVERBOSITYCOUNT)
-            throw std::runtime_error("Invalid log level.");
-        customLogVerbosity = true;
-        return std::stoi(value); 
-    });
+        .help("Set log verbosity (0-6)")
+        .default_value(3)
+        .action([&](const std::string& value) {
+            if (LogVerbosity(std::stoi(value)) >= LogVerbosity::LOGVERBOSITYCOUNT)
+                throw std::runtime_error("Invalid log level.");
+            customLogVerbosity = true;
+            return std::stoi(value);
+        });
     argumentParser.add_argument("-L", "--LogLevelP")
-    .help("Set log level for printing to console")
-    .default_value(3)
-    .choices("0", "1", "2", "3", "4", "5", "6")
-    .action([&](const std::string& value) {
-        if(LogVerbosity(std::stoi(value)) >= LogVerbosity::LOGVERBOSITYCOUNT)
-            throw std::runtime_error("Invalid log level.");
-        customLogLevelP = true;
-        return std::stoi(value); 
-    });
+        .help("Set log level for printing to console (0-6)")
+        .default_value(3)
+        .choices("0", "1", "2", "3")
+        .action([&](const std::string& value) {
+            if (LogLevel(std::stoi(value)) >= LogLevel::LOGGER_LOGLEVELCOUNT)
+                throw std::runtime_error("Invalid log level.");
+            customLogLevelP = true;
+            return std::stoi(value);
+        });
     argumentParser.add_argument("-f", "--LogLevelF")
-    .help("Set log level for writing to file")
-    .default_value(3)
-    .choices("0", "1", "2", "3")
-    .action([&](const std::string& value) {
-        if(LogVerbosity(std::stoi(value)) >= LogLevel::LOGGER_LOGLEVELCOUNT)
-            throw std::runtime_error("Invalid log level.");
-        customLogLevelF = true;
-        return std::stoi(value); 
-    });
+        .help("Set log level for writing to file (0-3)")
+        .default_value(3)
+        .choices("0", "1", "2", "3")
+        .action([&](const std::string& value) {
+            if (LogLevel(std::stoi(value)) >= LogLevel::LOGGER_LOGLEVELCOUNT)
+                throw std::runtime_error("Invalid log level.");
+            customLogLevelF = true;
+            return std::stoi(value);
+        });
     argumentParser.add_argument("-p", "--print")
-    .help("Print settings to console")
-    .default_value(false)
-    .implicit_value(true);
+        .help("Print settings to console")
+        .default_value(false)
+        .implicit_value(true);
     try {
         argumentParser.parse_args(argc, argv);
     } catch (const std::runtime_error& err) {
@@ -175,18 +154,26 @@ int main(int argc, char* argv[])
     auto logger = new CubeLog();
     auto settingsLoader = new SettingsLoader(logger, &settings);
     settingsLoader->loadSettings();
-    if(argumentParser["--print"] == true){
-        //TODO: settingsLoader->printSettings();
-    }   
-    if(customLogVerbosity)
+    if (argumentParser["--print"] == true) {
+        // TODO: settingsLoader->printSettings();
+    }
+    if (customLogVerbosity)
         settings.logVerbosity = LogVerbosity(logVerbosity);
     logger->setVerbosity(settings.logVerbosity);
     // TODO: logger->setLogLevel(settings.logLevel);
-    if(customLogLevelP)
+    if (customLogLevelP)
         settings.setSetting("LogLevelP", logLevelPrint);
-    if(customLogLevelF)
+    if (customLogLevelF)
         settings.setSetting("LogLevelF", logLevelFile);
     logger->setLogLevel(settings.logLevelPrint, settings.logLevelFile);
+    if(supportsExtendedColors()){
+        logger->info("Extended colors supported.");
+    } else if(supportsBasicColors()){
+        logger->info("Basic colors supported.");
+    } else {
+        logger->info("No colors supported.");
+    }
+    // logger->setColorType(LogColorType::EXTENDED); // TODO: Implement color type setting
     logger->log("Logger initialized.", true);
     logger->log("Settings loaded.", true);
 
@@ -227,48 +214,51 @@ int main(int argc, char* argv[])
         std::cout << dac.getErrorText() << std::endl;
         logger->error(dac.getErrorText());
     }
-
+    logger->error("Test error message.");
+    logger->warning("Test warning message.");
+    logger->info("Test info message.");
+    logger->critical("Test critical message.");
     /////////////////////////////////////////////////////////////////
-
-    // auto gui = new GUI(logger);
-    auto gui = std::make_shared<GUI>(logger);
-    auto api = new API(logger);
-    // auto api = std::make_shared<API>(logger);
-    API_Builder api_builder(logger, api);
-    api_builder.addInterface(gui);
-    api_builder.start();
-    bool running = true;
-    logger->log("Entering main loop...", true);
-    while (running) {
+    {
+        // auto gui = new GUI(logger);
+        auto gui = std::make_shared<GUI>(logger);
+        // auto api = new API(logger);
+        auto api = std::make_shared<API>(logger);
+        API_Builder api_builder(logger, api);
+        api_builder.addInterface(gui);
+        api_builder.start();
+        bool running = true;
+        logger->log("Entering main loop...", true);
+        while (running) {
 #ifdef __linux__
-        sleep(1);
+            sleep(1);
 #endif
 #ifdef _WIN32
-        Sleep(1000);
+            Sleep(1000);
 #endif
-        // get cin and check if it's "exit"
-        std::string input;
-        std::cin >> input;
-        if (input == "exit" || input == "quit" || input == "q" || input == "e") {
-            break;
-        } else if (input == "sound") {
-            if (data[2] == 0)
-                data[2] = 1;
-            else
-                data[2] = 0;
+            // get cin and check if it's "exit"
+            std::string input;
+            std::cin >> input;
+            if (input == "exit" || input == "quit" || input == "q" || input == "e") {
+                break;
+            } else if (input == "sound") {
+                if (data[2] == 0)
+                    data[2] = 1;
+                else
+                    data[2] = 0;
+            }
         }
+        logger->log("Exiting main loop...", true);
+        std::cout << "Exiting..." << std::endl;
+        // sineWaveSound.stop();
     }
-    logger->log("Exiting main loop...", true);
-    std::cout << "Exiting..." << std::endl;
-    // sineWaveSound.stop();
-
     delete settingsLoader;
-    logger->writeOutLogs();
+    // logger->writeOutLogs();
     dac.stopStream();
     if (dac.isStreamOpen())
         dac.closeStream();
     // api->stop();
-    delete api;
+    // delete api;
     delete logger;
     return 0;
 }

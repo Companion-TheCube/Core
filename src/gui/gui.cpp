@@ -57,15 +57,10 @@ void GUI::eventLoop()
     keyAPressedHandler->setEventType(sf::Event::KeyPressed);
     keyAPressedHandler->setSpecificEventType(SpecificEventTypes::KEYPRESS_A);
 
-<<<<<<< HEAD
-    std::latch latch(1);
-    auto menu = new Menu(this->logger, "menu.txt", this->renderer->getShader(), latch);
-=======
     std::latch latch(2); // make sure this accounts for all of the setup tasks
     auto menu = new Menu(this->logger, this->renderer->getShader(), latch);
     messageBox = new CubeMessageBox(this->logger, this->renderer->getShader(), this->renderer->getTextShader(), this->renderer, latch);
     // menu->setVisible(false);
->>>>>>> 3f5d7de2fd466aedacd0d8a80277b1f0e5ddc534
     this->renderer->addSetupTask([&](){
         menu->setup();
         messageBox->setup();
@@ -130,18 +125,12 @@ EndPointData_t GUI::getEndpointData()
         this->logger->log("Endpoint stop called and message set to: " + p, true);
         return "Stop called";
     }});
-<<<<<<< HEAD
-    actions.push_back({true, [&](){
-        this->logger->log("Endpoint action 2", true);
-        // TODO: add a way to trigger an event from the API that is thread safe
-=======
     actions.push_back({true, [&](std::string response, EndPointParams_t params){
         this->logger->log("Endpoint action 2: " + response, true);
         for(auto param : params){
             this->logger->log(param.first + ": " + param.second, true);
         }
         return "\"Endpoint action 2\" logged";
->>>>>>> 3f5d7de2fd466aedacd0d8a80277b1f0e5ddc534
     }});
     return actions;
 }

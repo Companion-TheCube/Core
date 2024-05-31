@@ -67,9 +67,30 @@ std::string CUBE_LOG_ENTRY::getMessageFull(){
 
 void CubeLog::log(std::string message, bool print, LogLevel level, std::source_location location){
     CUBE_LOG_ENTRY entry = CUBE_LOG_ENTRY(message, &location, this->verbosity, level);
-    Color::ExtendedModifier color(226);
+    Color::Modifier colorInfo(Color::FG_WHITE);
+    Color::Modifier colorWarning(Color::FG_MAGENTA);
+    Color::Modifier colorError(Color::FG_LIGHT_YELLOW);
+    Color::Modifier colorCritical(Color::FG_RED);
+    Color::Modifier colorDefault(Color::FG_LIGHT_BLUE);
     if(print && level >= this->printLevel){
-        std::cout << color << entry.getMessageFull() << std::endl;
+        switch (level)
+        {
+        case LogLevel::LOGGER_INFO:
+            std::cout << colorInfo << entry.getMessageFull() << std::endl;
+            break;
+        case LogLevel::LOGGER_WARNING:
+            std::cout << colorWarning << entry.getMessageFull() << std::endl;
+            break;
+        case LogLevel::LOGGER_ERROR:
+            std::cout << colorError << entry.getMessageFull() << std::endl;
+            break;
+        case LogLevel::LOGGER_CRITICAL:
+            std::cout << colorCritical << entry.getMessageFull() << std::endl;
+            break;
+        default:
+            std::cout << colorDefault << entry.getMessageFull() << std::endl;
+            break;
+        }
     }
     std::lock_guard<std::mutex> lock(this->logMutex);
     this->logEntries.push_back(entry);
@@ -96,6 +117,13 @@ CubeLog::CubeLog(LogVerbosity verbosity, LogLevel printLevel, LogLevel fileLevel
     this->printLevel = printLevel;
     this->fileLevel = fileLevel;
     CubeLog::log("Logger initialized", true);
+}
+
+CubeLog::~CubeLog(){
+    CubeLog::log("Logger shutting down", true);
+    Color::Modifier colorReset(Color::FG_DEFAULT);
+    std::cout << colorReset;
+    this->writeOutLogs();
 }
 
 std::vector<CUBE_LOG_ENTRY> CubeLog::getLogEntries(LogLevel level){

@@ -70,6 +70,7 @@ public:
     std::vector<std::string> getErrorsAsStrings(bool fullMessages = true);
     std::vector<std::string> getLogsAndErrorsAsStrings(bool fullMessages = true);
     CubeLog(LogVerbosity verbosity = LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE_AND_FUNCTION, LogLevel printLevel = LogLevel::LOGGER_INFO, LogLevel fileLevel = LogLevel::LOGGER_INFO);
+    ~CubeLog();
     void writeOutLogs();
     void setVerbosity(LogVerbosity verbosity);
     void setLogLevel(LogLevel printLevel, LogLevel fileLevel);
@@ -86,6 +87,7 @@ namespace Color {
         FG_MAGENTA      = 35,
         FG_CYAN         = 36,
         FG_LIGHT_GRAY   = 37,
+        FG_YELLOW       = 33,
         FG_DARK_GRAY    = 90,
         FG_LIGHT_RED    = 91,
         FG_LIGHT_GREEN  = 92,
