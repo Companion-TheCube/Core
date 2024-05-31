@@ -1,5 +1,12 @@
 #include "shapes.h"
 
+void checkGLError(const std::string& location) {
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR) {
+        std::cerr << "OpenGL error at " << location << ": " << error << std::endl;
+    }
+}
+
 M_Text::M_Text(CubeLog* logger, Shader* sh, std::string text, float fontSize, glm::vec3 color, glm::vec2 position)
 {
     this->logger = logger;
@@ -12,25 +19,41 @@ M_Text::M_Text(CubeLog* logger, Shader* sh, std::string text, float fontSize, gl
     this->logger->log("Created Text", true);
 }
 
+void M_Text::reloadFont() // TODO: verify / test this function
+{
+    FT_Done_Face(face);
+    FT_Done_FreeType(ft);
+    faceInitialized = false;
+}
+
+FT_Library M_Text::ft;
+FT_Face M_Text::face;
+bool M_Text::faceInitialized = false;
+
 void M_Text::buildText(){
-    FT_Library ft;
-    if (FT_Init_FreeType(&ft)) {
-        this->logger->log("ERROR::FREETYPE: Could not init FreeType Library", true);
-    }
-    FT_Face face;
-    if (FT_New_Face(ft, "fonts/Roboto/Roboto-Regular.ttf", 0, &face)) {
-        this->logger->log("ERROR::FREETYPE: Failed to load font", true);
+    if(!faceInitialized){
+        if (FT_Init_FreeType(&ft)) {
+            this->logger->error("ERROR::FREETYPE: Could not init FreeType Library");
+        }
+        // TODO: check that the font file exists before trying to load it. If it doesn't exist, use a default font.
+        if (FT_New_Face(ft, GlobalSettings::selectedFontPath.c_str(), 0, &face)) {
+            this->logger->error("ERROR::FREETYPE: Failed to load font");
+        }
+        faceInitialized = true;
     }
     FT_Set_Pixel_Sizes(face, 0, this->fontSize);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    checkGLError("0.1");
     for (unsigned char c = 0; c < 128; c++) {
         if (FT_Load_Char(face, c, FT_LOAD_RENDER)) {
-            this->logger->log("ERROR::FREETYPE: Failed to load Glyph", true);
+            this->logger->error("ERROR::FREETYPE: Failed to load Glyph");
             continue;
         }
         GLuint texture;
         glGenTextures(1, &texture);
+        checkGLError("0.2");
         glBindTexture(GL_TEXTURE_2D, texture);
+        checkGLError("0.3");
         glTexImage2D(
             GL_TEXTURE_2D,
             0,
@@ -45,11 +68,12 @@ void M_Text::buildText(){
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        checkGLError("0.4");
         Character character = {
             texture,
             glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows),
             glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top),
-            face->glyph->advance.x
+            unsigned int(face->glyph->advance.x)
         };
         Characters.insert(std::pair<char, Character>(c, character));
     }
@@ -61,26 +85,33 @@ void M_Text::buildText(){
     }
 
     glBindTexture(GL_TEXTURE_2D, 0);
-    FT_Done_Face(face);
-    FT_Done_FreeType(ft);
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    checkGLError("0.5");
+    // FT_Done_Face(face);
+    // FT_Done_FreeType(ft);
+    glGenVertexArrays(1, &this->VAO);
+    glGenBuffers(1, &this->VBO);
+    glBindVertexArray(this->VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
+    checkGLError("0.6");
     glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
+    checkGLError("0.7");
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
-
     setProjectionMatrix(glm::ortho(0.0f, 720.f, 0.0f, 720.f));
+    checkGLError("0.8");
 }
 
 M_Text::~M_Text()
 {
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
-    this->logger->log("Destroyed Text", true);
+    // delete all the openGl stuff
+    glDeleteVertexArrays(1, &this->VAO);
+    glDeleteBuffers(1, &this->VBO);
+    for (unsigned char c = 0; c < 128; c++) {
+        glDeleteTextures(1, &Characters[c].TextureID);
+    }
+    this->logger->info("Destroyed Text");
 }
 
 void M_Text::draw()
@@ -89,7 +120,7 @@ void M_Text::draw()
     shader->setVec3("textColor", this->color.x, this->color.y, this->color.z);
     shader->setMat4("projection", projectionMatrix);
     glActiveTexture(GL_TEXTURE0);
-    glBindVertexArray(VAO);
+    glBindVertexArray(this->VAO);
     std::string::const_iterator c;
     float xTemp = this->position.x;
     for (c = this->text.begin(); c != this->text.end(); c++) {
@@ -109,7 +140,7 @@ void M_Text::draw()
             { xpos + w, ypos,       1.0f, 1.0f }  // Bottom-right
         };
         glBindTexture(GL_TEXTURE_2D, ch.TextureID);
-        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
         glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -187,6 +218,9 @@ void M_Text::setPosition(glm::vec2 position)
 
 void M_Text::setText(std::string text)
 {
+    for (unsigned char c = 0; c < 128; c++) {
+        glDeleteTextures(1, &Characters[c].TextureID);
+    }
     this->text = text;
     this->buildText();
 }

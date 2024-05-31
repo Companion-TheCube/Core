@@ -23,8 +23,10 @@
 class TaskQueue {
 public:
     void push(std::function<void()> task) {
-        std::lock_guard<std::mutex> lock(mutex_);
-        tasks_.push(std::move(task));
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            tasks_.push(std::move(task));
+        }
         condition_.notify_one();
     }
 
@@ -39,10 +41,6 @@ public:
     size_t size() {
         std::lock_guard<std::mutex> lock(mutex_);
         return tasks_.size();
-    }
-
-    std::queue<std::function<void()>> getTasks() {
-        return tasks_;
     }
 
 private:
@@ -62,6 +60,7 @@ class Renderer{
         std::vector<sf::Event> events;
         std::vector<Object*> objects;
         Shader* shader;
+        Shader* textShader;
         TaskQueue setupQueue;
         TaskQueue loopQueue;
         std::atomic<bool> ready = false;
@@ -74,6 +73,7 @@ class Renderer{
         bool getIsRunning();
         void addObject(Object *object);
         Shader* getShader();
+        Shader* getTextShader();
         void addSetupTask(std::function<void()> task);
         void addLoopTask(std::function<void()> task);
         void setupTasksRun();

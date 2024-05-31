@@ -41,6 +41,7 @@ public:
     virtual glm::vec3 getCenterPoint() = 0;
     virtual std::vector<Vertex> getVertices() = 0;
     virtual float getWidth() = 0;
+    virtual ~MeshObject(){};
 };
 
 enum Expression{
@@ -90,6 +91,7 @@ public:
     virtual void setPosition(glm::vec2 position) = 0;
     virtual void setSize(glm::vec2 size) = 0;
     virtual bool setVisible(bool visible) = 0;
+    virtual ~M_Box(){};
 };
 
 class Clickable: public Object{

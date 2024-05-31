@@ -1,3 +1,4 @@
+//TODO: migrate from SFML to GLFW since we aren't using any SFML specific features
 // Path: src/gui/renderer.h
 #include "renderer.h"
 
@@ -58,6 +59,9 @@ int Renderer::thread()
     Shader edges("./shaders/edges.vs", "./shaders/edges.fs", logger);
     this->shader = &edges;
 
+    Shader textShader("shaders/text.vs", "shaders/text.fs", this->logger);
+    this->textShader = &textShader;
+
     auto characterManager = new CharacterManager(&edges, logger);
     C_Character* character = characterManager->getCharacterByName("TheCube");
     characterManager->setCharacter(character);
@@ -76,7 +80,7 @@ int Renderer::thread()
         this->loopTasksRun();
         if (characterManager->getCharacter() != nullptr) {
             characterManager->getCharacter()->draw();
-            characterManager->getCharacter()->animateRandomFunny();
+            characterManager->getCharacter()->animateRandomFunny(); // TODO:replace with actual animation system
         }
         for (auto object : this->objects) {
             object->draw();
@@ -111,6 +115,11 @@ Shader* Renderer::getShader()
     return this->shader;
 }
 
+Shader* Renderer::getTextShader()
+{
+    return this->textShader;
+}
+
 void Renderer::addLoopTask(std::function<void()> task)
 {
     this->loopQueue.push(task);
@@ -121,11 +130,14 @@ void Renderer::addSetupTask(std::function<void()> task)
     this->setupQueue.push(task);
 }
 
+// TODO: add one-shot tasks that run once inside the loop similar to the setup tasks and loop tasks. Will also need to remove
+//  the setupTasks from the loop.
+
 void Renderer::setupTasksRun()
 {
     while (this->setupQueue.size() > 0) {
         auto task = this->setupQueue.pop();
-        task();   
+        task();
     }
 }
 

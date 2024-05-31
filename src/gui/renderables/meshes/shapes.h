@@ -1,4 +1,5 @@
 #pragma once
+#include <globalSettings.h>
 #include "../meshObject.h"
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -27,6 +28,10 @@ private:
     float scale_;
     std::map<char, Character> Characters;
     float width = 0.f;
+    void buildText();
+    static FT_Library ft;
+    static FT_Face face;
+    static bool faceInitialized;
 public:
     M_Text(CubeLog* logger, Shader* sh, std::string text, float fontSize, glm::vec3 color, glm::vec2 position);
     ~M_Text();
@@ -44,8 +49,8 @@ public:
     std::vector<Vertex> getVertices();
     void setPosition(glm::vec2 position);
     void setText(std::string text);
-    void buildText();
     float getWidth();
+    void reloadFont();
 };
 
 class M_PartCircle : public MeshObject {

@@ -6,12 +6,11 @@
  * @param filename the file to load the menu objects from
  * @param shader the shader to use for the menu objects
  */
-Menu::Menu(CubeLog* logger, std::string filename, Shader* shader, std::latch& latch)
+Menu::Menu(CubeLog* logger, Shader* shader, std::latch& latch)
 {
     this->logger = logger;
     this->logger->log("Creating Menu class object", true);
     this->latch = &latch;
-    this->filename = filename;
     this->shader = shader;
     this->visible = false;
     this->clickArea = ClickableArea();
@@ -73,7 +72,7 @@ void Menu::addMenuEntry(std::string text, std::function<void(void*)> action)
 void Menu::addMenuEntry(std::string text, std::function<void(void*)> action, std::function<void(void*)> rightAction)
 {
     this->addMenuEntry(text, action);
-        this->childrenClickables.at(this->childrenClickables.size() - 1)->setOnRightClick(rightAction);
+    this->childrenClickables.at(this->childrenClickables.size() - 1)->setOnRightClick(rightAction);
 }
 
 /**
@@ -124,16 +123,14 @@ void Menu::setup()
     float stencilHeight = mapRange(MENU_HEIGHT_SCREEN_RELATIVE, SCREEN_RELATIVE_MIN_HEIGHT, SCREEN_RELATIVE_MAX_HEIGHT, SCREEN_PX_MIN_Y, SCREEN_PX_MAX_Y) - (STENCIL_INSET_PX * 2);
     this->stencil = new MenuStencil(logger, { stencilX_start, stencilY_start }, { stencilWidth, stencilHeight }, stencilShader);
 
-    this->loadObjects(filename);
-
     this->addMenuEntry("< Settings", [&](void* data) {
         this->logger->log("Settings clicked", true);
         this->setVisible(false);
     });
 
     this->addHorizontalRule();
-    /////// TESTING ////////////
-    this->addMenuEntry("Test addMenuEntry() 1 kljshdfjkhsdfkjhsdf", [&](void* data) {
+    /////// TESTING //////////// TODO:
+    this->addMenuEntry("Test addMenuEntry() 1 very long test text that is very long", [&](void* data) {
         this->logger->log("Test clicked", true);
     });
 
@@ -201,6 +198,10 @@ bool Menu::setVisible(bool visible)
         this->clickArea.yMin = 0;
         this->clickArea.yMax = 720;
     }
+    if(this->visible){
+        // TODO: create a timeout that will hide the menu after a certain amount of time. will need to adjust clickable area so that it catches clicks 
+        // for the entire menu area to reset the timer. Will also need to fix the issue where clicks don't propagate to all areas that are possible,
+    }
     return temp;
 }
 
@@ -232,32 +233,6 @@ void Menu::setOnClick(std::function<void(void*)> action)
 void Menu::setOnRightClick(std::function<void(void*)> action)
 {
     this->rightAction = action;
-}
-
-/**
- * @brief Load the objects from the file
- *
- * @param filename the file to load the objects from
- * @return true if the objects were loaded successfully
- * @return false if the objects were not loaded successfully
- */
-bool Menu::loadObjects(std::string filename)
-{
-    this->logger->log("Loading objects as defined in file: " + filename, true);
-    // check to see if the file exists
-    if (!std::filesystem::exists(filename)) {
-        this->logger->error("File does not exist: " + filename);
-        return false;
-    }
-    // open the file
-    std::ifstream file(filename);
-    std::string line;
-    while (std::getline(file, line)) {
-        std::istringstream iss(line);
-        // TODO:
-        // parse the file loading all the objects
-    }
-    return true;
 }
 
 /**
@@ -635,6 +610,7 @@ MenuStencil::MenuStencil(CubeLog* logger, glm::vec2 position, glm::vec2 size, Sh
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void*)0);
     glEnableVertexAttribArray(0);
 
+    
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
@@ -719,6 +695,7 @@ void MenuStencil::enable()
 
 void MenuStencil::disable()
 {
+    glBindVertexBuffer(0, 0, 0, 0);
     glStencilMask(0x00);
     glStencilFunc(GL_ALWAYS, 1, 0xFF);
     glDisable(GL_STENCIL_TEST);

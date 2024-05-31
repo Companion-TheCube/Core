@@ -49,9 +49,7 @@ private:
     std::function<void(void*)> rightAction;
     std::string name;
     std::vector<Object*> objects;
-    bool loadObjects(std::string filename);
     Shader* shader;
-    std::string filename;
     bool ready = false;
     std::mutex mutex;
     std::vector<Clickable*> childrenClickables;
@@ -63,7 +61,7 @@ private:
     bool onClickEnabled = true;
     std::latch* latch;
 public:
-    Menu(CubeLog *logger, std::string filename, Shader* shader, std::latch& latch);
+    Menu(CubeLog *logger, Shader* shader, std::latch& latch);
     ~Menu();
     void setup();
     void onClick(void*);

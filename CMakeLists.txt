@@ -52,9 +52,28 @@ if(NOT rtaudio_POPULATED)
   include_directories(${rtaudio_SOURCE_DIR})
 endif()
 
+# Create libraries directory if it doesn't exist
+file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/libraries)
+
+# Download httplib.h if not already downloaded
+set(HTTPLIB_HEADER ${CMAKE_SOURCE_DIR}/libraries/httplib.h)
+if(NOT EXISTS ${HTTPLIB_HEADER})
+    file(DOWNLOAD
+        https://raw.githubusercontent.com/yhirose/cpp-httplib/master/httplib.h
+        ${HTTPLIB_HEADER}
+    )
+endif()
+set(ARGPARSE_HEADER ${CMAKE_SOURCE_DIR}/libraries/argparse.hpp)
+if(NOT EXISTS ${ARGPARSE_HEADER})
+    file(DOWNLOAD
+        https://raw.githubusercontent.com/p-ranav/argparse/master/include/argparse/argparse.hpp
+        ${ARGPARSE_HEADER}
+    )
+endif()
 
 include_directories(${CMAKE_SOURCE_DIR}/src/logger)
 include_directories(${CMAKE_SOURCE_DIR}/libraries)
+include_directories(${CMAKE_SOURCE_DIR}/src/settings)
 if(WIN32)
     include_directories("C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.39.33519/include")
 endif()
@@ -139,3 +158,20 @@ add_custom_command(
 # endif()
 
 install(TARGETS CubeCore)
+
+# Add tests
+FetchContent_Declare(
+    googletest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG main
+)
+
+FetchContent_MakeAvailable(googletest)
+
+# Add tests
+file(GLOB_RECURSE TEST_SOURCES "tests/*.cpp" "tests/**/*.cpp" "tests/**/**/*.cpp")
+add_executable(CubeCoreTests ${TEST_SOURCES})
+target_link_libraries(CubeCoreTests PRIVATE gtest gtest_main sfml-graphics sfml-audio sfml-network rtaudio ${ALSA_LIBRARIES} ${FREETYPE_LIBRARY} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} nlohmann_json::nlohmann_json)
+
+enable_testing()
+add_test(NAME CubeCoreTests COMMAND CubeCoreTests)
