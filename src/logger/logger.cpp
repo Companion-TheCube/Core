@@ -2,9 +2,7 @@
 // TODO: flush logs based on time (every 5 minutes or so)
 // --- should probably keep the most recent 100 or so logs in memory so they can be available in the GUI
 
-// TODO: add log levels (INFO, WARNING, ERROR, DEBUG, etc.)
-
-// TODO: replace logger with https://github.com/gabime/spdlog
+// TODO: replace logger with https://github.com/gabime/spdlog  ...maybe
 
 #include "logger.h"
 
