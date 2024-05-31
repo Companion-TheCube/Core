@@ -110,7 +110,8 @@ int main()
 
     // auto gui = new GUI(logger);
     auto gui = std::make_shared<GUI>(logger);
-    auto api = new API(logger);
+    // auto api = new API(logger);
+    auto api = std::make_shared<API>(logger);
     // auto api = std::make_shared<API>(logger);
     API_Builder api_builder(logger, api);
     api_builder.addInterface(gui);
@@ -146,7 +147,7 @@ int main()
     if (dac.isStreamOpen())
         dac.closeStream();
     // api->stop();
-    delete api;
+    // delete api;
     delete logger;
     return 0;
 }

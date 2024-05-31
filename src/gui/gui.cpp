@@ -57,20 +57,10 @@ void GUI::eventLoop()
 
     std::latch latch(1);
     auto menu = new Menu(this->logger, "menu.txt", this->renderer->getShader(), latch);
-    // menu->setVisible(false);
     this->renderer->addSetupTask([&](){
         menu->setup();
     });
 
-    // int mouseClickIndex = this->eventManager->createEvent("MouseClick");
-    // EventHandler* mouseClickHandler = this->eventManager->getEvent(mouseClickIndex);
-    // mouseClickHandler->setAction([&](void* data) {
-    //     sf::Event* event = (sf::Event*)data;
-    //     if(event!=nullptr) this->logger->log("Mouse clicked at location: " + std::to_string(event->mouseButton.x) + ", " + std::to_string(event->mouseButton.y), true);
-    //     else this->logger->log("Mouse clicked: nullptr", true);
-    // });
-    // mouseClickHandler->setName("MouseClick");
-    // mouseClickHandler->setEventType(sf::Event::MouseButtonPressed);
     latch.wait();
     this->renderer->addLoopTask([&](){
         menu->draw();
@@ -116,6 +106,7 @@ std::vector<std::pair<bool,std::function<void()>>> GUI::getEndpointData()
     }});
     actions.push_back({true, [&](){
         this->logger->log("Endpoint action 2", true);
+        // TODO: add a way to trigger an event from the API that is thread safe
     }});
     return actions;
 }

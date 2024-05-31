@@ -8,11 +8,11 @@
 class API_Builder {
 private:
     CubeLog *logger;
-    API *api;
+    std::shared_ptr<API> api;
     std::unordered_map<std::string, I_API_Interface*> interface_objs;
 public:
     // Pass in all the dependencies the API needs
-    API_Builder(CubeLog *logger, API *api);
+    API_Builder(CubeLog *logger, std::shared_ptr<API> api);
     ~API_Builder();
     void start();
     template <typename T>

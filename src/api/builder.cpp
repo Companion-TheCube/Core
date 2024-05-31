@@ -1,6 +1,6 @@
 #include "builder.h"
 
-API_Builder::API_Builder(CubeLog *logger, API *api){
+API_Builder::API_Builder(CubeLog *logger, std::shared_ptr<API> api){
     this->logger = logger;
     this->api = api;
 }
