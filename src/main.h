@@ -20,6 +20,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "database/db.h"
 
 #ifdef _WIN32
 

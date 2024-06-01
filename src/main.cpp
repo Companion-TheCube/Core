@@ -223,9 +223,9 @@ int main(int argc, char* argv[])
     logger->critical("Test critical message.");
     /////////////////////////////////////////////////////////////////
     {
-        // auto gui = new GUI(logger);
+        auto db_cube = std::make_shared<CubeDatabaseManager>(logger);
+        db_cube->openAll();
         auto gui = std::make_shared<GUI>(logger);
-        // auto api = new API(logger);
         auto api = std::make_shared<API>(logger);
         API_Builder api_builder(logger, api);
         api_builder.addInterface(gui);
