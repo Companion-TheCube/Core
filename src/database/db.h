@@ -55,8 +55,11 @@ class CubeDatabaseManager{
     std::vector<Database*> databases;
     std::vector<DB_T> dbDefs= {
         {"data/auth.db", "auth", {
-            {"clients", {"id", "initial_code", "auth_code", "key", "role"}, {"INTEGER", "INTEGER", "INTEGER", "INTEGER", "TEXT"}},
+            {"clients", {"id", "initial_code", "auth_code", "key", "role"}, {"INTEGER", "TEXT", "TEXT", "TEXT", "INTEGER"}},
             {"role_permissions", {"role_id", "permission_id"}, {"INTEGER", "INTEGER"}}
+        }},
+        {"data/blobs.db", "blobs", {
+            {"blobs", {"id", "blob", "owner_key"}, {"INTEGER", "BLOB", "TEXT"}}
         }}
     };
 public:

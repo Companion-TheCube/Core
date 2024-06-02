@@ -46,7 +46,6 @@ make
 * [spdlog](https://github.com/gabime/spdlog) - Fast C++ logging library. **to replace current logging system**
 * [SQLite](https://www.sqlite.org/index.html) - A small, fast, self-contained, high-reliability, full-featured, SQL database engine. 
 * [SQLiteCpp](https://github.com/SRombauts/SQLiteCpp) - C++ wrapper around SQLite.
-* [SQLite3](https://www.sqlite.org/index.html) - SQLite3 C library.
 
 The following fonts are used in the application and have been obtained from [Google Fonts](https://fonts.google.com/):
 * [Roboto](https://fonts.google.com/specimen/Roboto)

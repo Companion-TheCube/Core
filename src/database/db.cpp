@@ -334,7 +334,7 @@ bool Database::createDB(std::string dbPath)
     if (std::filesystem::exists(path)) {
         return true;
     }
-    if (!std::filesystem::create_directories(path.parent_path()))
+    if (!std::filesystem::exists(path.parent_path()) && !std::filesystem::create_directories(path.parent_path()))
         return false;
     try {
         SQLite::Database db(dbPath, SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE);
