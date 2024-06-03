@@ -489,4 +489,235 @@ bool CubeDatabaseManager::openDatabase(std::string dbName)
     return false;
 }
 
+char* Database::selectBlob(std::string tableName, std::string columnName, std::string whereClause, int& size)
+{
+    if (!this->isOpen()) {
+        this->lastError = "Database is not open";
+        return nullptr;
+    }
+    std::string query = "SELECT " + columnName + " FROM " + tableName + " WHERE " + whereClause + ";";
+    try {
+        SQLite::Statement stmt(*this->db, query);
+        if (stmt.executeStep()) {
+            size = stmt.getColumn(0).size();
+            char* blob = new char[size]; // Change the type from unsigned char* to char*
+            // use std::copy to copy the data from the blob to the char array
+            std::copy(static_cast<const char*>(stmt.getColumn(0).getBlob()), static_cast<const char*>(stmt.getColumn(0).getBlob()) + size, blob);
+            return blob;
+        } else {
+            size = 0;
+            return nullptr;
+        }
+    } catch (std::exception& e) {
+        this->lastError = e.what();
+        size = 0;
+        return nullptr;
+    }
+}
+
+std::string Database::selectBlobString(std::string tableName, std::string columnName, std::string whereClause)
+{
+    if (!this->isOpen()) {
+        this->lastError = "Database is not open";
+        return "";
+    }
+    std::string query = "SELECT " + columnName + " FROM " + tableName + " WHERE " + whereClause + ";";
+    try {
+        SQLite::Statement stmt(*this->db, query);
+        if (stmt.executeStep()) {
+            return stmt.getColumn(0).getText();
+        } else {
+            return "";
+        }
+    } catch (std::exception& e) {
+        this->lastError = e.what();
+        return "";
+    }
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////
+
+BlobsManager::BlobsManager(CubeLog* logger, CubeDatabaseManager* dbManager, std::string dbPath)
+{
+    this->logger = logger;
+    this->dbManager = dbManager;
+}
+
+BlobsManager::~BlobsManager()
+{
+}
+
+bool BlobsManager::addBlob(std::string tableName, std::string blob, std::string ownerID)
+{
+    if(tableName != DB_NS::TableNames::APP_BLOBS && tableName != DB_NS::TableNames::CLIENT_BLOBS){
+        this->logger->error("Invalid table name: " + tableName);
+        return false;
+    }
+    Database* db = this->dbManager->getDatabase("blobs.db");
+    if (db->open()) {
+        if (db->insertData(tableName, {"blob", "owner_id"}, {blob, ownerID})) {
+            db->close();
+            return true;
+        } else {
+            this->logger->error("Failed to add blob to table: " + tableName);
+            this->logger->error("Last error: " + db->getLastError());
+            db->close();
+            return false;
+        }
+    } else {
+        this->logger->error("Failed to open database: blobs.db");
+        this->logger->error("Last error: " + db->getLastError());
+        return false;
+    }
+}
+
+bool BlobsManager::removeBlob(std::string tableName, std::string ownerID, int id)
+{
+    if(tableName != DB_NS::TableNames::APP_BLOBS && tableName != DB_NS::TableNames::CLIENT_BLOBS){
+        this->logger->error("Invalid table name: " + tableName);
+        return false;
+    }
+    Database* db = this->dbManager->getDatabase("blobs.db");
+    if (db->open()) {
+        if (db->deleteData(tableName, "id = " + std::to_string(id) + " AND owner_id = '" + ownerID + "'")) {
+            db->close();
+            return true;
+        } else {
+            this->logger->error("Failed to remove blob from table: " + tableName);
+            this->logger->error("Last error: " + db->getLastError());
+            db->close();
+            return false;
+        }
+    } else {
+        this->logger->error("Failed to open database: blobs.db");
+        this->logger->error("Last error: " + db->getLastError());
+        return false;
+    }
+}
+
+std::string BlobsManager::getBlobString(std::string tableName, std::string ownerID, int id)
+{
+    if(tableName != DB_NS::TableNames::APP_BLOBS && tableName != DB_NS::TableNames::CLIENT_BLOBS){
+        this->logger->error("Invalid table name: " + tableName);
+        return "";
+    }
+    Database* db = this->dbManager->getDatabase("blobs.db");
+    if (db->open()) {
+        std::vector<std::vector<std::string>> result = db->selectData(tableName, {"blob"}, "id = " + std::to_string(id) + " AND owner_id = '" + ownerID + "'");
+        db->close();
+        if (result.size() > 0) {
+            return result[0][0];
+        } else {
+            return "";
+        }
+    } else {
+        this->logger->error("Failed to open database: blobs.db");
+        this->logger->error("Last error: " + db->getLastError());
+        return "";
+    }
+}
+
+char* BlobsManager::getBlobChars(std::string tableName, std::string ownerID, int id, int& size)
+{
+    if(tableName != DB_NS::TableNames::APP_BLOBS && tableName != DB_NS::TableNames::CLIENT_BLOBS){
+        this->logger->error("Invalid table name: " + tableName);
+        return nullptr;
+    }
+    Database* db = this->dbManager->getDatabase("blobs.db");
+    if (db->open()) {
+        std::vector<std::vector<std::string>> result = db->selectData(tableName, {"blob"}, "id = " + std::to_string(id) + " AND owner_id = '" + ownerID + "'");
+        db->close();
+        if (result.size() > 0) {
+            size = result[0][0].size();
+            char* blob = new char[size];
+            for (int i = 0; i < size; i++) {
+                blob[i] = result[0][0][i];
+            }
+            return blob;
+        } else {
+            size = 0;
+            return nullptr;
+        }
+    } else {
+        this->logger->error("Failed to open database: blobs.db");
+        this->logger->error("Last error: " + db->getLastError());
+        size = 0;
+        return nullptr;
+    }
+}
+
+bool BlobsManager::updateBlob(std::string tableName, std::string blob, std::string ownerID, int id)
+{
+    if(tableName != DB_NS::TableNames::APP_BLOBS && tableName != DB_NS::TableNames::CLIENT_BLOBS){
+        this->logger->error("Invalid table name: " + tableName);
+        return false;
+    }
+    Database* db = this->dbManager->getDatabase("blobs.db");
+    if (db->open()) {
+        if (db->updateData(tableName, {"blob"}, {blob}, "id = " + std::to_string(id) + " AND owner_id = '" + ownerID + "'")) {
+            db->close();
+            return true;
+        } else {
+            this->logger->error("Failed to update blob in table: " + tableName);
+            this->logger->error("Last error: " + db->getLastError());
+            db->close();
+            return false;
+        }
+    } else {
+        this->logger->error("Failed to open database: blobs.db");
+        this->logger->error("Last error: " + db->getLastError());
+        return false;
+    }
+}
+
+bool BlobsManager::updateBlob(std::string tableName, char* blob, int size, std::string ownerID, int id)
+{
+    if(tableName != DB_NS::TableNames::APP_BLOBS && tableName != DB_NS::TableNames::CLIENT_BLOBS){
+        this->logger->error("Invalid table name: " + tableName);
+        return false;
+    }
+    Database* db = this->dbManager->getDatabase("blobs.db");
+    if (db->open()) {
+        std::string blobStr = "";
+        for (int i = 0; i < size; i++) {
+            blobStr += blob[i];
+        }
+        if (db->updateData(tableName, {"blob"}, {blobStr}, "id = " + std::to_string(id) + " AND owner_id = '" + ownerID + "'")) {
+            db->close();
+            return true;
+        } else {
+            this->logger->error("Failed to update blob in table: " + tableName);
+            this->logger->error("Last error: " + db->getLastError());
+            db->close();
+            return false;
+        }
+    } else {
+        this->logger->error("Failed to open database: blobs.db");
+        this->logger->error("Last error: " + db->getLastError());
+        return false;
+    }
+}
+
+bool BlobsManager::addBlob(std::string tableName, char* blob, int size, std::string ownerID)
+{
+    if(tableName != DB_NS::TableNames::APP_BLOBS && tableName != DB_NS::TableNames::CLIENT_BLOBS){
+        this->logger->error("Invalid table name: " + tableName);
+        return false;
+    }
+    Database* db = this->dbManager->getDatabase("blobs.db");
+    if (db->open()) {
+        if (db->insertData(tableName, {"blob", "owner_id"}, {blob, ownerID})) {
+            db->close();
+            return true;
+        } else {
+            this->logger->error("Failed to add blob to table: " + tableName);
+            this->logger->error("Last error: " + db->getLastError());
+            db->close();
+            return false;
+        }
+    } else {
+        this->logger->error("Failed to open database: blobs.db");
+        this->logger->error("Last error: " + db->getLastError());
+        return false;
+    }
+}

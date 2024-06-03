@@ -7,20 +7,36 @@
 #include <logger.h>
 #include <exception>
 
-typedef struct Table_T{
-    std::string name;
-    std::vector<std::string> columnNames;
-    std::vector<std::string> columnTypes;
-} Table_T;
-
-typedef struct DB_T{
-    std::string path;
-    std::string name;
-    std::vector<Table_T> tables;
-} DB_T;
 
 
+namespace DB_NS{
+    typedef struct Table_T{
+        std::string name;
+        std::vector<std::string> columnNames;
+        std::vector<std::string> columnTypes;
+    } Table_T;
 
+    typedef struct Database_T{
+        std::string path;
+        std::string name;
+        std::vector<Table_T> tables;
+    } DB_T;
+
+    enum Roles{
+        ROLE_CUBE,
+        ROLE_MINI_CUBE,
+        ROLE_APP,
+        ROLE_DOCKER_APP,
+        ROLE_MOBILE_APP,
+        ROLE_WEB_APP
+    };
+    namespace TableNames{
+        const std::string CLIENTS = "clients";
+        const std::string APPS = "apps";
+        const std::string CLIENT_BLOBS = "client_blobs";
+        const std::string APP_BLOBS = "app_blobs";
+    }
+}
 class Database {
     CubeLog *logger;
     std::string dbPath;
@@ -38,6 +54,8 @@ public:
     std::vector<std::vector<std::string>> selectData(std::string tableName, std::vector<std::string> columnNames, std::string whereClause);
     std::vector<std::vector<std::string>> selectData(std::string tableName, std::vector<std::string> columnNames);
     std::vector<std::vector<std::string>> selectData(std::string tableName);
+    char* selectBlob(std::string tableName, std::string columnName, std::string whereClause, int &size);
+    std::string selectBlobString(std::string tableName, std::string columnName, std::string whereClause);
     bool tableExists(std::string tableName);
     bool columnExists(std::string tableName, std::string columnName);
     bool rowExists(std::string tableName, std::string whereClause);
@@ -53,13 +71,14 @@ public:
 class CubeDatabaseManager{
     CubeLog *logger;
     std::vector<Database*> databases;
-    std::vector<DB_T> dbDefs= {
+    std::vector<DB_NS::Database_T> dbDefs= {
         {"data/auth.db", "auth", {
-            {"clients", {"id", "initial_code", "auth_code", "key", "role"}, {"INTEGER", "TEXT", "TEXT", "TEXT", "INTEGER"}},
-            {"role_permissions", {"role_id", "permission_id"}, {"INTEGER", "INTEGER"}}
+            {DB_NS::TableNames::CLIENTS, {"id", "initial_code", "auth_code", "client_id", "role"}, {"INTEGER", "TEXT", "TEXT", "TEXT", "INTEGER"}},
+            {DB_NS::TableNames::APPS, {"id", "sequence_key", "public_key", "private_key", "app_id", "role"}, {"INTEGER", "TEXT", "TEXT", "TEXT", "TEXT", "INTEGER"}}
         }},
         {"data/blobs.db", "blobs", {
-            {"blobs", {"id", "blob", "owner_key"}, {"INTEGER", "BLOB", "TEXT"}}
+            {DB_NS::TableNames::CLIENT_BLOBS, {"id", "blob", "owner_client_id"}, {"INTEGER", "BLOB", "TEXT"}},
+            {DB_NS::TableNames::APP_BLOBS, {"id", "blob", "owner_app_id"}, {"INTEGER", "BLOB", "TEXT"}}
         }}
     };
 public:
@@ -74,4 +93,19 @@ public:
     void closeDatabase(std::string dbName);
     bool openDatabase(std::string dbName);
 
+};
+
+class BlobsManager{
+    CubeLog *logger;
+    CubeDatabaseManager *dbManager;
+public:
+    BlobsManager(CubeLog *logger, CubeDatabaseManager *dbManager, std::string dbPath);
+    ~BlobsManager();
+    bool addBlob(std::string tableName, std::string blob, std::string ownerID);
+    bool addBlob(std::string tableName, char* blob, int size, std::string ownerID);
+    bool removeBlob(std::string tableName, std::string ownerID, int id);
+    std::string getBlobString(std::string tableName, std::string ownerID, int id);
+    char* getBlobChars(std::string tableName, std::string ownerID, int id, int &size);
+    bool updateBlob(std::string tableName, std::string blob, std::string ownerID, int id);
+    bool updateBlob(std::string tableName, char* blob, int size, std::string ownerID, int id);
 };

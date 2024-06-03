@@ -6,3 +6,5 @@
 #include <logger.h>
 #include "./../database/db.h"
 
+std::string KeyGenerator(size_t length);
+std::string Code6Generator();
