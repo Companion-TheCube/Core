@@ -1,16 +1,23 @@
-// TODO: flush logs to file every so often (every 1000 logs or so) to prevent memory issues with large logs
-// TODO: flush logs based on time (every 5 minutes or so)
-// --- should probably keep the most recent 100 or so logs in memory so they can be available in the GUI
-
 // TODO: replace logger with https://github.com/gabime/spdlog  ...maybe
 
 #include "logger.h"
 
 #define COUNTER_MOD 100
-#define CUBE_LOG_ENTRY_MAX 50000
+#define CUBE_LOG_ENTRY_MAX 50000 // maximum number of log entries in log file
+#define LOG_WRITE_OUT_INTERVAL 300 // write out logs every 5 minutes
+#define LOG_WRITE_OUT_COUNT 500 // write out logs every 500 logs
+#define CUBE_LOG_MEMORY_LIMIT 1000 // maximum number of log entries in memory
 
 int CUBE_LOG_ENTRY::logEntryCount = 0;
 
+/**
+ * @brief Construct a new cube log_entry entry object
+ * 
+ * @param message The message to log
+ * @param location The source location of the log message
+ * @param verbosity
+ * @param level The log level of the message
+ */
 CUBE_LOG_ENTRY::CUBE_LOG_ENTRY(std::string message, std::source_location* location, LogVerbosity verbosity, LogLevel level){
     this->timestamp = std::chrono::system_clock::now();
     this->logEntryCount++;
@@ -42,22 +49,47 @@ CUBE_LOG_ENTRY::CUBE_LOG_ENTRY(std::string message, std::source_location* locati
     }
 }
 
+/**
+ * @brief Get the log message as a string
+ * 
+ * @return std::string 
+ */
 std::string CUBE_LOG_ENTRY::getMessage(){
     return this->message;
 }
 
+/**
+ * @brief Get the log entry as a string with timestamp
+ * 
+ * @return std::string 
+ */
 std::string CUBE_LOG_ENTRY::getEntry(){
     return this->getTimestamp() + ": " + this->getMessage();
 }
 
+/**
+ * @brief Get the timestamp as a string
+ * 
+ * @return std::string 
+ */
 std::string CUBE_LOG_ENTRY::getTimestamp(){
     return convertTimestampToString(this->timestamp);
 }
 
+/**
+ * @brief Get the timestamp as a long
+ * 
+ * @return unsigned long long The timestamp as a long
+ */
 unsigned long long CUBE_LOG_ENTRY::getTimestampAsLong(){
     return std::chrono::duration_cast<std::chrono::milliseconds>(this->timestamp.time_since_epoch()).count();
 }
 
+/**
+ * @brief Get the full log message
+ * 
+ * @return std::string The full log message
+ */
 std::string CUBE_LOG_ENTRY::getMessageFull(){
     return this->messageFull;
 }
@@ -65,14 +97,27 @@ std::string CUBE_LOG_ENTRY::getMessageFull(){
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+LogVerbosity CubeLog::staticVerbosity = LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE_AND_FUNCTION_AND_NUMBEROFLOGS;
+LogLevel CubeLog::staticPrintLevel = LogLevel::LOGGER_INFO;
+std::vector<CUBE_LOG_ENTRY> CubeLog::logEntries;
+std::mutex CubeLog::logMutex;
+
+/**
+ * @brief Log a message
+ * 
+ * @param message The message to log
+ * @param print If true, the message will be printed to the console
+ * @param level The log level of the message
+ * @param location The source location of the log message. If not provided, the location will be automatically determined.
+ */
 void CubeLog::log(std::string message, bool print, LogLevel level, std::source_location location){
-    CUBE_LOG_ENTRY entry = CUBE_LOG_ENTRY(message, &location, this->verbosity, level);
+    CUBE_LOG_ENTRY entry = CUBE_LOG_ENTRY(message, &location, CubeLog::staticVerbosity, level);
     Color::Modifier colorInfo(Color::FG_WHITE);
     Color::Modifier colorWarning(Color::FG_MAGENTA);
     Color::Modifier colorError(Color::FG_LIGHT_YELLOW);
     Color::Modifier colorCritical(Color::FG_RED);
     Color::Modifier colorDefault(Color::FG_LIGHT_BLUE);
-    if(print && level >= this->printLevel){
+    if(print && level >= CubeLog::staticPrintLevel){
         switch (level)
         {
         case LogLevel::LOGGER_INFO:
@@ -92,42 +137,125 @@ void CubeLog::log(std::string message, bool print, LogLevel level, std::source_l
             break;
         }
     }
-    std::lock_guard<std::mutex> lock(this->logMutex);
-    this->logEntries.push_back(entry);
+    std::lock_guard<std::mutex> lock(CubeLog::logMutex);
+    CubeLog::logEntries.push_back(entry);
 }
 
+/**
+ * @brief Log an error message
+ * 
+ * @param message The message to log
+ * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
+ */
 void CubeLog::error(std::string message, std::source_location location){
-    this->log(message, true, LogLevel::LOGGER_ERROR, location);
+    CubeLog::log(message, true, LogLevel::LOGGER_ERROR, location);
 }
 
+/**
+ * @brief Log an informational message
+ * 
+ * @param message The message to log
+ * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
+ */
 void CubeLog::info(std::string message, std::source_location location){
-    this->log(message, true, LogLevel::LOGGER_INFO, location);
+    CubeLog::log(message, true, LogLevel::LOGGER_INFO, location);
 }
 
+/**
+ * @brief Log a warning message
+ * 
+ * @param message The message to log
+ * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
+ */
 void CubeLog::warning(std::string message, std::source_location location){
-    this->log(message, true, LogLevel::LOGGER_WARNING, location);
+    CubeLog::log(message, true, LogLevel::LOGGER_WARNING, location);
 }
 
+/**
+ * @brief Log a critical message
+ * 
+ * @param message The message to log
+ * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
+ */
 void CubeLog::critical(std::string message, std::source_location location){
-    this->log(message, true, LogLevel::LOGGER_CRITICAL, location);
+    CubeLog::log(message, true, LogLevel::LOGGER_CRITICAL, location);
 }
 
+/**
+ * @brief Construct a new CubeLog object
+ * 
+ * @param verbosity Determines the verbosity of the log messages.
+ * @param printLevel Determines the level of log messages that will be printed to the console.
+ * @param fileLevel Determines the level of log messages that will be written to the log file.
+ */
 CubeLog::CubeLog(LogVerbosity verbosity, LogLevel printLevel, LogLevel fileLevel){
-    this->verbosity = verbosity;
-    this->printLevel = printLevel;
+    this->savingInProgress = false;
+    CubeLog::staticVerbosity = verbosity;
+    CubeLog::staticPrintLevel = printLevel;
     this->fileLevel = fileLevel;
+    this->saveLogsThread = std::jthread([this]{
+        this->saveLogsInterval();
+    });
     CubeLog::log("Logger initialized", true);
 }
 
+/**
+ * @brief Save logs to file every LOG_WRITE_OUT_INTERVAL seconds
+ * 
+ */
+void CubeLog::saveLogsInterval(){
+    
+    while(true){
+        for(size_t i = 0; i < LOG_WRITE_OUT_INTERVAL; i++){
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            if(this->logEntries.size() > LOG_WRITE_OUT_COUNT + this->savedLogsCount){
+                this->writeOutLogs();
+            }
+            std::lock_guard<std::mutex> lock(this->saveLogsThreadRunMutex);
+            if(!saveLogsThreadRun) break;
+        }
+        {
+            std::lock_guard<std::mutex> lock(this->saveLogsThreadRunMutex);
+            if(!saveLogsThreadRun) break;
+        }
+        this->writeOutLogs();
+        this->purgeOldLogs();
+        this->savedLogsCount = 0;
+    }
+}
+
+/**
+ * @brief Purge old logs from memory. The number of logs in memory will be limited to CUBE_LOG_MEMORY_LIMIT.
+ * 
+ */
+void CubeLog::purgeOldLogs(){
+    std::lock_guard<std::mutex> lock(CubeLog::logMutex);
+    if(this->logEntries.size() > CUBE_LOG_MEMORY_LIMIT){
+        this->logEntries.erase(this->logEntries.begin(), this->logEntries.begin() + this->logEntries.size() - CUBE_LOG_MEMORY_LIMIT);
+    }
+}
+
+/**
+ * @brief Destroy the CubeLog object
+ * 
+ */
 CubeLog::~CubeLog(){
     CubeLog::log("Logger shutting down", true);
+    std::lock_guard<std::mutex> lock(this->saveLogsThreadRunMutex);
+    this->saveLogsThreadRun = false;
     Color::Modifier colorReset(Color::FG_DEFAULT);
     std::cout << colorReset;
     this->writeOutLogs();
 }
 
+/**
+ * @brief Get the log entries
+ * 
+ * @param level The log level to get. If not provided, all log entries will be returned.
+ * @return std::vector<CUBE_LOG_ENTRY> The log entries
+ */
 std::vector<CUBE_LOG_ENTRY> CubeLog::getLogEntries(LogLevel level){
-    std::lock_guard<std::mutex> lock(this->logMutex);
+    std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     std::vector<CUBE_LOG_ENTRY> logEntries;
     for(int i = 0; i < this->logEntries.size(); i++){
         if(this->logEntries[i].level == level)
@@ -136,8 +264,14 @@ std::vector<CUBE_LOG_ENTRY> CubeLog::getLogEntries(LogLevel level){
     return this->logEntries;
 }
 
+/**
+ * @brief Get the log entries as strings
+ * 
+ * @param fullMessages If true, the full log messages will be returned. If false, only the message will be returned.
+ * @return std::vector<std::string> The log entries as strings
+ */
 std::vector<std::string> CubeLog::getLogEntriesAsStrings(bool fullMessages){
-    std::lock_guard<std::mutex> lock(this->logMutex);
+    std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     std::vector<std::string> logEntriesAsStrings;
     for(int i = 0; i < this->logEntries.size(); i++){
         if(fullMessages)
@@ -148,6 +282,12 @@ std::vector<std::string> CubeLog::getLogEntriesAsStrings(bool fullMessages){
     return logEntriesAsStrings;
 }
 
+/**
+ * @brief Get the logs and errors as strings
+ * 
+ * @param fullMessages If true, the full log messages will be returned. If false, only the message will be returned.
+ * @return std::vector<std::string> The logs and errors as strings
+ */
 std::vector<std::string> CubeLog::getLogsAndErrorsAsStrings(bool fullMessages){
     // time how long this function takes
     auto start = std::chrono::high_resolution_clock::now();
@@ -167,10 +307,18 @@ std::vector<std::string> CubeLog::getLogsAndErrorsAsStrings(bool fullMessages){
     return logsAndErrorsAsStrings;
 }
 
+/**
+ * @brief Write out logs to file
+ * 
+ */
 void CubeLog::writeOutLogs(){
+    std::lock_guard<std::mutex> lock(this->saveLogsMutex);
+    if(this->savingInProgress) return;
+    this->savingInProgress = true;
     std::cout << "Writing logs to file..." << std::endl;
     std::vector<std::string> logsAndErrors = this->getLogsAndErrorsAsStrings();   
     // write to file
+    this->savedLogsCount = logsAndErrors.size();
     std::filesystem::path p("logs.txt");
     if(!std::filesystem::exists(p)){
         std::ofstream file("logs.txt");
@@ -229,14 +377,26 @@ void CubeLog::writeOutLogs(){
         if(counter % COUNTER_MOD == 0) std::cout << ".";
     }
     outFile.close();
-    
+    std::cout << "\nLogs written to file" << std::endl;
+    this->savingInProgress = false;
 }
 
+/**
+ * @brief Set the verbosity of the log messages
+ * 
+ * @param verbosity The verbosity of the log messages
+ */
 void CubeLog::setVerbosity(LogVerbosity verbosity){
     this->log("Setting verbosity to " + std::to_string(verbosity), true);
-    this->verbosity = verbosity;
+    CubeLog::staticVerbosity = verbosity;
 }
 
+/**
+ * @brief Convert a timestamp to a string
+ * 
+ * @param timestamp The timestamp to convert
+ * @return std::string The timestamp as a string
+ */
 std::string convertTimestampToString(std::chrono::time_point<std::chrono::system_clock> timestamp){
     auto time = std::chrono::system_clock::to_time_t(timestamp);
     std::ostringstream ss;
@@ -246,12 +406,24 @@ std::string convertTimestampToString(std::chrono::time_point<std::chrono::system
     return ss.str();
 }
 
+/**
+ * @brief Get the file name from a path
+ * 
+ * @param path The path to get the file name from
+ * @return std::string The file name
+ */
 std::string getFileNameFromPath(std::string path){
     std::filesystem::path p(path);
     return p.filename().string();
 }
 
+/**
+ * @brief Set the log level for printing to the console and writing to the log file
+ * 
+ * @param printLevel The log level for printing to the console
+ * @param fileLevel The log level for writing to the log file
+ */
 void CubeLog::setLogLevel(LogLevel printLevel, LogLevel fileLevel){
-    this->printLevel = printLevel;
+    CubeLog::staticPrintLevel = printLevel;
     this->fileLevel = fileLevel;
 }

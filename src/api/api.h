@@ -61,11 +61,10 @@ public:
 class CubeHttpServer {
 private:
     httplib::Server* server;
-    CubeLog *logger;
     std::string address;
     int port;
 public:
-    CubeHttpServer(CubeLog *logger, std::string address, int port);
+    CubeHttpServer(std::string address, int port);
     ~CubeHttpServer();
     void start();
     void stop();
@@ -80,12 +79,11 @@ public:
 class API {
 private:
     std::vector<Endpoint*> endpoints;
-    CubeLog *logger;
     std::jthread listenerThread;
     CubeHttpServer *server;
     std::vector<std::pair<std::string, bool>> endpointTriggers;
 public:
-    API(CubeLog *logger);
+    API();
     ~API();
     void start();
     void stop();

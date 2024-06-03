@@ -133,13 +133,12 @@ enum SpecificEventTypes: unsigned int{
 class EventHandler{
 private:
     std::function<void(void*)> action;
-    CubeLog *logger;
     std::string name;
     sf::Event::EventType eventType;
     SpecificEventTypes specificEventType;
     // ClickableArea* clickableArea;
 public:
-    EventHandler(CubeLog *logger);
+    EventHandler();
     ~EventHandler();
     bool triggerEvent(void* data = nullptr);
     void setAction(std::function<void(void*)> action);
@@ -157,10 +156,9 @@ class EventManager{
 private:
     std::vector<EventHandler*> events;
     std::vector<ClickableArea*> clickableAreas;
-    CubeLog *logger;
     bool checkClickableAreas(sf::Event event);
 public:
-    EventManager(CubeLog *logger);
+    EventManager();
     ~EventManager();
     int createEvent(std::string eventName); // returns index of the event
     bool removeEvent(EventHandler* event); // removes event from the list

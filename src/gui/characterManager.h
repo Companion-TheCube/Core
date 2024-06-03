@@ -11,9 +11,8 @@ class CharacterManager{
         std::vector<C_Character*> characters;
         C_Character* currentCharacter;
         Shader* shader;
-        CubeLog* logger;
     public:
-        CharacterManager(Shader* sh, CubeLog* lgr);
+        CharacterManager(Shader* sh);
         ~CharacterManager();
         C_Character* getCharacter();
         void setCharacter(C_Character*);

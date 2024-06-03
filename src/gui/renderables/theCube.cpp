@@ -1,8 +1,7 @@
 #include "theCube.h"
 
-TheCube::TheCube(Shader* sh, CubeLog* lgr)
+TheCube::TheCube(Shader* sh)
 {
-    this->logger = lgr;
     this->shader = sh;
     this->visible = true;
     this->animationFrame = 0;
@@ -27,7 +26,7 @@ TheCube::TheCube(Shader* sh, CubeLog* lgr)
     std::vector<std::string> toLoad;
     toLoad.push_back("shoeL");
     toLoad.push_back("shoeR");
-    this->loader = new MeshLoader(this->logger, this->shader, toLoad);
+    this->loader = new MeshLoader(this->shader, toLoad);
     // find the "shoe" collection in loader
     for(auto collection: this->loader->collections){
         this->parts.push_back(new CharacterPart());
@@ -67,7 +66,7 @@ TheCube::TheCube(Shader* sh, CubeLog* lgr)
 
     // this->objects.push_back(new Cube(this->shader));
     this->name = "TheCube";
-    this->logger->log("Created character " + this->name, true);
+    CubeLog::log("Created character " + this->name, true);
 }
 
 TheCube::~TheCube()

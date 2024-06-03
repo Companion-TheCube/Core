@@ -20,7 +20,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "database/db.h"
+#include "database/cubeDB.h"
 
 #ifdef _WIN32
 

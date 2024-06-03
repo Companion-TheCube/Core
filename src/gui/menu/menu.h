@@ -43,7 +43,6 @@ class MenuStencil;
 
 class Menu: public Clickable{
 private:
-    CubeLog *logger;
     bool visible;
     std::function<void(void*)> action;
     std::function<void(void*)> rightAction;
@@ -61,7 +60,7 @@ private:
     bool onClickEnabled = true;
     std::latch* latch;
 public:
-    Menu(CubeLog *logger, Shader* shader, std::latch& latch);
+    Menu(Shader* shader, std::latch& latch);
     ~Menu();
     void setup();
     void onClick(void*);
@@ -85,7 +84,6 @@ public:
 
 class MenuBox:public M_Box{
 private:
-    CubeLog *logger;
     glm::vec2 position;
     glm::vec2 size;
     std::vector<MeshObject*> objects;
@@ -93,7 +91,7 @@ private:
     static float index;
 public:
     // TODO: add bool: border to constructor
-    MenuBox(CubeLog* logger, glm::vec2 position, glm::vec2 size, Shader* shader);
+    MenuBox(glm::vec2 position, glm::vec2 size, Shader* shader);
     ~MenuBox();
     void setPosition(glm::vec2 position);
     void setSize(glm::vec2 size);
@@ -104,7 +102,6 @@ public:
 
 class MenuHorizontalRule:public Clickable{
 private:
-    CubeLog *logger;
     glm::vec2 position;
     float size;
     std::vector<MeshObject*> objects;
@@ -112,7 +109,7 @@ private:
     Shader* shader;
     ClickableArea clickArea;
 public:
-    MenuHorizontalRule(CubeLog* logger, glm::vec2 position, float size, Shader* shader);
+    MenuHorizontalRule(glm::vec2 position, float size, Shader* shader);
     ~MenuHorizontalRule();
     void setPosition(glm::vec2 position);
     void setSize(glm::vec2 size);
@@ -132,7 +129,6 @@ public:
 
 class MenuStencil: public Object{
 private:
-    CubeLog *logger;
     glm::vec2 position;
     glm::vec2 size;
     Shader* shader;
@@ -145,7 +141,7 @@ private:
     };
     glm::mat4 projectionMatrix;
 public:
-    MenuStencil(CubeLog* logger, glm::vec2 position, glm::vec2 size, Shader* shader);
+    MenuStencil(glm::vec2 position, glm::vec2 size, Shader* shader);
     ~MenuStencil();
     void setPosition(glm::vec2 position);
     void setSize(glm::vec2 size);
@@ -158,7 +154,6 @@ public:
 
 class MenuEntry:public Clickable{
 private:
-    CubeLog *logger;
     std::string text;
     std::function<void(void*)> action;
     std::function<void(void*)> rightAction;
@@ -173,7 +168,7 @@ private:
     float scrollPosition = 0;
     float scrollWait = 0;
 public:
-    MenuEntry(CubeLog* logger, std::string text, Shader* shader, glm::vec2 position, float size);
+    MenuEntry(std::string text, Shader* shader, glm::vec2 position, float size);
     ~MenuEntry();
     void onClick(void*);
     void onRightClick(void*);

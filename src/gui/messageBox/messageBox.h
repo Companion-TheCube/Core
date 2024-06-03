@@ -21,7 +21,6 @@
 
 class CubeMessageBox: public M_Box{
 private:
-    CubeLog *logger;
     bool visible;
     std::vector<MeshObject*> objects;
     Shader* shader;
@@ -34,7 +33,7 @@ private:
     std::vector<size_t> textMeshIndices;
     Renderer* renderer;
 public:
-    CubeMessageBox(CubeLog *logger, Shader* shader, Shader* textShader, Renderer* renderer, std::latch& latch);
+    CubeMessageBox(Shader* shader, Shader* textShader, Renderer* renderer, std::latch& latch);
     ~CubeMessageBox();
     void setup();
     bool setVisible(bool visible);

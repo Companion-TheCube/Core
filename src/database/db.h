@@ -8,7 +8,6 @@
 #include <exception>
 
 
-
 namespace DB_NS{
     typedef struct Table_T{
         std::string name;
@@ -38,14 +37,13 @@ namespace DB_NS{
     }
 }
 class Database {
-    CubeLog *logger;
     std::string dbPath;
     SQLite::Database *db;
     std::string lastError;
     bool openFlag;
     std::string dbName;
 public:
-    Database(CubeLog *logger, std::string dbPath);
+    Database(std::string dbPath);
     ~Database();
     bool createTable(std::string tableName, std::vector<std::string> columnNames, std::vector<std::string> columnTypes);
     bool insertData(std::string tableName, std::vector<std::string> columnNames, std::vector<std::string> columnValues);
@@ -69,7 +67,6 @@ public:
 };
 
 class CubeDatabaseManager{
-    CubeLog *logger;
     std::vector<Database*> databases;
     std::vector<DB_NS::Database_T> dbDefs= {
         {"data/auth.db", "auth", {
@@ -82,7 +79,7 @@ class CubeDatabaseManager{
         }}
     };
 public:
-    CubeDatabaseManager(CubeLog *logger);
+    CubeDatabaseManager();
     ~CubeDatabaseManager();
     void addDatabase(std::string dbPath);
     Database* getDatabase(std::string dbName);
@@ -96,10 +93,9 @@ public:
 };
 
 class BlobsManager{
-    CubeLog *logger;
-    CubeDatabaseManager *dbManager;
+    std::shared_ptr<CubeDatabaseManager> dbManager;
 public:
-    BlobsManager(CubeLog *logger, CubeDatabaseManager *dbManager, std::string dbPath);
+    BlobsManager(std::shared_ptr<CubeDatabaseManager> dbManager, std::string dbPath);
     ~BlobsManager();
     bool addBlob(std::string tableName, std::string blob, std::string ownerID);
     bool addBlob(std::string tableName, char* blob, int size, std::string ownerID);
@@ -109,3 +105,4 @@ public:
     bool updateBlob(std::string tableName, std::string blob, std::string ownerID, int id);
     bool updateBlob(std::string tableName, char* blob, int size, std::string ownerID, int id);
 };
+

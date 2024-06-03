@@ -8,12 +8,11 @@
 
 class SettingsLoader{
 private:
-    CubeLog *logger;
     nlohmann::json settings;
     std::string settingsFile;
     GlobalSettings *globalSettings;
 public:
-    SettingsLoader(CubeLog *logger, GlobalSettings *globalSettings);
+    SettingsLoader(GlobalSettings *globalSettings);
     ~SettingsLoader();
     bool loadSettings();
     bool saveSettings();

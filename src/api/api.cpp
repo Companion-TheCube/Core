@@ -1,7 +1,6 @@
 #include "api.h"
 
-API::API(CubeLog *logger){
-    this->logger = logger;
+API::API(){
     this->endpoints = std::vector<Endpoint*>();
 }
 
@@ -14,13 +13,13 @@ API::~API(){
 
 void API::start(){
     // start the API
-    this->logger->log("API starting...", true);
+    CubeLog::log("API starting...", true);
     this->listenerThread = std::jthread(&API::httpApiThreadFn, this);
 }
 
 void API::stop(){
     // stop the API
-    this->logger->log("API stopping...", true);
+    CubeLog::log("API stopping...", true);
     this->listenerThread.request_stop();
     this->server->stop();
     this->listenerThread.join();
@@ -28,14 +27,14 @@ void API::stop(){
 
 void API::restart(){
     // restart the API
-    this->logger->log("API restarting...", true);
+    CubeLog::log("API restarting...", true);
     this->stop();
     this->start();
 }
 
 void API::addEndpoint(std::string name, std::string path, bool publicEndpoint, std::function<std::string(std::string response, std::vector<std::pair<std::string, std::string>> params)> action){
     // add an endpoint
-    this->logger->log("Adding endpoint: " + name + " at " + path, true);
+    CubeLog::log("Adding endpoint: " + name + " at " + path, true);
     Endpoint *endpoint = new Endpoint(publicEndpoint, name, path);
     endpoint->setAction(action);
     this->endpoints.push_back(endpoint);
@@ -69,13 +68,13 @@ bool API::removeEndpoint(std::string name){
 }
 
 void API::httpApiThreadFn(){
-    this->logger->log("API listener thread starting...", true);
+    CubeLog::log("API listener thread starting...", true);
     try{
-        this->server = new CubeHttpServer(this->logger, "0.0.0.0", 55280);
+        this->server = new CubeHttpServer("0.0.0.0", 55280);
         // TODO: set up authentication
         for(size_t i = 0; i < this->endpoints.size(); i++){
             if(this->endpoints.at(i)->isPublic()){
-                this->logger->log("Adding public endpoint: " + this->endpoints.at(i)->getName() + " at " + this->endpoints.at(i)->getPath(), true);
+                CubeLog::log("Adding public endpoint: " + this->endpoints.at(i)->getName() + " at " + this->endpoints.at(i)->getPath(), true);
                 this->server->addEndpoint(this->endpoints[i]->getPath(), [&, i](const httplib::Request &req, httplib::Response &res){
                     std::string response;
                     response += "Endpoint: " + this->endpoints.at(i)->getName() + "\n\n";
@@ -90,7 +89,7 @@ void API::httpApiThreadFn(){
                     }
                     res.set_content(response, "text/plain");
                     std::string returned = this->endpoints.at(i)->doAction(response, params);
-                    this->logger->log("Endpoint action returned: " + returned, true);
+                    CubeLog::log("Endpoint action returned: " + returned, true);
                 });
             }else{
                 this->server->addEndpoint(this->endpoints.at(i)->getPath(), [&](const httplib::Request &req, httplib::Response &res){
@@ -115,7 +114,7 @@ void API::httpApiThreadFn(){
             #endif  
         }
     }catch(std::exception &e){
-        this->logger->error(e.what());
+        CubeLog::error(e.what());
     }
 }
 
@@ -156,8 +155,7 @@ std::function <std::string(std::string response, EndPointParams_t params)> Endpo
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
-CubeHttpServer::CubeHttpServer(CubeLog *logger, std::string address, int port){
-    this->logger = logger;
+CubeHttpServer::CubeHttpServer(std::string address, int port){
     this->address = address;
     this->port = port;
     this->server = new httplib::Server();
@@ -169,26 +167,26 @@ CubeHttpServer::~CubeHttpServer(){
 
 void CubeHttpServer::start(){
     // start the server
-    this->logger->log("HTTP server starting...", true);
+    CubeLog::log("HTTP server starting...", true);
     this->server->bind_to_port(this->address.c_str(), this->port);
     this->server->set_logger([&](const httplib::Request &req, const httplib::Response &res){
-        this->logger->log("HTTP server: " + req.method + " " + req.path + " " + std::to_string(res.status), true);
+        CubeLog::log("HTTP server: " + req.method + " " + req.path + " " + std::to_string(res.status), true);
     });
     this->server->set_error_handler([&](const httplib::Request &req, httplib::Response &res){
-        this->logger->error("HTTP server: " + req.method + " " + req.path + " " + std::to_string(res.status));
+        CubeLog::error("HTTP server: " + req.method + " " + req.path + " " + std::to_string(res.status));
     });
     this->server->listen_after_bind();
 }
 
 void CubeHttpServer::stop(){
     // stop the server
-    this->logger->log("HTTP server stopping...", true);
+    CubeLog::log("HTTP server stopping...", true);
     this->server->stop();
 }
 
 void CubeHttpServer::restart(){
     // restart the server
-    this->logger->log("HTTP server restarting...", true);
+    CubeLog::log("HTTP server restarting...", true);
     this->stop();
     this->start();
 }

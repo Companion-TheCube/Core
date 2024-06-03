@@ -7,15 +7,14 @@
  * 
  * @param logger a CubeLog object
  */
-GUI::GUI(CubeLog* logger)
+GUI::GUI()
 {
-    this->logger = logger;
     std::latch latch(1);
-    this->renderer = new Renderer(this->logger, latch);
+    this->renderer = new Renderer(latch);
     latch.wait();
-    this->eventManager = new EventManager(this->logger);
+    this->eventManager = new EventManager();
     this->eventLoopThread = std::jthread(&GUI::eventLoop, this);
-    this->logger->log("GUI initialized", true);
+    CubeLog::log("GUI initialized", true);
 }
 
 /**
@@ -25,7 +24,7 @@ GUI::GUI(CubeLog* logger)
 GUI::~GUI()
 {
     delete this->renderer;
-    this->logger->log("GUI destroyed", true);
+    CubeLog::log("GUI destroyed", true);
     this->eventLoopThread.join();
 }
 
@@ -40,8 +39,8 @@ void GUI::eventLoop()
     EventHandler* keyPressHandler = this->eventManager->getEvent(keyPressIndex);
     keyPressHandler->setAction([&](void* data) {
         sf::Event* event = (sf::Event*)data;
-        if(event!=nullptr) this->logger->log("Key pressed: " + std::to_string(event->key.code), true);
-        else this->logger->log("Key pressed: nullptr", true);
+        if(event!=nullptr) CubeLog::log("Key pressed: " + std::to_string(event->key.code), true);
+        else CubeLog::log("Key pressed: nullptr", true);
     });
     keyPressHandler->setName("KeyPressed");
     keyPressHandler->setEventType(sf::Event::KeyPressed);
@@ -50,16 +49,16 @@ void GUI::eventLoop()
     EventHandler* keyAPressedHandler = this->eventManager->getEvent(keyAPressedIndex);
     keyAPressedHandler->setAction([&](void* data) {
         sf::Event* event = (sf::Event*)data;
-        if(event!=nullptr) this->logger->log("Key A pressed", true);
-        else this->logger->log("Key A pressed: nullptr", true);
+        if(event!=nullptr) CubeLog::log("Key A pressed", true);
+        else CubeLog::log("Key A pressed: nullptr", true);
     });
     keyAPressedHandler->setName("KeyAPressed");
     keyAPressedHandler->setEventType(sf::Event::KeyPressed);
     keyAPressedHandler->setSpecificEventType(SpecificEventTypes::KEYPRESS_A);
 
     std::latch latch(2); // make sure this accounts for all of the setup tasks
-    auto menu = new Menu(this->logger, this->renderer->getShader(), latch);
-    messageBox = new CubeMessageBox(this->logger, this->renderer->getShader(), this->renderer->getTextShader(), this->renderer, latch);
+    auto menu = new Menu(this->renderer->getShader(), latch);
+    messageBox = new CubeMessageBox(this->renderer->getShader(), this->renderer->getTextShader(), this->renderer, latch);
     // menu->setVisible(false);
     this->renderer->addSetupTask([&](){
         menu->setup();
@@ -81,7 +80,7 @@ void GUI::eventLoop()
         this->eventManager->addClickableArea(area);
     }
 
-    this->logger->log("Starting event handler loop...", true);
+    CubeLog::log("Starting event handler loop...", true);
     while (this->renderer->getIsRunning()) {
         // std::vector<EventHandler*> managerEvents = this->eventManager->getEvents();
         std::vector<sf::Event> events = this->renderer->getEvents();
@@ -97,7 +96,7 @@ void GUI::eventLoop()
         Sleep(1);
 #endif
     }
-    this->logger->log("Event handler loop stopped", true);
+    CubeLog::log("Event handler loop stopped", true);
     delete menu;
     delete messageBox;
 }
@@ -122,13 +121,13 @@ EndPointData_t GUI::getEndpointData()
                 p = param.second;
             }
         }
-        this->logger->log("Endpoint stop called and message set to: " + p, true);
+        CubeLog::log("Endpoint stop called and message set to: " + p, true);
         return "Stop called";
     }});
     actions.push_back({true, [&](std::string response, EndPointParams_t params){
-        this->logger->log("Endpoint action 2: " + response, true);
+        CubeLog::log("Endpoint action 2: " + response, true);
         for(auto param : params){
-            this->logger->log(param.first + ": " + param.second, true);
+            CubeLog::log(param.first + ": " + param.second, true);
         }
         return "\"Endpoint action 2\" logged";
     }});

@@ -1,9 +1,8 @@
 #include "shader.h"
 
-Shader::Shader(std::string vertexShaderPath, std::string fragmentShaderPath, CubeLog* lgr)
+Shader::Shader(std::string vertexShaderPath, std::string fragmentShaderPath)
 {
-    this->logger = lgr;
-    this->logger->log("Loading shader: " + vertexShaderPath + " and " + fragmentShaderPath, true);
+    CubeLog::log("Loading shader: " + vertexShaderPath + " and " + fragmentShaderPath, true);
     vertexShader = readShader(vertexShaderPath);
     fragmentShader = readShader(fragmentShaderPath);
 
@@ -21,7 +20,7 @@ Shader::Shader(std::string vertexShaderPath, std::string fragmentShaderPath, Cub
     if (!success)
     {
         glGetShaderInfoLog(vertex, 512, NULL, infoLog);
-        this->logger->error("ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" + std::string(infoLog));
+        CubeLog::error("ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" + std::string(infoLog));
     }
 
     fragment = glCreateShader(GL_FRAGMENT_SHADER);
@@ -31,7 +30,7 @@ Shader::Shader(std::string vertexShaderPath, std::string fragmentShaderPath, Cub
     if (!success)
     {
         glGetShaderInfoLog(fragment, 512, NULL, infoLog);
-        this->logger->error("ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" + std::string(infoLog));
+        CubeLog::error("ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" + std::string(infoLog));
     }
 
     ID = glCreateProgram();
@@ -42,12 +41,12 @@ Shader::Shader(std::string vertexShaderPath, std::string fragmentShaderPath, Cub
     if (!success)
     {
         glGetProgramInfoLog(ID, 512, NULL, infoLog);
-        this->logger->error("ERROR::SHADER::PROGRAM::LINKING_FAILED\n" + std::string(infoLog));
+        CubeLog::error("ERROR::SHADER::PROGRAM::LINKING_FAILED\n" + std::string(infoLog));
     }
 
     glDeleteShader(vertex);
     glDeleteShader(fragment);
-    this->logger->log("Shader loaded successfully", true);
+    CubeLog::log("Shader loaded successfully", true);
 }
 
 Shader::~Shader()
@@ -106,7 +105,7 @@ std::string Shader::readShader(std::string path)
     }
     catch (std::ifstream::failure e)
     {
-        this->logger->error("ERROR::SHADER::FILE_NOT_SUCCESSFULLY_READ");
+        CubeLog::error("ERROR::SHADER::FILE_NOT_SUCCESSFULLY_READ");
         exit(EXIT_FAILURE);
     }
     return shaderCode;

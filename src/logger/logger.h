@@ -54,17 +54,25 @@ public:
 
 class CubeLog{
 private:
-    std::vector<CUBE_LOG_ENTRY> logEntries;
-    std::mutex logMutex;
-    LogVerbosity verbosity;
-    LogLevel printLevel;
+    static std::vector<CUBE_LOG_ENTRY> logEntries;
+    static std::mutex logMutex;
+    static LogVerbosity staticVerbosity;
+    static LogLevel staticPrintLevel;
     LogLevel fileLevel;
+    bool savingInProgress;
+    void saveLogsInterval();
+    std::jthread saveLogsThread;
+    std::mutex saveLogsMutex;
+    unsigned long long savedLogsCount = 0;
+    bool saveLogsThreadRun = true;
+    std::mutex saveLogsThreadRunMutex;
+    void purgeOldLogs();
 public:
-    void log(std::string message, bool print, LogLevel level = LogLevel::LOGGER_INFO, std::source_location location = std::source_location::current());
-    void error(std::string message, std::source_location location = std::source_location::current());
-    void info(std::string message, std::source_location location = std::source_location::current());
-    void warning(std::string message, std::source_location location = std::source_location::current());
-    void critical(std::string message, std::source_location location = std::source_location::current());
+    static void log(std::string message, bool print, LogLevel level = LogLevel::LOGGER_INFO, std::source_location location = std::source_location::current());
+    static void error(std::string message, std::source_location location = std::source_location::current());
+    static void info(std::string message, std::source_location location = std::source_location::current());
+    static void warning(std::string message, std::source_location location = std::source_location::current());
+    static void critical(std::string message, std::source_location location = std::source_location::current());
     std::vector<CUBE_LOG_ENTRY> getLogEntries(LogLevel level = LogLevel::LOGGER_INFO);
     std::vector<std::string> getLogEntriesAsStrings(bool fullMessages = true);
     std::vector<std::string> getErrorsAsStrings(bool fullMessages = true);

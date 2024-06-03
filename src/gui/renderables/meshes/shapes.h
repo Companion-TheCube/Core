@@ -13,7 +13,6 @@ struct Character {
 
 class M_Text : public MeshObject {
 private:
-    CubeLog* logger;
     Shader* shader;
     std::vector<Vertex> vertexData;
     GLuint VAO, VBO;
@@ -33,7 +32,7 @@ private:
     static FT_Face face;
     static bool faceInitialized;
 public:
-    M_Text(CubeLog* logger, Shader* sh, std::string text, float fontSize, glm::vec3 color, glm::vec2 position);
+    M_Text(Shader* sh, std::string text, float fontSize, glm::vec3 color, glm::vec2 position);
     ~M_Text();
     void draw();
     void setProjectionMatrix(glm::mat4 projectionMatrix);
@@ -55,7 +54,6 @@ public:
 
 class M_PartCircle : public MeshObject {
 private:
-    CubeLog* logger;
     Shader* shader;
     std::vector<Vertex> vertexData;
     GLuint VAO[1], VBO[1];
@@ -68,7 +66,7 @@ private:
     float startAngle;
     float endAngle;
 public:
-    M_PartCircle(CubeLog* logger, Shader* sh, unsigned int numSegments, float radius, glm::vec3 centerPoint, float startAngle, float endAngle, float fillColor);
+    M_PartCircle(Shader* sh, unsigned int numSegments, float radius, glm::vec3 centerPoint, float startAngle, float endAngle, float fillColor);
     ~M_PartCircle();
     void draw();
     void setProjectionMatrix(glm::mat4 projectionMatrix);
@@ -87,7 +85,6 @@ public:
 
 class M_Rect : public MeshObject {
 private:
-    CubeLog* logger;
     Shader* shader;
     std::vector<Vertex> vertexDataFill;
     std::vector<Vertex> vertexDataBorder;
@@ -98,7 +95,7 @@ private:
     glm::mat4 viewMatrix;
     glm::mat4 modelMatrix;
 public:
-    M_Rect(CubeLog* logger, Shader* sh, glm::vec3 position, glm::vec2 size,  float fillColor, float borderColor);
+    M_Rect(Shader* sh, glm::vec3 position, glm::vec2 size,  float fillColor, float borderColor);
     ~M_Rect();
     void draw();
     void setProjectionMatrix(glm::mat4 projectionMatrix);
@@ -117,7 +114,6 @@ public:
 
 class M_Line : public MeshObject {
 private:
-    CubeLog* logger;
     Shader* shader;
     std::vector<Vertex> vertexData;
     GLuint VAO[1], VBO[1];
@@ -125,7 +121,7 @@ private:
     glm::mat4 viewMatrix;
     glm::mat4 modelMatrix;
 public:
-    M_Line(CubeLog* logger, Shader* sh, glm::vec3 start, glm::vec3 end);
+    M_Line(Shader* sh, glm::vec3 start, glm::vec3 end);
     ~M_Line();
     void draw();
     void setProjectionMatrix(glm::mat4 projectionMatrix);
@@ -144,7 +140,6 @@ public:
 
 class M_Arc: public MeshObject{
 private:
-    CubeLog* logger;
     unsigned int numSegments;
     float radius;
     float startAngle;
@@ -157,7 +152,7 @@ private:
     glm::mat4 viewMatrix;
     glm::mat4 modelMatrix;
 public:
-    M_Arc(CubeLog* logger, Shader* sh, unsigned int numSegments, float radius, float startAngle, float endAngle, glm::vec3 centerPoint);
+    M_Arc(Shader* sh, unsigned int numSegments, float radius, float startAngle, float endAngle, glm::vec3 centerPoint);
     ~M_Arc();
     void draw();
     void setProjectionMatrix(glm::mat4 projectionMatrix);

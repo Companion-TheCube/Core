@@ -18,7 +18,7 @@
 
 class GUI : public I_API_Interface{
 public:
-    GUI(CubeLog *logger);
+    GUI();
     ~GUI();
     void eventLoop();
     void stop();
@@ -26,7 +26,6 @@ public:
     std::vector<std::string> getEndpointNames();
     std::string getIntefaceName() const;
 private:
-    CubeLog *logger;
     Renderer *renderer;
     std::jthread eventLoopThread;
     EventManager *eventManager;

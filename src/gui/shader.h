@@ -24,11 +24,10 @@ class Shader{
         std::string vertexShader;
         std::string fragmentShader;
         std::string readShader(std::string path);
-        CubeLog* logger;
         std::mutex mutex;
     public:
         unsigned int ID;
-        Shader(std::string vertexShaderPath, std::string fragmentShaderPath, CubeLog* lgr);
+        Shader(std::string vertexShaderPath, std::string fragmentShaderPath);
         ~Shader();
         void use();
         void setBool(const std::string &name, bool value) const;

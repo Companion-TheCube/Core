@@ -5,9 +5,8 @@ inline bool isInBlobsTableNames(std::string tableName){
         tableName == DB_NS::TableNames::CLIENT_BLOBS;
 }
 
-Database::Database(CubeLog* logger, std::string dbPath)
+Database::Database(std::string dbPath)
 {
-    this->logger = logger;
     this->dbPath = dbPath;
     this->db = nullptr;
     this->lastError = "";
@@ -15,16 +14,16 @@ Database::Database(CubeLog* logger, std::string dbPath)
     this->dbName = std::filesystem::path(dbPath).filename().string().substr(0, std::filesystem::path(dbPath).filename().string().find_last_of("."));
     if (!std::filesystem::exists(dbPath)) {
         if (!this->createDB(dbPath)) {
-            this->logger->error("Failed to create database: " + dbPath);
-            this->logger->error("Last error: " + this->lastError);
+            CubeLog::error("Failed to create database: " + dbPath);
+            CubeLog::error("Last error: " + this->lastError);
         }
     }
-    this->logger->info("Database initialized: " + dbPath);
+    CubeLog::info("Database initialized: " + dbPath);
 }
 
 Database::~Database()
 {
-    this->logger->info("Database closing: " + this->dbPath);
+    CubeLog::info("Database closing: " + this->dbPath);
     this->close();
 }
 
@@ -34,7 +33,7 @@ bool Database::createTable(std::string tableName, std::vector<std::string> colum
         this->lastError = "Database is not open";
         return false;
     }
-    this->logger->info("Creating table: " + tableName);
+    CubeLog::info("Creating table: " + tableName);
     std::string query = "CREATE TABLE IF NOT EXISTS " + tableName + " (";
     for (int i = 0; i < columnNames.size(); i++) {
         query += columnNames[i] + " " + columnTypes[i];
@@ -46,7 +45,7 @@ bool Database::createTable(std::string tableName, std::vector<std::string> colum
     try {
         SQLite::Statement stmt(*this->db, query);
         stmt.executeStep();
-        this->logger->info("Table created: " + tableName);
+        CubeLog::info("Table created: " + tableName);
         return true;
     } catch (std::exception& e) {
         this->lastError = e.what();
@@ -352,44 +351,43 @@ bool Database::createDB(std::string dbPath)
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-CubeDatabaseManager::CubeDatabaseManager(CubeLog* logger)
+CubeDatabaseManager::CubeDatabaseManager()
 {
-    this->logger = logger;
     for (int i = 0; i < this->dbDefs.size(); i++) {
-        if (!Database(logger, this->dbDefs[i].path).createDB(this->dbDefs[i].path)) {
-            this->logger->error("Failed to create database: " + this->dbDefs[i].path);
+        if (!Database(this->dbDefs[i].path).createDB(this->dbDefs[i].path)) {
+            CubeLog::error("Failed to create database: " + this->dbDefs[i].path);
         }
-        this->logger->info("Database created or exists: " + this->dbDefs[i].path);
+        CubeLog::info("Database created or exists: " + this->dbDefs[i].path);
         // create the tables
         for (int j = 0; j < this->dbDefs[i].tables.size(); j++) {
-            Database db(logger, this->dbDefs[i].path);
+            Database db(this->dbDefs[i].path);
             if (db.open()) {
-                this->logger->info("Database opened: " + this->dbDefs[i].path);
+                CubeLog::info("Database opened: " + this->dbDefs[i].path);
                 for (int k = 0; k < this->dbDefs[i].tables[j].columnNames.size(); k++) {
                     if (db.tableExists(this->dbDefs[i].tables[j].name)) {
                         if (!db.columnExists(this->dbDefs[i].tables[j].name, this->dbDefs[i].tables[j].columnNames[k])) {
                             if (!db.createTable(this->dbDefs[i].tables[j].name, this->dbDefs[i].tables[j].columnNames, this->dbDefs[i].tables[j].columnTypes)) {
-                                this->logger->error("Failed to create table: " + this->dbDefs[i].tables[j].name);
-                                this->logger->error("Last error: " + db.getLastError());
+                                CubeLog::error("Failed to create table: " + this->dbDefs[i].tables[j].name);
+                                CubeLog::error("Last error: " + db.getLastError());
                             } else {
-                                this->logger->info("Table created: " + this->dbDefs[i].tables[j].name);
+                                CubeLog::info("Table created: " + this->dbDefs[i].tables[j].name);
                             }
                         } else {
-                            this->logger->info("Table exists: " + this->dbDefs[i].tables[j].name);
+                            CubeLog::info("Table exists: " + this->dbDefs[i].tables[j].name);
                         }
                     } else {
                         if (!db.createTable(this->dbDefs[i].tables[j].name, this->dbDefs[i].tables[j].columnNames, this->dbDefs[i].tables[j].columnTypes)) {
-                            this->logger->error("Failed to create table: " + this->dbDefs[i].tables[j].name);
-                            this->logger->error("Last error: " + db.getLastError());
+                            CubeLog::error("Failed to create table: " + this->dbDefs[i].tables[j].name);
+                            CubeLog::error("Last error: " + db.getLastError());
                         } else {
-                            this->logger->info("Table created: " + this->dbDefs[i].tables[j].name);
+                            CubeLog::info("Table created: " + this->dbDefs[i].tables[j].name);
                         }
                     }
                 }
                 db.close();
             } else {
-                this->logger->error("Failed to open database: " + this->dbDefs[i].path);
-                this->logger->error("Last error: " + db.getLastError());
+                CubeLog::error("Failed to open database: " + this->dbDefs[i].path);
+                CubeLog::error("Last error: " + db.getLastError());
             }
         }
         this->addDatabase(this->dbDefs[i].path);
@@ -403,11 +401,11 @@ CubeDatabaseManager::~CubeDatabaseManager()
 
 void CubeDatabaseManager::addDatabase(std::string dbPath)
 {
-    Database* db = new Database(this->logger, dbPath);
+    Database* db = new Database(dbPath);
     if (db->open()) {
         this->databases.push_back(db);
     } else {
-        this->logger->error("Failed to open database: " + dbPath);
+        CubeLog::error("Failed to open database: " + dbPath);
         delete db;
     }
 }
@@ -454,7 +452,7 @@ void CubeDatabaseManager::openAll()
     for (int i = 0; i < this->databases.size(); i++) {
         if (!this->databases[i]->isOpen()) {
             if (!this->databases[i]->open()) {
-                this->logger->error("Failed to open database: " + this->databases[i]->getDBPath());
+                CubeLog::error("Failed to open database: " + this->databases[i]->getDBPath());
             }
         }
     }
@@ -478,19 +476,19 @@ bool CubeDatabaseManager::openDatabase(std::string dbName)
         if (this->databases[i]->getDBName() == dbName) {
             if (!this->databases[i]->isOpen()) {
                 if (!this->databases[i]->open()) {
-                    this->logger->error("Failed to open database: " + this->databases[i]->getDBPath());
+                    CubeLog::error("Failed to open database: " + this->databases[i]->getDBPath());
                     return false;
                 } else {
-                    this->logger->info("Database opened: " + this->databases[i]->getDBPath());
+                    CubeLog::info("Database opened: " + this->databases[i]->getDBPath());
                     return true;
                 }
             } else {
-                this->logger->error("Database is already open: " + this->databases[i]->getDBPath());
+                CubeLog::error("Database is already open: " + this->databases[i]->getDBPath());
                 return true;
             }
         }
     }
-    this->logger->error("Database not found: " + dbName);
+    CubeLog::error("Database not found: " + dbName);
     return false;
 }
 
@@ -542,9 +540,8 @@ std::string Database::selectBlobString(std::string tableName, std::string column
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-BlobsManager::BlobsManager(CubeLog* logger, CubeDatabaseManager* dbManager, std::string dbPath)
+BlobsManager::BlobsManager(std::shared_ptr<CubeDatabaseManager> dbManager, std::string dbPath)
 {
-    this->logger = logger;
     this->dbManager = dbManager;
 }
 
@@ -555,23 +552,24 @@ BlobsManager::~BlobsManager()
 bool BlobsManager::addBlob(std::string tableName, std::string blob, std::string ownerID)
 {
     if(!isInBlobsTableNames(tableName)){
-        this->logger->error("Invalid table name: " + tableName);
+        CubeLog::error("Invalid table name: " + tableName);
         return false;
     }
-    Database* db = this->dbManager->getDatabase("blobs.db");
+    Database* db = this->dbManager->getDatabase("blobs");
     if (db->open()) {
         if (db->insertData(tableName, {"blob", "owner_id"}, {blob, ownerID})) {
             db->close();
             return true;
         } else {
-            this->logger->error("Failed to add blob to table: " + tableName);
-            this->logger->error("Last error: " + db->getLastError());
+            CubeLog::error("Failed to add blob to table: " + tableName);
+            CubeLog::error("Last error: " + db->getLastError());
             db->close();
             return false;
         }
     } else {
-        this->logger->error("Failed to open database: blobs.db");
-        this->logger->error("Last error: " + db->getLastError());
+        CubeLog::error("Failed to open database: blobs.db");
+        CubeLog::error("Last error: " + db->getLastError());
+        if(db->getLastError() == "Database is already open") return true;
         return false;
     }
 }
@@ -579,7 +577,7 @@ bool BlobsManager::addBlob(std::string tableName, std::string blob, std::string 
 bool BlobsManager::removeBlob(std::string tableName, std::string ownerID, int id)
 {
     if(!isInBlobsTableNames(tableName)){
-        this->logger->error("Invalid table name: " + tableName);
+        CubeLog::error("Invalid table name: " + tableName);
         return false;
     }
     Database* db = this->dbManager->getDatabase("blobs.db");
@@ -588,14 +586,14 @@ bool BlobsManager::removeBlob(std::string tableName, std::string ownerID, int id
             db->close();
             return true;
         } else {
-            this->logger->error("Failed to remove blob from table: " + tableName);
-            this->logger->error("Last error: " + db->getLastError());
+            CubeLog::error("Failed to remove blob from table: " + tableName);
+            CubeLog::error("Last error: " + db->getLastError());
             db->close();
             return false;
         }
     } else {
-        this->logger->error("Failed to open database: blobs.db");
-        this->logger->error("Last error: " + db->getLastError());
+        CubeLog::error("Failed to open database: blobs.db");
+        CubeLog::error("Last error: " + db->getLastError());
         return false;
     }
 }
@@ -603,7 +601,7 @@ bool BlobsManager::removeBlob(std::string tableName, std::string ownerID, int id
 std::string BlobsManager::getBlobString(std::string tableName, std::string ownerID, int id)
 {
     if(!isInBlobsTableNames(tableName)){
-        this->logger->error("Invalid table name: " + tableName);
+        CubeLog::error("Invalid table name: " + tableName);
         return "";
     }
     Database* db = this->dbManager->getDatabase("blobs.db");
@@ -616,8 +614,8 @@ std::string BlobsManager::getBlobString(std::string tableName, std::string owner
             return "";
         }
     } else {
-        this->logger->error("Failed to open database: blobs.db");
-        this->logger->error("Last error: " + db->getLastError());
+        CubeLog::error("Failed to open database: blobs.db");
+        CubeLog::error("Last error: " + db->getLastError());
         return "";
     }
 }
@@ -625,7 +623,7 @@ std::string BlobsManager::getBlobString(std::string tableName, std::string owner
 char* BlobsManager::getBlobChars(std::string tableName, std::string ownerID, int id, int& size)
 {
     if(!isInBlobsTableNames(tableName)){
-        this->logger->error("Invalid table name: " + tableName);
+        CubeLog::error("Invalid table name: " + tableName);
         return nullptr;
     }
     Database* db = this->dbManager->getDatabase("blobs.db");
@@ -644,8 +642,8 @@ char* BlobsManager::getBlobChars(std::string tableName, std::string ownerID, int
             return nullptr;
         }
     } else {
-        this->logger->error("Failed to open database: blobs.db");
-        this->logger->error("Last error: " + db->getLastError());
+        CubeLog::error("Failed to open database: blobs.db");
+        CubeLog::error("Last error: " + db->getLastError());
         size = 0;
         return nullptr;
     }
@@ -654,7 +652,7 @@ char* BlobsManager::getBlobChars(std::string tableName, std::string ownerID, int
 bool BlobsManager::updateBlob(std::string tableName, std::string blob, std::string ownerID, int id)
 {
     if(!isInBlobsTableNames(tableName)){
-        this->logger->error("Invalid table name: " + tableName);
+        CubeLog::error("Invalid table name: " + tableName);
         return false;
     }
     Database* db = this->dbManager->getDatabase("blobs.db");
@@ -663,14 +661,14 @@ bool BlobsManager::updateBlob(std::string tableName, std::string blob, std::stri
             db->close();
             return true;
         } else {
-            this->logger->error("Failed to update blob in table: " + tableName);
-            this->logger->error("Last error: " + db->getLastError());
+            CubeLog::error("Failed to update blob in table: " + tableName);
+            CubeLog::error("Last error: " + db->getLastError());
             db->close();
             return false;
         }
     } else {
-        this->logger->error("Failed to open database: blobs.db");
-        this->logger->error("Last error: " + db->getLastError());
+        CubeLog::error("Failed to open database: blobs.db");
+        CubeLog::error("Last error: " + db->getLastError());
         return false;
     }
 }
@@ -678,7 +676,7 @@ bool BlobsManager::updateBlob(std::string tableName, std::string blob, std::stri
 bool BlobsManager::updateBlob(std::string tableName, char* blob, int size, std::string ownerID, int id)
 {
     if(!isInBlobsTableNames(tableName)){
-        this->logger->error("Invalid table name: " + tableName);
+        CubeLog::error("Invalid table name: " + tableName);
         return false;
     }
     Database* db = this->dbManager->getDatabase("blobs.db");
@@ -691,14 +689,14 @@ bool BlobsManager::updateBlob(std::string tableName, char* blob, int size, std::
             db->close();
             return true;
         } else {
-            this->logger->error("Failed to update blob in table: " + tableName);
-            this->logger->error("Last error: " + db->getLastError());
+            CubeLog::error("Failed to update blob in table: " + tableName);
+            CubeLog::error("Last error: " + db->getLastError());
             db->close();
             return false;
         }
     } else {
-        this->logger->error("Failed to open database: blobs.db");
-        this->logger->error("Last error: " + db->getLastError());
+        CubeLog::error("Failed to open database: blobs.db");
+        CubeLog::error("Last error: " + db->getLastError());
         return false;
     }
 }
@@ -706,7 +704,7 @@ bool BlobsManager::updateBlob(std::string tableName, char* blob, int size, std::
 bool BlobsManager::addBlob(std::string tableName, char* blob, int size, std::string ownerID)
 {
     if(!isInBlobsTableNames(tableName)){
-        this->logger->error("Invalid table name: " + tableName);
+        CubeLog::error("Invalid table name: " + tableName);
         return false;
     }
     Database* db = this->dbManager->getDatabase("blobs.db");
@@ -715,14 +713,15 @@ bool BlobsManager::addBlob(std::string tableName, char* blob, int size, std::str
             db->close();
             return true;
         } else {
-            this->logger->error("Failed to add blob to table: " + tableName);
-            this->logger->error("Last error: " + db->getLastError());
+            CubeLog::error("Failed to add blob to table: " + tableName);
+            CubeLog::error("Last error: " + db->getLastError());
             db->close();
             return false;
         }
     } else {
-        this->logger->error("Failed to open database: blobs.db");
-        this->logger->error("Last error: " + db->getLastError());
+        CubeLog::error("Failed to open database: blobs.db");
+        CubeLog::error("Last error: " + db->getLastError());
         return false;
     }
 }
+/////////////////////////////////////////////////////////////////////////////////////////////

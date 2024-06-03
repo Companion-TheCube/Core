@@ -156,7 +156,7 @@ int main(int argc, char* argv[])
     /////////////////////////////////////////////////////////////////
     GlobalSettings settings;
     auto logger = new CubeLog();
-    auto settingsLoader = new SettingsLoader(logger, &settings);
+    auto settingsLoader = new SettingsLoader(&settings);
     settingsLoader->loadSettings();
     if (argumentParser["--print"] == true) {
         std::cout << "\n\n" + settings.toString() << std::endl;
@@ -164,21 +164,21 @@ int main(int argc, char* argv[])
     }
     if (customLogVerbosity)
         settings.logVerbosity = LogVerbosity(logVerbosity);
-    logger->setVerbosity(settings.logVerbosity);
+    CubeLog::setVerbosity(settings.logVerbosity);
     if (customLogLevelP)
         settings.setSetting("LogLevelP", logLevelPrint);
     if (customLogLevelF)
         settings.setSetting("LogLevelF", logLevelFile);
-    logger->setLogLevel(settings.logLevelPrint, settings.logLevelFile);
+    CubeLog::setLogLevel(settings.logLevelPrint, settings.logLevelFile);
     if(supportsExtendedColors()){
-        logger->info("Extended colors supported.");
+        CubeLog::info("Extended colors supported.");
     } else if(supportsBasicColors()){
-        logger->info("Basic colors supported.");
+        CubeLog::info("Basic colors supported.");
     } else {
-        logger->info("No colors supported.");
+        CubeLog::info("No colors supported.");
     }
-    logger->log("Logger initialized.", true);
-    logger->log("Settings loaded.", true);
+    CubeLog::log("Logger initialized.", true);
+    CubeLog::log("Settings loaded.", true);
 
     /////////////////////////////////////////////////////////////////
     // RtAudio setup
@@ -190,17 +190,17 @@ int main(int argc, char* argv[])
         std::cout << "\nNo audio devices found! Exiting.\n";
         exit(0);
     }
-    logger->log("Audio devices found: " + std::to_string(deviceIds.size()), true);
+    CubeLog::log("Audio devices found: " + std::to_string(deviceIds.size()), true);
     for (auto device : deviceNames) {
-        logger->log("Device: " + device, true);
+        CubeLog::log("Device: " + device, true);
     }
 
     RtAudio::StreamParameters parameters;
-    logger->log("Setting up audio stream with default audio device.", true);
+    CubeLog::log("Setting up audio stream with default audio device.", true);
     parameters.deviceId = dac.getDefaultOutputDevice();
     // find the device name for the audio device id
     std::string deviceName = dac.getDeviceInfo(parameters.deviceId).name;
-    logger->log("Using audio device: " + deviceName, true);
+    CubeLog::log("Using audio device: " + deviceName, true);
     parameters.nChannels = 2;
     parameters.firstChannel = 0;
     unsigned int sampleRate = 44100;
@@ -208,30 +208,33 @@ int main(int argc, char* argv[])
     double data[3] = { 0, 0, 0 };
 
     if (dac.openStream(&parameters, NULL, RTAUDIO_FLOAT64, sampleRate, &bufferFrames, &saw, (void*)&data)) {
-        logger->error(dac.getErrorText() + " Exiting.");
+        CubeLog::error(dac.getErrorText() + " Exiting.");
         exit(0); // problem with device settings
     }
 
     // Stream is open ... now start it.
     if (dac.startStream()) {
         std::cout << dac.getErrorText() << std::endl;
-        logger->error(dac.getErrorText());
+        CubeLog::error(dac.getErrorText());
     }
-    logger->error("Test error message.");
-    logger->warning("Test warning message.");
-    logger->info("Test info message.");
-    logger->critical("Test critical message.");
+    CubeLog::info("Test info message.");
+    CubeLog::error("Test error message.");
+    CubeLog::warning("Test warning message.");
+    CubeLog::critical("Test critical message.");
     /////////////////////////////////////////////////////////////////
     {
-        auto db_cube = std::make_shared<CubeDatabaseManager>(logger);
-        db_cube->openAll();
-        auto gui = std::make_shared<GUI>(logger);
-        auto api = std::make_shared<API>(logger);
-        API_Builder api_builder(logger, api);
+        auto db_cube = std::make_shared<CubeDatabaseManager>();
+        auto blobs = std::make_shared<BlobsManager>(db_cube, "data/blobs.db");
+        auto cubeDB = std::make_shared<CubeDB>(db_cube, blobs);
+        CubeDB::GetBlobsManager()->addBlob("client_blobs", "test blob", "1");
+        // db_cube->openAll();
+        auto gui = std::make_shared<GUI>();
+        auto api = std::make_shared<API>();
+        API_Builder api_builder(api);
         api_builder.addInterface(gui);
         api_builder.start();
         bool running = true;
-        logger->log("Entering main loop...", true);
+        CubeLog::log("Entering main loop...", true);
         while (running) {
 #ifdef __linux__
             sleep(1);
@@ -251,12 +254,12 @@ int main(int argc, char* argv[])
                     data[2] = 0;
             }
         }
-        logger->log("Exiting main loop...", true);
+        CubeLog::log("Exiting main loop...", true);
         std::cout << "Exiting..." << std::endl;
         // sineWaveSound.stop();
     }
     delete settingsLoader;
-    // logger->writeOutLogs();
+    // CubeLog::writeOutLogs();
     dac.stopStream();
     if (dac.isStreamOpen())
         dac.closeStream();

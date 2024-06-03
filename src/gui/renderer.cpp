@@ -2,10 +2,9 @@
 // Path: src/gui/renderer.h
 #include "renderer.h"
 
-Renderer::Renderer(CubeLog* logger, std::latch& latch)
+Renderer::Renderer(std::latch& latch)
 {
     this->t = std::thread(&Renderer::thread, this);
-    this->logger = logger;
     this->latch = &latch;
 }
 
@@ -13,7 +12,7 @@ Renderer::~Renderer()
 {
     this->stop();
     this->t.join();
-    this->logger->log("Renderer destroyed", true);
+    CubeLog::log("Renderer destroyed", true);
 }
 
 void Renderer::stop()
@@ -32,10 +31,10 @@ int Renderer::thread()
     this->window.setFramerateLimit(30);
     glewExperimental = GL_TRUE; // Enable full GLEW functionality
     if (GLEW_OK != glewInit()) {
-        this->logger->error("Failed to initialize GLEW");
+        CubeLog::error("Failed to initialize GLEW");
         exit(EXIT_FAILURE);
     }
-    this->logger->log("OpenGL Version: " + std::string((char*)glGetString(GL_VERSION)), true);
+    CubeLog::log("OpenGL Version: " + std::string((char*)glGetString(GL_VERSION)), true);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_STENCIL_TEST);
     glEnable(GL_CULL_FACE);
@@ -56,17 +55,17 @@ int Renderer::thread()
     this->window.setMouseCursorVisible(false);
 #endif
 
-    Shader edges("./shaders/edges.vs", "./shaders/edges.fs", logger);
+    Shader edges("./shaders/edges.vs", "./shaders/edges.fs");
     this->shader = &edges;
 
-    Shader textShader("shaders/text.vs", "shaders/text.fs", this->logger);
+    Shader textShader("shaders/text.vs", "shaders/text.fs");
     this->textShader = &textShader;
 
-    auto characterManager = new CharacterManager(&edges, logger);
+    auto characterManager = new CharacterManager(&edges);
     C_Character* character = characterManager->getCharacterByName("TheCube");
     characterManager->setCharacter(character);
     this->setupTasksRun();
-    this->logger->log("Renderer initialized. Starting Loop...", true);
+    CubeLog::log("Renderer initialized. Starting Loop...", true);
     this->ready = true;
     latch->count_down();
     while (running) {

@@ -7,9 +7,8 @@
  * 
  * @param logger CubeLog object
  */
-EventHandler::EventHandler(CubeLog *logger){
-    this->logger = logger;
-    this->logger->log("Event handler created with default values.", true);
+EventHandler::EventHandler(){
+    CubeLog::log("Event handler created with default values.", true);
     this->name = "";
     this->eventType = sf::Event::EventType::Count;
     this->specificEventType = SpecificEventTypes::NULL_EVENT;
@@ -21,7 +20,7 @@ EventHandler::EventHandler(CubeLog *logger){
  * 
  */
 EventHandler::~EventHandler(){
-    this->logger->log("Event handler destroyed", true);
+    CubeLog::log("Event handler destroyed", true);
     // if(this->clickableArea != nullptr){
     //     delete this->clickableArea;
     // }
@@ -33,10 +32,10 @@ EventHandler::~EventHandler(){
  */
 bool EventHandler::triggerEvent(void* data){
     if(this->action == nullptr){
-        this->logger->error("No action set for event: " + this->name);
+        CubeLog::error("No action set for event: " + this->name);
         return false;
     }
-    this->logger->log("Event triggered: " + this->name, true);
+    CubeLog::log("Event triggered: " + this->name, true);
     this->action(data);
     return true;
 }
@@ -47,7 +46,7 @@ bool EventHandler::triggerEvent(void* data){
  * @param action std::function<void(void*)> action
  */
 void EventHandler::setAction(std::function<void(void*)> action){
-    this->logger->log("Action set for event: " + this->name, true);
+    CubeLog::log("Action set for event: " + this->name, true);
     this->action = action;
 }
 
@@ -112,8 +111,8 @@ SpecificEventTypes EventHandler::getSpecificEventType(){
  * 
  * @param logger CubeLog object
  */
-EventManager::EventManager(CubeLog *logger){
-    this->logger = logger;
+EventManager::EventManager(){
+    CubeLog::info("Event manager created with default values.");
 }
 
 /**
@@ -124,7 +123,7 @@ EventManager::~EventManager(){
     for (int i = 0; i < this->events.size(); i++){
         delete this->events[i];
     }
-    this->logger->log("Event manager destroyed", true);
+    CubeLog::log("Event manager destroyed", true);
 }
 
 /**
@@ -134,7 +133,7 @@ EventManager::~EventManager(){
  * @return int index of the event
  */
 int EventManager::createEvent(std::string eventName){
-    EventHandler *event = new EventHandler(this->logger);
+    EventHandler *event = new EventHandler();
     this->events.push_back(event);
     return this->events.size() - 1;
 }
@@ -343,7 +342,7 @@ bool EventManager::checkClickableAreas(sf::Event event){
         int x = event.mouseButton.x;
         int y = event.mouseButton.y;
         //check if the x and y are within the area
-        this->logger->log("Checking clickable area: x:" + std::to_string(x) + " y:" + std::to_string(y) + " area: xMin:" + std::to_string(area->xMin) + " xMax:" + std::to_string(area->xMax) + " yMin:" + std::to_string(area->yMin) + " yMax:" + std::to_string(area->yMax), true);
+        CubeLog::log("Checking clickable area: x:" + std::to_string(x) + " y:" + std::to_string(y) + " area: xMin:" + std::to_string(area->xMin) + " xMax:" + std::to_string(area->xMax) + " yMin:" + std::to_string(area->yMin) + " yMax:" + std::to_string(area->yMax), true);
         if(x < area->xMax && x > area->xMin && y < area->yMax && y > area->yMin){
             if(event.mouseButton.button == sf::Mouse::Left){
                 area->clickableObject->onClick(&event);

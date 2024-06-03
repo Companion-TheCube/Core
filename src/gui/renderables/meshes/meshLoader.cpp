@@ -1,8 +1,7 @@
 #include "meshLoader.h"
 
-MeshLoader::MeshLoader(CubeLog* lgr, Shader* shdr, std::vector<std::string> toLoad)
+MeshLoader::MeshLoader(Shader* shdr, std::vector<std::string> toLoad)
 {
-    this->logger = lgr;
     this->shader = shdr;
     std::vector<std::string> filenames = this->getMeshFileNames();
     for(auto filename: filenames){
@@ -10,10 +9,10 @@ MeshLoader::MeshLoader(CubeLog* lgr, Shader* shdr, std::vector<std::string> toLo
         if(std::find(toLoad.begin(), toLoad.end(), name) == toLoad.end()){
             continue;
         }
-        this->logger->log("MeshLoader: Found mesh file: " + filename, true);
-        this->logger->log("Attempting to load mesh file: " + filename, true);
+        CubeLog::log("MeshLoader: Found mesh file: " + filename, true);
+        CubeLog::log("Attempting to load mesh file: " + filename, true);
         std::vector<MeshObject*> objects = this->loadMesh(filename);
-        this->logger->log("MeshLoader: Loaded " + std::to_string(objects.size()) + " objects from file: " + filename, true);
+        CubeLog::log("MeshLoader: Loaded " + std::to_string(objects.size()) + " objects from file: " + filename, true);
         this->collections.push_back(new ObjectCollection());
         // collection name is filename minus ".mesh"
         this->collections.at(collections.size() - 1)->name = filename.substr(filename.find_last_of('/') + 1, filename.find(".mesh") - filename.find_last_of('/') - 1);
@@ -50,10 +49,10 @@ std::vector<std::string> MeshLoader::getMeshFileNames()
 {
     std::vector<std::string> names;
     for(auto& p: std::filesystem::directory_iterator("meshes/")){
-        this->logger->log("MeshLoader: Found file: " + p.path().string(), true);
+        CubeLog::log("MeshLoader: Found file: " + p.path().string(), true);
         names.push_back(p.path().string());
     }
-    this->logger->log("MeshLoader: Found " + std::to_string(names.size()) + " mesh files", true);
+    CubeLog::log("MeshLoader: Found " + std::to_string(names.size()) + " mesh files", true);
     return names;
 }
 
@@ -63,7 +62,7 @@ std::vector<MeshObject*> MeshLoader::loadMesh(std::string path)
     std::ifstream
     file(path);
     if(!file.is_open()){
-        this->logger->log("MeshLoader: Failed to open file: " + path, true);
+        CubeLog::log("MeshLoader: Failed to open file: " + path, true);
         return objects;
     }
     float scale = 1.0f;
@@ -90,11 +89,11 @@ std::vector<MeshObject*> MeshLoader::loadMesh(std::string path)
             float sc;
             iss >> sc;
             scale = sc;
-            this->logger->log("MeshLoader: Scaling all objects by: " + std::to_string(scale), true);
+            CubeLog::log("MeshLoader: Scaling all objects by: " + std::to_string(scale), true);
         }
         // TODO: change this to use RRGGBB data for shape type
         else if(type == "$CUBES"){
-            this->logger->log("MeshLoader: Loading cubes...", true);
+            CubeLog::log("MeshLoader: Loading cubes...", true);
             unsigned int count = 0;
             while(std::getline(file, line)){
                 if(line[0] == '$'){
@@ -116,7 +115,7 @@ std::vector<MeshObject*> MeshLoader::loadMesh(std::string path)
                 objects.at(objects.size() - 1)->uniformScale(0.5f * scale);
                 count++;
             }
-            this->logger->log("MeshLoader: Loaded " + std::to_string(count) + " cubes", true);
+            CubeLog::log("MeshLoader: Loaded " + std::to_string(count) + " cubes", true);
         }
         else if(type == "$PYRAMIDS"){
             while(std::getline(file, line)){

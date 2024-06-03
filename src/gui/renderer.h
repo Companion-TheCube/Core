@@ -54,7 +54,6 @@ class Renderer{
         int thread();
         sf::Font font;
         std::thread t;
-        CubeLog *logger;
         bool running = true;
         sf::RenderWindow window;
         std::vector<sf::Event> events;
@@ -66,7 +65,7 @@ class Renderer{
         std::atomic<bool> ready = false;
         std::latch* latch;
     public:
-        Renderer(CubeLog *logger, std::latch& latch);
+        Renderer(std::latch& latch);
         ~Renderer();
         void stop();
         std::vector<sf::Event> getEvents();

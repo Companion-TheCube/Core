@@ -7,16 +7,15 @@ void checkGLError(const std::string& location) {
     }
 }
 
-M_Text::M_Text(CubeLog* logger, Shader* sh, std::string text, float fontSize, glm::vec3 color, glm::vec2 position)
+M_Text::M_Text(Shader* sh, std::string text, float fontSize, glm::vec3 color, glm::vec2 position)
 {
-    this->logger = logger;
     this->shader = sh;
     this->text = text;
     this->fontSize = fontSize;
     this->color = color;
     this->position = position;
     this->buildText();
-    this->logger->log("Created Text", true);
+    CubeLog::log("Created Text", true);
 }
 
 void M_Text::reloadFont() // TODO: verify / test this function
@@ -33,11 +32,11 @@ bool M_Text::faceInitialized = false;
 void M_Text::buildText(){
     if(!faceInitialized){
         if (FT_Init_FreeType(&ft)) {
-            this->logger->error("ERROR::FREETYPE: Could not init FreeType Library");
+            CubeLog::error("ERROR::FREETYPE: Could not init FreeType Library");
         }
         // TODO: check that the font file exists before trying to load it. If it doesn't exist, use a default font.
         if (FT_New_Face(ft, GlobalSettings::selectedFontPath.c_str(), 0, &face)) {
-            this->logger->error("ERROR::FREETYPE: Failed to load font");
+            CubeLog::error("ERROR::FREETYPE: Failed to load font");
         }
         faceInitialized = true;
     }
@@ -46,7 +45,7 @@ void M_Text::buildText(){
     checkGLError("0.1");
     for (unsigned char c = 0; c < 128; c++) {
         if (FT_Load_Char(face, c, FT_LOAD_RENDER)) {
-            this->logger->error("ERROR::FREETYPE: Failed to load Glyph");
+            CubeLog::error("ERROR::FREETYPE: Failed to load Glyph");
             continue;
         }
         GLuint texture;
@@ -111,7 +110,7 @@ M_Text::~M_Text()
     for (unsigned char c = 0; c < 128; c++) {
         glDeleteTextures(1, &Characters[c].TextureID);
     }
-    this->logger->info("Destroyed Text");
+    CubeLog::info("Destroyed Text");
 }
 
 void M_Text::draw()
@@ -232,9 +231,8 @@ float M_Text::getWidth()
 
 //////////////////////////////////////////////////////////////////////////////////////////
 
-M_PartCircle::M_PartCircle(CubeLog* logger, Shader* sh, unsigned int numSegments, float radius, glm::vec3 centerPoint, float startAngle, float endAngle, float fillColor)
+M_PartCircle::M_PartCircle(Shader* sh, unsigned int numSegments, float radius, glm::vec3 centerPoint, float startAngle, float endAngle, float fillColor)
 {
-    this->logger = logger;
     this->shader = sh;
     this->numSegments = numSegments;
     this->radius = radius;
@@ -273,12 +271,12 @@ M_PartCircle::M_PartCircle(CubeLog* logger, Shader* sh, unsigned int numSegments
     modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, 0.0f));
     modelMatrix = glm::scale(modelMatrix, glm::vec3(1.0f, 1.0f, 1.0f));
     setModelMatrix(modelMatrix);
-    this->logger->log("Created PartCircle", true);
+    CubeLog::log("Created PartCircle", true);
 }
 
 M_PartCircle::~M_PartCircle()
 {
-    this->logger->log("Destroyed PartCircle", true);
+    CubeLog::log("Destroyed PartCircle", true);
     glDeleteVertexArrays(1, VAO);
     glDeleteBuffers(1, VBO);
 }
@@ -393,9 +391,8 @@ float M_PartCircle::getWidth()
 
 //////////////////////////////////////////////////////////////////////////////////////////
 
-M_Rect::M_Rect(CubeLog* logger, Shader* sh, glm::vec3 position, glm::vec2 size, float fillColor, float borderColor)
+M_Rect::M_Rect( Shader* sh, glm::vec3 position, glm::vec2 size, float fillColor, float borderColor)
 {
-    this->logger = logger;
     this->shader = sh;
     this->vertexDataFill.push_back({ position.x + size.x, position.y, position.z, fillColor });
     this->vertexDataFill.push_back({ position.x, position.y, position.z, fillColor });
@@ -429,12 +426,12 @@ M_Rect::M_Rect(CubeLog* logger, Shader* sh, glm::vec3 position, glm::vec2 size, 
     modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, 0.0f));
     modelMatrix = glm::scale(modelMatrix, glm::vec3(1.0f, 1.0f, 1.0f));
     setModelMatrix(modelMatrix);
-    this->logger->log("Created Rect", true);
+    CubeLog::log("Created Rect", true);
 }
 
 M_Rect::~M_Rect()
 {
-    this->logger->log("Destroyed Rect", true);
+    CubeLog::log("Destroyed Rect", true);
     glDeleteVertexArrays(1, VAO);
     glDeleteBuffers(1, VBO);
 }
@@ -566,9 +563,8 @@ float M_Rect::getWidth()
 
 //////////////////////////////////////////////////////////////////////////////////////////
 
-M_Line::M_Line(CubeLog* logger, Shader* sh, glm::vec3 start, glm::vec3 end)
+M_Line::M_Line(Shader* sh, glm::vec3 start, glm::vec3 end)
 {
-    this->logger = logger;
     this->shader = sh;
     this->vertexData.push_back({ start.x, start.y, start.z, 1.f });
     this->vertexData.push_back({ end.x, end.y, end.z, 1.f });
@@ -589,12 +585,12 @@ M_Line::M_Line(CubeLog* logger, Shader* sh, glm::vec3 start, glm::vec3 end)
     modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, 0.0f));
     modelMatrix = glm::scale(modelMatrix, glm::vec3(1.0f, 1.0f, 1.0f));
     setModelMatrix(modelMatrix);
-    this->logger->log("Created Line", true);
+    CubeLog::log("Created Line", true);
 }
 
 M_Line::~M_Line()
 {
-    this->logger->log("Destroyed Line", true);
+    CubeLog::log("Destroyed Line", true);
     glDeleteVertexArrays(1, VAO);
     glDeleteBuffers(1, VBO);
 }
@@ -706,9 +702,8 @@ float M_Line::getWidth()
 
 //////////////////////////////////////////////////////////////////////////////////////////
 
-M_Arc::M_Arc(CubeLog* logger, Shader* sh, unsigned int numSegments, float radius, float startAngle, float endAngle, glm::vec3 centerPoint)
+M_Arc::M_Arc(Shader* sh, unsigned int numSegments, float radius, float startAngle, float endAngle, glm::vec3 centerPoint)
 {
-    this->logger = logger;
     this->shader = sh;
     this->numSegments = numSegments;
     this->radius = radius;
@@ -739,12 +734,12 @@ M_Arc::M_Arc(CubeLog* logger, Shader* sh, unsigned int numSegments, float radius
     modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, 0.0f));
     modelMatrix = glm::scale(modelMatrix, glm::vec3(1.0f, 1.0f, 1.0f));
     setModelMatrix(modelMatrix);
-    this->logger->log("Created Arc", true);
+    CubeLog::log("Created Arc", true);
 }
 
 M_Arc::~M_Arc()
 {
-    this->logger->log("Destroyed Arc", true);
+    CubeLog::log("Destroyed Arc", true);
     glDeleteVertexArrays(1, VAO);
     glDeleteBuffers(1, VBO);
 }

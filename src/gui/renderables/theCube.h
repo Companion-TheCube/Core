@@ -22,13 +22,12 @@ class TheCube: public C_Character{
         std::string name;
         Shader* shader;
         std::vector<MeshObject*> objects;
-        CubeLog* logger;
         MeshLoader* loader;
         std::vector<CharacterPart*> parts;
         unsigned long long animationFrame;
         bool visible;
     public:
-        TheCube(Shader* sh, CubeLog* lgr);
+        TheCube(Shader* sh);
         ~TheCube();
         void draw();
         void animateRandomFunny();

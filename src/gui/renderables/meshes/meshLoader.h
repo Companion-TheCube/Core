@@ -16,9 +16,8 @@ struct ObjectCollection{
 class MeshLoader{
 public:
     std::vector<ObjectCollection*> collections;
-    CubeLog* logger;
     Shader* shader;
-    MeshLoader(CubeLog* lgr, Shader* shdr, std::vector<std::string> toLoad);
+    MeshLoader(Shader* shdr, std::vector<std::string> toLoad);
     ~MeshLoader();
     std::vector<MeshObject*> loadMesh(std::string path);
     std::vector<std::string> getMeshFileNames();
