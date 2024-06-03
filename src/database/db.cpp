@@ -1,5 +1,10 @@
 #include "db.h"
 
+inline bool isInBlobsTableNames(std::string tableName){
+    return tableName == DB_NS::TableNames::APP_BLOBS || 
+        tableName == DB_NS::TableNames::CLIENT_BLOBS;
+}
+
 Database::Database(CubeLog* logger, std::string dbPath)
 {
     this->logger = logger;
@@ -549,7 +554,7 @@ BlobsManager::~BlobsManager()
 
 bool BlobsManager::addBlob(std::string tableName, std::string blob, std::string ownerID)
 {
-    if(tableName != DB_NS::TableNames::APP_BLOBS && tableName != DB_NS::TableNames::CLIENT_BLOBS){
+    if(!isInBlobsTableNames(tableName)){
         this->logger->error("Invalid table name: " + tableName);
         return false;
     }
@@ -573,7 +578,7 @@ bool BlobsManager::addBlob(std::string tableName, std::string blob, std::string 
 
 bool BlobsManager::removeBlob(std::string tableName, std::string ownerID, int id)
 {
-    if(tableName != DB_NS::TableNames::APP_BLOBS && tableName != DB_NS::TableNames::CLIENT_BLOBS){
+    if(!isInBlobsTableNames(tableName)){
         this->logger->error("Invalid table name: " + tableName);
         return false;
     }
@@ -597,7 +602,7 @@ bool BlobsManager::removeBlob(std::string tableName, std::string ownerID, int id
 
 std::string BlobsManager::getBlobString(std::string tableName, std::string ownerID, int id)
 {
-    if(tableName != DB_NS::TableNames::APP_BLOBS && tableName != DB_NS::TableNames::CLIENT_BLOBS){
+    if(!isInBlobsTableNames(tableName)){
         this->logger->error("Invalid table name: " + tableName);
         return "";
     }
@@ -619,7 +624,7 @@ std::string BlobsManager::getBlobString(std::string tableName, std::string owner
 
 char* BlobsManager::getBlobChars(std::string tableName, std::string ownerID, int id, int& size)
 {
-    if(tableName != DB_NS::TableNames::APP_BLOBS && tableName != DB_NS::TableNames::CLIENT_BLOBS){
+    if(!isInBlobsTableNames(tableName)){
         this->logger->error("Invalid table name: " + tableName);
         return nullptr;
     }
@@ -648,7 +653,7 @@ char* BlobsManager::getBlobChars(std::string tableName, std::string ownerID, int
 
 bool BlobsManager::updateBlob(std::string tableName, std::string blob, std::string ownerID, int id)
 {
-    if(tableName != DB_NS::TableNames::APP_BLOBS && tableName != DB_NS::TableNames::CLIENT_BLOBS){
+    if(!isInBlobsTableNames(tableName)){
         this->logger->error("Invalid table name: " + tableName);
         return false;
     }
@@ -672,7 +677,7 @@ bool BlobsManager::updateBlob(std::string tableName, std::string blob, std::stri
 
 bool BlobsManager::updateBlob(std::string tableName, char* blob, int size, std::string ownerID, int id)
 {
-    if(tableName != DB_NS::TableNames::APP_BLOBS && tableName != DB_NS::TableNames::CLIENT_BLOBS){
+    if(!isInBlobsTableNames(tableName)){
         this->logger->error("Invalid table name: " + tableName);
         return false;
     }
@@ -700,7 +705,7 @@ bool BlobsManager::updateBlob(std::string tableName, char* blob, int size, std::
 
 bool BlobsManager::addBlob(std::string tableName, char* blob, int size, std::string ownerID)
 {
-    if(tableName != DB_NS::TableNames::APP_BLOBS && tableName != DB_NS::TableNames::CLIENT_BLOBS){
+    if(!isInBlobsTableNames(tableName)){
         this->logger->error("Invalid table name: " + tableName);
         return false;
     }
