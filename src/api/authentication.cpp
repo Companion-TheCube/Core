@@ -22,3 +22,12 @@ std::string Code6Generator()
     return result;
 }
 
+CubeAuth::CubeAuth()
+{
+    CubeLog::log("Authentication module starting...", true);
+}
+
+CubeAuth::~CubeAuth()
+{
+    CubeLog::log("Authentication module stopping...", true);
+}
