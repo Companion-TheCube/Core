@@ -71,6 +71,16 @@ if(NOT EXISTS ${ARGPARSE_HEADER})
     )
 endif()
 
+# Add libsodium
+add_definitions(-DSODIUM_STATIC)
+if(WIN32)
+    include_directories(${CMAKE_SOURCE_DIR}/libraries/libsodium/include)
+    find_library(SODIUM_LIBRARIES libsodium HINTS "${CMAKE_SOURCE_DIR}/libraries/libsodium/Win32/Release/v143/*" "${CMAKE_SOURCE_DIR}/libraries/libsodium/Win32/Debug/v143/*")
+else()
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(SODIUM REQUIRED libsodium)
+    include_directories(${SODIUM_INCLUDE_DIRS})
+endif()
 
 # Add SQLiteCpp
 set(SQLITECPP_RUN_CPPCHECK OFF CACHE BOOL "" FORCE)
@@ -84,7 +94,7 @@ if(WIN32)
     include_directories("C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.39.33519/include")
 endif()
 
-# Define the source and destination directories
+# Define the source and destination directories for shaders
 set(SHADER_SOURCE_DIR "${CMAKE_SOURCE_DIR}/src/gui/shaders")
 if(WIN32)
     set(SHADER_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Debug/shaders")
@@ -92,6 +102,7 @@ else()
     set(SHADER_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders")
 endif()
 
+# Define the source and destination directories for meshes
 set(MESHES_SOURCE_DIR "${CMAKE_SOURCE_DIR}/src/gui/renderables/meshes/meshFiles")
 if(WIN32)
     set(MESHES_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Debug/meshes")
@@ -99,6 +110,7 @@ else()
     set(MESHES_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/meshes")
 endif()
 
+# Define the source and destination directories for fonts
 set(FONTS_SOURCE_DIR "${CMAKE_SOURCE_DIR}/fonts")
 if(WIN32)
     set(FONTS_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Debug/fonts")
@@ -106,7 +118,7 @@ else()
     set(FONTS_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/fonts")
 endif()
 
-# Create the destination directory
+# Create the destination directories if they don't exist
 file(MAKE_DIRECTORY ${SHADER_DEST_DIR})
 file(MAKE_DIRECTORY ${MESHES_DEST_DIR})
 file(MAKE_DIRECTORY ${FONTS_DEST_DIR})
@@ -115,6 +127,7 @@ file(MAKE_DIRECTORY ${FONTS_DEST_DIR})
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/**/*.cpp" "src/**/**/*.cpp")
 add_executable(CubeCore ${SOURCES})
 
+# Link libraries
 target_link_libraries(CubeCore PRIVATE 
     sfml-graphics 
     sfml-audio 
@@ -127,6 +140,7 @@ target_link_libraries(CubeCore PRIVATE
     nlohmann_json::nlohmann_json
     SQLiteCpp
     sqlite3
+    ${SODIUM_LIBRARIES}
 )
 target_compile_features(CubeCore PRIVATE cxx_std_17)
 
@@ -178,17 +192,6 @@ add_custom_command(
     COMMENT "Copying fonts to output directory"
 )
 
-# if win32 move executable up one folder
-# if(WIN32)
-#     add_custom_command(
-#         TARGET CubeCoreProject POST_BUILD
-#         COMMAND ${CMAKE_COMMAND} -E copy
-#         ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/CubeCoreProject.exe
-#         ${CMAKE_BINARY_DIR}/CubeCoreProject.exe
-#         COMMENT "Copying executable to output directory"
-#     )
-# endif()
-
 install(TARGETS CubeCore)
 
 # Add tests
@@ -198,9 +201,10 @@ FetchContent_Declare(
     GIT_TAG main
 )
 
+# Fetch googletest
 FetchContent_MakeAvailable(googletest)
 
-# Add tests
+# Add test executable
 file(GLOB_RECURSE TEST_SOURCES "tests/*.cpp" "tests/**/*.cpp" "tests/**/**/*.cpp")
 add_executable(CubeCoreTests ${TEST_SOURCES})
 target_link_libraries(CubeCoreTests PRIVATE 

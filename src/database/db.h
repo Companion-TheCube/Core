@@ -71,7 +71,7 @@ class CubeDatabaseManager{
     std::vector<DB_NS::Database_T> dbDefs= {
         {"data/auth.db", "auth", {
             {DB_NS::TableNames::CLIENTS, {"id", "initial_code", "auth_code", "client_id", "role"}, {"INTEGER", "TEXT", "TEXT", "TEXT", "INTEGER"}},
-            {DB_NS::TableNames::APPS, {"id", "sequence_key", "public_key", "private_key", "app_id", "role"}, {"INTEGER", "TEXT", "TEXT", "TEXT", "TEXT", "INTEGER"}}
+            {DB_NS::TableNames::APPS, {"id", "auth_code", "public_key", "private_key", "app_id", "role"}, {"INTEGER", "TEXT", "TEXT", "TEXT", "TEXT", "INTEGER"}}
         }},
         {"data/blobs.db", "blobs", {
             {DB_NS::TableNames::CLIENT_BLOBS, {"id", "blob", "owner_client_id"}, {"INTEGER", "BLOB", "TEXT"}},

@@ -2,6 +2,16 @@
 
 API::API(){
     this->endpoints = std::vector<Endpoint*>();
+    CubeAuth *auth = new CubeAuth();
+    std::pair<std::string,std::string> keys = auth->generateKeyPair();
+    CubeLog::info("Public key: " + keys.first);
+    CubeLog::info("Private key: " + keys.second);
+    std::string myData = "Hello, world! ";
+    std::string encrypted = auth->encryptData(myData, keys.first);
+    CubeLog::info("Encrypted data: " + encrypted);
+    std::string decrypted = auth->decryptData(encrypted, keys.second, myData.length());
+    CubeLog::info("Decrypted data: " + decrypted);
+    delete auth;
 }
 
 API::~API(){

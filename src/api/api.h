@@ -17,6 +17,7 @@
 #include <iostream>
 #include <memory>
 #include <latch>
+#include "authentication.h"
 
 typedef std::vector<std::pair<std::string, std::string>> EndPointParams_t;
 typedef std::vector<std::pair<bool,std::function<std::string(std::string, EndPointParams_t)>>> EndPointData_t;
