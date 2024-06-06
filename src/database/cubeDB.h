@@ -1,7 +1,8 @@
 #pragma once
 #include "db.h"
+#include "../api/api.h"
 
-class CubeDB{
+class CubeDB : public I_API_Interface{
     static std::shared_ptr<CubeDatabaseManager> dbManager;
     static std::shared_ptr<BlobsManager> blobsManager;
     static bool isDBManagerSet;
@@ -14,4 +15,7 @@ public:
     static void setBlobsManager(std::shared_ptr<BlobsManager> blobsManager);
     static std::shared_ptr<CubeDatabaseManager> DBManager();
     static std::shared_ptr<BlobsManager> GetBlobsManager();
+    EndPointData_t getEndpointData() override;
+    std::vector<std::string> getEndpointNames() override;
+    std::string getIntefaceName() const override;
 };
