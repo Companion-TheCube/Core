@@ -14,6 +14,7 @@ class CubeAuth{
     static bool available;
     static std::string privateKey;
     static std::string publicKey;
+    std::string lastError;
 public:
     CubeAuth();
     ~CubeAuth();
@@ -24,6 +25,7 @@ public:
     std::string decryptAuthCode(std::string auth_code, std::string private_key);
     std::string encryptData(std::string data, std::string public_key);
     std::string decryptData(std::string data, std::string private_key, size_t length);
+    std::string getLastError();
 
     enum AUTH_CODES{
         AUTH_FAIL_UNKNOWN = -1,

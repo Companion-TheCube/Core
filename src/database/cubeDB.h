@@ -1,6 +1,6 @@
 #pragma once
 #include "db.h"
-#include "../api/api.h"
+#include "../api/api_i.h"
 
 class CubeDB : public I_API_Interface{
     static std::shared_ptr<CubeDatabaseManager> dbManager;

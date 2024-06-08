@@ -1,4 +1,6 @@
 // TODO: Need to add a sort of status bar to the top of the screen. It should show the time and whether or not a person is detected. probably more.
+// TODO: we should monitor the CubeLog for errors and display them in the status bar. This will require a way to get the last error message from the CubeLog.
+
 
 #include "./gui.h"
 
@@ -18,14 +20,14 @@ GUI::GUI()
 }
 
 /**
- * @brief Destroy the GUI::GUI object
+ * @brief Destroy the GUI::GUI object. Deletes the renderer and joins the event loop thread
  * 
  */
 GUI::~GUI()
 {
     delete this->renderer;
-    CubeLog::log("GUI destroyed", true);
     this->eventLoopThread.join();
+    CubeLog::log("GUI destroyed", true);
 }
 
 /**

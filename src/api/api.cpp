@@ -1,19 +1,29 @@
 #include "api.h"
 
+/**
+ * @brief Construct a new API::API object
+ * 
+ */
 API::API(){
     this->endpoints = std::vector<Endpoint*>();
     CubeAuth *auth = new CubeAuth();
+    //// TESTING AUTHENTICATION ////
     std::pair<std::string,std::string> keys = auth->generateKeyPair();
     CubeLog::info("Public key: " + keys.first);
     CubeLog::info("Private key: " + keys.second);
-    std::string myData = "Hello, world! ";
+    std::string myData = "To generate true random integers in C++, you can use the facilities provided by the <random> header, which offers a wide range of random number generation utilities. Here’s an example of how you can generate true random integers:";
     std::string encrypted = auth->encryptData(myData, keys.first);
     CubeLog::info("Encrypted data: " + encrypted);
     std::string decrypted = auth->decryptData(encrypted, keys.second, myData.length());
     CubeLog::info("Decrypted data: " + decrypted);
     delete auth;
+    //// END TESTING AUTHENTICATION ////
 }
 
+/**
+ * @brief Destroy the API::API object. This deletes all endpoints and stops the API.
+ * 
+ */
 API::~API(){
     for(auto endpoint : this->endpoints){
         delete endpoint;
@@ -21,20 +31,35 @@ API::~API(){
     this->stop();
 }
 
+/**
+ * @brief Start the API. This starts the API listener thread and the HTTP server.
+ * 
+ */
 void API::start(){
     // start the API
     CubeLog::log("API starting...", true);
     this->listenerThread = std::jthread(&API::httpApiThreadFn, this);
 }
 
+/**
+ * @brief Stop the API. This stops the API listener thread and the HTTP server.
+ * 
+ */
 void API::stop(){
     // stop the API
     CubeLog::log("API stopping...", true);
     this->listenerThread.request_stop();
     this->server->stop();
     this->listenerThread.join();
+    delete this->server;
+    this->server = nullptr;
+    CubeLog::log("API stopped", true);
 }
 
+/**
+ * @brief Restart the API. This stops the API and then starts it again.
+ * 
+ */
 void API::restart(){
     // restart the API
     CubeLog::log("API restarting...", true);
@@ -42,6 +67,14 @@ void API::restart(){
     this->start();
 }
 
+/**
+ * @brief Add an endpoint to the API. This creates a new endpoint object and adds it to the list of endpoints.
+ * 
+ * @param name the name of the endpoint
+ * @param path the path of the endpoint
+ * @param publicEndpoint whether the endpoint is public or not
+ * @param action the action to take when the endpoint is called
+ */
 void API::addEndpoint(std::string name, std::string path, bool publicEndpoint, std::function<std::string(std::string response, std::vector<std::pair<std::string, std::string>> params)> action){
     // add an endpoint
     CubeLog::log("Adding endpoint: " + name + " at " + path, true);
@@ -50,11 +83,22 @@ void API::addEndpoint(std::string name, std::string path, bool publicEndpoint, s
     this->endpoints.push_back(endpoint);
 }
 
+/**
+ * @brief Get all endpoints in the API.
+ * 
+ * @return std::vector<Endpoint*> a vector of all endpoints
+ */
 std::vector<Endpoint*> API::getEndpoints(){
     // get all endpoints
     return this->endpoints;
 }
 
+/**
+ * @brief Get an endpoint by name.
+ * 
+ * @param name the name of the endpoint
+ * @return Endpoint* the endpoint
+ */
 Endpoint* API::getEndpointByName(std::string name){
     // get an endpoint by name
     for(auto endpoint : this->endpoints){
@@ -65,6 +109,12 @@ Endpoint* API::getEndpointByName(std::string name){
     return nullptr;
 }
 
+/**
+ * @brief Remove an endpoint by name.
+ * 
+ * @param name the name of the endpoint
+ * @return true if the endpoint was removed, false otherwise
+ */
 bool API::removeEndpoint(std::string name){
     // remove an endpoint by name
     for(auto endpoint : this->endpoints){
@@ -77,12 +127,23 @@ bool API::removeEndpoint(std::string name){
     return false;
 }
 
+/**
+ * @brief The API listener thread function. This function is called when the API listener thread is started and runs until the thread API listener thread is stopped.
+ * Expected to started as a std::jthread.
+ * 
+ */
 void API::httpApiThreadFn(){
     CubeLog::log("API listener thread starting...", true);
     try{
         this->server = new CubeHttpServer("0.0.0.0", 55280);
         // TODO: set up authentication
         for(size_t i = 0; i < this->endpoints.size(); i++){
+            // TODO: need to document the difference between public and non public endpoints. Public endpoints are accessible by any device on the 
+            // network. Non public endpoints are only available to devices that have been authenticated. The authentication process is not yet implemented.
+            // Non public endpoints are those that perform actions on the Cube such as displaying messages on the screen, changing the brightness, etc.
+            // Public endpoints are those that provide information about the Cube such as human presence, temperature, etc.
+            // Certain public endpoints should have the option to be secured as well. For example, the endpoint that provides the current state of human
+            // presence may be set to private if the user does not want to share that information with others on the network.
             if(this->endpoints.at(i)->isPublic()){
                 CubeLog::log("Adding public endpoint: " + this->endpoints.at(i)->getName() + " at " + this->endpoints.at(i)->getPath(), true);
                 this->server->addEndpoint(this->endpoints[i]->getPath(), [&, i](const httplib::Request &req, httplib::Response &res){
@@ -97,8 +158,12 @@ void API::httpApiThreadFn(){
                         response += param.first + ": " + param.second + "\n";
                         params.push_back({param.first, param.second});
                     }
-                    res.set_content(response, "text/plain");
+                    res.set_content(response, "text/plain"); // TODO: the response should be the return value of the endpoint action function. see below.
+                    // TODO: the response string is built from the data received from the client. Instead of using a string, we should
+                    // use some sort of object and pass that object to the endpoint action function. It can include the params as well
+                    // so that we are only passing one object to the endpoint action function.
                     std::string returned = this->endpoints.at(i)->doAction(response, params);
+                    // TODO: the returned string should be sent back to the client instead of just logging it. see above.
                     CubeLog::log("Endpoint action returned: " + returned, true);
                 });
             }else{
@@ -130,51 +195,109 @@ void API::httpApiThreadFn(){
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
+/**
+ * @brief Construct a new Endpoint::Endpoint object
+ * 
+ * @param publicEndpoint 
+ * @param name 
+ * @param path 
+ */
 Endpoint::Endpoint(bool publicEndpoint, std::string name, std::string path){
     this->publicEndpoint = publicEndpoint;
     this->name = name;
     this->path = path;
 }
 
+/**
+ * @brief Destroy the Endpoint::Endpoint object
+ * 
+ */
 Endpoint::~Endpoint(){
+    // do nothing
 }
 
+/**
+ * @brief Get the name of the endpoint
+ * 
+ * @return std::string the name of the endpoint
+ */
 std::string Endpoint::getName(){
     return this->name;
 }
 
+/**
+ * @brief Get the path of the endpoint
+ * 
+ * @return std::string the path of the endpoint
+ */
 std::string Endpoint::getPath(){
     return this->path;
 }
 
+/**
+ * @brief Check if the endpoint is public
+ * 
+ * @return true if the endpoint is public, false otherwise
+ */
 bool Endpoint::isPublic(){
     return this->publicEndpoint;
 }
 
+/**
+ * @brief Set the action to take when the endpoint is called
+ * 
+ * @param action the action to take
+ */
 void Endpoint::setAction(std::function<std::string(std::string response, EndPointParams_t params)> action){
     this->action = action;
 }
 
+/**
+ * @brief Perform the action when the endpoint is called // TODO: response and params parameters should be combined into a single object
+ * 
+ * @param response the response from the client
+ * @param params the parameters from the client
+ * @return std::string the response to send back to the client
+ */
 std::string Endpoint::doAction(std::string response, EndPointParams_t params){
     return this->action(response, params);
 }
 
+/**
+ * @brief Get the action to take when the endpoint is called
+ * 
+ * @return std::function<std::string(std::string, EndPointParams_t)> the action to take
+ */
 std::function <std::string(std::string response, EndPointParams_t params)> Endpoint::getAction(){
     return this->action;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
+/**
+ * @brief Construct a new CubeHttpServer::CubeHttpServer object
+ * 
+ * @param address the address to bind the server to
+ * @param port the port to bind the server to
+ */
 CubeHttpServer::CubeHttpServer(std::string address, int port){
     this->address = address;
     this->port = port;
     this->server = new httplib::Server();
 }
 
+/**
+ * @brief Destroy the CubeHttpServer::CubeHttpServer object. This deletes the server object.
+ * 
+ */
 CubeHttpServer::~CubeHttpServer(){
     delete this->server;
 }
 
+/**
+ * @brief Start the server. This binds the server to the address and port and starts listening for requests.
+ * 
+ */
 void CubeHttpServer::start(){
     // start the server
     CubeLog::log("HTTP server starting...", true);
