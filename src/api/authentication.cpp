@@ -1,5 +1,11 @@
 #include "authentication.h"
 
+/**
+ * @brief Generate a random key of a given length using the charset of 0-9, A-Z, a-z
+ * 
+ * @param length 
+ * @return std::string 
+ */
 std::string KeyGenerator(size_t length)
 {
     std::string charset = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -14,6 +20,11 @@ std::string KeyGenerator(size_t length)
     return result;
 }
 
+/**
+ * @brief Generate a random 6 character code using the charset of 0-9, A-Z, a-z, and special characters
+ * 
+ * @return std::string 
+ */
 std::string Code6Generator()
 {
     std::string charset = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890123456789+=&%$#@!";
@@ -34,6 +45,10 @@ bool CubeAuth::available = false;
 std::string CubeAuth::privateKey = "";
 std::string CubeAuth::publicKey = "";
 
+/**
+ * @brief Construct a new CubeAuth object
+ * 
+ */
 CubeAuth::CubeAuth()
 {
     CubeLog::info("Authentication module starting...");
@@ -42,17 +57,31 @@ CubeAuth::CubeAuth()
         this->lastError = "Failed to initialize libsodium.";
         return;
     }
+    // TODO: get the public and private keys from the database or file instead of generating them. Perhaps load them
+    // from .pem files or something similar.
     std::pair<std::string,std::string> keyPair = generateKeyPair();
     CubeAuth::privateKey = keyPair.second;
     CubeAuth::publicKey = keyPair.first;
     CubeAuth::available = true;
 }
 
+/**
+ * @brief Destroy the CubeAuth object
+ * 
+ */
 CubeAuth::~CubeAuth()
 {
     CubeLog::log("Authentication module stopping...", true);
 }
 
+/**
+ * @brief Check the authentication code
+ * 
+ * @param privateKey 
+ * @param app_id 
+ * @param encrypted_auth_code 
+ * @return int CubeAuth::AUTH_CODES
+ */
 int CubeAuth::checkAuth(std::string privateKey, std::string app_id, std::string encrypted_auth_code)
 {
     if(!CubeAuth::available){
@@ -115,11 +144,21 @@ int CubeAuth::checkAuth(std::string privateKey, std::string app_id, std::string 
     return CubeAuth::AUTH_SUCCESS;
 }
 
+/**
+ * @brief Generate a random 6 character code
+ * 
+ * @return std::string 
+ */
 std::string CubeAuth::generateAuthCode()
 {
     return Code6Generator();
 }
 
+/**
+ * @brief Generate a public/private key pair
+ * 
+ * @return std::pair<std::string, std::string> First is the public key, second is the private key
+ */
 std::pair<std::string,std::string> CubeAuth::generateKeyPair()
 {
     std::string public_key(crypto_box_PUBLICKEYBYTES, 0);
@@ -128,6 +167,13 @@ std::pair<std::string,std::string> CubeAuth::generateKeyPair()
     return std::make_pair(public_key, private_key);
 }
 
+/**
+ * @brief Encrypt an auth code using a public key
+ * 
+ * @param auth_code 
+ * @param public_key 
+ * @return std::string 
+ */
 std::string CubeAuth::encryptAuthCode(std::string auth_code, std::string public_key)
 {
     unsigned char nonce[crypto_secretbox_NONCEBYTES];
@@ -152,6 +198,13 @@ std::string CubeAuth::encryptAuthCode(std::string auth_code, std::string public_
     return encrypted_auth_code_str;
 }
 
+/**
+ * @brief Decrypt an auth code using a private key
+ * 
+ * @param auth_code 
+ * @param private_key 
+ * @return std::string 
+ */
 std::string CubeAuth::decryptAuthCode(std::string auth_code, std::string private_key)
 {
     unsigned char decrypted_auth_code[6];
@@ -174,6 +227,13 @@ std::string CubeAuth::decryptAuthCode(std::string auth_code, std::string private
     return std::string((char*)decrypted_auth_code, 6);
 }
 
+/**
+ * @brief Encrypt data using a public key
+ * 
+ * @param data 
+ * @param public_key 
+ * @return std::string 
+ */
 std::string CubeAuth::encryptData(std::string data, std::string public_key)
 {
     if(data.length() > 65535){
@@ -203,6 +263,14 @@ std::string CubeAuth::encryptData(std::string data, std::string public_key)
     return encrypted_data_str;
 }
 
+/**
+ * @brief Decrypt data using a private key
+ * 
+ * @param data 
+ * @param private_key 
+ * @param length 
+ * @return std::string 
+ */
 std::string CubeAuth::decryptData(std::string data, std::string private_key, size_t length)
 {
     unsigned char* decrypted_data = new unsigned char[length];
@@ -227,6 +295,11 @@ std::string CubeAuth::decryptData(std::string data, std::string private_key, siz
     return decrypted_data_str;
 }
 
+/**
+ * @brief Get the last error message
+ * 
+ * @return std::string 
+ */
 std::string CubeAuth::getLastError()
 {
     return this->lastError;

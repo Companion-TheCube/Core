@@ -5,6 +5,12 @@ std::shared_ptr<BlobsManager> CubeDB::blobsManager = nullptr;
 bool CubeDB::isDBManagerSet = false;
 bool CubeDB::isBlobsManagerSet = false;
 
+/**
+ * @brief Construct a new CubeDB object
+ * 
+ * @param dbManager Use std::make_shared<CubeDatabaseManager>() to create this object
+ * @param blobsManager Use std::make_shared<BlobsManager>(dbManager, path) to create this object
+ */
 CubeDB::CubeDB(std::shared_ptr<CubeDatabaseManager> dbManager, std::shared_ptr<BlobsManager> blobsManager)
 {
     this->dbManager = dbManager;
@@ -13,18 +19,33 @@ CubeDB::CubeDB(std::shared_ptr<CubeDatabaseManager> dbManager, std::shared_ptr<B
     CubeDB::isBlobsManagerSet = true;
 }
 
+/**
+ * @brief Set the CubeDBManager object
+ * 
+ * @param dbManager 
+ */
 void CubeDB::setCubeDBManager(std::shared_ptr<CubeDatabaseManager> dbManager)
 {
     CubeDB::dbManager = dbManager;
     CubeDB::isDBManagerSet = true;
 }
 
+/**
+ * @brief Set the Blobs Manager object
+ * 
+ * @param blobsManager 
+ */
 void CubeDB::setBlobsManager(std::shared_ptr<BlobsManager> blobsManager)
 {
     CubeDB::blobsManager = blobsManager;
     CubeDB::isBlobsManagerSet = true;
 }
 
+/**
+ * @brief Get the CubeDBManager object
+ * 
+ * @return std::shared_ptr<CubeDatabaseManager> 
+ */
 std::shared_ptr<CubeDatabaseManager> CubeDB::DBManager()
 {
     if(!CubeDB::isDBManagerSet){
@@ -33,6 +54,11 @@ std::shared_ptr<CubeDatabaseManager> CubeDB::DBManager()
     return CubeDB::dbManager;
 }
 
+/**
+ * @brief Get the Blobs Manager object
+ * 
+ * @return std::shared_ptr<BlobsManager> 
+ */
 std::shared_ptr<BlobsManager> CubeDB::GetBlobsManager()
 {
     if(!CubeDB::isBlobsManagerSet){
@@ -41,18 +67,22 @@ std::shared_ptr<BlobsManager> CubeDB::GetBlobsManager()
     return CubeDB::blobsManager;
 }
 
+/**
+ * @brief Get the Endpoint Data object
+ * 
+ * @return EndPointData_t 
+ */
 EndPointData_t CubeDB::getEndpointData()
 {
     // TODO: fill in the database endpoints
     EndPointData_t data;
-    data.push_back({true, [&](std::string response, EndPointParams_t params){
+    data.push_back({false, [&](std::string response, EndPointParams_t params){
         // TODO: test this function
         std::string blob = "none";
         std::string client_id = "none";
         std::string app_id = "none";
-        std::string auth_code = "none";
         for(auto param : params){
-            if(param.first == "blob"){
+            if(param.first == "blob"){ // TODO: the params (response, params) sent to this lambda will be combined and will include the body of the request which will be the blob
                 blob = param.second;
             }
             if(param.first == "client_id"){
@@ -61,38 +91,26 @@ EndPointData_t CubeDB::getEndpointData()
             if(param.first == "app_id"){
                 app_id = param.second;
             }
-            if(param.first == "auth_code"){
-                auth_code = param.second;
-            }
-        }
-        // check auth
-        if(client_id != "none"){
-            if(!CubeDB::DBManager()->getDatabase("auth")->rowExists("clients", "client_id = '" + client_id + "' AND auth_code = '" + auth_code + "'")){
-                CubeLog::error("Client auth failed");
-                return "Client auth failed";
-            }
-        }else if(app_id != "none"){
-            if(!CubeDB::DBManager()->getDatabase("auth")->rowExists("apps", "app_id = '" + app_id + "' AND auth_code = '" + auth_code + "'")){
-                CubeLog::error("App auth failed");
-                return "App auth failed";
-            }
-        }else{
-            CubeLog::error("No client_id or app_id provided");
-            return "No client_id or app_id provided";
         }
         if(client_id != "none"){
             CubeDB::DBManager()->getDatabase("blobs")->insertData("client_blobs", {"blob", "owner_client_id"}, {blob, client_id});
+            CubeLog::info("Blob saved");
         }else if(app_id != "none"){
             CubeDB::DBManager()->getDatabase("blobs")->insertData("app_blobs", {"blob", "owner_app_id"}, {blob, app_id});
+            CubeLog::info("Blob saved");
         }else{
             CubeLog::error("No client_id or app_id provided");
         }
-        CubeLog::info("Blob saved");
         return "saveBlob called";
     }});
     return data;
 }
 
+/**
+ * @brief Get the Endpoint Names object
+ * 
+ * @return std::vector<std::string> 
+ */
 std::vector<std::string> CubeDB::getEndpointNames()
 {
     std::vector<std::string> names;
@@ -100,6 +118,11 @@ std::vector<std::string> CubeDB::getEndpointNames()
     return names;
 }
 
+/**
+ * @brief Get the Inteface Name object
+ * 
+ * @return std::string 
+ */
 std::string CubeDB::getIntefaceName() const
 {
     return "CubeDB";

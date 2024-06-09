@@ -9,6 +9,10 @@ class CubeDB : public I_API_Interface{
     static bool isBlobsManagerSet;
 public:
     CubeDB(std::shared_ptr<CubeDatabaseManager> dbManager, std::shared_ptr<BlobsManager> blobsManager);
+    /**
+     * @brief Construct a new CubeDB object
+     * 
+     */
     CubeDB(){};
     ~CubeDB(){};
     static void setCubeDBManager(std::shared_ptr<CubeDatabaseManager> dbManager);

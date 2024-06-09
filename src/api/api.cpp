@@ -311,12 +311,20 @@ void CubeHttpServer::start(){
     this->server->listen_after_bind();
 }
 
+/**
+ * @brief Stop the server. This stops the server from listening for requests.
+ * 
+ */
 void CubeHttpServer::stop(){
     // stop the server
     CubeLog::log("HTTP server stopping...", true);
     this->server->stop();
 }
 
+/**
+ * @brief Restart the server. This stops the server and then starts it again.
+ * 
+ */
 void CubeHttpServer::restart(){
     // restart the server
     CubeLog::log("HTTP server restarting...", true);
@@ -324,11 +332,22 @@ void CubeHttpServer::restart(){
     this->start();
 }
 
+/**
+ * @brief Add an endpoint to the server.
+ * 
+ * @param path the path of the endpoint
+ * @param action the action to take when the endpoint is called
+ */
 void CubeHttpServer::addEndpoint(std::string path, std::function<void(const httplib::Request&, httplib::Response&)> action){
     // add an endpoint
     this->server->Get(path.c_str(), action);
 }
 
+/**
+ * @brief Remove an endpoint from the server.
+ * 
+ * @param path the path of the endpoint
+ */
 void CubeHttpServer::removeEndpoint(std::string path){
     // remove an endpoint
     auto action = [](const httplib::Request &req, httplib::Response &res){
@@ -338,15 +357,30 @@ void CubeHttpServer::removeEndpoint(std::string path){
     this->server->Delete(path.c_str(), action);
 }
 
+/**
+ * @brief Set the port to bind the server to.
+ * 
+ * @param port the port to bind the server to
+ */
 void CubeHttpServer::setPort(int port){
     this->port = port;
     this->restart();
 }
 
+/**
+ * @brief Get the port the server is bound to.
+ * 
+ * @return int the port the server is bound to
+ */
 int CubeHttpServer::getPort(){
     return this->port;
 }
 
+/**
+ * @brief Get the server object.
+ * 
+ * @return httplib::Server* the server object
+ */
 httplib::Server* CubeHttpServer::getServer(){
     return this->server;
 }
