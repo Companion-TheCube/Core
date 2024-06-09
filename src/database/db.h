@@ -6,7 +6,8 @@
 #include <filesystem>
 #include <logger.h>
 #include <exception>
-
+#include <functional>
+#include <utils.h>
 
 namespace DB_NS{
     typedef struct Table_T{
@@ -78,6 +79,10 @@ class CubeDatabaseManager{
             {DB_NS::TableNames::APP_BLOBS, {"id", "blob", "owner_app_id"}, {"INTEGER", "BLOB", "TEXT"}}
         }}
     };
+    TaskQueue dbQueue;
+    std::jthread dbThread;
+    std::stop_token dbStopToken;
+    void dbWorker();
 public:
     CubeDatabaseManager();
     ~CubeDatabaseManager();
@@ -89,7 +94,7 @@ public:
     void openAll();
     void closeDatabase(std::string dbName);
     bool openDatabase(std::string dbName);
-
+    void addDbTask(std::function<void()> task);
 };
 
 class BlobsManager{

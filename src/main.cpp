@@ -29,16 +29,6 @@ int saw(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, doubl
     return 0;
 }
 
-void genericSleep(int ms)
-{
-#ifdef __linux__
-    usleep(ms * 1000);
-#endif
-#ifdef _WIN32
-    Sleep(ms);
-#endif
-}
-
 int main(int argc, char* argv[])
 {
     std::cout << "Starting..." << std::endl;
@@ -226,12 +216,13 @@ int main(int argc, char* argv[])
         auto db_cube = std::make_shared<CubeDatabaseManager>();
         auto blobs = std::make_shared<BlobsManager>(db_cube, "data/blobs.db");
         auto cubeDB = std::make_shared<CubeDB>(db_cube, blobs);
-        CubeDB::GetBlobsManager()->addBlob("client_blobs", "test blob", "1");
+        CubeDB::getBlobsManager()->addBlob("client_blobs", "test blob", "1");
         // db_cube->openAll();
         auto gui = std::make_shared<GUI>();
         auto api = std::make_shared<API>();
         API_Builder api_builder(api);
         api_builder.addInterface(gui);
+        api_builder.addInterface(cubeDB);
         api_builder.start();
         bool running = true;
         CubeLog::log("Entering main loop...", true);

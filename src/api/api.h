@@ -9,32 +9,35 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #endif
+#ifndef WIN32_INCLUDED
+#define WIN32_INCLUDED
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
 #endif
+#endif
 #include <iostream>
 #include <memory>
 #include <latch>
 #include "authentication.h"
-#include "api_i.h"
+// #include "api_i.h"
 
 class Endpoint {
 private:
     std::string name;
     std::string path;
     bool publicEndpoint;
-    std::function<std::string(std::string, EndPointParams_t)> action;
+    std::function<std::string(const httplib::Request &req)> action;
 public:
     Endpoint(bool publicEndpoint, std::string name, std::string path);
     ~Endpoint();
     std::string getName();
     std::string getPath();
     bool isPublic();
-    void setAction(std::function<std::string(std::string, EndPointParams_t)> action);
-    std::string doAction(std::string, EndPointParams_t);
-    std::function<std::string(std::string, EndPointParams_t)> getAction();
+    void setAction(std::function<std::string(const httplib::Request &req)> action);
+    std::string doAction(const httplib::Request &req);
+    std::function<std::string(const httplib::Request &req)> getAction();
 };
 
 class CubeHttpServer {
@@ -67,7 +70,7 @@ public:
     void start();
     void stop();
     void restart();
-    void addEndpoint(std::string name, std::string path, bool publicEndpoint, std::function<std::string(std::string response, std::vector<std::pair<std::string, std::string>> params)> action);
+    void addEndpoint(std::string name, std::string path, bool publicEndpoint, std::function<std::string(const httplib::Request &req)> action);
     std::vector<Endpoint*> getEndpoints();
     Endpoint* getEndpointByName(std::string name);
     bool removeEndpoint(std::string name);

@@ -11,7 +11,7 @@ API::API(){
     std::pair<std::string,std::string> keys = auth->generateKeyPair();
     CubeLog::info("Public key: " + keys.first);
     CubeLog::info("Private key: " + keys.second);
-    std::string myData = "To generate true random integers in C++, you can use the facilities provided by the <random> header, which offers a wide range of random number generation utilities. Here’s an example of how you can generate true random integers:";
+    std::string myData = "To generate true random integers in C++, you can use the facilities provided by the <random> header, which offers a wide range of random number generation utilities. Here's an example of how you can generate true random integers:";
     std::string encrypted = auth->encryptData(myData, keys.first);
     CubeLog::info("Encrypted data: " + encrypted);
     std::string decrypted = auth->decryptData(encrypted, keys.second, myData.length());
@@ -75,7 +75,7 @@ void API::restart(){
  * @param publicEndpoint whether the endpoint is public or not
  * @param action the action to take when the endpoint is called
  */
-void API::addEndpoint(std::string name, std::string path, bool publicEndpoint, std::function<std::string(std::string response, std::vector<std::pair<std::string, std::string>> params)> action){
+void API::addEndpoint(std::string name, std::string path, bool publicEndpoint, std::function<std::string(const httplib::Request &req)> action){
     // add an endpoint
     CubeLog::log("Adding endpoint: " + name + " at " + path, true);
     Endpoint *endpoint = new Endpoint(publicEndpoint, name, path);
@@ -147,22 +147,8 @@ void API::httpApiThreadFn(){
             if(this->endpoints.at(i)->isPublic()){
                 CubeLog::log("Adding public endpoint: " + this->endpoints.at(i)->getName() + " at " + this->endpoints.at(i)->getPath(), true);
                 this->server->addEndpoint(this->endpoints[i]->getPath(), [&, i](const httplib::Request &req, httplib::Response &res){
-                    std::string response;
-                    response += "Endpoint: " + this->endpoints.at(i)->getName() + "\n\n";
-                    response += "Method: " + req.method + "\n";
-                    response += "Path: " + req.path + "\n";
-                    response += "Body: " + req.body + "\n";
-                    response += "Params: \n";
-                    std::vector<std::pair<std::string, std::string>> params;
-                    for(auto param : req.params){
-                        response += param.first + ": " + param.second + "\n";
-                        params.push_back({param.first, param.second});
-                    }
-                    res.set_content(response, "text/plain"); // TODO: the response should be the return value of the endpoint action function. see below.
-                    // TODO: the response string is built from the data received from the client. Instead of using a string, we should
-                    // use some sort of object and pass that object to the endpoint action function. It can include the params as well
-                    // so that we are only passing one object to the endpoint action function.
-                    std::string returned = this->endpoints.at(i)->doAction(response, params);
+                    std::string returned = this->endpoints.at(i)->doAction(req);
+                    res.set_content(returned, "text/plain");
                     // TODO: the returned string should be sent back to the client instead of just logging it. see above.
                     CubeLog::log("Endpoint action returned: " + returned, true);
                 });
@@ -170,7 +156,7 @@ void API::httpApiThreadFn(){
                 this->server->addEndpoint(this->endpoints.at(i)->getPath(), [&](const httplib::Request &req, httplib::Response &res){
                     res.set_content("Endpoint not public", "text/plain");
                     res.status = httplib::StatusCode::Forbidden_403;
-                });
+            });
                 // TODO: add non public endpoints
             }
         }
@@ -248,7 +234,7 @@ bool Endpoint::isPublic(){
  * 
  * @param action the action to take
  */
-void Endpoint::setAction(std::function<std::string(std::string response, EndPointParams_t params)> action){
+void Endpoint::setAction(std::function<std::string(const httplib::Request &req)> action){
     this->action = action;
 }
 
@@ -259,8 +245,8 @@ void Endpoint::setAction(std::function<std::string(std::string response, EndPoin
  * @param params the parameters from the client
  * @return std::string the response to send back to the client
  */
-std::string Endpoint::doAction(std::string response, EndPointParams_t params){
-    return this->action(response, params);
+std::string Endpoint::doAction(const httplib::Request &req){
+    return this->action(req);
 }
 
 /**
@@ -268,7 +254,7 @@ std::string Endpoint::doAction(std::string response, EndPointParams_t params){
  * 
  * @return std::function<std::string(std::string, EndPointParams_t)> the action to take
  */
-std::function <std::string(std::string response, EndPointParams_t params)> Endpoint::getAction(){
+std::function <std::string(const httplib::Request &req)> Endpoint::getAction(){
     return this->action;
 }
 

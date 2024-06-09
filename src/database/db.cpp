@@ -597,6 +597,8 @@ CubeDatabaseManager::CubeDatabaseManager()
         }
         this->addDatabase(this->dbDefs[i].path);
     }
+    dbThread = std::jthread(&CubeDatabaseManager::dbWorker, this);
+    dbStopToken = dbThread.get_stop_token();
 }
 
 /**
@@ -605,7 +607,11 @@ CubeDatabaseManager::CubeDatabaseManager()
  */
 CubeDatabaseManager::~CubeDatabaseManager()
 {
+    CubeLog::info("CubeDatabaseManager closing");
     this->closeAll();
+    std::stop_token st = dbThread.get_stop_token();
+    dbThread.request_stop();
+    dbThread.join();
 }
 
 /**
@@ -742,6 +748,23 @@ bool CubeDatabaseManager::openDatabase(std::string dbName)
     }
     CubeLog::error("Database not found: " + dbName);
     return false;
+}
+
+void CubeDatabaseManager::dbWorker()
+{
+    while(true){
+        while (this->dbQueue.size() > 0) {
+            auto task = this->dbQueue.pop();
+            task();
+        }
+        genericSleep(100);
+        if(dbStopToken.stop_requested()) break;
+    }
+}
+
+void CubeDatabaseManager::addDbTask(std::function<void()> task)
+{
+    this->dbQueue.push(task);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////

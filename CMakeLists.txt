@@ -87,6 +87,7 @@ set(SQLITECPP_RUN_CPPCHECK OFF CACHE BOOL "" FORCE)
 set(SQLITECPP_RUN_CPPLINT OFF CACHE BOOL "" FORCE)
 add_subdirectory(${CMAKE_SOURCE_DIR}/libraries/SQLiteCpp)
 
+include_directories(${CMAKE_SOURCE_DIR}/src)
 include_directories(${CMAKE_SOURCE_DIR}/src/logger)
 include_directories(${CMAKE_SOURCE_DIR}/libraries)
 include_directories(${CMAKE_SOURCE_DIR}/src/settings)

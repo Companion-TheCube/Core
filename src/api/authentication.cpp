@@ -99,7 +99,7 @@ int CubeAuth::checkAuth(std::string privateKey, std::string app_id, std::string 
         this->lastError = "Invalid app id length.";
         return CubeAuth::AUTH_FAIL_INVALID_APP_ID_LEN;
     }
-    Database* db = CubeDB::DBManager()->getDatabase("auth");
+    Database* db = CubeDB::getDBManager()->getDatabase("auth");
     if(!db->isOpen()){
         CubeLog::error("Database not open.");
         this->lastError = "Database not open.";

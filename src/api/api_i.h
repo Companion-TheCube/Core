@@ -4,9 +4,10 @@
 #include <functional>
 #include <logger.h>
 #include <thread>
+#include <httplib.h>
 
 typedef std::vector<std::pair<std::string, std::string>> EndPointParams_t;
-typedef std::vector<std::pair<bool,std::function<std::string(std::string, EndPointParams_t)>>> EndPointData_t;
+typedef std::vector<std::pair<bool,std::function<std::string(const httplib::Request &req)>>> EndPointData_t;
 
 
 class I_API_Interface {

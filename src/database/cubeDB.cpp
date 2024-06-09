@@ -46,7 +46,7 @@ void CubeDB::setBlobsManager(std::shared_ptr<BlobsManager> blobsManager)
  * 
  * @return std::shared_ptr<CubeDatabaseManager> 
  */
-std::shared_ptr<CubeDatabaseManager> CubeDB::DBManager()
+std::shared_ptr<CubeDatabaseManager> CubeDB::getDBManager()
 {
     if(!CubeDB::isDBManagerSet){
         throw std::runtime_error("CubeDBManager not set");
@@ -59,7 +59,7 @@ std::shared_ptr<CubeDatabaseManager> CubeDB::DBManager()
  * 
  * @return std::shared_ptr<BlobsManager> 
  */
-std::shared_ptr<BlobsManager> CubeDB::GetBlobsManager()
+std::shared_ptr<BlobsManager> CubeDB::getBlobsManager()
 {
     if(!CubeDB::isBlobsManagerSet){
         throw std::runtime_error("BlobsManager not set");
@@ -76,13 +76,12 @@ EndPointData_t CubeDB::getEndpointData()
 {
     // TODO: fill in the database endpoints
     EndPointData_t data;
-    data.push_back({false, [&](std::string response, EndPointParams_t params){
-        // TODO: test this function
+    data.push_back({false, [&](const httplib::Request &req){
         std::string blob = "none";
         std::string client_id = "none";
         std::string app_id = "none";
-        for(auto param : params){
-            if(param.first == "blob"){ // TODO: the params (response, params) sent to this lambda will be combined and will include the body of the request which will be the blob
+        for(auto param : req.params){
+            if(param.first == "blob"){
                 blob = param.second;
             }
             if(param.first == "client_id"){
@@ -93,15 +92,48 @@ EndPointData_t CubeDB::getEndpointData()
             }
         }
         if(client_id != "none"){
-            CubeDB::DBManager()->getDatabase("blobs")->insertData("client_blobs", {"blob", "owner_client_id"}, {blob, client_id});
+            CubeDB::getDBManager()->getDatabase("blobs")->insertData("client_blobs", {"blob", "owner_client_id"}, {blob, client_id});
             CubeLog::info("Blob saved");
         }else if(app_id != "none"){
-            CubeDB::DBManager()->getDatabase("blobs")->insertData("app_blobs", {"blob", "owner_app_id"}, {blob, app_id});
+            CubeDB::getDBManager()->getDatabase("blobs")->insertData("app_blobs", {"blob", "owner_app_id"}, {blob, app_id});
             CubeLog::info("Blob saved");
         }else{
             CubeLog::error("No client_id or app_id provided");
         }
         return "saveBlob called";
+    }});
+    data.push_back({true, [&](const httplib::Request &req){
+        // first we create a buffer to hold the response
+        char* ret = new char[65535];
+        int size = 0;
+        // then we create a lambda function to be executed on the database thread
+        auto fn = [&](){
+            // here we perform the database operation(s)
+            bool success1 = CubeDB::getDBManager()->getDatabase("auth")->insertData(DB_NS::TableNames::CLIENTS, {"initial_code", "auth_code", "client_id", "role"}, {"1234", "5678", "test", "1"});
+            if(!success1){
+                CubeLog::error(CubeDB::getDBManager()->getDatabase("auth")->getLastError());
+            }
+            bool success2 = CubeDB::getDBManager()->getDatabase("auth")->insertData(DB_NS::TableNames::APPS, {"auth_code", "public_key", "private_key", "app_id", "role"}, {"5678", "public", "private", "test", "1"});
+            if(!success2){
+                CubeLog::error(CubeDB::getDBManager()->getDatabase("auth")->getLastError());
+            }
+            // If the operation returns data, we copy it to the response buffer
+            std::string done = success1&&success2?"Data inserted":"Insertion failed";
+            size = done.size();
+            done.copy(ret, size);
+        };
+        // With the lambda function created, we add it to the database thread. It will be executed as soon as possible.
+        CubeDB::getDBManager()->addDbTask(fn);
+        // We wait for the operation to complete in order to return the response. This is a blocking call and is only 
+        // necessary for DB operations that return data. 
+        while(size == 0){
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        // We copy the response buffer to a string and delete the buffer
+        std::string retStr(ret, size);
+        delete[] ret;
+        // We return the response string
+        return retStr;
     }});
     return data;
 }
@@ -115,6 +147,7 @@ std::vector<std::string> CubeDB::getEndpointNames()
 {
     std::vector<std::string> names;
     names.push_back("saveBlob");
+    names.push_back("insertData");
     return names;
 }
 
