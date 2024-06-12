@@ -1,3 +1,5 @@
+// TODO: Interprocess communication between the the CubeCore and the "Apps" which will facilitated through a library that the Apps can use.
+
 #include "api.h"
 
 /**
@@ -6,7 +8,7 @@
  */
 API::API(){
     this->endpoints = std::vector<Endpoint*>();
-    CubeAuth *auth = new CubeAuth();
+    this->auth = new CubeAuth();
     //// TESTING AUTHENTICATION ////
     std::pair<std::string,std::string> keys = auth->generateKeyPair();
     CubeLog::info("Public key: " + keys.first);
@@ -16,7 +18,6 @@ API::API(){
     CubeLog::info("Encrypted data: " + encrypted);
     std::string decrypted = auth->decryptData(encrypted, keys.second, myData.length());
     CubeLog::info("Decrypted data: " + decrypted);
-    delete auth;
     //// END TESTING AUTHENTICATION ////
 }
 

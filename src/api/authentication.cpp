@@ -8,6 +8,7 @@
  */
 std::string KeyGenerator(size_t length)
 {
+    CubeLog::debug("Generating key of length " + std::to_string(length));
     std::string charset = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     std::string result;
     result.resize(length);
@@ -17,6 +18,7 @@ std::string KeyGenerator(size_t length)
     for (size_t i = 0; i < length; i++) {
         result[i] = charset[dis(gen)];
     }
+    CubeLog::debug("Generated key: " + result);
     return result;
 }
 
@@ -27,6 +29,7 @@ std::string KeyGenerator(size_t length)
  */
 std::string Code6Generator()
 {
+    CubeLog::debug("Generating 6 character code");
     std::string charset = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890123456789+=&%$#@!";
     std::string result;
     result.resize(6);
@@ -36,6 +39,7 @@ std::string Code6Generator()
     for (size_t i = 0; i < 6; i++) {
         result[i] = charset[dis(gen)];
     }
+    CubeLog::debug("Generated 6 character code: " + result);
     return result;
 }
 
@@ -44,6 +48,7 @@ std::string Code6Generator()
 bool CubeAuth::available = false;
 std::string CubeAuth::privateKey = "";
 std::string CubeAuth::publicKey = "";
+bool CubeAuth::cubeAuthStaticKeysSet = false;
 
 /**
  * @brief Construct a new CubeAuth object
@@ -57,11 +62,25 @@ CubeAuth::CubeAuth()
         this->lastError = "Failed to initialize libsodium.";
         return;
     }
-    // TODO: get the public and private keys from the database or file instead of generating them. Perhaps load them
-    // from .pem files or something similar.
-    std::pair<std::string,std::string> keyPair = generateKeyPair();
-    CubeAuth::privateKey = keyPair.second;
-    CubeAuth::publicKey = keyPair.first;
+    if(!CubeAuth::cubeAuthStaticKeysSet){
+        std::pair<std::string,std::string> keyPair = generateKeyPair();
+        CubeAuth::privateKey = keyPair.second;
+        CubeAuth::publicKey = keyPair.first;
+        // load the public and private keys from .pem files
+        std::ifstream private_key_file("private_key.pem");
+        std::ifstream public_key_file("public_key.pem");
+        if(private_key_file.is_open() && public_key_file.is_open()){
+            std::string private_key((std::istreambuf_iterator<char>(private_key_file)), std::istreambuf_iterator<char>());
+            std::string public_key((std::istreambuf_iterator<char>(public_key_file)), std::istreambuf_iterator<char>());
+            CubeAuth::privateKey = private_key;
+            CubeAuth::publicKey = public_key;
+            CubeLog::info("Loaded public and private keys from .pem files.");
+        }else{
+            CubeLog::info("Generated public and private keys.");
+        }
+    }else{
+        CubeLog::debug("Using previously set public and private keys for CubeAuth.");
+    }
     CubeAuth::available = true;
 }
 
@@ -73,6 +92,8 @@ CubeAuth::~CubeAuth()
 {
     CubeLog::log("Authentication module stopping...", true);
 }
+
+// TODO: add checkAuth function that only takes the app_id and returns bool if the app_id has been allowed by the user
 
 /**
  * @brief Check the authentication code
@@ -161,6 +182,7 @@ std::string CubeAuth::generateAuthCode()
  */
 std::pair<std::string,std::string> CubeAuth::generateKeyPair()
 {
+    CubeLog::debug("Generating key pair.");
     std::string public_key(crypto_box_PUBLICKEYBYTES, 0);
     std::string private_key(crypto_box_SECRETKEYBYTES, 0);
     crypto_box_keypair((unsigned char*)public_key.c_str(), (unsigned char*)private_key.c_str());
@@ -176,6 +198,7 @@ std::pair<std::string,std::string> CubeAuth::generateKeyPair()
  */
 std::string CubeAuth::encryptAuthCode(std::string auth_code, std::string public_key)
 {
+    CubeLog::debug("Encrypting auth code.");
     unsigned char nonce[crypto_secretbox_NONCEBYTES];
     unsigned char key[crypto_secretbox_KEYBYTES];
     unsigned char encrypted_auth_code[crypto_secretbox_MACBYTES + 6];
@@ -207,6 +230,7 @@ std::string CubeAuth::encryptAuthCode(std::string auth_code, std::string public_
  */
 std::string CubeAuth::decryptAuthCode(std::string auth_code, std::string private_key)
 {
+    CubeLog::debug("Decrypting auth code.");
     unsigned char decrypted_auth_code[6];
     unsigned char nonce[crypto_secretbox_NONCEBYTES];
     unsigned char key[crypto_secretbox_KEYBYTES];
@@ -236,6 +260,7 @@ std::string CubeAuth::decryptAuthCode(std::string auth_code, std::string private
  */
 std::string CubeAuth::encryptData(std::string data, std::string public_key)
 {
+    CubeLog::debug("Encrypting data. Length: " + std::to_string(data.length()) + " bytes.");
     if(data.length() > 65535){
         CubeLog::error("Data too large.");
         this->lastError = "Data too large.";
@@ -273,6 +298,7 @@ std::string CubeAuth::encryptData(std::string data, std::string public_key)
  */
 std::string CubeAuth::decryptData(std::string data, std::string private_key, size_t length)
 {
+    CubeLog::debug("Decrypting data. Length: " + std::to_string(length) + " bytes.");
     unsigned char* decrypted_data = new unsigned char[length];
     unsigned char nonce[crypto_secretbox_NONCEBYTES];
     unsigned char key[crypto_secretbox_KEYBYTES];
@@ -302,6 +328,7 @@ std::string CubeAuth::decryptData(std::string data, std::string private_key, siz
  */
 std::string CubeAuth::getLastError()
 {
+    CubeLog::debug("Getting last error: " + this->lastError);
     return this->lastError;
 }
 

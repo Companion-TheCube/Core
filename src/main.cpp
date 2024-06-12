@@ -25,7 +25,6 @@ int saw(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, doubl
                 lastValues[j] -= 2.0;
         }
     }
-
     return 0;
 }
 
@@ -38,6 +37,8 @@ int main(int argc, char* argv[])
         return 1;
     }
 #endif
+    /////////////////////////////////////////////////////////////////
+    // Argument parsing
     /////////////////////////////////////////////////////////////////
     std::string versionInfo = "Companion, TheCube - CORE ver.";
     versionInfo += SW_VERSION;
@@ -144,6 +145,8 @@ int main(int argc, char* argv[])
     auto logLevelPrint = argumentParser.get<int>("--LogLevelP");
     auto logLevelFile = argumentParser.get<int>("--LogLevelF");
     /////////////////////////////////////////////////////////////////
+    // Settings ang Logger setup
+    /////////////////////////////////////////////////////////////////
     GlobalSettings settings;
     auto logger = new CubeLog();
     auto settingsLoader = new SettingsLoader(&settings);
@@ -173,7 +176,12 @@ int main(int argc, char* argv[])
     /////////////////////////////////////////////////////////////////
     // RtAudio setup
     /////////////////////////////////////////////////////////////////
-    RtAudio dac;
+#ifdef __linux__
+    RtAudio::Api api = RtAudio::RtAudio::LINUX_ALSA;
+#elif _WIN32
+    RtAudio::Api api = RtAudio::RtAudio::WINDOWS_DS;
+#endif
+    RtAudio dac(api);
     std::vector<unsigned int> deviceIds = dac.getDeviceIds();
     std::vector<std::string> deviceNames = dac.getDeviceNames();
     if (deviceIds.size() < 1) {
@@ -207,10 +215,17 @@ int main(int argc, char* argv[])
         std::cout << dac.getErrorText() << std::endl;
         CubeLog::error(dac.getErrorText());
     }
+    CubeLog::log("Audio stream started.", true);
+    /////////////////////////////////////////////////////////////////
+    // Logger test
+    /////////////////////////////////////////////////////////////////
     CubeLog::info("Test info message.");
+    CubeLog::debug("Test debug message.");
     CubeLog::error("Test error message.");
     CubeLog::warning("Test warning message.");
     CubeLog::critical("Test critical message.");
+    /////////////////////////////////////////////////////////////////
+    // Main loop
     /////////////////////////////////////////////////////////////////
     {
         auto db_cube = std::make_shared<CubeDatabaseManager>();
@@ -227,13 +242,8 @@ int main(int argc, char* argv[])
         bool running = true;
         CubeLog::log("Entering main loop...", true);
         while (running) {
-#ifdef __linux__
-            sleep(1);
-#endif
-#ifdef _WIN32
-            Sleep(1000);
-#endif
-            // get cin and check if it's "exit"
+            genericSleep(100);
+            // get cin and check if it's "exit", "quit", "q", or "e", then break, or if it's "sound" toggle the sound
             std::string input;
             std::cin >> input;
             if (input == "exit" || input == "quit" || input == "q" || input == "e") {

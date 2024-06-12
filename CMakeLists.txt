@@ -39,6 +39,19 @@ FetchContent_Declare(SFML
 FetchContent_MakeAvailable(SFML)
 include(FetchContent)
 
+if(WIN32)
+    # Settings for Windows
+    set(RTAUDIO_API_DS ON CACHE BOOL "" FORCE)
+    set(RTAUDIO_API_ASIO OFF CACHE BOOL "" FORCE)
+    set(RTAUDIO_API_WASAPI OFF CACHE BOOL "" FORCE)
+    set(RTAUDIO_API_WDMKS OFF CACHE BOOL "" FORCE)
+elseif(UNIX)
+    # Settings for Linux
+    set(RTAUDIO_API_ALSA ON CACHE BOOL "" FORCE)
+    set(RTAUDIO_API_JACK OFF CACHE BOOL "" FORCE)
+    set(RTAUDIO_API_OSS OFF CACHE BOOL "" FORCE)
+    set(RTAUDIO_API_PULSE OFF CACHE BOOL "" FORCE)
+endif()
 FetchContent_Declare(
     rtaudio
     GIT_REPOSITORY https://github.com/thestk/rtaudio.git
@@ -48,6 +61,7 @@ FetchContent_MakeAvailable(rtaudio)
 FetchContent_GetProperties(rtaudio)
 if(NOT rtaudio_POPULATED)
   FetchContent_Populate(rtaudio)
+  # Add the RtAudio subdirectory with the new configuration
   add_subdirectory(${rtaudio_SOURCE_DIR} ${rtaudio_BINARY_DIR})
   include_directories(${rtaudio_SOURCE_DIR})
 endif()
@@ -222,6 +236,7 @@ target_link_libraries(CubeCoreTests PRIVATE
     nlohmann_json::nlohmann_json
     SQLiteCpp
     sqlite3
+    ${SODIUM_LIBRARIES}
 )
 
 enable_testing()

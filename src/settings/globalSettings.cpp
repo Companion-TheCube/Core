@@ -1,6 +1,5 @@
-#pragma once
-#include <logger.h>
-#include <nlohmann/json.hpp>
+// TODO: Instead of listing fonts explicitly, we should load them dynamically.
+
 #include <globalSettings.h>
 
 LogVerbosity GlobalSettings::logVerbosity = LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE_AND_FUNCTION_AND_NUMBEROFLOGS;

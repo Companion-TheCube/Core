@@ -64,6 +64,7 @@ private:
     std::jthread listenerThread;
     CubeHttpServer *server;
     std::vector<std::pair<std::string, bool>> endpointTriggers;
+    CubeAuth *auth;
 public:
     API();
     ~API();

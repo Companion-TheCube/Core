@@ -22,6 +22,7 @@ enum LogVerbosity {
 };
 
 enum LogLevel {
+    LOGGER_DEBUG,
     LOGGER_INFO,
     LOGGER_WARNING,
     LOGGER_ERROR,
@@ -30,6 +31,7 @@ enum LogLevel {
 };
 
 const std::string logLevelStrings[] = {
+    "DEBUG",
     "INFO",
     "WARNING",
     "ERROR",
@@ -69,6 +71,7 @@ private:
     void purgeOldLogs();
 public:
     static void log(std::string message, bool print, LogLevel level = LogLevel::LOGGER_INFO, std::source_location location = std::source_location::current());
+    static void debug(std::string message, std::source_location location = std::source_location::current());
     static void error(std::string message, std::source_location location = std::source_location::current());
     static void info(std::string message, std::source_location location = std::source_location::current());
     static void warning(std::string message, std::source_location location = std::source_location::current());

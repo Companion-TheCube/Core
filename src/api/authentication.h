@@ -14,6 +14,7 @@ class CubeAuth{
     static bool available;
     static std::string privateKey;
     static std::string publicKey;
+    static bool cubeAuthStaticKeysSet;
     std::string lastError;
 public:
     CubeAuth();
