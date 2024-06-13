@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include "database/cubeDB.h"
 #include <utils.h>
+#include "apps/appsManager.h"
 
 #ifdef _WIN32
 

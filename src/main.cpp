@@ -228,6 +228,7 @@ int main(int argc, char* argv[])
     // Main loop
     /////////////////////////////////////////////////////////////////
     {
+        DockerAPI docker("http://127.0.0.1:2375");
         auto db_cube = std::make_shared<CubeDatabaseManager>();
         auto blobs = std::make_shared<BlobsManager>(db_cube, "data/blobs.db");
         auto cubeDB = std::make_shared<CubeDB>(db_cube, blobs);
