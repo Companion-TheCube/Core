@@ -77,6 +77,9 @@ class CubeDatabaseManager{
         {"data/blobs.db", "blobs", {
             {DB_NS::TableNames::CLIENT_BLOBS, {"id", "blob", "owner_client_id"}, {"INTEGER", "BLOB", "TEXT"}},
             {DB_NS::TableNames::APP_BLOBS, {"id", "blob", "owner_app_id"}, {"INTEGER", "BLOB", "TEXT"}}
+        }},
+        {"data/apps.db", "apps", {
+            {DB_NS::TableNames::APPS, {"id", "app_id", "app_name", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason"}, {"INTEGER", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT"}}
         }}
     };
     TaskQueue dbQueue;
