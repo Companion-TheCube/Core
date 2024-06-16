@@ -3,57 +3,123 @@
 
 #include "dockerApi.h"
 
+void DockerAPI::printDockerInfo()
+// TODO: remove this function. It is only used for debugging.
+{
+    std::expected containers = this->getContainers_json();
+    if (!containers) {
+        CubeLog::error(containers.error().message);
+    }else{
+        CubeLog::debug("Containers: " + containers.value());
+    }
+
+    std::expected containers_ved = this->getContainers_vec();
+    if (!containers_ved) {
+        CubeLog::error(containers_ved.error().message);
+    }else{
+        for (auto container_id : containers_ved.value()) {
+            CubeLog::debug("Container ID: " + container_id);
+        }
+    }
+
+    std::expected images = this->getImages_json();
+    if (!images) {
+        CubeLog::error(images.error().message);
+    }else{
+        CubeLog::debug("Images: " + images.value());
+    }
+
+    std::expected images_vec = this->getImages_vec();
+    if (!images_vec) {
+        CubeLog::error(images_vec.error().message);
+    }else{
+        for (auto image_id : images_vec.value()) {
+            CubeLog::debug("Image ID: " + image_id);
+        }
+    }    
+}
+
 DockerAPI::DockerAPI(const std::string& base_url)
     : client(base_url)
     , base_url(base_url)
 {
-
-    std::string containers = this->getContainers_json();
-    std::cout << "Containers: " << containers << std::endl;
-
-    std::string images = this->getImages_json();
-    std::cout << "Images: " << images << std::endl;
+    this->printDockerInfo();
 }
 
 DockerAPI::DockerAPI()
     : client("http://127.0.0.1:2375")
     , base_url("http://127.0.0.1:2375")
 {
-    std::string containers = this->getContainers_json();
-    std::cout << "Containers: " << containers << std::endl;
-
-    std::string images = this->getImages_json();
-    std::cout << "Images: " << images << std::endl;
+    this->printDockerInfo();
 }
 
-std::string DockerAPI::getContainers_json()
+DockerAPI::~DockerAPI()
+{
+}
+
+std::expected<std::string, DockerError> DockerAPI::getContainers_json()
 {
     auto res = client.Get("/containers/json");
     if (res && res->status == 200) {
         return res->body;
     } else {
-        return "Error: Unable to list containers";
+        return std::unexpected(DockerError("Error: Unable to list containers", DockerError::CONTAINER_LIST_ERROR));
     }
 }
 
-std::vector<std::string> DockerAPI::getContainers_vec()
+std::expected<std::vector<std::string>, DockerError> DockerAPI::getContainers_vec()
 {
-    std::string containers = this->getContainers_json();
-    nlohmann::json containers_json = nlohmann::json::parse(containers);
-    std::vector<std::string> container_ids;
-    for (auto container : containers_json) {
-        container_ids.push_back(container["Id"]);
+    std::expected<std::string, DockerError> containers = this->getContainers_json();
+    if (!containers) {
+        return std::unexpected(containers.error());
     }
-    return container_ids;
+    try{
+        nlohmann::json containers_json = nlohmann::json::parse(containers.value());
+        std::vector<std::string> container_ids;
+        for (auto container : containers_json) {
+            container_ids.push_back(container["Id"]);
+        }
+        return container_ids;
+    } catch (nlohmann::json::parse_error& e) {
+        CubeLog::error("Error parsing json: " + std::string(e.what()));
+        return std::unexpected(DockerError("Error parsing json", DockerError::JSON_PARSE_ERROR));
+    }
 }
 
-std::string DockerAPI::getImages_json()
+std::expected<std::string, DockerError> DockerAPI::getImages_json()
 {
     auto res = client.Get("/images/json");
     if (res && res->status == 200) {
         return res->body;
     } else {
-        return "Error: Unable to list images";
+        return std::unexpected(DockerError("Error: Unable to list images", DockerError::IMAGE_LIST_ERROR));
+    }
+}
+
+std::expected<std::vector<std::string>, DockerError> DockerAPI::getImages_vec()
+{
+    std::expected<std::string, DockerError> images = this->getImages_json();
+    if (!images) {
+        return std::unexpected(images.error());
+    }
+    try{
+        nlohmann::json images_json = nlohmann::json::parse(images.value());
+        if(!images_json.is_array()){
+            CubeLog::error("Expected images_json to be an array, but it is not.");
+            return {};
+        }
+        std::vector<std::string> image_ids;
+        for (const auto& image : images_json) {
+            if(image.contains("Id") && image["Id"].is_string())
+                image_ids.push_back(image["Id"]);
+            else
+                CubeLog::error("Expected image to contain an Id field of type string, but it does not.");
+
+        }
+        return image_ids;
+    } catch (nlohmann::json::parse_error& e) {
+        CubeLog::error("Error parsing json: " + std::string(e.what()));
+        return std::unexpected(DockerError("Error parsing json", DockerError::JSON_PARSE_ERROR));
     }
 }
 
@@ -64,7 +130,7 @@ std::expected<std::string, DockerError> DockerAPI::startContainer(const std::str
     if (res && res->status == 204) {
         return "Container started successfully";
     } else {
-        return "Error: Unable to start container";
+        return std::unexpected(DockerError("Error: Unable to start container", DockerError::CONTAINER_START_ERROR));
     }
 }
 
@@ -75,26 +141,34 @@ std::expected<std::string, DockerError> DockerAPI::stopContainer(const std::stri
     if (res && res->status == 204) {
         return "Container stopped successfully";
     } else {
-        return "Error: Unable to stop container";
+        return std::unexpected(DockerError("Error: Unable to stop container", DockerError::CONTAINER_STOP_ERROR));
     }
 }
 
-std::string DockerAPI::inspectContainer(const std::string& container_id)
+std::expected<std::string, DockerError> DockerAPI::inspectContainer_json(const std::string& container_id)
 {
     std::string endpoint = "/containers/" + container_id + "/json";
     auto res = client.Get(endpoint.c_str());
     if (res && res->status == 200) {
         return res->body;
     } else {
-        return "Error: Unable to inspect container";
+        return std::unexpected(DockerError("Error: Unable to inspect container", DockerError::CONTAINER_INSPECT_ERROR));
     }
 }
 
-bool DockerAPI::isContainerRunning(const std::string& container_id)
+std::expected<bool, DockerError> DockerAPI::isContainerRunning(const std::string& container_id)
 {
-    std::string container = this->inspectContainer(container_id);
-    nlohmann::json container_json = nlohmann::json::parse(container);
-    return container_json["State"]["Running"];
+    std::expected container = this->inspectContainer_json(container_id);
+    if (!container) {
+        return std::unexpected(container.error());
+    }
+    try{
+        nlohmann::json container_json = nlohmann::json::parse(container.value());
+        return container_json["State"]["Running"];
+    } catch (nlohmann::json::parse_error& e) {
+        CubeLog::error("Error parsing json: " + std::string(e.what()));
+        return std::unexpected(DockerError("Error parsing json", DockerError::JSON_PARSE_ERROR));
+    }
 }
 
 std::expected<std::string, DockerError> DockerAPI::killContainer(const std::string& container_id)
@@ -106,4 +180,20 @@ std::expected<std::string, DockerError> DockerAPI::killContainer(const std::stri
     } else {
         return std::unexpected(DockerError("Error: Unable to kill container", DockerError::CONTAINER_KILL_ERROR));
     }
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+unsigned long DockerError::errorCounter = 0;
+
+DockerError::DockerError(std::string message, ErrorCodes code)
+    : message(message)
+    , code(code)
+{
+    DockerError::errorCounter++;
+}
+
+unsigned long DockerError::getErrorCounter()
+{
+    return DockerError::errorCounter;
 }

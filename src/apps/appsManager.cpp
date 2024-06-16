@@ -583,8 +583,13 @@ bool AppsManager::isAppRunning(std::string appID)
     }
     if (role == "docker") {
         CubeLog::info("Checking if docker app is running: " + appID + ". App name: " + appName);
-        bool ret = this->dockerApi->isContainerRunning(appID);
-        if (ret) {
+        std::expected ret = this->dockerApi->isContainerRunning(appID);
+        if(!ret){
+            CubeLog::error("Error checking if docker app is running: " + appID + ". App name: " + appName);
+            CubeLog::error("Error: " + ret.error().message);
+            return false;
+        }
+        if (ret.value()) {
             CubeLog::info("Docker app is running: " + appID + ". App name: " + appName);
             return true;
         } else {
@@ -744,7 +749,12 @@ void AppsManager::checkAllAppsRunning()
     CubeLog::info("Checking if all apps are running.");
     for(auto const& app : this->runningApps) {
         if (app.second->getRole() == "docker") {
-            bool ret = this->dockerApi->isContainerRunning(std::to_string(app.second->getContainerID()));
+            std::expected ret = this->dockerApi->isContainerRunning(std::to_string(app.second->getContainerID()));
+            if(!ret){
+                CubeLog::error("Error checking if docker container is running: " + app.second->getAppID() + ". App name: " + app.second->getAppName());
+                CubeLog::error("Error: " + ret.error().message);
+                continue;
+            }
             if (!ret) {
                 CubeLog::error("Docker container is not running: " + app.second->getAppID() + ". App name: " + app.second->getAppName());
                 this->runningApps.erase(app.second->getAppID());
@@ -757,8 +767,12 @@ void AppsManager::checkAllAppsRunning()
 
 bool AppsManager::killAbandonedContainers(){
     CubeLog::info("Killing abandoned containers.");
-    std::vector<std::string> containers = this->dockerApi->getContainers_vec();
-    for(auto const& container : containers) {
+    std::expected containers = this->dockerApi->getContainers_vec();
+    if(!containers){
+        CubeLog::error("Error getting containers.");
+        return false;
+    }
+    for(auto const& container : containers.value()) {
         CubeLog::info("Killing abandoned container: " + container);
         // this->dockerApi->killContainer(container);
     }

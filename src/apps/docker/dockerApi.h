@@ -8,10 +8,8 @@
 #include <expected>
 
 class DockerError {
+    static unsigned long errorCounter;
 public:
-    std::string message;
-    int code;
-    DockerError(std::string message, int code);
     enum ErrorCodes {
         CONTAINER_NOT_FOUND = 1,
         CONTAINER_ALREADY_RUNNING = 2,
@@ -39,8 +37,8 @@ public:
         IMAGE_PRUNE_ERROR = 24,
         NETWORK_LIST_ERROR = 25,
         NETWORK_CREATE_ERROR = 26,
+        JSON_PARSE_ERROR = 27
     };
-
     const std::map<ErrorCodes, std::string> ErrorCodeMap = {
         {CONTAINER_NOT_FOUND, "CONTAINER_NOT_FOUND"},
         {CONTAINER_ALREADY_RUNNING, "CONTAINER_ALREADY_RUNNING"},
@@ -67,23 +65,31 @@ public:
         {IMAGE_IMPORT_ERROR, "IMAGE_IMPORT_ERROR"},
         {IMAGE_PRUNE_ERROR, "IMAGE_PRUNE_ERROR"},
         {NETWORK_LIST_ERROR, "NETWORK_LIST_ERROR"},
-        {NETWORK_CREATE_ERROR, "NETWORK_CREATE_ERROR"}
+        {NETWORK_CREATE_ERROR, "NETWORK_CREATE_ERROR"},
+        {JSON_PARSE_ERROR, "JSON_PARSE_ERROR"}
     };
+    std::string message;
+    ErrorCodes code;
+    DockerError(std::string message, ErrorCodes code);
+    unsigned long getErrorCounter();
 };
 
 class DockerAPI {
 private:
     httplib::Client client;
     std::string base_url;
+    void printDockerInfo();
 public:
     DockerAPI(const std::string& base_url);
     DockerAPI();
-    std::string getContainers_json();
-    std::string getImages_json();
+    ~DockerAPI();
+    std::expected<std::string, DockerError> getContainers_json();
+    std::expected<std::string, DockerError> getImages_json();
     std::expected<std::string, DockerError> startContainer(const std::string& container_id);
     std::expected<std::string, DockerError> stopContainer(const std::string& container_id);
     std::expected<std::string, DockerError> killContainer(const std::string& container_id);
-    std::string inspectContainer(const std::string& container_id);
-    bool isContainerRunning(const std::string& container_id);
-    std::vector<std::string> getContainers_vec();
+    std::expected<std::string, DockerError> inspectContainer_json(const std::string& container_id);
+    std::expected<bool, DockerError> isContainerRunning(const std::string& container_id);
+    std::expected<std::vector<std::string>, DockerError> getContainers_vec();
+    std::expected<std::vector<std::string>, DockerError> getImages_vec();
 };
