@@ -228,11 +228,12 @@ int main(int argc, char* argv[])
     // Main loop
     /////////////////////////////////////////////////////////////////
     {
-        DockerAPI docker("http://127.0.0.1:2375");
         auto db_cube = std::make_shared<CubeDatabaseManager>();
         auto blobs = std::make_shared<BlobsManager>(db_cube, "data/blobs.db");
         auto cubeDB = std::make_shared<CubeDB>(db_cube, blobs);
         CubeDB::getBlobsManager()->addBlob("client_blobs", "test blob", "1");
+        CubeDB::getDBManager()->getDatabase("apps")->insertData("apps", { "app_id", "app_name", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason" }, { "1", "test app", "docker", "test path", "test args", "test source", "test update path", "test last check", "test last update", "test last fail", "test last fail reason" }); // test insert
+        AppsManager appsManager;
         // db_cube->openAll();
         auto gui = std::make_shared<GUI>();
         auto api = std::make_shared<API>();

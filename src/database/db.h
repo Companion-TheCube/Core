@@ -79,13 +79,15 @@ class CubeDatabaseManager{
             {DB_NS::TableNames::APP_BLOBS, {"id", "blob", "owner_app_id"}, {"INTEGER", "BLOB", "TEXT"}}
         }},
         {"data/apps.db", "apps", {
-            {DB_NS::TableNames::APPS, {"id", "app_id", "app_name", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason"}, {"INTEGER", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT"}}
+            {DB_NS::TableNames::APPS, {"id", "app_id", "app_name", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason"}, {"INTEGER", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT"}}
         }}
     };
     TaskQueue dbQueue;
     std::jthread dbThread;
     std::stop_token dbStopToken;
     void dbWorker();
+    std::mutex dbMutex;
+    bool isReady = false;
 public:
     CubeDatabaseManager();
     ~CubeDatabaseManager();
@@ -98,10 +100,13 @@ public:
     void closeDatabase(std::string dbName);
     bool openDatabase(std::string dbName);
     void addDbTask(std::function<void()> task);
+    bool isDatabaseManagerReady();
 };
 
 class BlobsManager{
     std::shared_ptr<CubeDatabaseManager> dbManager;
+    std::mutex blobsMutex;
+    bool isReady = false;
 public:
     BlobsManager(std::shared_ptr<CubeDatabaseManager> dbManager, std::string dbPath);
     ~BlobsManager();
@@ -112,5 +117,6 @@ public:
     char* getBlobChars(std::string tableName, std::string ownerID, int id, int &size);
     bool updateBlob(std::string tableName, std::string blob, std::string ownerID, int id);
     bool updateBlob(std::string tableName, char* blob, int size, std::string ownerID, int id);
+    bool isBlobsManagerReady();
 };
 

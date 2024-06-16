@@ -28,7 +28,19 @@ AppsManager::~AppsManager()
 void AppsManager::appsManagerThreadFn()
 {
     CubeLog::info("AppsManager thread started.");
-    this->appIDs = CubeDB::getDBManager()->getDatabase("apps")->selectData("apps", { "app_id" })[0];
+    while(CubeDB::getDBManager() == nullptr || !CubeDB::getDBManager()->isDatabaseManagerReady()){
+        CubeLog::debug("Waiting for DBManager to be set.");
+        genericSleep(1);
+    }
+    auto ret = CubeDB::getDBManager()->getDatabase("apps")->selectData("apps", { "app_id" });
+    if (ret.size() > 0) {
+        for (auto row : ret) {
+            this->appIDs.push_back(row[0]);
+        }
+    }else{
+        CubeLog::error("Error getting app IDs from database.");
+        return;
+    }
     this->dockerApi = std::make_shared<DockerAPI>("http://127.0.0.1:2375");
     this->killAbandonedContainers();
     this->killAbandonedProcesses();

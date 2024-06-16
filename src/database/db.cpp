@@ -599,6 +599,8 @@ CubeDatabaseManager::CubeDatabaseManager()
     }
     dbThread = std::jthread(&CubeDatabaseManager::dbWorker, this);
     dbStopToken = dbThread.get_stop_token();
+    std::lock_guard<std::mutex> lock(this->dbMutex);
+    this->isReady = true;
 }
 
 /**
@@ -767,6 +769,12 @@ void CubeDatabaseManager::addDbTask(std::function<void()> task)
     this->dbQueue.push(task);
 }
 
+bool CubeDatabaseManager::isDatabaseManagerReady()
+{
+    std::lock_guard<std::mutex> lock(this->dbMutex);
+    return this->isReady;
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -778,6 +786,8 @@ void CubeDatabaseManager::addDbTask(std::function<void()> task)
 BlobsManager::BlobsManager(std::shared_ptr<CubeDatabaseManager> dbManager, std::string dbPath)
 {
     this->dbManager = dbManager;
+    std::lock_guard<std::mutex> lock(this->blobsMutex);
+    this->isReady = true;
 }
 
 /**
@@ -1026,6 +1036,12 @@ bool BlobsManager::addBlob(std::string tableName, char* blob, int size, std::str
         CubeLog::error("Last error: " + db->getLastError());
         return false;
     }
+}
+
+bool BlobsManager::isBlobsManagerReady()
+{
+    std::lock_guard<std::mutex> lock(this->blobsMutex);
+    return this->isReady;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
