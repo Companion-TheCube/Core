@@ -1,4 +1,5 @@
-#include "docker/dockerApi.h"
+#include "dockerApi.h"
+#include "nativeApi.h"
 #include "./../database/cubeDB.h"
 #include "./../utils.h"
 
@@ -97,4 +98,5 @@ public:
     bool stopAllApps();
     bool updateAllApps();
     void checkAllAppsRunning();
+    bool appsManagerThreadRunning();
 };
