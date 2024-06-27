@@ -16,7 +16,8 @@
 
 class NativeAPI {
 public:
-    static bool startApp(std::string execPath, std::string execArgs);
+    static long startApp(std::string execPath, std::string execArgs);
     static bool stopApp(std::string execPath);
     static long getPID(std::string execPath);
+    static bool isProcessRunning(const std::string& processName);
 };

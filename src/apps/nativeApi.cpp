@@ -1,7 +1,7 @@
 #include "nativeApi.h"
 
 #ifdef __linux__
-bool isProcessRunning(const std::string& processName) {
+bool NativeAPI::isProcessRunning(const std::string& processName) {
     DIR* dir = opendir("/proc");
     if (dir == nullptr) {
         perror("opendir");
@@ -30,7 +30,7 @@ bool isProcessRunning(const std::string& processName) {
 #endif
 
 #ifdef _WIN32
-bool isProcessRunning(const std::string& processName) {
+bool NativeAPI::isProcessRunning(const std::string& processName) {
     HANDLE hProcessSnap;
     PROCESSENTRY32 pe32;
     bool found = false;
@@ -57,7 +57,7 @@ bool isProcessRunning(const std::string& processName) {
 }
 #endif
 
-bool NativeAPI::startApp(std::string execPath, std::string execArgs) {
+long NativeAPI::startApp(std::string execPath, std::string execArgs) {
     CubeLog::info("Starting app: " + execPath + " " + execArgs);
     std::filesystem::path p = std::filesystem::path(execPath);
     if (!std::filesystem::exists(p)) {

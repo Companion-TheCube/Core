@@ -4,20 +4,20 @@
 #include "./../utils.h"
 
 class RunningApp {
-    unsigned long pid;
-    long version;
-    long containerID;
-    std::string appID;
-    std::string appName;
-    std::string execPath;
-    std::string execArgs;
-    std::string appSource;
-    std::string updatePath;
-    std::string role;
-    std::string updateLastCheck;
-    std::string updateLastUpdate;
-    std::string updateLastFail;
-    std::string updateLastFailReason;
+    unsigned long pid = 0;
+    long version = 0;
+    long containerID = -1;
+    std::string appID = "";
+    std::string appName = "";
+    std::string execPath = "";
+    std::string execArgs = "";
+    std::string appSource = "";
+    std::string updatePath = "";
+    std::string role = "";
+    std::string updateLastCheck = "";
+    std::string updateLastUpdate = "";
+    std::string updateLastFail = "";
+    std::string updateLastFailReason = "";
 public:
     RunningApp(unsigned long pid, std::string appID, std::string appName, std::string execPath, std::string execArgs, std::string appSource, std::string updatePath, std::string role, std::string updateLastCheck, std::string updateLastUpdate, std::string updateLastFail, std::string updateLastFailReason, long containerID);
     unsigned long getPID();
@@ -28,6 +28,7 @@ public:
     std::string getAppID();
     std::string getAppName();
     std::string getExecPath();
+    std::string getExecName();
     std::string getExecArgs();
     std::string getAppSource();
     std::string getUpdatePath();

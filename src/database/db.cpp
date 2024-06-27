@@ -88,6 +88,7 @@ bool Database::createTable(std::string tableName, std::vector<std::string> colum
  * @return false 
  */
 bool Database::insertData(std::string tableName, std::vector<std::string> columnNames, std::vector<std::string> columnValues)
+// TODO: id columns need to be sequential and unique
 {
     if (!this->isOpen()) {
         this->lastError = "Database is not open";

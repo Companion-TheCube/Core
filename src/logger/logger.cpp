@@ -1,6 +1,8 @@
 // TODO: replace logger with https://github.com/gabime/spdlog  ...maybe, probably not
 // TODO: Add DEBUG level to logger
 
+// TODO: add a static method that allows the user to temporarily disable logging to the console
+
 #include "logger.h"
 
 #define COUNTER_MOD 100

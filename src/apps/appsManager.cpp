@@ -17,8 +17,10 @@ AppsManager::AppsManager()
 
 AppsManager::~AppsManager()
 {
-    CubeLog::info("AppsManager destructor called. Killing all apps.");
+    CubeLog::info("AppsManager destructor called.");
+    CubeLog::debug("Stopping all apps.");
     this->stopAllApps();
+    CubeLog::debug("AppsManager destructor stopping thread.");
     std::stop_token st = this->appsManagerThread.get_stop_token();
     this->appsManagerThread.request_stop();
     this->appsManagerThread.join();
@@ -44,9 +46,8 @@ void AppsManager::appsManagerThreadFn()
     this->dockerApi = std::make_shared<DockerAPI>("http://127.0.0.1:2375");
     this->killAbandonedContainers();
     this->killAbandonedProcesses();
-    CubeLog::critical("Chrome PID:" + std::to_string(NativeAPI::getPID("chrome")));
     while (true) {
-        genericSleep(10);
+        genericSleep(2500);
         if (this->taskQueue.size() > 0) {
             std::function<void()> task = this->taskQueue.pop();
             task();
@@ -57,7 +58,14 @@ void AppsManager::appsManagerThreadFn()
         }
 
         for (auto appID : this->appIDs) {
-            // TODO: Check if the app is running
+            if(!this->isAppRunning(appID)) {
+                CubeLog::error("App is not running: " + appID + ". Restarting app.");
+                this->startApp(appID);
+                genericSleep(100);
+                if(!this->isAppRunning(appID)) {
+                    CubeLog::error("App is not running: " + appID + ". Restarting app failed.");
+                }
+            }
         }
     }
 }
@@ -113,17 +121,48 @@ bool AppsManager::startApp(std::string appID)
         }
     } else {
         CubeLog::info("Starting native app: " + appID);
-        std::string execCommand = execPath + " " + execArgs; // TODO: rewrite this to use something that gets the PID
+#ifdef _WIN32
+        STARTUPINFO si;
+        PROCESS_INFORMATION pi;
+        ZeroMemory(&si, sizeof(si));
+        si.cb = sizeof(si);
+        ZeroMemory(&pi, sizeof(pi));
+        std::string cwd = std::filesystem::current_path().string();
+        std::string execCommand = cwd + "\\" + execPath + " " + execArgs;
         CubeLog::debug("Exec command: " + execCommand);
-        int ret = system(execCommand.c_str());
-        if (ret == 0) {
-            CubeLog::info("App started successfully. App_id: " + appID + ". App name: " + appName);
-            // TODO: Once we had the PID of the process, we can store it in the runningApps map
-            return true;
-        } else {
+        if (!CreateProcess(NULL, (LPSTR)execCommand.c_str(), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
             CubeLog::error("Error starting app. App_id: " + appID + ". App name: " + appName);
+            CubeLog::error("Error: " + std::to_string(GetLastError()));
             return false;
+        } else {
+            CubeLog::info("App started successfully. App_id: " + appID + ". App name: " + appName + ". Process ID: " + std::to_string(pi.dwProcessId));
+            this->runningApps[appID] = new RunningApp(pi.dwProcessId, appID, appName, execPath, execArgs, appSource, updatePath, role, "", "", "", "", 0);
+            CloseHandle(pi.hProcess);
+            CloseHandle(pi.hThread);
+            return true;
         }
+#endif
+#ifdef __linux__
+        pid_t pid = fork();
+        if (pid == 0) {
+            std::string execCommand = execPath + " " + execArgs;
+            CubeLog::debug("Exec command: " + execCommand);
+            if (execl(execPath.c_str(), execPath.c_str(), execArgs.c_str(), NULL) == -1) {
+                CubeLog::error("Error starting app. App_id: " + appID + ". App name: " + appName);
+                CubeLog::error("Error: " + std::to_string(errno));
+                return false;
+            }
+        } else if (pid < 0) {
+            CubeLog::error("Error starting app. App_id: " + appID + ". App name: " + appName);
+            CubeLog::error("Error: " + std::to_string(errno));
+            return false;
+        } else {
+            CubeLog::info("App started successfully. App_id: " + appID + ". App name: " + appName);
+            this->runningApps[appID] = new RunningApp(pid, appID, appName, execPath, execArgs, appSource, updatePath, role, "", "", "", "", 0);
+            return true;
+        }
+#endif
+
     }
 }
 
@@ -166,6 +205,7 @@ bool AppsManager::stopApp(std::string appID)
         CubeLog::info("Stopping native app: " + appID + ". App name: " + appName);
         this->runningApps.erase(appID);
         // TODO: Implement stopping native apps
+        
         return false;
     }
 }
@@ -625,6 +665,25 @@ bool AppsManager::isAppRunning(std::string appID)
     } else {
         CubeLog::info("Checking if native app is running: " + appID + ". App name: " + appName);
         // TODO: Implement checking if native apps are running
+        // get the PID from the map
+        // check if the PID is running
+        if(this->runningApps.find(appID) == this->runningApps.end()) {
+            CubeLog::error("Error checking if app is running: " + appID + ". App not found.");
+            return false;
+        }
+        long pid = this->runningApps[appID]->getPID();
+        std::string processName = this->runningApps[appID]->getExecName();
+        if (pid == 0) {
+            CubeLog::info("Native app is not running: " + appID + ". App name: " + appName);
+            return false;
+        }
+        if(NativeAPI::isProcessRunning(processName)) {
+            CubeLog::info("Native app is running: " + appID + ". App name: " + appName);
+            return true;
+        } else {
+            CubeLog::info("Native app is not running: " + appID + ". App name: " + appName);
+            return false;
+        }
         return false;
     }
 }
@@ -881,6 +940,33 @@ std::string RunningApp::getAppName()
 std::string RunningApp::getExecPath()
 {
     return this->execPath;
+}
+
+std::string RunningApp::getExecName()
+{
+    std::string execName = this->execPath;
+    if(execName.empty()) {
+        return "";
+    }
+    if(execPath.find_last_of("\\") != std::string::npos) {
+        if(execName.back() == '\\') {
+            execName.pop_back();
+        }
+        size_t pos = execName.find_last_of("\\");
+        if (pos != std::string::npos) {
+            execName = execName.substr(pos + 1);
+        }
+        return execName;
+    } else {
+        if(execName.back() == '/') {
+            execName.pop_back();
+        }
+        size_t pos = execName.find_last_of("/");
+        if (pos != std::string::npos) {
+            execName = execName.substr(pos + 1);
+        }
+        return execName;
+    }
 }
 
 std::string RunningApp::getExecArgs()
