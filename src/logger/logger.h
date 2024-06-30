@@ -60,6 +60,7 @@ private:
     static std::mutex logMutex;
     static LogVerbosity staticVerbosity;
     static LogLevel staticPrintLevel;
+    static bool consoleLoggingEnabled;
     LogLevel fileLevel;
     bool savingInProgress;
     void saveLogsInterval();
@@ -85,6 +86,7 @@ public:
     void writeOutLogs();
     void setVerbosity(LogVerbosity verbosity);
     void setLogLevel(LogLevel printLevel, LogLevel fileLevel);
+    static void setConsoleLoggingEnabled(bool enabled);
 };
 
 std::string convertTimestampToString(std::chrono::time_point<std::chrono::system_clock> timestamp);

@@ -55,6 +55,7 @@ private:
     std::vector<std::string> appIDs;
     bool killAbandonedContainers();
     bool killAbandonedProcesses();
+    static bool consoleLoggingEnabled;
 public:
     AppsManager();
     ~AppsManager();
@@ -100,4 +101,5 @@ public:
     bool updateAllApps();
     void checkAllAppsRunning();
     bool appsManagerThreadRunning();
+    static void setConsoleLoggingEnabled(bool enabled);
 };

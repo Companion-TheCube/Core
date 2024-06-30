@@ -104,6 +104,7 @@ LogVerbosity CubeLog::staticVerbosity = LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FI
 LogLevel CubeLog::staticPrintLevel = LogLevel::LOGGER_INFO;
 std::vector<CUBE_LOG_ENTRY> CubeLog::logEntries;
 std::mutex CubeLog::logMutex;
+bool CubeLog::consoleLoggingEnabled = true;
 
 /**
  * @brief Log a message
@@ -121,7 +122,7 @@ void CubeLog::log(std::string message, bool print, LogLevel level, std::source_l
     Color::Modifier colorError(Color::FG_LIGHT_YELLOW);
     Color::Modifier colorCritical(Color::FG_RED);
     Color::Modifier colorDefault(Color::FG_LIGHT_BLUE);
-    if(print && level >= CubeLog::staticPrintLevel){
+    if(print && level >= CubeLog::staticPrintLevel && CubeLog::consoleLoggingEnabled){
         switch (level)
         {
         case LogLevel::LOGGER_DEBUG:
@@ -443,4 +444,13 @@ std::string getFileNameFromPath(std::string path){
 void CubeLog::setLogLevel(LogLevel printLevel, LogLevel fileLevel){
     CubeLog::staticPrintLevel = printLevel;
     this->fileLevel = fileLevel;
+}
+
+/**
+ * @brief Set whether logging to the console is enabled
+ * 
+ * @param enabled If true, logging to the console is enabled
+ */
+void CubeLog::setConsoleLoggingEnabled(bool enabled){
+    CubeLog::consoleLoggingEnabled = enabled;
 }
