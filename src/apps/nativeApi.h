@@ -10,9 +10,9 @@
 #include <windows.h>
 #include <tlhelp32.h>
 #endif
-
 #include <fstream>
 #include <string>
+#include "RunningApp.h"
 
 class NativeAPI {
 public:
