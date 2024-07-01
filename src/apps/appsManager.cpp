@@ -22,12 +22,12 @@ AppsManager::AppsManager()
 AppsManager::~AppsManager()
 {
     CubeLog::info("AppsManager destructor called.");
-    CubeLog::debug("Stopping all apps.");
-    this->stopAllApps();
     CubeLog::debug("AppsManager destructor stopping thread.");
     std::stop_token st = this->appsManagerThread.get_stop_token();
     this->appsManagerThread.request_stop();
     this->appsManagerThread.join();
+    CubeLog::debug("Stopping all apps.");
+    this->stopAllApps();
     CubeLog::info("AppsManager destructor finished.");
 }
 
