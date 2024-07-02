@@ -52,7 +52,6 @@ void AppsManager::appsManagerThreadFn()
     this->killAbandonedProcesses();
     unsigned long counter = 0;
     while (true) {
-        counter++;
         genericSleep(100);
         if (this->taskQueue.size() > 0) {
             std::function<void()> task = this->taskQueue.pop();
@@ -62,6 +61,8 @@ void AppsManager::appsManagerThreadFn()
             CubeLog::debug("AppsManager thread stop requested.");
             break;
         }
+
+        // Restart apps that are not running
         AppsManager::consoleLoggingEnabled = false;
         if(counter % 25 == 0){
             for (auto appID : this->appIDs) {
@@ -76,7 +77,22 @@ void AppsManager::appsManagerThreadFn()
             }
         }
         AppsManager::consoleLoggingEnabled = true;
-        // TODO: log native app output
+
+        // Check for stdout from running native apps
+        for(auto appID: this->appIDs){
+            if(!this->isAppRunning(appID) && this->runningApps[appID]->getPID() != 0){
+                bool bSuccess = false;
+                DWORD dwRead = 0;
+                CHAR chBuf[4096];
+                bSuccess = ReadFile(this->runningApps[appID]->getStdOutReadHandle(), chBuf, sizeof(chBuf) - 1, &dwRead, NULL);
+                if (bSuccess && dwRead > 0) {
+                    chBuf[dwRead] = '\0';
+                    std::string str(chBuf);
+                    CubeLog::info("STDOUT - " + this->runningApps[appID]->getAppName() + ": " + str);
+                }                
+            }
+        }
+        counter++;
     }
 }
 
@@ -122,7 +138,7 @@ bool AppsManager::startApp(std::string appID)
         auto container_id = this->dockerApi->startContainer(appID);
         if (container_id) {
             CubeLog::info("Docker container started successfully. Container ID: " + container_id.value() + ". App_id: " + appID + ". App name: " + appName);
-            this->runningApps[appID] = new RunningApp(0, appID, appName, execPath, execArgs, appSource, updatePath, role, "", "", "", "", std::stol(container_id.value()));
+            this->runningApps[appID] = new RunningApp(0, appID, appName, execPath, execArgs, appSource, updatePath, role, "", "", "", "", std::stol(container_id.value()), nullptr, nullptr, nullptr, nullptr);
             return true;
         } else {
             CubeLog::error("Error starting docker container. App_id: " + appID + ". App name: " + appName);
@@ -131,48 +147,15 @@ bool AppsManager::startApp(std::string appID)
         }
     } else {
         CubeLog::info("Starting native app: " + appID);
-#ifdef _WIN32
-        STARTUPINFO si;
-        PROCESS_INFORMATION pi;
-        ZeroMemory(&si, sizeof(si));
-        si.cb = sizeof(si);
-        ZeroMemory(&pi, sizeof(pi));
-        std::string cwd = std::filesystem::current_path().string();
-        std::string execCommand = cwd + "\\" + execPath + " " + execArgs;
-        CubeLog::debug("Exec command: " + execCommand);
-        if (!CreateProcess(NULL, (LPSTR)execCommand.c_str(), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
-            CubeLog::error("Error starting app. App_id: " + appID + ". App name: " + appName);
-            CubeLog::error("Error: " + std::to_string(GetLastError()));
-            return false;
-        } else {
-            CubeLog::info("App started successfully. App_id: " + appID + ". App name: " + appName + ". Process ID: " + std::to_string(pi.dwProcessId));
-            this->runningApps[appID] = new RunningApp(pi.dwProcessId, appID, appName, execPath, execArgs, appSource, updatePath, role, "", "", "", "", 0);
-            CloseHandle(pi.hProcess);
-            CloseHandle(pi.hThread);
+        RunningApp* temp = NativeAPI::startApp(execPath, execArgs, appID, appName, appSource, updatePath);
+        if (temp) {
+            CubeLog::info("Native app started successfully. App_id: " + appID + ". App name: " + appName + ". PID: " + std::to_string(temp->getPID()));
+            this->runningApps[appID] = temp;
             return true;
-        }
-#endif
-#ifdef __linux__
-        pid_t pid = fork();
-        if (pid == 0) {
-            std::string execCommand = execPath + " " + execArgs;
-            CubeLog::debug("Exec command: " + execCommand);
-            if (execl(execPath.c_str(), execPath.c_str(), execArgs.c_str(), NULL) == -1) {
-                CubeLog::error("Error starting app. App_id: " + appID + ". App name: " + appName);
-                CubeLog::error("Error: " + std::to_string(errno));
-                return false;
-            }
-        } else if (pid < 0) {
-            CubeLog::error("Error starting app. App_id: " + appID + ". App name: " + appName);
-            CubeLog::error("Error: " + std::to_string(errno));
-            return false;
         } else {
-            CubeLog::info("App started successfully. App_id: " + appID + ". App name: " + appName);
-            this->runningApps[appID] = new RunningApp(pid, appID, appName, execPath, execArgs, appSource, updatePath, role, "", "", "", "", 0);
-            return true;
+            CubeLog::error("Error starting native app. App_id: " + appID + ". App name: " + appName);
+            return false;
         }
-#endif
-
     }
 }
 
@@ -213,9 +196,27 @@ bool AppsManager::stopApp(std::string appID)
         }
     } else {
         CubeLog::info("Stopping native app: " + appID + ". App name: " + appName);
-        this->runningApps.erase(appID);
-        // TODO: Implement stopping native apps
-
+        RunningApp* temp = this->runningApps[appID];
+        if (temp) {
+            bool pidStop = NativeAPI::stopApp(temp->getPID());
+            if(!pidStop) {
+                CubeLog::error("Error stopping native app by PID: " + appID + ". App name: " + appName);
+                CubeLog::error("Attempting to stop native app by exec path: " + execPath + ". App name: " + appName);
+                bool ret = NativeAPI::stopApp(execPath);
+                if (ret) {
+                    CubeLog::info("Native app stopped successfully: " + appID + ". App name: " + appName);
+                    this->runningApps.erase(appID);
+                    return true;
+                } else {
+                    CubeLog::error("Error stopping native app: " + appID + ". App name: " + appName);
+                    return false;
+                }
+            }
+            CubeLog::info("Native app stopped successfully: " + appID + ". App name: " + appName);
+        } else {
+            CubeLog::error("Error stopping native app: " + appID + ". App name: " + appName);
+            return false;
+        }
         return false;
     }
 }

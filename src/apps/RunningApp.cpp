@@ -1,5 +1,26 @@
 #include "RunningApp.h"
 
+RunningApp::RunningApp(unsigned long pid, std::string appID, std::string appName, std::string execPath, std::string execArgs, std::string appSource, std::string updatePath, std::string role, std::string updateLastCheck, std::string updateLastUpdate, std::string updateLastFail, std::string updateLastFailReason, long containerID, HANDLE* g_hChildStd_OUT_Rd, HANDLE* g_hChildStd_OUT_Wr, HANDLE* g_hChildStd_ERR_Rd, HANDLE* g_hChildStd_ERR_Wr)
+{
+    this->pid = pid;
+    this->appID = appID;
+    this->appName = appName;
+    this->execPath = execPath;
+    this->execArgs = execArgs;
+    this->appSource = appSource;
+    this->updatePath = updatePath;
+    this->role = role;
+    this->updateLastCheck = updateLastCheck;
+    this->updateLastUpdate = updateLastUpdate;
+    this->updateLastFail = updateLastFail;
+    this->updateLastFailReason = updateLastFailReason;
+    this->containerID = containerID;
+    this->g_hChildStd_OUT_Rd = g_hChildStd_OUT_Rd;
+    this->g_hChildStd_OUT_Wr = g_hChildStd_OUT_Wr;
+    this->g_hChildStd_ERR_Rd = g_hChildStd_ERR_Rd;
+    this->g_hChildStd_ERR_Wr = g_hChildStd_ERR_Wr;
+}
+
 RunningApp::RunningApp(unsigned long pid, std::string appID, std::string appName, std::string execPath, std::string execArgs, std::string appSource, std::string updatePath, std::string role, std::string updateLastCheck, std::string updateLastUpdate, std::string updateLastFail, std::string updateLastFailReason, long containerID)
 {
     this->pid = pid;
@@ -15,6 +36,26 @@ RunningApp::RunningApp(unsigned long pid, std::string appID, std::string appName
     this->updateLastFail = updateLastFail;
     this->updateLastFailReason = updateLastFailReason;
     this->containerID = containerID;
+}
+
+RunningApp::~RunningApp()
+{
+    if (this->g_hChildStd_OUT_Rd != NULL) {
+        CloseHandle(this->g_hChildStd_OUT_Rd);
+        delete this->g_hChildStd_OUT_Rd;
+    }
+    if (this->g_hChildStd_OUT_Wr != NULL) {
+        CloseHandle(this->g_hChildStd_OUT_Wr);
+        delete this->g_hChildStd_OUT_Wr;
+    }
+    if (this->g_hChildStd_ERR_Rd != NULL) {
+        CloseHandle(this->g_hChildStd_ERR_Rd);
+        delete this->g_hChildStd_ERR_Rd;
+    }
+    if (this->g_hChildStd_ERR_Wr != NULL) {
+        CloseHandle(this->g_hChildStd_ERR_Wr);
+        delete this->g_hChildStd_ERR_Wr;
+    }
 }
 
 unsigned long RunningApp::getPID()
@@ -137,4 +178,44 @@ void RunningApp::setUpdateLastFail(std::string updateLastFail)
 void RunningApp::setUpdateLastFailReason(std::string updateLastFailReason)
 {
     this->updateLastFailReason = updateLastFailReason;
+}
+
+HANDLE* RunningApp::getStdOutRead()
+{
+    return &this->g_hChildStd_OUT_Rd;
+}
+
+HANDLE* RunningApp::getStdOutWrite()
+{
+    return &this->g_hChildStd_OUT_Wr;
+}
+
+HANDLE* RunningApp::getStdErrRead()
+{
+    return &this->g_hChildStd_ERR_Rd;
+}
+
+HANDLE* RunningApp::getStdErrWrite()
+{
+    return &this->g_hChildStd_ERR_Wr;
+}
+
+HANDLE RunningApp::getStdOutReadHandle()
+{
+    return this->g_hChildStd_OUT_Rd;
+}
+
+HANDLE RunningApp::getStdOutWriteHandle()
+{
+    return this->g_hChildStd_OUT_Wr;
+}
+
+HANDLE RunningApp::getStdErrReadHandle()
+{
+    return this->g_hChildStd_ERR_Rd;
+}
+
+HANDLE RunningApp::getStdErrWriteHandle()
+{
+    return this->g_hChildStd_ERR_Wr;
 }

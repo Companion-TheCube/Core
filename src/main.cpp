@@ -232,7 +232,7 @@ int main(int argc, char* argv[])
         auto blobs = std::make_shared<BlobsManager>(db_cube, "data/blobs.db");
         auto cubeDB = std::make_shared<CubeDB>(db_cube, blobs);
         CubeDB::getBlobsManager()->addBlob("client_blobs", "test blob", "1");
-        CubeDB::getDBManager()->getDatabase("apps")->insertData("apps", { "app_id", "app_name", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason" }, { "1", "CMD", "native", "apps\\customcmd.exe", "", "test source", "test update path", "test last check", "test last update", "test last fail", "test last fail reason" }); // test insert
+        // CubeDB::getDBManager()->getDatabase("apps")->insertData("apps", { "app_id", "app_name", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason" }, { "1", "CMD", "native", "apps\\customcmd.exe", "", "test source", "test update path", "test last check", "test last update", "test last fail", "test last fail reason" }); // test insert
         AppsManager appsManager;
         // db_cube->openAll();
         auto gui = std::make_shared<GUI>();
