@@ -232,8 +232,14 @@ int main(int argc, char* argv[])
         auto blobs = std::make_shared<BlobsManager>(db_cube, "data/blobs.db");
         auto cubeDB = std::make_shared<CubeDB>(db_cube, blobs);
         CubeDB::getBlobsManager()->addBlob("client_blobs", "test blob", "1");
-        // CubeDB::getDBManager()->getDatabase("apps")->insertData("apps", { "app_id", "app_name", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason" }, { "1", "CMD", "native", "apps\\customcmd.exe", "", "test source", "test update path", "test last check", "test last update", "test last fail", "test last fail reason" }); // test insert
-        CubeDB::getDBManager()->getDatabase("apps")->insertData("apps", { "app_id", "app_name", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason" }, { "2", "Calc", "native", "apps\\calc.exe", "", "test source", "test update path", "test last check", "test last update", "test last fail", "test last fail reason" }); // test insert
+        if(!CubeDB::getDBManager()->getDatabase("apps")->insertData("apps", { "app_id", "app_name", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason" }, { "1", "CMD", "native", "apps\\customcmd.exe", "", "test source", "test update path", "test last check", "test last update", "test last fail", "test last fail reason" })) // test insert
+        {
+            CubeLog::error("Failed to insert data into apps table.: " + CubeDB::getDBManager()->getDatabase("apps")->getLastError());
+        }
+        if(!CubeDB::getDBManager()->getDatabase("apps")->insertData("apps", { "app_id", "app_name", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason" }, { "", "ConsoleApp1", "native", "apps\\consoleApp1.exe", "arg1 arg2 arg3 arg4", "test source", "test update path", "test last check", "test last update", "test last fail", "test last fail reason" })) // test insert
+        {
+            CubeLog::error("Failed to insert data into apps table.: " + CubeDB::getDBManager()->getDatabase("apps")->getLastError());
+        }
         AppsManager appsManager;
         // db_cube->openAll();
         auto gui = std::make_shared<GUI>();

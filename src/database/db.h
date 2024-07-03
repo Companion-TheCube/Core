@@ -14,6 +14,7 @@ namespace DB_NS{
         std::string name;
         std::vector<std::string> columnNames;
         std::vector<std::string> columnTypes;
+        std::vector<bool> columnUnique;
     } Table_T;
 
     typedef struct Database_T{
@@ -22,13 +23,14 @@ namespace DB_NS{
         std::vector<Table_T> tables;
     } DB_T;
 
-    enum Roles{
-        ROLE_CUBE,
-        ROLE_MINI_CUBE,
-        ROLE_APP,
-        ROLE_DOCKER_APP,
-        ROLE_MOBILE_APP,
-        ROLE_WEB_APP
+    namespace Roles{
+        const std::string ROLE_CUBE = "CUBE";
+        const std::string ROLE_MINI_CUBE = "MINI_CUBE";
+        const std::string ROLE_NATIVE_APP = "NATIVE_APP";
+        const std::string ROLE_DOCKER_APP = "DOCKER_APP";
+        const std::string ROLE_WEB_APP = "WEB_APP";
+        const std::string ROLE_MOBILE_APP = "MOBILE_APP";
+        const std::string ROLE_UNKNOWN = "UNKNOWN";
     };
     namespace TableNames{
         const std::string CLIENTS = "clients";
@@ -43,12 +45,14 @@ class Database {
     std::string lastError;
     bool openFlag;
     std::string dbName;
+    std::map<std::string,bool> uniqueColumns;
 public:
     Database(std::string dbPath);
     ~Database();
-    bool createTable(std::string tableName, std::vector<std::string> columnNames, std::vector<std::string> columnTypes);
+    bool createTable(std::string tableName, std::vector<std::string> columnNames, std::vector<std::string> columnTypes, std::vector<bool> uniqueColumns);
     bool insertData(std::string tableName, std::vector<std::string> columnNames, std::vector<std::string> columnValues);
     bool updateData(std::string tableName, std::vector<std::string> columnNames, std::vector<std::string> columnValues, std::string whereClause);
+    void setUniqueColumns(std::vector<std::string> columnNames, std::vector<bool> uniqueColumns);
     bool deleteData(std::string tableName, std::string whereClause);
     std::vector<std::vector<std::string>> selectData(std::string tableName, std::vector<std::string> columnNames, std::string whereClause);
     std::vector<std::vector<std::string>> selectData(std::string tableName, std::vector<std::string> columnNames);
@@ -71,15 +75,35 @@ class CubeDatabaseManager{
     std::vector<Database*> databases;
     std::vector<DB_NS::Database_T> dbDefs= {
         {"data/auth.db", "auth", {
-            {DB_NS::TableNames::CLIENTS, {"id", "initial_code", "auth_code", "client_id", "role"}, {"INTEGER", "TEXT", "TEXT", "TEXT", "INTEGER"}},
-            {DB_NS::TableNames::APPS, {"id", "auth_code", "public_key", "private_key", "app_id", "role"}, {"INTEGER", "TEXT", "TEXT", "TEXT", "TEXT", "INTEGER"}}
+            {DB_NS::TableNames::CLIENTS, 
+                {"id", "initial_code", "auth_code", "client_id", "role"}, 
+                {"INTEGER", "TEXT", "TEXT", "TEXT", "INTEGER"},
+                {true, false, false, true, false}
+            },
+            {DB_NS::TableNames::APPS, 
+                {"id", "auth_code", "public_key", "private_key", "app_id", "role"}, 
+                {"INTEGER", "TEXT", "TEXT", "TEXT", "TEXT", "INTEGER"},
+                {true, false, false, false, true, false}
+            }
         }},
         {"data/blobs.db", "blobs", {
-            {DB_NS::TableNames::CLIENT_BLOBS, {"id", "blob", "owner_client_id"}, {"INTEGER", "BLOB", "TEXT"}},
-            {DB_NS::TableNames::APP_BLOBS, {"id", "blob", "owner_app_id"}, {"INTEGER", "BLOB", "TEXT"}}
+            {DB_NS::TableNames::CLIENT_BLOBS, 
+                {"id", "blob", "owner_client_id"}, 
+                {"INTEGER", "BLOB", "TEXT"},
+                {true, false, false}
+            },
+            {DB_NS::TableNames::APP_BLOBS, 
+                {"id", "blob", "owner_app_id"}, 
+                {"INTEGER", "BLOB", "TEXT"},
+                {true, false, false}
+            }
         }},
         {"data/apps.db", "apps", {
-            {DB_NS::TableNames::APPS, {"id", "app_id", "app_name", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason"}, {"INTEGER", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT"}}
+            {DB_NS::TableNames::APPS, 
+                {"id", "app_id", "app_name", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason"}, 
+                {"INTEGER", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT"},
+                {true, true, false, false, false, false, false, false, false, false, false, false}
+            }
         }}
     };
     TaskQueue dbQueue;

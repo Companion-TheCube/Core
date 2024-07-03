@@ -52,13 +52,21 @@ Database::~Database()
  * @return true 
  * @return false 
  */
-bool Database::createTable(std::string tableName, std::vector<std::string> columnNames, std::vector<std::string> columnTypes)
+bool Database::createTable(std::string tableName, std::vector<std::string> columnNames, std::vector<std::string> columnTypes, std::vector<bool> uniqueColumns)
 {
+    if(columnNames.size() != columnTypes.size() || columnTypes.size() != uniqueColumns.size()){
+        this->lastError = "Column names, column types, and unique columns must have the same size";
+        return false;
+    }
     if (!this->isOpen()) {
         this->lastError = "Database is not open";
         return false;
     }
     CubeLog::info("Creating table: " + tableName);
+    // Create a map of column names and unique columns
+    for(size_t col = 0; col < columnNames.size(); col++){
+        this->uniqueColumns[columnNames.at(col)] = uniqueColumns[col];
+    }
     std::string query = "CREATE TABLE IF NOT EXISTS " + tableName + " (";
     for (int i = 0; i < columnNames.size(); i++) {
         query += columnNames[i] + " " + columnTypes[i];
@@ -88,16 +96,47 @@ bool Database::createTable(std::string tableName, std::vector<std::string> colum
  * @return false 
  */
 bool Database::insertData(std::string tableName, std::vector<std::string> columnNames, std::vector<std::string> columnValues)
-// TODO: id columns need to be sequential and unique
+
 {
     if (!this->isOpen()) {
         this->lastError = "Database is not open";
         return false;
     }
     if (columnNames.size() != columnValues.size()) {
-        this->lastError = "Column names and values do not match";
+        this->lastError = "Sizes of column names and values do not match";
         return false;
     }
+    for(auto val: this->uniqueColumns){
+        CubeLog::debug("Unique column: " + val.first + " " + std::to_string(val.second));
+    }
+    // Check if the column is unique
+    for(size_t col = 0; col < columnNames.size(); col++){
+        CubeLog::debug("Checking column: " + columnNames.at(col));
+        if(this->uniqueColumns.find(columnNames.at(col)) != this->uniqueColumns.end() && this->uniqueColumns[columnNames.at(col)]){
+            CubeLog::debug("Column is marked as unique. Checking if the value already exists.");
+            // check if the columnValue is empty, indicating that we should add this data with the next available value
+            if(columnValues.at(col) == ""){
+                CubeLog::debug("Column value is empty. Getting next available value.");
+                int id = 1;
+                while(this->rowExists(tableName, columnNames[col] + " = " + std::to_string(id))){
+                    id++;
+                    if(id > 1000000){
+                        this->lastError = "Unable to get unique value. Too many rows in the table.";
+                        return false;
+                    }
+                }
+                CubeLog::debug("Next available value: " + std::to_string(id));
+                columnValues[col] = std::to_string(id);
+            }else{
+                CubeLog::debug("Column value is not empty. Checking if the value already exists.");
+                if(this->rowExists(tableName, columnNames.at(col) + " = '" + columnValues.at(col) + "'")){
+                    this->lastError = "Unique column value already exists";
+                    return false;
+                }
+            }
+        }
+    }
+
     std::string query = "INSERT INTO " + tableName + " (";
     for (int i = 0; i < columnNames.size(); i++) {
         query += columnNames[i];
@@ -158,6 +197,23 @@ bool Database::updateData(std::string tableName, std::vector<std::string> column
     } catch (std::exception& e) {
         this->lastError = e.what();
         return false;
+    }
+}
+
+/**
+ * @brief Set the unique columns for a table
+ * 
+ * @param tableName 
+ * @param uniqueColumns 
+ */
+void Database::setUniqueColumns(std::vector<std::string> columnNames, std::vector<bool> uniqueColumns)
+{
+    if(columnNames.size() != uniqueColumns.size()){
+        this->lastError = "Column names and unique columns do not match";
+        return;
+    }
+    for (int i = 0; i < uniqueColumns.size(); i++) {
+        this->uniqueColumns[columnNames.at(i)] = uniqueColumns[i];
     }
 }
 
@@ -572,7 +628,7 @@ CubeDatabaseManager::CubeDatabaseManager()
                 for (int k = 0; k < this->dbDefs[i].tables[j].columnNames.size(); k++) {
                     if (db.tableExists(this->dbDefs[i].tables[j].name)) {
                         if (!db.columnExists(this->dbDefs[i].tables[j].name, this->dbDefs[i].tables[j].columnNames[k])) {
-                            if (!db.createTable(this->dbDefs[i].tables[j].name, this->dbDefs[i].tables[j].columnNames, this->dbDefs[i].tables[j].columnTypes)) {
+                            if (!db.createTable(this->dbDefs[i].tables[j].name, this->dbDefs[i].tables[j].columnNames, this->dbDefs[i].tables[j].columnTypes, this->dbDefs[i].tables[j].columnUnique)) {
                                 CubeLog::error("Failed to create table: " + this->dbDefs[i].tables[j].name);
                                 CubeLog::error("Last error: " + db.getLastError());
                             } else {
@@ -582,7 +638,7 @@ CubeDatabaseManager::CubeDatabaseManager()
                             CubeLog::info("Table exists: " + this->dbDefs[i].tables[j].name);
                         }
                     } else {
-                        if (!db.createTable(this->dbDefs[i].tables[j].name, this->dbDefs[i].tables[j].columnNames, this->dbDefs[i].tables[j].columnTypes)) {
+                        if (!db.createTable(this->dbDefs[i].tables[j].name, this->dbDefs[i].tables[j].columnNames, this->dbDefs[i].tables[j].columnTypes, this->dbDefs[i].tables[j].columnUnique)) {
                             CubeLog::error("Failed to create table: " + this->dbDefs[i].tables[j].name);
                             CubeLog::error("Last error: " + db.getLastError());
                         } else {
@@ -597,6 +653,7 @@ CubeDatabaseManager::CubeDatabaseManager()
             }
         }
         this->addDatabase(this->dbDefs[i].path);
+        this->getDatabase(this->dbDefs[i].name)->setUniqueColumns(this->dbDefs[i].tables[0].columnNames, this->dbDefs[i].tables[0].columnUnique);
     }
     dbThread = std::jthread(&CubeDatabaseManager::dbWorker, this);
     dbStopToken = dbThread.get_stop_token();
