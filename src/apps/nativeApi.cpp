@@ -28,6 +28,14 @@ bool NativeAPI::isProcessRunning(const std::string& processName)
     closedir(dir);
     return false;
 }
+
+bool NativeAPI::isProcessRunning(long pid)
+{
+    if (kill(pid, 0) == 0) {
+        return true;
+    }
+    return false;
+}
 #endif
 
 #ifdef _WIN32
@@ -56,6 +64,22 @@ bool NativeAPI::isProcessRunning(const std::string& processName)
 
     CloseHandle(hProcessSnap);
     return found;
+}
+
+bool NativeAPI::isProcessRunning(long pid)
+{
+    HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, pid);
+    if (hProcess == NULL) {
+        return false;
+    }
+    DWORD exitCode;
+    if (GetExitCodeProcess(hProcess, &exitCode) == 0) {
+        return false;
+    }
+    if (exitCode == STILL_ACTIVE) {
+        return true;
+    }
+    return false;
 }
 #endif
 
@@ -100,6 +124,18 @@ RunningApp* NativeAPI::startApp(std::string execPath, std::string execArgs, std:
         return nullptr;
     }
 
+    CubeLog::debug("Creating pipes for stdin");
+    if (!CreatePipe(temp->getStdInRead(), temp->getStdInWrite(), &saAttr, 0)) {
+        CubeLog::error("Stdin pipe creation failed");
+        return nullptr;
+    }
+
+    CubeLog::debug("Setting stdin pipe information");
+    if (!SetHandleInformation(temp->getStdInWriteHandle(), HANDLE_FLAG_INHERIT, 0)) {
+        CubeLog::error("Stdin SetHandleInformation failed");
+        return nullptr;
+    }
+
     STARTUPINFO si;
     PROCESS_INFORMATION pi;
     ZeroMemory(&si, sizeof(si));
@@ -108,8 +144,7 @@ RunningApp* NativeAPI::startApp(std::string execPath, std::string execArgs, std:
 
     si.hStdError = temp->getStdErrWriteHandle();
     si.hStdOutput = temp->getStdOutWriteHandle();
-    // disable stdinput
-    si.hStdInput = NULL;
+    si.hStdInput = temp->getStdInReadHandle();
     si.dwFlags |= STARTF_USESTDHANDLES;
 
     std::string cwd = std::filesystem::current_path().string();
@@ -129,8 +164,14 @@ RunningApp* NativeAPI::startApp(std::string execPath, std::string execArgs, std:
         return nullptr;
     } else {
         temp->setPID(pi.dwProcessId);
+        // while(true){
+        //     genericSleep(100);
+        // };
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
+        // CloseHandle(temp->getStdOutWriteHandle());
+        // CloseHandle(temp->getStdErrWriteHandle());
+
         return temp;
     }
 #endif

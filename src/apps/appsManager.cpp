@@ -76,22 +76,54 @@ void AppsManager::appsManagerThreadFn()
                 }
             }
         }
-        AppsManager::consoleLoggingEnabled = true;
+        
 
         // Check for stdout from running native apps
         for(auto appID: this->appIDs){
-            if(!this->isAppRunning(appID) && this->runningApps[appID]->getPID() != 0){
-                bool bSuccess = false;
-                DWORD dwRead = 0;
-                CHAR chBuf[4096];
-                bSuccess = ReadFile(this->runningApps[appID]->getStdOutReadHandle(), chBuf, sizeof(chBuf) - 1, &dwRead, NULL);
-                if (bSuccess && dwRead > 0) {
-                    chBuf[dwRead] = '\0';
-                    std::string str(chBuf);
-                    CubeLog::info("STDOUT - " + this->runningApps[appID]->getAppName() + ": " + str);
-                }                
+            if(this->isAppRunning(appID) && this->runningApps[appID]->getPID() != 0){
+#ifdef _WIN32
+                // first we check to see if the HANDLE is valid
+                if(this->runningApps[appID]->getStdOutReadHandle() != nullptr){
+                    bool bSuccess = false;
+                    DWORD dwRead = 0, dwAvailable = 0;
+                    CHAR chBuf[4096];
+                    if(AppsManager::consoleLoggingEnabled)
+                        CubeLog::debug("Checking stdout and stderr for app: " + appID);
+                    if (PeekNamedPipe(this->runningApps[appID]->getStdOutReadHandle(), NULL, 0, NULL, &dwAvailable, NULL) && dwAvailable > 0) {
+                        bSuccess = ReadFile(this->runningApps[appID]->getStdOutReadHandle(), chBuf, sizeof(chBuf) - 1, &dwRead, NULL);
+                        if (bSuccess && dwRead > 0) {
+                            chBuf[dwRead] = '\0';
+                            std::string str(chBuf);
+                            CubeLog::info("STDOUT - " + this->runningApps[appID]->getAppName() + ": " + str);
+                        }
+                    }
+                }
+                // then we check stderr
+                if(this->runningApps[appID]->getStdErrReadHandle() != nullptr){
+                    bool bSuccess = false;
+                    DWORD dwRead = 0, dwAvailable = 0;
+                    CHAR chBuf[4096];
+                    if(AppsManager::consoleLoggingEnabled)
+                        CubeLog::debug("Checking stderr for app: " + appID);
+                    if(PeekNamedPipe(this->runningApps[appID]->getStdErrReadHandle(), NULL, 0, NULL, &dwAvailable, NULL) && dwAvailable > 0){
+                        bSuccess = ReadFile(this->runningApps[appID]->getStdErrReadHandle(), chBuf, sizeof(chBuf) - 1, &dwRead, NULL);
+                        if (bSuccess && dwRead > 0) {
+                            chBuf[dwRead] = '\0';
+                            std::string str(chBuf);
+                            CubeLog::info("STDERR - " + this->runningApps[appID]->getAppName() + ": " + str);
+                        }
+                    }
+                }
+#endif
+#ifdef __linux__
+                // first we check to see if the pipe is valid
+                // TODO: this entire section
+#endif
+                if(AppsManager::consoleLoggingEnabled)
+                    CubeLog::debug("Finished checking stdout and stderr for app: " + appID);
             }
         }
+        AppsManager::consoleLoggingEnabled = true;
         counter++;
     }
 }
@@ -138,7 +170,7 @@ bool AppsManager::startApp(std::string appID)
         auto container_id = this->dockerApi->startContainer(appID);
         if (container_id) {
             CubeLog::info("Docker container started successfully. Container ID: " + container_id.value() + ". App_id: " + appID + ". App name: " + appName);
-            this->runningApps[appID] = new RunningApp(0, appID, appName, execPath, execArgs, appSource, updatePath, role, "", "", "", "", std::stol(container_id.value()), nullptr, nullptr, nullptr, nullptr);
+            this->runningApps[appID] = new RunningApp(0, appID, appName, execPath, execArgs, appSource, updatePath, role, "", "", "", "", std::stol(container_id.value()));
             return true;
         } else {
             CubeLog::error("Error starting docker container. App_id: " + appID + ". App name: " + appName);
@@ -150,6 +182,8 @@ bool AppsManager::startApp(std::string appID)
         RunningApp* temp = NativeAPI::startApp(execPath, execArgs, appID, appName, appSource, updatePath);
         if (temp) {
             CubeLog::info("Native app started successfully. App_id: " + appID + ". App name: " + appName + ". PID: " + std::to_string(temp->getPID()));
+            if(this->runningApps[appID] != nullptr)
+                delete(this->runningApps[appID]);
             this->runningApps[appID] = temp;
             return true;
         } else {
@@ -727,12 +761,11 @@ bool AppsManager::isAppRunning(std::string appID)
             return false;
         }
         long pid = this->runningApps[appID]->getPID();
-        std::string processName = this->runningApps[appID]->getExecName();
         if (pid == 0) {
             CubeLog::info("Native app is not running: " + appID + ". App name: " + appName);
             return false;
         }
-        if(NativeAPI::isProcessRunning(processName)) {
+        if(NativeAPI::isProcessRunning(pid)) {
             if(AppsManager::consoleLoggingEnabled)
                 CubeLog::info("Native app is running: " + appID + ". App name: " + appName);
             return true;

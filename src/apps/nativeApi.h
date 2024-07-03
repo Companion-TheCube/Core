@@ -13,6 +13,7 @@
 #include <fstream>
 #include <string>
 #include "RunningApp.h"
+#include <utils.h>
 
 class NativeAPI {
 public:
@@ -21,4 +22,5 @@ public:
     static bool stopApp(long pid);
     static long getPID(std::string execPath);
     static bool isProcessRunning(const std::string& processName);
+    static bool isProcessRunning(long pid);
 };
