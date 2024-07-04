@@ -21,27 +21,21 @@ RunningApp::~RunningApp()
 {
     if (this->g_hChildStd_OUT_Rd != NULL) {
         CloseHandle(this->g_hChildStd_OUT_Rd);
-        // delete this->g_hChildStd_OUT_Rd;
     }
     if (this->g_hChildStd_OUT_Wr != NULL) {
         CloseHandle(this->g_hChildStd_OUT_Wr);
-        // delete this->g_hChildStd_OUT_Wr;
     }
     if (this->g_hChildStd_ERR_Rd != NULL) {
         CloseHandle(this->g_hChildStd_ERR_Rd);
-        // delete this->g_hChildStd_ERR_Rd;
     }
     if (this->g_hChildStd_ERR_Wr != NULL) {
         CloseHandle(this->g_hChildStd_ERR_Wr);
-        // delete this->g_hChildStd_ERR_Wr;
     }
     if (this->g_hChildStd_IN_Rd != NULL) {
         CloseHandle(this->g_hChildStd_IN_Rd);
-        // delete this->g_hChildStd_IN_Rd;
     }
     if (this->g_hChildStd_IN_Wr != NULL) {
         CloseHandle(this->g_hChildStd_IN_Wr);
-        // delete this->g_hChildStd_IN_Wr;
     }
 }
 
@@ -167,6 +161,7 @@ void RunningApp::setUpdateLastFailReason(std::string updateLastFailReason)
     this->updateLastFailReason = updateLastFailReason;
 }
 
+#ifdef _WIN32
 HANDLE* RunningApp::getStdOutRead()
 {
     return &this->g_hChildStd_OUT_Rd;
@@ -226,3 +221,36 @@ HANDLE RunningApp::getStdInWriteHandle()
 {
     return this->g_hChildStd_IN_Wr;
 }
+#endif
+
+#ifdef __linux__
+int RunningApp::getStdOutRead()
+{
+    return this->g_hChildStd_OUT_Rd;
+}
+
+int RunningApp::getStdOutWrite()
+{
+    return this->g_hChildStd_OUT_Wr;
+}
+
+int RunningApp::getStdErrRead()
+{
+    return this->g_hChildStd_ERR_Rd;
+}
+
+int RunningApp::getStdErrWrite()
+{
+    return this->g_hChildStd_ERR_Wr;
+}
+
+int RunningApp::getStdInRead()
+{
+    return this->g_hChildStd_IN_Rd;
+}
+
+int RunningApp::getStdInWrite()
+{
+    return this->g_hChildStd_IN_Wr;
+}
+#endif
