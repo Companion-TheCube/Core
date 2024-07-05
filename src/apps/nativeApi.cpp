@@ -299,3 +299,16 @@ long NativeAPI::getPID(std::string execPath)
     }
 }
 #endif
+
+bool NativeAPI::isExecutableInstalled(std::string execPath)
+{
+    CubeLog::info("Checking if app is installed: " + execPath);
+    std::filesystem::path p = std::filesystem::path(execPath);
+    if (!std::filesystem::exists(p)) {
+        CubeLog::error("App not found: " + execPath);
+        return false;
+    } else {
+        CubeLog::info("App found: " + execPath);
+        return true;
+    }
+}

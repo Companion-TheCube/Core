@@ -23,4 +23,5 @@ public:
     static long getPID(std::string execPath);
     static bool isProcessRunning(const std::string& processName);
     static bool isProcessRunning(long pid);
+    static bool isExecutableInstalled(std::string execPath);
 };

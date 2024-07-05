@@ -35,7 +35,7 @@ void AppsManager::appsManagerThreadFn()
 {
     CubeLog::info("AppsManager thread started.");
     while (CubeDB::getDBManager() == nullptr || !CubeDB::getDBManager()->isDatabaseManagerReady()) {
-        CubeLog::debug("Waiting for DBManager to be set.");
+        CubeLog::debug("Waiting for DBManager to be initialized.");
         genericSleep(1);
     }
     auto ret = CubeDB::getDBManager()->getDatabase("apps")->selectData("apps", { "app_id" });
@@ -50,6 +50,19 @@ void AppsManager::appsManagerThreadFn()
     this->dockerApi = std::make_shared<DockerAPI>("http://127.0.0.1:2375");
     this->killAbandonedContainers();
     this->killAbandonedProcesses();
+
+
+    // testing
+    for(auto id: this->appIDs){
+        CubeLog::warning("testing info");
+        CubeLog::debug("App ID: " + id);
+        CubeLog::debug("App name: " + this->getAppName(id));
+        CubeLog::debug("App exec path: " + this->getAppExecPath(id));
+        CubeLog::debug("App installed?: " + std::to_string(this->isAppInstalled(id)));
+    }
+    // end testing
+
+
     unsigned long counter = 0;
     while (true) {
         genericSleep(100);
@@ -812,6 +825,56 @@ bool AppsManager::isAppInstalled(std::string appID)
     if (appName == "") {
         CubeLog::error("Error checking if app is installed: " + appID + ". App not found.");
         return false;
+    }
+    // get the role from the database
+    std::string role = this->getAppRole(appID);
+    if(role == "") {
+        CubeLog::error("Error checking if app is installed: " + appID + ". No role found.");
+        return false;
+    }
+    if(role == "docker"){
+        if(AppsManager::consoleLoggingEnabled)
+            CubeLog::info("Checking if docker app is installed: " + appID + ". App name: " + appName);
+        // list all containers
+        auto containers = this->dockerApi->getContainers_vec();
+        if (!containers) {
+            CubeLog::error("Error checking if docker app is installed: " + appID + ". App name: " + appName);
+            CubeLog::error("Error: " + containers.error().message);
+            return false;
+        }
+        auto containersVec = containers.value();
+        for(auto container : containersVec) {
+            // convert container json string to json object
+            nlohmann::json containerJson = nlohmann::json::parse(container);
+            // get the container name
+            std::string containerName = containerJson["Names"][0];
+            CubeLog::debug("Container name: " + containerName);
+            if(containerName == appName) {
+                if(AppsManager::consoleLoggingEnabled)
+                    CubeLog::info("Docker app is installed: " + appID + ". App name: " + appName);
+                return true;
+            }
+        }
+        if(AppsManager::consoleLoggingEnabled)
+            CubeLog::info("Docker app is not installed: " + appID + ". App name: " + appName);
+        return false;
+    } else if(role == "native") {
+        std::string execPath = this->getAppExecPath(appID);
+        if(execPath == "") {
+            CubeLog::error("Error checking if app is installed: " + appID + ". No exec path found.");
+            return false;
+        }
+        if(AppsManager::consoleLoggingEnabled)
+            CubeLog::info("Checking if native app is installed: " + appID + ". App name: " + appName);
+        if(NativeAPI::isExecutableInstalled(execPath)) {
+            if(AppsManager::consoleLoggingEnabled)
+                CubeLog::info("Native app is installed: " + appID + ". App name: " + appName);
+            return true;
+        } else {
+            if(AppsManager::consoleLoggingEnabled)
+                CubeLog::info("Native app is not installed: " + appID + ". App name: " + appName);
+            return false;
+        }
     }
     return true;
 }
