@@ -454,3 +454,42 @@ void CubeLog::setLogLevel(LogLevel printLevel, LogLevel fileLevel){
 void CubeLog::setConsoleLoggingEnabled(bool enabled){
     CubeLog::consoleLoggingEnabled = enabled;
 }
+
+/**
+ * @brief Get the name of the interface
+ * 
+ * @return std::string The name of the interface
+ */
+std::string CubeLog::getIntefaceName() const{
+    return "Logger";
+}
+
+/**
+ * @brief Get the endpoint data
+ * 
+ * @return EndPointData_t The endpoint data
+ */
+EndPointData_t CubeLog::getEndpointData(){
+    EndPointData_t data;
+    data.push_back({true, [](const httplib::Request &req){
+        // log info
+        CubeLog::info("Logging info message from endpoint", std::source_location::current());
+        //get message from request
+        std::string message = req.get_param_value("message");
+        // log message
+        CubeLog::info(message, std::source_location::current());
+        return "Logged info message";
+    }});
+    return data;
+}
+
+/**
+ * @brief Get the endpoint names
+ * 
+ * @return std::vector<std::string> The endpoint names
+ */
+std::vector<std::string> CubeLog::getEndpointNames(){
+    std::vector<std::string> names;
+    names.push_back("logInfo");
+    return names;
+}

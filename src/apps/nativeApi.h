@@ -7,7 +7,12 @@
 #include <dirent.h>
 #endif
 #ifdef _WIN32
+#ifndef WIN32_INCLUDED
+#define WIN32_INCLUDED
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <windows.h>
+#endif
 #include <tlhelp32.h>
 #endif
 #include <fstream>

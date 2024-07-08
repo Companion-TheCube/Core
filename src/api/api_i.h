@@ -1,9 +1,12 @@
 #pragma once
+#ifndef API_I_H
+#define API_I_H
 #include <string>
 #include <vector>
 #include <functional>
 #include <logger.h>
 #include <thread>
+#define WIN32_LEAN_AND_MEAN
 #include <httplib.h>
 
 typedef std::vector<std::pair<std::string, std::string>> EndPointParams_t;
@@ -28,3 +31,4 @@ public:
     virtual EndPointData_t getEndpointData() = 0;
     virtual std::vector<std::string> getEndpointNames() = 0;
 };
+#endif

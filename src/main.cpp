@@ -148,7 +148,8 @@ int main(int argc, char* argv[])
     // Settings ang Logger setup
     /////////////////////////////////////////////////////////////////
     GlobalSettings settings;
-    auto logger = new CubeLog();
+    // auto logger = new CubeLog();
+    auto logger = std::make_shared<CubeLog>();
     auto settingsLoader = new SettingsLoader(&settings);
     settingsLoader->loadSettings();
     if (argumentParser["--print"] == true) {
@@ -245,6 +246,7 @@ int main(int argc, char* argv[])
         API_Builder api_builder(api);
         api_builder.addInterface(gui);
         api_builder.addInterface(cubeDB);
+        api_builder.addInterface(logger);
         api_builder.start();
         bool running = true;
         CubeLog::log("Entering main loop...", true);
@@ -273,6 +275,6 @@ int main(int argc, char* argv[])
         dac.closeStream();
     // api->stop();
     // delete api;
-    delete logger;
+    // delete logger;
     return 0;
 }

@@ -1,6 +1,9 @@
 #ifndef SHADER_H
 #define SHADER_H
-
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#endif
 #include <string>
 #include <filesystem>
 // #ifndef __GLEW_H__

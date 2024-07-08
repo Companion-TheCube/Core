@@ -1,4 +1,7 @@
 #pragma once
+#ifndef LOGGER_H
+#define LOGGER_H
+#define WIN32_LEAN_AND_MEAN
 #include <iostream>
 #include <vector>
 #include <chrono>
@@ -9,6 +12,7 @@
 #include <filesystem>
 #include <algorithm>
 #include <source_location>
+#include "../api/api_i.h"
 
 enum LogVerbosity {
     MINIMUM,
@@ -54,7 +58,7 @@ public:
     unsigned long long getTimestampAsLong();
 };
 
-class CubeLog{
+class CubeLog : public I_API_Interface{
 private:
     static std::vector<CUBE_LOG_ENTRY> logEntries;
     static std::mutex logMutex;
@@ -87,6 +91,11 @@ public:
     void setVerbosity(LogVerbosity verbosity);
     void setLogLevel(LogLevel printLevel, LogLevel fileLevel);
     static void setConsoleLoggingEnabled(bool enabled);
+
+    // API Interface
+    std::string getIntefaceName() const;
+    EndPointData_t getEndpointData();
+    std::vector<std::string> getEndpointNames();
 };
 
 std::string convertTimestampToString(std::chrono::time_point<std::chrono::system_clock> timestamp);
@@ -168,3 +177,5 @@ int main() {
     std::cout << "This ->" << red << "word" << def << "<- is red." << std::endl;
 }
  */
+
+#endif
