@@ -152,30 +152,40 @@ void API::httpApiThreadFn(){
                 this->server->addEndpoint(this->endpoints[i]->getPath(), [&, i](const httplib::Request &req, httplib::Response &res){
                     std::string returned = this->endpoints.at(i)->doAction(req);
                     res.set_content(returned, "text/plain");
-                    // TODO: the returned string should be sent back to the client instead of just logging it. see above.
                     CubeLog::log("Endpoint action returned: " + returned, true);
                 });
             }else{
                 this->server->addEndpoint(this->endpoints.at(i)->getPath(), [&](const httplib::Request &req, httplib::Response &res){
-                    res.set_content("Endpoint not public", "text/plain");
-                    res.status = httplib::StatusCode::Forbidden_403;
-            });
-                // TODO: add non public endpoints
+                    // res.set_content("Endpoint not public", "text/plain");
+                    // res.status = httplib::StatusCode::Forbidden_403;
+                    // first we get the authorization header
+                    std::string authHeader = req.get_header_value("Authorization");
+                    // if the authorization header is not present, we return a 403
+                    if(authHeader.empty()){
+                        res.set_content("Authorization header not present", "text/plain");
+                        res.status = httplib::StatusCode::Forbidden_403;
+                        return;
+                    }
+                    // if the authorization header is present, we check if it is valid
+                    if(!this->auth->isAuthorized_authHeader(authHeader)){
+                        res.set_content("Authorization header not valid", "text/plain");
+                        res.status = httplib::StatusCode::Forbidden_403;
+                        return;
+                    }
+                    // if the authorization header is valid, client is authorized
+                    std::string returned = this->endpoints.at(i)->doAction(req);
+                    res.set_content(returned, "text/plain");
+                    CubeLog::log("Endpoint action returned: " + returned, true);
+                });
             }
         }
         this->server->start();
+        // wait for the stop signal. once this->server goes out of scope, the server will stop.
         while(true){
             if(this->listenerThread.get_stop_token().stop_requested()){
                 break;
             }
-            // do something
-        
-            #ifdef _WIN32
-            Sleep(1);
-            #endif
-            #ifdef __linux__
-            usleep(1);
-            #endif  
+            genericSleep(10);
         }
     }catch(std::exception &e){
         CubeLog::error(e.what());

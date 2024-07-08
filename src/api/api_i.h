@@ -12,6 +12,8 @@
 typedef std::vector<std::pair<std::string, std::string>> EndPointParams_t;
 typedef std::vector<std::pair<bool,std::function<std::string(const httplib::Request &req)>>> EndPointData_t;
 
+#define IS_PUBLIC true
+#define IS_PRIVATE false
 
 class I_API_Interface {
 public:
@@ -29,6 +31,6 @@ public:
      * authenticated clients.
      **/
     virtual EndPointData_t getEndpointData() = 0;
-    virtual std::vector<std::string> getEndpointNames() = 0;
+    virtual std::vector<std::pair<std::string,std::vector<std::string>>> getEndpointNamesAndParams() = 0;
 };
 #endif

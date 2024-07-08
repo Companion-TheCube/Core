@@ -21,6 +21,7 @@
 #include <memory>
 #include <latch>
 #include "authentication.h"
+#include <utils.h>
 // #include "api_i.h"
 
 class Endpoint {

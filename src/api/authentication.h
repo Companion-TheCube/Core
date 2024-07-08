@@ -20,6 +20,7 @@ public:
     CubeAuth();
     ~CubeAuth();
     int checkAuth(std::string privateKey, std::string app_id, std::string encrypted_auth_code);
+    bool isAuthorized_authHeader(std::string authHeader);
     std::string generateAuthCode();
     std::pair<std::string,std::string> generateKeyPair();
     std::string encryptAuthCode(std::string auth_code, std::string public_key);

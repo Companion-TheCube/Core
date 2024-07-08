@@ -143,12 +143,20 @@ EndPointData_t CubeDB::getEndpointData()
  * 
  * @return std::vector<std::string> 
  */
-std::vector<std::string> CubeDB::getEndpointNames()
+std::vector<std::pair<std::string,std::vector<std::string>>> CubeDB::getEndpointNamesAndParams()
 {
     std::vector<std::string> names;
-    names.push_back("saveBlob");
-    names.push_back("insertData");
-    return names;
+    std::vector<std::string> params;
+    std::pair<std::string,std::vector<std::string>> saveBlob;
+    saveBlob.first = "saveBlob";
+    saveBlob.second = {"blob", "client_id", "app_id"};
+    std::pair<std::string,std::vector<std::string>> insertData;
+    insertData.first = "insertData";
+    insertData.second = {};
+    std::vector<std::pair<std::string,std::vector<std::string>>> namesAndParams;
+    namesAndParams.push_back(saveBlob);
+    namesAndParams.push_back(insertData);
+    return namesAndParams;
 }
 
 /**

@@ -23,7 +23,7 @@ public:
     void eventLoop();
     void stop();
     EndPointData_t getEndpointData();
-    std::vector<std::string> getEndpointNames();
+    std::vector<std::pair<std::string,std::vector<std::string>>> getEndpointNamesAndParams();
     std::string getIntefaceName() const;
 private:
     Renderer *renderer;

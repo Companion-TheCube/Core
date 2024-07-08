@@ -4,6 +4,7 @@
 #include <any>
 #include <unordered_map>
 #include <memory>
+#include <nlohmann/json.hpp>
 
 class API_Builder {
 private:

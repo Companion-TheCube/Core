@@ -471,14 +471,25 @@ std::string CubeLog::getIntefaceName() const{
  */
 EndPointData_t CubeLog::getEndpointData(){
     EndPointData_t data;
-    data.push_back({true, [](const httplib::Request &req){
+    data.push_back({IS_PUBLIC, [](const httplib::Request &req){
         // log info
-        CubeLog::info("Logging info message from endpoint", std::source_location::current());
+        CubeLog::info("Logging message from endpoint", std::source_location::current());
         //get message from request
         std::string message = req.get_param_value("message");
+        // get level from request
+        std::string level = req.get_param_value("level");
+        // convert level to int
+        int level_int;
+        try{
+            level_int = std::stoi(level);
+            if(level_int < 0 || level_int > 4) throw std::invalid_argument("Log level out of range. Must be between 0 and 4, inclusive.");
+        }catch(std::invalid_argument e){
+            CubeLog::error(e.what(), std::source_location::current());
+            return std::string(e.what());
+        }
         // log message
-        CubeLog::info(message, std::source_location::current());
-        return "Logged info message";
+        CubeLog::log(message, true, LogLevel(level_int), std::source_location::current());
+        return std::string("Logged message");
     }});
     return data;
 }
@@ -488,8 +499,11 @@ EndPointData_t CubeLog::getEndpointData(){
  * 
  * @return std::vector<std::string> The endpoint names
  */
-std::vector<std::string> CubeLog::getEndpointNames(){
-    std::vector<std::string> names;
-    names.push_back("logInfo");
+std::vector<std::pair<std::string,std::vector<std::string>>> CubeLog::getEndpointNamesAndParams(){
+    std::vector<std::pair<std::string,std::vector<std::string>>> names;
+    std::vector<std::string> logParams;
+    logParams.push_back("message");
+    logParams.push_back("level");
+    names.push_back({"log", logParams});
     return names;
 }

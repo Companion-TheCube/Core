@@ -138,11 +138,13 @@ EndPointData_t GUI::getEndpointData()
     return actions;
 }
 
-std::vector<std::string> GUI::getEndpointNames()
+std::vector<std::pair<std::string,std::vector<std::string>>> GUI::getEndpointNamesAndParams()
 {
-    std::vector<std::string> names;
-    names.push_back("stop");
-    names.push_back("action2");
+    std::vector<std::pair<std::string,std::vector<std::string>>> names;
+    std::vector<std::string> stopParams;
+    stopParams.push_back("text");
+    names.push_back({"stop", stopParams});
+    names.push_back({"action2", {}});
     return names;
 }
 
