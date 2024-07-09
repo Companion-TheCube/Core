@@ -78,7 +78,7 @@ void API::restart(){
  * @param publicEndpoint whether the endpoint is public or not
  * @param action the action to take when the endpoint is called
  */
-void API::addEndpoint(std::string name, std::string path, bool publicEndpoint, std::function<std::string(const httplib::Request &req)> action){
+void API::addEndpoint(std::string name, std::string path, bool publicEndpoint, std::function<std::string(const httplib::Request &req, httplib::Response &res)> action){
     // add an endpoint
     CubeLog::log("Adding endpoint: " + name + " at " + path, true);
     Endpoint *endpoint = new Endpoint(publicEndpoint, name, path);
@@ -150,9 +150,10 @@ void API::httpApiThreadFn(){
             if(this->endpoints.at(i)->isPublic()){
                 CubeLog::log("Adding public endpoint: " + this->endpoints.at(i)->getName() + " at " + this->endpoints.at(i)->getPath(), true);
                 this->server->addEndpoint(this->endpoints[i]->getPath(), [&, i](const httplib::Request &req, httplib::Response &res){
-                    std::string returned = this->endpoints.at(i)->doAction(req);
-                    res.set_content(returned, "text/plain");
-                    CubeLog::log("Endpoint action returned: " + returned, true);
+                    std::string returned = this->endpoints.at(i)->doAction(req, res);
+                    if(returned != "")
+                        res.set_content(returned, "text/plain");
+                    CubeLog::log("Endpoint action returned: " + (returned==""?"empty string":returned), true);
                 });
             }else{
                 this->server->addEndpoint(this->endpoints.at(i)->getPath(), [&](const httplib::Request &req, httplib::Response &res){
@@ -173,9 +174,10 @@ void API::httpApiThreadFn(){
                         return;
                     }
                     // if the authorization header is valid, client is authorized
-                    std::string returned = this->endpoints.at(i)->doAction(req);
-                    res.set_content(returned, "text/plain");
-                    CubeLog::log("Endpoint action returned: " + returned, true);
+                    std::string returned = this->endpoints.at(i)->doAction(req, res);
+                    if(returned != "")
+                        res.set_content(returned, "text/plain");
+                    CubeLog::log("Endpoint action returned: " + (returned==""?"empty string":returned), true);
                 });
             }
         }
@@ -247,7 +249,7 @@ bool Endpoint::isPublic(){
  * 
  * @param action the action to take
  */
-void Endpoint::setAction(std::function<std::string(const httplib::Request &req)> action){
+void Endpoint::setAction(std::function<std::string(const httplib::Request &req, httplib::Response &res)> action){
     this->action = action;
 }
 
@@ -258,8 +260,8 @@ void Endpoint::setAction(std::function<std::string(const httplib::Request &req)>
  * @param params the parameters from the client
  * @return std::string the response to send back to the client
  */
-std::string Endpoint::doAction(const httplib::Request &req){
-    return this->action(req);
+std::string Endpoint::doAction(const httplib::Request &req, httplib::Response &res){
+    return this->action(req, res);
 }
 
 /**
@@ -267,7 +269,7 @@ std::string Endpoint::doAction(const httplib::Request &req){
  * 
  * @return std::function<std::string(std::string, EndPointParams_t)> the action to take
  */
-std::function <std::string(const httplib::Request &req)> Endpoint::getAction(){
+std::function <std::string(const httplib::Request &req, httplib::Response &res)> Endpoint::getAction(){
     return this->action;
 }
 

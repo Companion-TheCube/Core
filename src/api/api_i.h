@@ -8,9 +8,10 @@
 #include <thread>
 #define WIN32_LEAN_AND_MEAN
 #include <httplib.h>
+#include <nlohmann/json.hpp>
 
 typedef std::vector<std::pair<std::string, std::string>> EndPointParams_t;
-typedef std::vector<std::pair<bool,std::function<std::string(const httplib::Request &req)>>> EndPointData_t;
+typedef std::vector<std::pair<bool,std::function<std::string(const httplib::Request &req, httplib::Response &res)>>> EndPointData_t;
 
 #define IS_PUBLIC true
 #define IS_PRIVATE false

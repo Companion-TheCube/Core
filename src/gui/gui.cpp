@@ -114,7 +114,7 @@ void GUI::stop(){
 EndPointData_t GUI::getEndpointData()
 {
     EndPointData_t actions;
-    actions.push_back({true, [&](const httplib::Request &req){
+    actions.push_back({true, [&](const httplib::Request &req, httplib::Response &res){
         // this->stop();
         std::string p = "no param";
         for(auto param : req.params){
@@ -126,7 +126,7 @@ EndPointData_t GUI::getEndpointData()
         CubeLog::log("Endpoint stop called and message set to: " + p, true);
         return "Stop called";
     }});
-    actions.push_back({true, [&](const httplib::Request &req){
+    actions.push_back({true, [&](const httplib::Request &req, httplib::Response &res){
         std::string paramsString;
         for(auto param : req.params){
             paramsString += param.first + ": " + param.second + "\n";

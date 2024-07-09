@@ -130,10 +130,18 @@ else()
     set(FONTS_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/fonts")
 endif()
 
+set(HTTP_SOURCE_DIR "${CMAKE_SOURCE_DIR}/http")
+if(WIN32)
+    set(HTTP_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Debug/http")
+else()
+    set(HTTP_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/http")
+endif()
+
 # Create the destination directories if they don't exist
 file(MAKE_DIRECTORY ${SHADER_DEST_DIR})
 file(MAKE_DIRECTORY ${MESHES_DEST_DIR})
 file(MAKE_DIRECTORY ${FONTS_DEST_DIR})
+file(MAKE_DIRECTORY ${HTTP_DEST_DIR})
 
 # Add executable
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/**/*.cpp" "src/**/**/*.cpp")
@@ -202,6 +210,15 @@ add_custom_command(
     ${FONTS_SOURCE_DIR}
     ${FONTS_DEST_DIR}
     COMMENT "Copying fonts to output directory"
+)
+
+# Add a custom command to copy the http directory
+add_custom_command(
+    TARGET CubeCore POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${HTTP_SOURCE_DIR}
+    ${HTTP_DEST_DIR}
+    COMMENT "Copying http to output directory"
 )
 
 install(TARGETS CubeCore)

@@ -471,7 +471,7 @@ std::string CubeLog::getIntefaceName() const{
  */
 EndPointData_t CubeLog::getEndpointData(){
     EndPointData_t data;
-    data.push_back({IS_PUBLIC, [](const httplib::Request &req){
+    data.push_back({IS_PRIVATE, [](const httplib::Request &req, httplib::Response &res){
         // log info
         CubeLog::info("Logging message from endpoint", std::source_location::current());
         //get message from request
@@ -485,11 +485,19 @@ EndPointData_t CubeLog::getEndpointData(){
             if(level_int < 0 || level_int > 4) throw std::invalid_argument("Log level out of range. Must be between 0 and 4, inclusive.");
         }catch(std::invalid_argument e){
             CubeLog::error(e.what(), std::source_location::current());
-            return std::string(e.what());
+            // create json object with error message and return success = false
+            nlohmann::json j;
+            j["success"] = false;
+            j["message"] = e.what();
+            return j.dump();
         }
         // log message
         CubeLog::log(message, true, LogLevel(level_int), std::source_location::current());
-        return std::string("Logged message");
+        // create json object with success message and return success = true
+        nlohmann::json j;
+        j["success"] = true;
+        j["message"] = "Logged message";
+        return j.dump();
     }});
     return data;
 }

@@ -332,4 +332,15 @@ std::string CubeAuth::getLastError()
     return this->lastError;
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////////
+/**
+ * @brief Check if the client is authorized using the Authorization header
+ * 
+ * @param authHeader 
+ * @return bool 
+ */
+bool CubeAuth::isAuthorized_authHeader(std::string authHeader)
+{
+    // TODO: implement this function
+    if(authHeader == "") return false;
+    return true;
+}

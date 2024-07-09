@@ -76,7 +76,7 @@ EndPointData_t CubeDB::getEndpointData()
 {
     // TODO: fill in the database endpoints
     EndPointData_t data;
-    data.push_back({false, [&](const httplib::Request &req){
+    data.push_back({false, [&](const httplib::Request &req, httplib::Response &res){
         std::string blob = "none";
         std::string client_id = "none";
         std::string app_id = "none";
@@ -102,7 +102,7 @@ EndPointData_t CubeDB::getEndpointData()
         }
         return "saveBlob called";
     }});
-    data.push_back({true, [&](const httplib::Request &req){
+    data.push_back({true, [&](const httplib::Request &req, httplib::Response &res){
         // first we create a buffer to hold the response
         char* ret = new char[65535];
         int size = 0;
