@@ -1,8 +1,3 @@
-// TODO: replace logger with https://github.com/gabime/spdlog  ...maybe, probably not
-// TODO: Add DEBUG level to logger
-
-// TODO: add a static method that allows the user to temporarily disable logging to the console
-
 #include "logger.h"
 
 #define COUNTER_MOD 100
@@ -11,7 +6,7 @@
 #define LOG_WRITE_OUT_COUNT 500 // write out logs every 500 logs
 #define CUBE_LOG_MEMORY_LIMIT 1000 // maximum number of log entries in memory
 
-int CUBE_LOG_ENTRY::logEntryCount = 0;
+unsigned int CUBE_LOG_ENTRY::logEntryCount = 0;
 
 /**
  * @brief Construct a new cube log_entry entry object
@@ -23,6 +18,7 @@ int CUBE_LOG_ENTRY::logEntryCount = 0;
  */
 CUBE_LOG_ENTRY::CUBE_LOG_ENTRY(std::string message, std::source_location* location, LogVerbosity verbosity, LogLevel level){
     this->timestamp = std::chrono::system_clock::now();
+    this->logEntryNumber = this->logEntryCount;
     this->logEntryCount++;
     this->message = message;
     this->level = level;
@@ -105,6 +101,10 @@ LogLevel CubeLog::staticPrintLevel = LogLevel::LOGGER_INFO;
 std::vector<CUBE_LOG_ENTRY> CubeLog::logEntries;
 std::mutex CubeLog::logMutex;
 bool CubeLog::consoleLoggingEnabled = true;
+bool CubeLog::hasUnreadErrors_b = false;
+bool CubeLog::hasUnreadLogs_b = false;
+std::vector<unsigned int> CubeLog::readErrorIDs;
+std::vector<unsigned int> CubeLog::readLogIDs;
 
 /**
  * @brief Log a message
@@ -454,6 +454,94 @@ void CubeLog::setLogLevel(LogLevel printLevel, LogLevel fileLevel){
 void CubeLog::setConsoleLoggingEnabled(bool enabled){
     CubeLog::consoleLoggingEnabled = enabled;
 }
+
+/**
+ * @brief Get the latest error
+ * 
+ * @return CUBE_LOG_ENTRY The latest error 
+ */
+CUBE_LOG_ENTRY CubeLog::getLatestError(){
+    std::lock_guard<std::mutex> lock(CubeLog::logMutex);
+    // find the latest error entry that is not in the readErrorIDs vector
+    for(int i = CubeLog::logEntries.size() - 1; i >= 0; i--){
+        if(CubeLog::logEntries[i].level == LogLevel::LOGGER_ERROR && std::find(CubeLog::readErrorIDs.begin(), CubeLog::readErrorIDs.end(), CubeLog::logEntries[i].logEntryNumber) == CubeLog::readErrorIDs.end()){
+            CubeLog::readErrorIDs.push_back(CubeLog::logEntries[i].logEntryNumber);
+            return CubeLog::logEntries[i];
+        }
+    }
+    return CUBE_LOG_ENTRY("No errors found", nullptr, LogVerbosity::MINIMUM, LogLevel::LOGGER_INFO);
+}
+
+/**
+ * @brief Get the latest log
+ * 
+ * @return CUBE_LOG_ENTRY The latest log
+ */
+CUBE_LOG_ENTRY CubeLog::getLatestLog(){
+    std::lock_guard<std::mutex> lock(CubeLog::logMutex);
+    // find the latest log entry that is not an error and is not in the readLogIDs vector
+    for(int i = CubeLog::logEntries.size() - 1; i >= 0; i--){
+        if(CubeLog::logEntries[i].level != LogLevel::LOGGER_ERROR && std::find(CubeLog::readLogIDs.begin(), CubeLog::readLogIDs.end(), CubeLog::logEntries[i].logEntryNumber) == CubeLog::readLogIDs.end()){
+            CubeLog::readLogIDs.push_back(CubeLog::logEntries[i].logEntryNumber);
+            return CubeLog::logEntries[i];
+        }
+    }
+    return CUBE_LOG_ENTRY("No logs found", nullptr, LogVerbosity::MINIMUM, LogLevel::LOGGER_INFO);
+}
+
+/**
+ * @brief Get the log latest entry
+ */
+CUBE_LOG_ENTRY CubeLog::getLatestEntry(){
+    std::lock_guard<std::mutex> lock(CubeLog::logMutex);
+    if(CubeLog::logEntries.size() > 0){
+        return CubeLog::logEntries[CubeLog::logEntries.size() - 1];
+        // add to readLogIDs or readErrorIDs depending on the level
+        if (CubeLog::logEntries[CubeLog::logEntries.size() - 1].level == LogLevel::LOGGER_ERROR)
+        {
+            CubeLog::readErrorIDs.push_back(CubeLog::logEntries[CubeLog::logEntries.size() - 1].logEntryNumber);
+        }
+        else
+        {
+            CubeLog::readLogIDs.push_back(CubeLog::logEntries[CubeLog::logEntries.size() - 1].logEntryNumber);
+        }
+    }
+    return CUBE_LOG_ENTRY("No logs found", nullptr, LogVerbosity::MINIMUM, LogLevel::LOGGER_INFO);
+}
+
+bool CubeLog::hasUnreadErrors(){
+    std::lock_guard<std::mutex> lock(CubeLog::logMutex);
+    bool hasUnreadErrors = false;
+    // determine if any of the errors in the logEntries vector that are LogLevel::LOGGER_ERROR are not in the readErrorIDs vector
+    for(int i = CubeLog::logEntries.size() - 1; i >= 0; i--){
+        if(CubeLog::logEntries[i].level == LogLevel::LOGGER_ERROR && std::find(CubeLog::readErrorIDs.begin(), CubeLog::readErrorIDs.end(), CubeLog::logEntries[i].logEntryNumber) == CubeLog::readErrorIDs.end()){
+            hasUnreadErrors = true;
+            break;
+        }
+    }
+    return hasUnreadErrors;
+}
+
+bool CubeLog::hasUnreadLogs(){
+    std::lock_guard<std::mutex> lock(CubeLog::logMutex);
+    bool hasUnreadLogs = false;
+    // determine if any of the logs in the logEntries vector that are not LogLevel::LOGGER_ERROR are not in the readLogIDs vector
+    for(int i = CubeLog::logEntries.size() - 1; i >= 0; i--){
+        if(CubeLog::logEntries[i].level != LogLevel::LOGGER_ERROR && std::find(CubeLog::readLogIDs.begin(), CubeLog::readLogIDs.end(), CubeLog::logEntries[i].logEntryNumber) == CubeLog::readLogIDs.end()){
+            hasUnreadLogs = true;
+            break;
+        }
+    }
+    return hasUnreadLogs;
+}
+
+bool CubeLog::hasUnreadEntries(){
+    return CubeLog::hasUnreadErrors() || CubeLog::hasUnreadLogs();
+}
+
+
+
+
 
 /**
  * @brief Get the name of the interface

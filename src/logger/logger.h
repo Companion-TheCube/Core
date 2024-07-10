@@ -48,8 +48,9 @@ private:
     std::chrono::time_point<std::chrono::system_clock> timestamp;
     std::string messageFull;
 public:
+    unsigned int logEntryNumber;
     LogLevel level;
-    static int logEntryCount;
+    static unsigned int logEntryCount;
     CUBE_LOG_ENTRY(std::string message, std::source_location* location, LogVerbosity verbosity, LogLevel level = LogLevel::LOGGER_INFO);
     std::string getMessage();
     std::string getTimestamp();
@@ -74,6 +75,8 @@ private:
     bool saveLogsThreadRun = true;
     std::mutex saveLogsThreadRunMutex;
     void purgeOldLogs();
+    static bool hasUnreadErrors_b, hasUnreadLogs_b;
+    static std::vector<unsigned int> readErrorIDs, readLogIDs;
 public:
     static void log(std::string message, bool print, LogLevel level = LogLevel::LOGGER_INFO, std::source_location location = std::source_location::current());
     static void debug(std::string message, std::source_location location = std::source_location::current());
@@ -91,6 +94,12 @@ public:
     void setVerbosity(LogVerbosity verbosity);
     void setLogLevel(LogLevel printLevel, LogLevel fileLevel);
     static void setConsoleLoggingEnabled(bool enabled);
+    static CUBE_LOG_ENTRY getLatestError();
+    static CUBE_LOG_ENTRY getLatestLog();
+    static CUBE_LOG_ENTRY getLatestEntry();
+    static bool hasUnreadErrors();
+    static bool hasUnreadLogs();
+    static bool hasUnreadEntries();
 
     // API Interface
     std::string getIntefaceName() const;

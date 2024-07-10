@@ -34,8 +34,12 @@ void M_Text::buildText(){
         if (FT_Init_FreeType(&ft)) {
             CubeLog::error("ERROR::FREETYPE: Could not init FreeType Library");
         }
-        // TODO: check that the font file exists before trying to load it. If it doesn't exist, use a default font.
-        if (FT_New_Face(ft, GlobalSettings::selectedFontPath.c_str(), 0, &face)) {
+        std::string fontPath = GlobalSettings::selectedFontPath;
+        if(!std::filesystem::exists(fontPath)){
+            CubeLog::error("ERROR::FREETYPE: Font file does not exist");
+            fontPath = "fonts/Roboto/Roboto-Regular.ttf";
+        }
+        if (FT_New_Face(ft, fontPath.c_str(), 0, &face)) {
             CubeLog::error("ERROR::FREETYPE: Failed to load font");
         }
         faceInitialized = true;

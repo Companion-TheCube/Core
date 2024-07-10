@@ -1,5 +1,5 @@
 // TODO: Need to add a sort of status bar to the top of the screen. It should show the time and whether or not a person is detected. probably more.
-// TODO: we should monitor the CubeLog for errors and display them in the status bar. This will require a way to get the last error message from the CubeLog.
+// TODO: we should monitor the CubeLog for errors and display them in the status bar. This will require a way to get the last error message from the CubeLog. <- this is done in CubeLog
 
 
 #include "./gui.h"
