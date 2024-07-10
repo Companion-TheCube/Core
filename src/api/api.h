@@ -28,14 +28,17 @@ class Endpoint {
 private:
     std::string name;
     std::string path;
-    bool publicEndpoint;
+    
     std::function<std::string(const httplib::Request &req, httplib::Response &res)> action;
 public:
-    Endpoint(bool publicEndpoint, std::string name, std::string path);
+
+int endpointType;
+    Endpoint(int endpointType, std::string name, std::string path);
     ~Endpoint();
     std::string getName();
     std::string getPath();
-    bool isPublic();
+    bool isPublic() const;
+    bool isGetType() const;
     void setAction(std::function<std::string(const httplib::Request &req, httplib::Response &res)> action);
     std::string doAction(const httplib::Request &req, httplib::Response &res);
     std::function<std::string(const httplib::Request &req, httplib::Response &res)> getAction();
@@ -52,7 +55,7 @@ public:
     void start();
     void stop();
     void restart();
-    void addEndpoint(std::string path, std::function<void(const httplib::Request&, httplib::Response&)> action);
+    void addEndpoint(bool isGetType, std::string path, std::function<void(const httplib::Request&, httplib::Response&)> action);
     void removeEndpoint(std::string path);
     void setPort(int port);
     int getPort();
@@ -72,7 +75,7 @@ public:
     void start();
     void stop();
     void restart();
-    void addEndpoint(std::string name, std::string path, bool publicEndpoint, std::function<std::string(const httplib::Request &req, httplib::Response &res)> action);
+    void addEndpoint(std::string name, std::string path, int endpointType, std::function<std::string(const httplib::Request &req, httplib::Response &res)> action);
     std::vector<Endpoint*> getEndpoints();
     Endpoint* getEndpointByName(std::string name);
     bool removeEndpoint(std::string name);

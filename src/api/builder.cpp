@@ -30,7 +30,7 @@ void API_Builder::start(){
     }
     // create an endpoint that will return the list of all endpoints as json, including the parameters and whether or not they are public
     CubeLog::log("Adding endpoint: getEndpoints at /getEndpoints", true);
-    this->api->addEndpoint("getEndpoints", "/getEndpoints", true, [&](const httplib::Request &req, httplib::Response &res){
+    this->api->addEndpoint("getEndpoints", "/getEndpoints", PUBLIC_ENDPOINT | GET_ENDPOINT, [&](const httplib::Request &req, httplib::Response &res){
         nlohmann::json j;
         for(auto i_face: this->interface_objs){
             std::string name = i_face.first;
@@ -40,7 +40,8 @@ void API_Builder::start(){
                 nlohmann::json endpoint_json;
                 endpoint_json["name"] = endpointNames.at(i).first;
                 endpoint_json["params"] = endpointNames.at(i).second;
-                endpoint_json["public"] = i_face_obj->getEndpointData().at(i).first;
+                endpoint_json["public"] = i_face_obj->getEndpointData().at(i).first & PUBLIC_ENDPOINT == PUBLIC_ENDPOINT ? "true" : "false";
+                endpoint_json["endpoint_type"] = i_face_obj->getEndpointData().at(i).first & GET_ENDPOINT == GET_ENDPOINT ? "GET" : "POST";
                 j[name].push_back(endpoint_json);
             }
         }
@@ -58,14 +59,14 @@ void API_Builder::start(){
         }
     }
     for(auto file: staticFiles){
-        CubeLog::log("Adding static file: " + file.string(), true);
+        CubeLog::info("Adding static file: " + file.string());
         // strip off the ./http/ part of the path
         std::string endpointPath = file.string().substr(5);
         // replace all \ with /
         std::replace(endpointPath.begin(), endpointPath.end(), '\\', '/');
         CubeLog::debug("Endpoint path: " + endpointPath);
         std::string filePath = file.string();
-        this->api->addEndpoint(filePath, "/" + endpointPath, true, [&, filePath](const httplib::Request &req, httplib::Response &res){
+        this->api->addEndpoint(filePath, "/" + endpointPath, PUBLIC_ENDPOINT | GET_ENDPOINT, [&, filePath](const httplib::Request &req, httplib::Response &res){
             if(!std::filesystem::exists(filePath)) {
                 CubeLog::error("File not found: " + filePath);
                 return std::string("File not found: " + filePath);
@@ -185,6 +186,6 @@ void API_Builder::start(){
         });
     }
 
-    CubeLog::log("API Builder finished build process.", true);
+    CubeLog::info("API Builder finished build process.");
     this->api->start();
 }

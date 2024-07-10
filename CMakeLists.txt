@@ -191,7 +191,7 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${SHADER_SOURCE_DIR}
     ${SHADER_DEST_DIR}
-    COMMENT "Copying shaders to output directory"
+    COMMAND ${CMAKE_COMMAND} -E echo "Copying shaders to output directory"
 )
 
 # Add a custom command to copy the meshes directory
@@ -200,7 +200,7 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${MESHES_SOURCE_DIR}
     ${MESHES_DEST_DIR}
-    COMMENT "Copying meshess to output directory"
+    COMMAND ${CMAKE_COMMAND} -E echo "Copying meshess to output directory"
 )
 
 # Add a custom command to copy the fonts directory
@@ -209,7 +209,7 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${FONTS_SOURCE_DIR}
     ${FONTS_DEST_DIR}
-    COMMENT "Copying fonts to output directory"
+    COMMAND ${CMAKE_COMMAND} -E echo "Copying fonts to output directory"
 )
 
 # Add a custom command to copy the http directory
@@ -218,7 +218,7 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${HTTP_SOURCE_DIR}
     ${HTTP_DEST_DIR}
-    COMMENT "Copying http to output directory"
+    COMMAND ${CMAKE_COMMAND} -E echo "Copying http to output directory"
 )
 
 install(TARGETS CubeCore)

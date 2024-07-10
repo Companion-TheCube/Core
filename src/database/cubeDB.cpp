@@ -76,7 +76,8 @@ EndPointData_t CubeDB::getEndpointData()
 {
     // TODO: fill in the database endpoints
     EndPointData_t data;
-    data.push_back({false, [&](const httplib::Request &req, httplib::Response &res){
+    data.push_back({PRIVATE_ENDPOINT | GET_ENDPOINT, [&](const httplib::Request &req, httplib::Response &res){ // Save blob
+        // TODO: rewrite to be a POST endpoint
         std::string blob = "none";
         std::string client_id = "none";
         std::string app_id = "none";
@@ -91,6 +92,7 @@ EndPointData_t CubeDB::getEndpointData()
                 app_id = param.second;
             }
         }
+        nlohmann::json j;
         if(client_id != "none"){
             CubeDB::getDBManager()->getDatabase("blobs")->insertData("client_blobs", {"blob", "owner_client_id"}, {blob, client_id});
             CubeLog::info("Blob saved");
@@ -99,10 +101,17 @@ EndPointData_t CubeDB::getEndpointData()
             CubeLog::info("Blob saved");
         }else{
             CubeLog::error("No client_id or app_id provided");
+            j["success"] = false;
+            j["message"] = "saveBlob called: failed to save blob, no client_id or app_id provided.";
+            res.set_content(j.dump(), "application/json");
+            return j.dump();
         }
-        return "saveBlob called";
+        j["success"] = true;
+        j["message"] = "saveBlob called";
+        res.set_content(j.dump(), "application/json");
+        return j.dump();
     }});
-    data.push_back({true, [&](const httplib::Request &req, httplib::Response &res){
+    data.push_back({PUBLIC_ENDPOINT | GET_ENDPOINT, [&](const httplib::Request &req, httplib::Response &res){ // Insert data
         // first we create a buffer to hold the response
         char* ret = new char[65535];
         int size = 0;
@@ -160,7 +169,7 @@ std::vector<std::pair<std::string,std::vector<std::string>>> CubeDB::getEndpoint
 }
 
 /**
- * @brief Get the Inteface Name object
+ * @brief Get the Inteface Name for the database endpoints
  * 
  * @return std::string 
  */

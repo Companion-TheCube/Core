@@ -78,10 +78,10 @@ void API::restart(){
  * @param publicEndpoint whether the endpoint is public or not
  * @param action the action to take when the endpoint is called
  */
-void API::addEndpoint(std::string name, std::string path, bool publicEndpoint, std::function<std::string(const httplib::Request &req, httplib::Response &res)> action){
+void API::addEndpoint(std::string name, std::string path, int endpointType, std::function<std::string(const httplib::Request &req, httplib::Response &res)> action){
     // add an endpoint
     CubeLog::log("Adding endpoint: " + name + " at " + path, true);
-    Endpoint *endpoint = new Endpoint(publicEndpoint, name, path);
+    Endpoint *endpoint = new Endpoint(endpointType, name, path);
     endpoint->setAction(action);
     this->endpoints.push_back(endpoint);
 }
@@ -147,16 +147,18 @@ void API::httpApiThreadFn(){
             // Public endpoints are those that provide information about the Cube such as human presence, temperature, etc.
             // Certain public endpoints should have the option to be secured as well. For example, the endpoint that provides the current state of human
             // presence may be set to private if the user does not want to share that information with others on the network.
+            CubeLog::debug("Endpoint type: " + std::to_string(this->endpoints.at(i)->endpointType));
             if(this->endpoints.at(i)->isPublic()){
                 CubeLog::log("Adding public endpoint: " + this->endpoints.at(i)->getName() + " at " + this->endpoints.at(i)->getPath(), true);
-                this->server->addEndpoint(this->endpoints[i]->getPath(), [&, i](const httplib::Request &req, httplib::Response &res){
+                this->server->addEndpoint(this->endpoints.at(i)->isGetType(), this->endpoints[i]->getPath(), [&, i](const httplib::Request &req, httplib::Response &res){
                     std::string returned = this->endpoints.at(i)->doAction(req, res);
                     if(returned != "")
                         res.set_content(returned, "text/plain");
                     CubeLog::log("Endpoint action returned: " + (returned==""?"empty string":returned), true);
                 });
             }else{
-                this->server->addEndpoint(this->endpoints.at(i)->getPath(), [&](const httplib::Request &req, httplib::Response &res){
+                CubeLog::log("Adding non public endpoint: " + this->endpoints.at(i)->getName() + " at " + this->endpoints.at(i)->getPath(), true);
+                this->server->addEndpoint(this->endpoints.at(i)->isGetType(), this->endpoints.at(i)->getPath(), [&](const httplib::Request &req, httplib::Response &res){
                     // res.set_content("Endpoint not public", "text/plain");
                     // res.status = httplib::StatusCode::Forbidden_403;
                     // first we get the authorization header
@@ -199,12 +201,12 @@ void API::httpApiThreadFn(){
 /**
  * @brief Construct a new Endpoint::Endpoint object
  * 
- * @param publicEndpoint 
+ * @param endpointType 
  * @param name 
  * @param path 
  */
-Endpoint::Endpoint(bool publicEndpoint, std::string name, std::string path){
-    this->publicEndpoint = publicEndpoint;
+Endpoint::Endpoint(int endpointType, std::string name, std::string path){
+    this->endpointType = endpointType;
     this->name = name;
     this->path = path;
 }
@@ -240,8 +242,17 @@ std::string Endpoint::getPath(){
  * 
  * @return true if the endpoint is public, false otherwise
  */
-bool Endpoint::isPublic(){
-    return this->publicEndpoint;
+bool Endpoint::isPublic() const{
+    return (this->endpointType & PUBLIC_ENDPOINT) == PUBLIC_ENDPOINT;
+}
+
+/**
+ * @brief check if the endpoint is a GET endpoint
+ * 
+ * @return true if the endpoint is a GET endpoint, false otherwise
+ */
+bool Endpoint::isGetType() const{
+    return (this->endpointType & GET_ENDPOINT) == GET_ENDPOINT;
 }
 
 /**
@@ -339,9 +350,15 @@ void CubeHttpServer::restart(){
  * @param path the path of the endpoint
  * @param action the action to take when the endpoint is called
  */
-void CubeHttpServer::addEndpoint(std::string path, std::function<void(const httplib::Request&, httplib::Response&)> action){
+void CubeHttpServer::addEndpoint(bool isGetType, std::string path, std::function<void(const httplib::Request&, httplib::Response&)> action){
     // add an endpoint
-    this->server->Get(path.c_str(), action);
+    if(isGetType){
+        this->server->Get(path.c_str(), action);
+        CubeLog::info("Added GET endpoint: " + path);
+    }else{
+        this->server->Post(path.c_str(), action);
+        CubeLog::info("Added POST endpoint: " + path);
+    }
 }
 
 /**

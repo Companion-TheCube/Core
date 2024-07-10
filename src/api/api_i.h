@@ -11,10 +11,12 @@
 #include <nlohmann/json.hpp>
 
 typedef std::vector<std::pair<std::string, std::string>> EndPointParams_t;
-typedef std::vector<std::pair<bool,std::function<std::string(const httplib::Request &req, httplib::Response &res)>>> EndPointData_t;
+typedef std::vector<std::pair<unsigned int,std::function<std::string(const httplib::Request &req, httplib::Response &res)>>> EndPointData_t;
 
-#define IS_PUBLIC true
-#define IS_PRIVATE false
+#define PUBLIC_ENDPOINT (int)1
+#define PRIVATE_ENDPOINT (int)2
+#define GET_ENDPOINT (int)4
+#define POST_ENDPOINT (int)8
 
 class I_API_Interface {
 public:
@@ -34,4 +36,6 @@ public:
     virtual EndPointData_t getEndpointData() = 0;
     virtual std::vector<std::pair<std::string,std::vector<std::string>>> getEndpointNamesAndParams() = 0;
 };
+
+
 #endif
