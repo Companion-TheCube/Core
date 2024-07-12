@@ -103,8 +103,8 @@ public:
 
     // API Interface
     std::string getIntefaceName() const;
-    EndPointData_t getEndpointData();
-    std::vector<std::pair<std::string,std::vector<std::string>>> getEndpointNamesAndParams();
+    HttpEndPointData_t getHttpEndpointData();
+    std::vector<std::pair<std::string,std::vector<std::string>>> getHttpEndpointNamesAndParams();
 };
 
 std::string convertTimestampToString(std::chrono::time_point<std::chrono::system_clock> timestamp);

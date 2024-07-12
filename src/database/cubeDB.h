@@ -18,7 +18,7 @@ public:
     static void setBlobsManager(std::shared_ptr<BlobsManager> blobsManager);
     static std::shared_ptr<CubeDatabaseManager> getDBManager();
     static std::shared_ptr<BlobsManager> getBlobsManager();
-    EndPointData_t getEndpointData() override;
-    std::vector<std::pair<std::string,std::vector<std::string>>> getEndpointNamesAndParams() override;
+    HttpEndPointData_t getHttpEndpointData() override;
+    std::vector<std::pair<std::string,std::vector<std::string>>> getHttpEndpointNamesAndParams() override;
     std::string getIntefaceName() const override;
 };

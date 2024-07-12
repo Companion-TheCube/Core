@@ -16,8 +16,8 @@ void API_Builder::start(){
         std::string name = i_face.first;
         I_API_Interface *i_face_obj = i_face.second;
         CubeLog::log("Building interface object: " + name, true);
-        auto endpointNames = i_face_obj->getEndpointNamesAndParams();
-        auto endpointData = i_face_obj->getEndpointData();
+        auto endpointNames = i_face_obj->getHttpEndpointNamesAndParams();
+        auto endpointData = i_face_obj->getHttpEndpointData();
         if(endpointNames.size() != endpointData.size()){
             CubeLog::error("Error: Size of endpoint names and data do not match for interface: " + name + ". Skipping.");
             continue;
@@ -35,13 +35,13 @@ void API_Builder::start(){
         for(auto i_face: this->interface_objs){
             std::string name = i_face.first;
             I_API_Interface *i_face_obj = i_face.second;
-            auto endpointNames = i_face_obj->getEndpointNamesAndParams();
+            auto endpointNames = i_face_obj->getHttpEndpointNamesAndParams();
             for(size_t i = 0; i < endpointNames.size(); i++){
                 nlohmann::json endpoint_json;
                 endpoint_json["name"] = endpointNames.at(i).first;
                 endpoint_json["params"] = endpointNames.at(i).second;
-                endpoint_json["public"] = i_face_obj->getEndpointData().at(i).first & PUBLIC_ENDPOINT == PUBLIC_ENDPOINT ? "true" : "false";
-                endpoint_json["endpoint_type"] = i_face_obj->getEndpointData().at(i).first & GET_ENDPOINT == GET_ENDPOINT ? "GET" : "POST";
+                endpoint_json["public"] = i_face_obj->getHttpEndpointData().at(i).first & PUBLIC_ENDPOINT == PUBLIC_ENDPOINT ? "true" : "false";
+                endpoint_json["endpoint_type"] = i_face_obj->getHttpEndpointData().at(i).first & GET_ENDPOINT == GET_ENDPOINT ? "GET" : "POST";
                 j[name].push_back(endpoint_json);
             }
         }

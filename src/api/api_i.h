@@ -11,7 +11,7 @@
 #include <nlohmann/json.hpp>
 
 typedef std::vector<std::pair<std::string, std::string>> EndPointParams_t;
-typedef std::vector<std::pair<unsigned int,std::function<std::string(const httplib::Request &req, httplib::Response &res)>>> EndPointData_t;
+typedef std::vector<std::pair<unsigned int,std::function<std::string(const httplib::Request &req, httplib::Response &res)>>> HttpEndPointData_t;
 
 #define PUBLIC_ENDPOINT (int)1
 #define PRIVATE_ENDPOINT (int)2
@@ -33,8 +33,8 @@ public:
      * any client on the network. If the endpoint is not public, it will only be accessible only from
      * authenticated clients.
      **/
-    virtual EndPointData_t getEndpointData() = 0;
-    virtual std::vector<std::pair<std::string,std::vector<std::string>>> getEndpointNamesAndParams() = 0;
+    virtual HttpEndPointData_t getHttpEndpointData() = 0;
+    virtual std::vector<std::pair<std::string,std::vector<std::string>>> getHttpEndpointNamesAndParams() = 0;
 };
 
 

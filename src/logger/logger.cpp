@@ -555,10 +555,10 @@ std::string CubeLog::getIntefaceName() const{
 /**
  * @brief Get the endpoint data
  * 
- * @return EndPointData_t The endpoint data
+ * @return HttpEndPointData_t The endpoint data
  */
-EndPointData_t CubeLog::getEndpointData(){
-    EndPointData_t data;
+HttpEndPointData_t CubeLog::getHttpEndpointData(){
+    HttpEndPointData_t data;
     data.push_back({PUBLIC_ENDPOINT | POST_ENDPOINT, [](const httplib::Request &req, httplib::Response &res){
         // log info
         CubeLog::info("Logging message from endpoint", std::source_location::current());
@@ -644,7 +644,7 @@ EndPointData_t CubeLog::getEndpointData(){
  * 
  * @return std::vector<std::string> The endpoint names
  */
-std::vector<std::pair<std::string,std::vector<std::string>>> CubeLog::getEndpointNamesAndParams(){
+std::vector<std::pair<std::string,std::vector<std::string>>> CubeLog::getHttpEndpointNamesAndParams(){
     std::vector<std::pair<std::string,std::vector<std::string>>> names;
     std::vector<std::string> logParams;
     logParams.push_back("message");

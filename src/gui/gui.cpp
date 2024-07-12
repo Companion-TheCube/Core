@@ -111,9 +111,9 @@ void GUI::stop(){
     this->renderer->stop();
 }
 
-EndPointData_t GUI::getEndpointData()
+HttpEndPointData_t GUI::getHttpEndpointData()
 {
-    EndPointData_t actions;
+    HttpEndPointData_t actions;
     actions.push_back({PUBLIC_ENDPOINT | GET_ENDPOINT, [&](const httplib::Request &req, httplib::Response &res){
         // this->stop();
         std::string p = "no param";
@@ -138,7 +138,7 @@ EndPointData_t GUI::getEndpointData()
     return actions;
 }
 
-std::vector<std::pair<std::string,std::vector<std::string>>> GUI::getEndpointNamesAndParams()
+std::vector<std::pair<std::string,std::vector<std::string>>> GUI::getHttpEndpointNamesAndParams()
 {
     std::vector<std::pair<std::string,std::vector<std::string>>> names;
     std::vector<std::string> stopParams;

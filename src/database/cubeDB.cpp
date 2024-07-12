@@ -70,12 +70,12 @@ std::shared_ptr<BlobsManager> CubeDB::getBlobsManager()
 /**
  * @brief Get the Endpoint Data object
  * 
- * @return EndPointData_t 
+ * @return HttpEndPointData_t 
  */
-EndPointData_t CubeDB::getEndpointData()
+HttpEndPointData_t CubeDB::getHttpEndpointData()
 {
     // TODO: fill in the database endpoints
-    EndPointData_t data;
+    HttpEndPointData_t data;
     data.push_back({PRIVATE_ENDPOINT | GET_ENDPOINT, [&](const httplib::Request &req, httplib::Response &res){ // Save blob
         // TODO: rewrite to be a POST endpoint
         std::string blob = "none";
@@ -152,7 +152,7 @@ EndPointData_t CubeDB::getEndpointData()
  * 
  * @return std::vector<std::string> 
  */
-std::vector<std::pair<std::string,std::vector<std::string>>> CubeDB::getEndpointNamesAndParams()
+std::vector<std::pair<std::string,std::vector<std::string>>> CubeDB::getHttpEndpointNamesAndParams()
 {
     std::vector<std::string> names;
     std::vector<std::string> params;
