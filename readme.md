@@ -43,9 +43,9 @@ make
 * [cpp-httplib](https://github.com/yhirose/cpp-httplib) - C++ HTTP server/client library.
 * [FreeType](https://www.freetype.org/) - A freely available software library to render fonts.
 * [nlohmann/json](https://github.com/nlohmann/json) - JSON for Modern C++.
-* [spdlog](https://github.com/gabime/spdlog) - Fast C++ logging library. **to replace current logging system**
 * [SQLite](https://www.sqlite.org/index.html) - A small, fast, self-contained, high-reliability, full-featured, SQL database engine. 
 * [SQLiteCpp](https://github.com/SRombauts/SQLiteCpp) - C++ wrapper around SQLite.
+* [Cpp-Base64](https://github.com/ReneNyffenegger/cpp-base64) - Base64 encoding and decoding with c++. **Currently using a version based on code from [here](https://renenyffenegger.ch/notes/development/Base64/Encoding-and-decoding-base-64-with-cpp)**
 
 The following fonts are used in the application and have been obtained from [Google Fonts](https://fonts.google.com/):
 * [Roboto](https://fonts.google.com/specimen/Roboto)
@@ -59,7 +59,15 @@ We use [SemVer](http://semver.org/) for versioning. For the versions available, 
 ## Authors
 * **Andrew McDaniel** - *Initial work* - [AndrewMcDan](https://github.com/AndrewMcDan)
 ## License
-This project is licensed under an end user license agreement - see the [LICENSE.md]() file for details.
+This project is licensed under an end user license agreement - see the [LICENSE.md]() file for details. Various parts of the project are licensed under different licenses. See the [DEPENDENCIES.md]() file for details.
+## Contributing
+Please read [CONTRIBUTING.md]() for details on our code of conduct, and the process for submitting pull requests to us.
+## Roadmap
+**TODO** - See the [open issues]() for a list of proposed features (and known issues).
+
+## Code of Conduct
+Please read [CODE_OF_CONDUCT.md]() for details on our code of conduct.
+
 ## Acknowledgments
 * Hat tip to ChatGPT for all the help
 * Inspiration: I saw a video on [YouTube](https://youtu.be/KgEp91__0cY?t=170) that showed an Eilik Robot and thought it was dumb. Decided to make my own version that would be more useful.

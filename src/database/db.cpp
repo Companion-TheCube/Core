@@ -87,7 +87,7 @@ bool Database::createTable(std::string tableName, std::vector<std::string> colum
 }
 
 /**
- * @brief Insert data into a table
+ * @brief Insert blob data into a table
  * 
  * @param tableName 
  * @param columnNames Size of columnNames and columnValues must be equal
@@ -95,22 +95,22 @@ bool Database::createTable(std::string tableName, std::vector<std::string> colum
  * @return true 
  * @return false 
  */
-bool Database::insertData(std::string tableName, std::vector<std::string> columnNames, std::vector<std::string> columnValues)
-
+long Database::insertData(std::string tableName, std::vector<std::string> columnNames, std::vector<std::string> columnValues)
 {
     if (!this->isOpen()) {
         this->lastError = "Database is not open";
-        return false;
+        return -1;
     }
     if (columnNames.size() != columnValues.size()) {
         this->lastError = "Sizes of column names and values do not match";
-        return false;
-    }
-    for(auto val: this->uniqueColumns){
-        CubeLog::debug("Unique column: " + val.first + " " + std::to_string(val.second));
+        return -1;
     }
     // Check if the column is unique
     for(size_t col = 0; col < columnNames.size(); col++){
+        if(columnNames.at(col) == "blob"){
+            // skip the blob column
+            continue;
+        }
         CubeLog::debug("Checking column: " + columnNames.at(col));
         if(this->uniqueColumns.find(columnNames.at(col)) != this->uniqueColumns.end() && this->uniqueColumns[columnNames.at(col)]){
             CubeLog::debug("Column is marked as unique. Checking if the value already exists.");
@@ -122,7 +122,7 @@ bool Database::insertData(std::string tableName, std::vector<std::string> column
                     id++;
                     if(id > 1000000){
                         this->lastError = "Unable to get unique value. Too many rows in the table.";
-                        return false;
+                        return -1;
                     }
                 }
                 CubeLog::debug("Next available value: " + std::to_string(id));
@@ -131,22 +131,26 @@ bool Database::insertData(std::string tableName, std::vector<std::string> column
                 CubeLog::debug("Column value is not empty. Checking if the value already exists.");
                 if(this->rowExists(tableName, columnNames.at(col) + " = '" + columnValues.at(col) + "'")){
                     this->lastError = "Unique column value already exists";
-                    return false;
+                    return -1;
                 }
             }
         }
     }
 
     std::string query = "INSERT INTO " + tableName + " (";
+    std::vector<int> blobColumns;
     for (int i = 0; i < columnNames.size(); i++) {
-        query += columnNames[i];
+        if(columnNames.at(i) == "blob"){
+            blobColumns.push_back(i);
+        }
+        query += columnNames.at(i);
         if (i < columnNames.size() - 1) {
             query += ", ";
         }
     }
     query += ") VALUES (";
     for (int i = 0; i < columnValues.size(); i++) {
-        query += "'" + columnValues[i] + "'";
+        query += "?";
         if (i < columnValues.size() - 1) {
             query += ", ";
         }
@@ -154,13 +158,23 @@ bool Database::insertData(std::string tableName, std::vector<std::string> column
     query += ");";
     try {
         SQLite::Statement stmt(*this->db, query);
-        stmt.executeStep();
-        return true;
+        for(int i = 0; i < columnNames.size(); i++){
+            if(std::find(blobColumns.begin(), blobColumns.end(), i) != blobColumns.end()){
+                const char* blob = columnValues.at(i).c_str();
+                stmt.bind(i + 1, blob, columnValues.at(i).size());
+            }else{
+                stmt.bind(i + 1, columnValues.at(i));
+            }
+        }
+        stmt.exec();
+        return this->db->getLastInsertRowid();
     } catch (std::exception& e) {
         this->lastError = e.what();
-        return false;
+        return -1;
     }
 }
+
+
 
 /**
  * @brief Update data in a table
@@ -874,7 +888,7 @@ bool BlobsManager::addBlob(std::string tableName, std::string blob, std::string 
     }
     Database* db = this->dbManager->getDatabase("blobs");
     if (db->open()) {
-        if (db->insertData(tableName, {"blob", "owner_id"}, {blob, ownerID})) {
+        if (db->insertData(tableName, {"blob", "owner_id"}, {blob, ownerID}) > -1) {
             db->close();
             return true;
         } else {
@@ -1080,7 +1094,7 @@ bool BlobsManager::addBlob(std::string tableName, char* blob, int size, std::str
     }
     Database* db = this->dbManager->getDatabase("blobs.db");
     if (db->open()) {
-        if (db->insertData(tableName, {"blob", "owner_id"}, {blob, ownerID})) {
+        if (db->insertData(tableName, {"blob", "owner_id"}, {blob, ownerID}) > -1) {
             db->close();
             return true;
         } else {

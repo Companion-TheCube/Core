@@ -1,6 +1,9 @@
 #pragma once
 #include "db.h"
 #include "../api/api_i.h"
+#include <functional>
+#include <mutex>
+#include <condition_variable>
 
 class CubeDB : public I_API_Interface{
     static std::shared_ptr<CubeDatabaseManager> dbManager;
@@ -22,3 +25,14 @@ public:
     std::vector<std::pair<std::string,std::vector<std::string>>> getHttpEndpointNamesAndParams() override;
     std::string getIntefaceName() const override;
 };
+
+
+static const std::string base64_chars = 
+             "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+             "abcdefghijklmnopqrstuvwxyz"
+             "0123456789+/";
+
+static inline bool is_base64(unsigned char c) {
+  return (isalnum(c) || (c == '+') || (c == '/'));
+}
+std::vector<unsigned char> base64_decode(std::string const& encoded_string);

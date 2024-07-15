@@ -158,10 +158,15 @@ void API::httpApiThreadFn(){
                 });
             }else{
                 CubeLog::log("Adding non public endpoint: " + this->endpoints.at(i)->getName() + " at " + this->endpoints.at(i)->getPath(), true);
-                this->server->addEndpoint(this->endpoints.at(i)->isGetType(), this->endpoints.at(i)->getPath(), [&](const httplib::Request &req, httplib::Response &res){
+                this->server->addEndpoint(this->endpoints.at(i)->isGetType(), this->endpoints.at(i)->getPath(), [&, i](const httplib::Request &req, httplib::Response &res){
                     // res.set_content("Endpoint not public", "text/plain");
                     // res.status = httplib::StatusCode::Forbidden_403;
                     // first we get the authorization header
+                    if(!req.has_header("Authorization")){
+                        res.set_content("Authorization header not present", "text/plain");
+                        res.status = httplib::StatusCode::Forbidden_403;
+                        return;
+                    }
                     std::string authHeader = req.get_header_value("Authorization");
                     // if the authorization header is not present, we return a 403
                     if(authHeader.empty()){

@@ -562,8 +562,7 @@ HttpEndPointData_t CubeLog::getHttpEndpointData(){
     data.push_back({PUBLIC_ENDPOINT | POST_ENDPOINT, [](const httplib::Request &req, httplib::Response &res){
         // log info
         CubeLog::info("Logging message from endpoint", std::source_location::current());
-        if((req.has_header("Content-Type") && req.get_header_value("Content-Type")=="application/json"))
-        {
+        if((req.has_header("Content-Type") && req.get_header_value("Content-Type")=="application/json")){
             std::string message;
             std::string level;
             try{
@@ -603,38 +602,14 @@ HttpEndPointData_t CubeLog::getHttpEndpointData(){
             return j.dump();
         }else{
             // error
-            CubeLog::error("Request is not multipart form data", std::source_location::current());
+            CubeLog::error("Request is not a properly formatted json POST request.", std::source_location::current());
             // create json object with error message and return success = false
             nlohmann::json j;
             j["success"] = false;
-            j["message"] = "Request is not multipart form data";
+            j["message"] = "Request is not a properly formatted json POST request.";
             res.set_content(j.dump(), "application/json");
             return j.dump();
         }
-        // //get message from request
-        // std::string message = req.get_param_value("message");
-        // // get level from request
-        // std::string level = req.get_param_value("level");
-        // // convert level to int
-        // int level_int;
-        // try{
-        //     level_int = std::stoi(level);
-        //     if(level_int < 0 || level_int > 4) throw std::invalid_argument("Log level out of range. Must be between 0 and 4, inclusive.");
-        // }catch(std::invalid_argument e){
-        //     CubeLog::error(e.what(), std::source_location::current());
-        //     // create json object with error message and return success = false
-        //     nlohmann::json j;
-        //     j["success"] = false;
-        //     j["message"] = e.what();
-        //     return j.dump();
-        // }
-        // // log message
-        // CubeLog::log(message, true, LogLevel(level_int), std::source_location::current());
-        // // create json object with success message and return success = true
-        // nlohmann::json j;
-        // j["success"] = true;
-        // j["message"] = "Logged message";
-        // return j.dump();
     }});
     return data;
 }

@@ -50,7 +50,7 @@ public:
     Database(std::string dbPath);
     ~Database();
     bool createTable(std::string tableName, std::vector<std::string> columnNames, std::vector<std::string> columnTypes, std::vector<bool> uniqueColumns);
-    bool insertData(std::string tableName, std::vector<std::string> columnNames, std::vector<std::string> columnValues);
+    long insertData(std::string tableName, std::vector<std::string> columnNames, std::vector<std::string> columnValues);
     bool updateData(std::string tableName, std::vector<std::string> columnNames, std::vector<std::string> columnValues, std::string whereClause);
     void setUniqueColumns(std::vector<std::string> columnNames, std::vector<bool> uniqueColumns);
     bool deleteData(std::string tableName, std::string whereClause);
@@ -77,31 +77,31 @@ class CubeDatabaseManager{
         {"data/auth.db", "auth", {
             {DB_NS::TableNames::CLIENTS, 
                 {"id", "initial_code", "auth_code", "client_id", "role"}, 
-                {"INTEGER", "TEXT", "TEXT", "TEXT", "INTEGER"},
+                {"INTEGER PRIMARY KEY", "TEXT", "TEXT", "TEXT", "INTEGER"},
                 {true, false, false, true, false}
             },
             {DB_NS::TableNames::APPS, 
                 {"id", "auth_code", "public_key", "private_key", "app_id", "role"}, 
-                {"INTEGER", "TEXT", "TEXT", "TEXT", "TEXT", "INTEGER"},
+                {"INTEGER PRIMARY KEY", "TEXT", "TEXT", "TEXT", "TEXT", "INTEGER"},
                 {true, false, false, false, true, false}
             }
         }},
         {"data/blobs.db", "blobs", {
             {DB_NS::TableNames::CLIENT_BLOBS, 
-                {"id", "blob", "owner_client_id"}, 
-                {"INTEGER", "BLOB", "TEXT"},
-                {true, false, false}
+                {"id", "blob", "blob_size", "owner_client_id"}, 
+                {"INTEGER PRIMARY KEY", "BLOB", "TEXT", "TEXT"},
+                {true, false, false, false}
             },
             {DB_NS::TableNames::APP_BLOBS, 
-                {"id", "blob", "owner_app_id"}, 
-                {"INTEGER", "BLOB", "TEXT"},
-                {true, false, false}
+                {"id", "blob", "blob_size", "owner_app_id"}, 
+                {"INTEGER PRIMARY KEY", "BLOB", "TEXT", "TEXT"},
+                {true, false, false, false}
             }
         }},
         {"data/apps.db", "apps", {
             {DB_NS::TableNames::APPS, 
                 {"id", "app_id", "app_name", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason"}, 
-                {"INTEGER", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT"},
+                {"INTEGER PRIMARY KEY", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT"},
                 {true, true, false, false, false, false, false, false, false, false, false, false}
             }
         }}

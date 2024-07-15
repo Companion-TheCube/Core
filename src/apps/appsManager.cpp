@@ -307,7 +307,7 @@ bool AppsManager::addApp(std::string appID, std::string appName, std::string exe
     CubeLog::info("Adding app: " + appID);
     std::vector<std::string> columnNames = { "app_id", "app_name", "exec_path", "exec_args", "app_source", "update_path" };
     std::vector<std::string> columnValues = { appID, appName, execPath, execArgs, appSource, updatePath };
-    bool ret = CubeDB::getDBManager()->getDatabase("apps")->insertData("apps", columnNames, columnValues);
+    bool ret = (-1 < CubeDB::getDBManager()->getDatabase("apps")->insertData("apps", columnNames, columnValues));
     if (ret) {
         CubeLog::info("App added successfully: " + appID + ". App name: " + appName);
         this->startApp(appID);

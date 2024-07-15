@@ -10,7 +10,7 @@
 #include <httplib.h>
 #include <nlohmann/json.hpp>
 
-typedef std::vector<std::pair<std::string, std::string>> EndPointParams_t;
+typedef std::pair<unsigned int,std::function<std::string(const httplib::Request &req, httplib::Response &res)>> HttpEndPointDataSinglet_t;
 typedef std::vector<std::pair<unsigned int,std::function<std::string(const httplib::Request &req, httplib::Response &res)>>> HttpEndPointData_t;
 
 #define PUBLIC_ENDPOINT (int)1
