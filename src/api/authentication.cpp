@@ -268,7 +268,7 @@ std::string CubeAuth::encryptData(std::string data, std::string public_key)
     }
     unsigned char nonce[crypto_secretbox_NONCEBYTES];
     unsigned char key[crypto_secretbox_KEYBYTES];
-    unsigned char* encrypted_data = new unsigned char[data.length() + crypto_secretbox_MACBYTES];
+    
     unsigned char* data_ptr = (unsigned char*)data.c_str();
     unsigned char* public_key_ptr = (unsigned char*)public_key.c_str();
     unsigned char* private_key_ptr = (unsigned char*)CubeAuth::privateKey.c_str();
@@ -277,14 +277,17 @@ std::string CubeAuth::encryptData(std::string data, std::string public_key)
         this->lastError = "Failed to generate key.";
         return "";
     }
+    unsigned char* encrypted_data = new unsigned char[data.length() + crypto_secretbox_MACBYTES];
     randombytes_buf(nonce, crypto_secretbox_NONCEBYTES);
     if(crypto_secretbox_easy(encrypted_data, data_ptr, data.length(), nonce, key) != 0){
         CubeLog::error("Failed to encrypt data.");
         this->lastError = "Failed to encrypt data.";
+        delete[] encrypted_data;
         return "";
     }
     std::string encrypted_data_str((char*)nonce, crypto_secretbox_NONCEBYTES);
     encrypted_data_str.append((char*)encrypted_data, data.length() + crypto_secretbox_MACBYTES);
+    delete[] encrypted_data;
     return encrypted_data_str;
 }
 
@@ -299,7 +302,7 @@ std::string CubeAuth::encryptData(std::string data, std::string public_key)
 std::string CubeAuth::decryptData(std::string data, std::string private_key, size_t length)
 {
     CubeLog::debug("Decrypting data. Length: " + std::to_string(length) + " bytes.");
-    unsigned char* decrypted_data = new unsigned char[length];
+    
     unsigned char nonce[crypto_secretbox_NONCEBYTES];
     unsigned char key[crypto_secretbox_KEYBYTES];
     unsigned char* encrypted_data_ptr = (unsigned char*)data.c_str();
@@ -310,10 +313,12 @@ std::string CubeAuth::decryptData(std::string data, std::string private_key, siz
         this->lastError = "Failed to generate key.";
         return "";
     }
+    unsigned char* decrypted_data = new unsigned char[length];
     memcpy(nonce, encrypted_data_ptr, crypto_secretbox_NONCEBYTES);
     if(crypto_secretbox_open_easy(decrypted_data, encrypted_data_ptr + crypto_secretbox_NONCEBYTES, crypto_box_MACBYTES + length, nonce, key) != 0){
         CubeLog::error("Failed to decrypt data.");
         this->lastError = "Failed to decrypt data.";
+        delete[] decrypted_data;
         return "";
     }
     std::string decrypted_data_str((char*)decrypted_data, length);

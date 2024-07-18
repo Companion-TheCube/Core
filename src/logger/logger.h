@@ -52,6 +52,7 @@ public:
     LogLevel level;
     static unsigned int logEntryCount;
     CUBE_LOG_ENTRY(std::string message, std::source_location* location, LogVerbosity verbosity, LogLevel level = LogLevel::LOGGER_INFO);
+    ~CUBE_LOG_ENTRY();
     std::string getMessage();
     std::string getTimestamp();
     std::string getEntry();
@@ -100,6 +101,8 @@ public:
     static bool hasUnreadErrors();
     static bool hasUnreadLogs();
     static bool hasUnreadEntries();
+
+    static std::string getSizeOfCubeLog();
 
     // API Interface
     std::string getIntefaceName() const;

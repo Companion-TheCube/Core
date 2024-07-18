@@ -184,6 +184,9 @@ RunningApp* NativeAPI::startApp(std::string execPath, std::string execArgs, std:
             CubeLog::error("Error starting app. App_id: " + appID + ". App name: " + appName);
             CubeLog::error("Error: " + std::to_string(errno));
             return false;
+        }else{
+            CubeLog::info("App started successfully. App_id: " + appID + ". App name: " + appName);
+            return true;
         }
     } else if (pid < 0) {
         CubeLog::error("Error starting app. App_id: " + appID + ". App name: " + appName);
@@ -194,6 +197,12 @@ RunningApp* NativeAPI::startApp(std::string execPath, std::string execArgs, std:
         this->runningApps[appID] = new RunningApp(pid, appID, appName, execPath, execArgs, appSource, updatePath, role, "", "", "", "", 0);
         return true;
     }
+#endif
+#ifndef _WIN32
+#ifndef __linux__
+    CubeLog::error("Unsupported platform");
+    return nullptr;
+#endif
 #endif
 }
 

@@ -4,3 +4,4 @@ src/libs
 .vscode*
 vcpkg*
 libraries
+.codechecker

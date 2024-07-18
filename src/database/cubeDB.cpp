@@ -84,6 +84,7 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
             res.set_content(j.dump(), "application/json");
             return j.dump();
         }
+        char buffer[65535];
         std::string stringBlob = "none";
         // 1MB blob size limit
         char* blob = new char[1024*1024];
@@ -108,6 +109,7 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
                     j["success"] = false;
                     j["message"] = "saveBlob called: failed to save blob, base64 decoding failed.";
                     res.set_content(j.dump(), "application/json");
+                    delete[] blob;
                     return j.dump();
                 }
                 blobSize = decoded.size();
@@ -117,14 +119,13 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
                     j["success"] = false;
                     j["message"] = "saveBlob called: failed to save blob, blob size exceeds 1MB limit.";
                     res.set_content(j.dump(), "application/json");
+                    delete[] blob;
                     return j.dump();
                 }
                 size_t decodedSize = 0;
                 for(auto c : decoded){
                     blob[decodedSize++] = c;
                 }
-                CubeLog::debug("Encoded data: " + stringBlob);
-                CubeLog::debug("Decoded data: " + std::string(blob, blobSize));
             }
             if(received.contains("client_id")){
                 client_id = received["client_id"];
@@ -138,6 +139,7 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
             j["success"] = false;
             j["message"] = "saveBlob called: failed to save blob, " + std::string(e.what());
             res.set_content(j.dump(), "application/json");
+            delete[] blob;
             return j.dump();
         }
         nlohmann::json j;
@@ -167,6 +169,7 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
             j["success"] = false;
             j["message"] = "saveBlob called: failed to save blob, no client_id or app_id provided.";
             res.set_content(j.dump(), "application/json");
+            delete[] blob;
             return j.dump();
         }
         CubeDB::getDBManager()->addDbTask(fn); // ensures that the database operation is performed on the database thread.

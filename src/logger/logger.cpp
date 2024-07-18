@@ -1,10 +1,15 @@
 #include "logger.h"
+#include "windows.h"
+#include "psapi.h"
+
 
 #define COUNTER_MOD 100
 #define CUBE_LOG_ENTRY_MAX 50000 // maximum number of log entries in log file
 #define LOG_WRITE_OUT_INTERVAL 300 // write out logs every 5 minutes
 #define LOG_WRITE_OUT_COUNT 500 // write out logs every 500 logs
 #define CUBE_LOG_MEMORY_LIMIT 1000 // maximum number of log entries in memory
+
+std::string getMemoryFootprint();
 
 unsigned int CUBE_LOG_ENTRY::logEntryCount = 0;
 
@@ -46,6 +51,13 @@ CUBE_LOG_ENTRY::CUBE_LOG_ENTRY(std::string message, std::source_location* locati
             this->messageFull = this->getTimestamp() + ": " + fileName + "(" + std::to_string(location->line()) + "): " + location->function_name() + ": " + message + " (" + std::to_string(CUBE_LOG_ENTRY::logEntryCount) + ")" + " (" + logLevelStrings[level] + ")";
             break;
     }
+}
+
+/**
+ * @brief Destroy the cube log_entry entry object
+ * 
+ */
+CUBE_LOG_ENTRY::~CUBE_LOG_ENTRY(){
 }
 
 /**
@@ -122,7 +134,7 @@ void CubeLog::log(std::string message, bool print, LogLevel level, std::source_l
     Color::Modifier colorError(Color::FG_LIGHT_YELLOW);
     Color::Modifier colorCritical(Color::FG_RED);
     Color::Modifier colorDefault(Color::FG_LIGHT_BLUE);
-    if(print && level >= CubeLog::staticPrintLevel && CubeLog::consoleLoggingEnabled){
+    if(print && level >= CubeLog::staticPrintLevel && CubeLog::consoleLoggingEnabled && message.length() < 1000){
         switch (level)
         {
         case LogLevel::LOGGER_DEBUG:
@@ -251,6 +263,7 @@ void CubeLog::purgeOldLogs(){
     if(this->logEntries.size() > CUBE_LOG_MEMORY_LIMIT){
         this->logEntries.erase(this->logEntries.begin(), this->logEntries.begin() + this->logEntries.size() - CUBE_LOG_MEMORY_LIMIT);
     }
+    this->logEntries.shrink_to_fit();
 }
 
 /**
@@ -330,6 +343,8 @@ std::vector<std::string> CubeLog::getLogsAndErrorsAsStrings(bool fullMessages){
  * 
  */
 void CubeLog::writeOutLogs(){
+    std::cout << "Size of CubeLog: " << CubeLog::getSizeOfCubeLog() << std::endl;
+    std::cout << "Memory footprint: " << getMemoryFootprint() << std::endl;
     std::lock_guard<std::mutex> lock(this->saveLogsMutex);
     if(this->savingInProgress) return;
     this->savingInProgress = true;
@@ -626,4 +641,39 @@ std::vector<std::pair<std::string,std::vector<std::string>>> CubeLog::getHttpEnd
     logParams.push_back("level");
     names.push_back({"log", logParams});
     return names;
+}
+
+/**
+ * @brief Get the size of the CubeLog in memory
+ * 
+ * @return std::string The size of the CubeLog
+ */
+std::string CubeLog::getSizeOfCubeLog(){
+    size_t num_entries = CubeLog::logEntries.size();
+    size_t total_size = 0;
+    for(auto entry: CubeLog::logEntries){
+        total_size += sizeof(entry) + entry.getMessage().size() + entry.getMessageFull().size();
+    }
+    return std::to_string(num_entries) + " entries, " + std::to_string(total_size) + " bytes";
+}
+
+
+std::string getMemoryFootprint(){
+#ifdef _WIN32
+    PROCESS_MEMORY_COUNTERS pmc;
+    GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc));
+    return std::to_string(pmc.WorkingSetSize / 1024) + " KB";
+#endif
+#ifdef __linux__
+    std::ifstream file("/proc/self/status");
+    std::string line;
+    while(std::getline(file, line)){
+        if(line.find("VmRSS") != std::string::npos){
+            std::string rss = line.substr(line.find(":") + 1);
+            rss.erase(std::remove_if(rss.begin(), rss.end(), isspace), rss.end());
+            return rss;
+        }
+    }
+    return "0";
+#endif
 }

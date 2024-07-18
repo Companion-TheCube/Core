@@ -160,8 +160,8 @@ long Database::insertData(std::string tableName, std::vector<std::string> column
         SQLite::Statement stmt(*this->db, query);
         for(int i = 0; i < columnNames.size(); i++){
             if(std::find(blobColumns.begin(), blobColumns.end(), i) != blobColumns.end()){
-                const char* blob = columnValues.at(i).c_str();
-                stmt.bind(i + 1, blob, columnValues.at(i).size());
+                // const char* blob = columnValues.at(i).c_str();
+                stmt.bind(i + 1, columnValues.at(i).c_str(), columnValues.at(i).size());
             }else{
                 stmt.bind(i + 1, columnValues.at(i));
             }
@@ -576,7 +576,7 @@ char* Database::selectBlob(std::string tableName, std::string columnName, std::s
         SQLite::Statement stmt(*this->db, query);
         if (stmt.executeStep()) {
             size = stmt.getColumn(0).size();
-            char* blob = new char[size]; // Change the type from unsigned char* to char*
+            char* blob = new char[size];
             // use std::copy to copy the data from the blob to the char array
             std::copy(static_cast<const char*>(stmt.getColumn(0).getBlob()), static_cast<const char*>(stmt.getColumn(0).getBlob()) + size, blob);
             return blob;
