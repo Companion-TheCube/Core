@@ -1,6 +1,8 @@
 #include "logger.h"
+#ifdef _WIN32
 #include "windows.h"
 #include "psapi.h"
+#endif
 
 
 #define COUNTER_MOD 100

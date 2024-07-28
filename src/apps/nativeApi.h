@@ -5,6 +5,11 @@
 #include <iostream>
 #ifdef __linux__
 #include <dirent.h>
+#include <unistd.h>
+#include <iostream>
+#include <spawn.h>
+#include <sys/wait.h>
+#include <cstdlib>
 #endif
 #ifdef _WIN32
 #ifndef WIN32_INCLUDED

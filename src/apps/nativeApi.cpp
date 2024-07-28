@@ -86,15 +86,23 @@ bool NativeAPI::isProcessRunning(long pid)
 RunningApp* NativeAPI::startApp(std::string execPath, std::string execArgs, std::string appID, std::string appName, std::string appSource, std::string updatePath)
 {
     CubeLog::info("Starting app: " + execPath + " " + execArgs);
-    std::filesystem::path p = std::filesystem::path(execPath);
+    std::string cwd = std::filesystem::current_path().string();
+    std::string fullPath = cwd + "/" + execPath;
+#ifdef __linux__
+    if(fullPath.find("\\") != std::string::npos){
+        fullPath = std::regex_replace(fullPath, std::regex("\\\\"), "/");
+    }   
+#endif
+    std::filesystem::path p = std::filesystem::path(fullPath);
+    CubeLog::critical("App path: " + p.string());
     if (!std::filesystem::exists(p)) {
         CubeLog::error("App not found: " + execPath);
         return nullptr;
     }
     std::string command = execPath + " " + execArgs;
-#ifdef _WIN32
-    RunningApp* temp = new RunningApp(0, appID, appName, execPath, execArgs, appSource, updatePath, "native", "", "", "", "", 0);
 
+    RunningApp* temp = new RunningApp(0, appID, appName, execPath, execArgs, appSource, updatePath, "native", "", "", "", "", 0);
+#ifdef _WIN32
     SECURITY_ATTRIBUTES saAttr;
     saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
     saAttr.bInheritHandle = TRUE;
@@ -176,27 +184,22 @@ RunningApp* NativeAPI::startApp(std::string execPath, std::string execArgs, std:
     }
 #endif
 #ifdef __linux__
-    pid_t pid = fork();
-    if (pid == 0) {
-        std::string execCommand = execPath + " " + execArgs;
-        CubeLog::debug("Exec command: " + execCommand);
-        if (execl(execPath.c_str(), execPath.c_str(), execArgs.c_str(), NULL) == -1) {
-            CubeLog::error("Error starting app. App_id: " + appID + ". App name: " + appName);
-            CubeLog::error("Error: " + std::to_string(errno));
-            return false;
-        }else{
-            CubeLog::info("App started successfully. App_id: " + appID + ". App name: " + appName);
-            return true;
-        }
-    } else if (pid < 0) {
-        CubeLog::error("Error starting app. App_id: " + appID + ". App name: " + appName);
-        CubeLog::error("Error: " + std::to_string(errno));
-        return false;
+    pid_t pid = 0;
+    std::string execCommand = execPath + " " + execArgs;
+    CubeLog::debug("Exec command: " + execCommand);
+    const char *path = execPath.c_str();
+    char *const argv[] = { (char*)path, (char*)"arg1", NULL };
+    // add the current working directory to the path
+    std::string path_str = std::string(cwd + "/" + execPath).c_str();
+    int status = posix_spawn(&pid, path_str.c_str(), NULL, NULL, argv, environ);
+
+    if (status == 0) {
+        temp->setPID(pid);
+        return temp;
     } else {
-        CubeLog::info("App started successfully. App_id: " + appID + ". App name: " + appName);
-        this->runningApps[appID] = new RunningApp(pid, appID, appName, execPath, execArgs, appSource, updatePath, role, "", "", "", "", 0);
-        return true;
+        std::cerr << "posix_spawn failed: " << status << std::endl;
     }
+    return nullptr;
 #endif
 #ifndef _WIN32
 #ifndef __linux__
@@ -266,9 +269,9 @@ long NativeAPI::getPID(std::string execPath)
     CubeLog::info("Getting PID for app: " + execPath);
     if (isProcessRunning(execPath)) {
         std::string command = "pidof " + execPath;
-        std::string pid = exec(command.c_str());
-        CubeLog::debug("PID for app: " + execPath + " is " + pid);
-        return std::stol(pid);
+        int pid = execl(command.c_str(), "", NULL);
+        CubeLog::debug("PID for app: " + execPath + " is " + std::to_string(pid));
+        return pid;
     } else {
         CubeLog::error("App is not running: " + execPath);
         return -1;

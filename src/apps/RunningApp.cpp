@@ -19,6 +19,7 @@ RunningApp::RunningApp(unsigned long pid, std::string appID, std::string appName
 
 RunningApp::~RunningApp()
 {
+#ifdef _WIN32
     if (this->g_hChildStd_OUT_Rd != NULL) {
         CloseHandle(this->g_hChildStd_OUT_Rd);
     }
@@ -37,6 +38,7 @@ RunningApp::~RunningApp()
     if (this->g_hChildStd_IN_Wr != NULL) {
         CloseHandle(this->g_hChildStd_IN_Wr);
     }
+#endif
 }
 
 unsigned long RunningApp::getPID()
