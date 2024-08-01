@@ -130,7 +130,26 @@ void AppsManager::appsManagerThreadFn()
 #endif
 #ifdef __linux__
                 // first we check to see if the pipe is valid
-                // TODO: this entire section
+                if(this->runningApps[appID]->getStdOutRead() != 0){
+                    char buffer[4096];
+                    int bytesRead = read(this->runningApps[appID]->getStdOutRead(), buffer, sizeof(buffer));
+                    if (bytesRead > 0) {
+                        buffer[bytesRead] = '\0';
+                        std::string str(buffer);
+                        CubeLog::info("STDOUT - " + this->runningApps[appID]->getAppName() + ": " + str);
+                    }
+                }
+                // then we check stderr
+                if(this->runningApps[appID]->getStdErrRead() != 0){
+                    char buffer[4096];
+                    int bytesRead = read(this->runningApps[appID]->getStdErrRead(), buffer, sizeof(buffer));
+                    if (bytesRead > 0) {
+                        buffer[bytesRead] = '\0';
+                        std::string str(buffer);
+                        CubeLog::info("STDERR - " + this->runningApps[appID]->getAppName() + ": " + str);
+                    }
+                }
+                
 #endif
                 if(AppsManager::consoleLoggingEnabled)
                     CubeLog::debug("Finished checking stdout and stderr for app: " + appID);
@@ -250,6 +269,9 @@ bool AppsManager::stopApp(std::string appID)
                 CubeLog::error("Error stopping native app by PID: " + appID + ". App name: " + appName);
                 CubeLog::error("Attempting to stop native app by exec path: " + execPath + ". App name: " + appName);
                 bool ret = NativeAPI::stopApp(execPath);
+                execPath = execPath.substr(execPath.find_last_of("\\") + 1);
+                execPath = execPath.substr(execPath.find_last_of("/") + 1);
+                ret = ret || NativeAPI::stopApp(execPath);
                 if (ret) {
                     CubeLog::info("Native app stopped successfully: " + appID + ". App name: " + appName);
                     this->runningApps.erase(appID);

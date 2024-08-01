@@ -10,6 +10,7 @@ Renderer::Renderer(std::latch& latch)
 
 Renderer::~Renderer()
 {
+    this->ready = false;
     this->stop();
     this->t.join();
     CubeLog::log("Renderer destroyed", true);
@@ -76,7 +77,7 @@ int Renderer::thread()
         this->window.setActive();
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // Set clear color to black
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); // Clear the color buffer, the depth buffer and the stencil buffer
-        this->loopTasksRun();
+        if(this->running) this->loopTasksRun();
         if (characterManager->getCharacter() != nullptr) {
             characterManager->getCharacter()->draw();
             characterManager->getCharacter()->animateRandomFunny(); // TODO:replace with actual animation system

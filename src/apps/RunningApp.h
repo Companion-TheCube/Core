@@ -85,5 +85,11 @@ public:
     int getStdErrWrite();
     int getStdInRead();
     int getStdInWrite();
+    bool setStdOutRead(int fd);
+    bool setStdOutWrite(int fd);
+    bool setStdErrRead(int fd);
+    bool setStdErrWrite(int fd);
+    bool setStdInRead(int fd);
+    bool setStdInWrite(int fd);
 #endif
 };

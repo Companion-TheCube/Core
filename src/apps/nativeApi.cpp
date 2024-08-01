@@ -19,7 +19,10 @@ bool NativeAPI::isProcessRunning(const std::string& processName)
                 std::getline(cmdline, cmd);
                 if (cmd.find(processName) != std::string::npos) {
                     closedir(dir);
+                    cmdline.close();
                     return true;
+                }else{
+                    cmdline.close();
                 }
             }
         }
@@ -37,11 +40,12 @@ bool NativeAPI::isProcessRunning(long pid)
         perror("opendir");
         return false;
     }
-
+    std::vector<std::string> dirs;
     struct dirent* entry;
     while ((entry = readdir(dir)) != nullptr) {
         if (entry->d_type == DT_DIR) {
             std::string pidDir = entry->d_name;
+            dirs.push_back(pidDir);
             if (pidDir.find_first_not_of("0123456789") == std::string::npos) {
                 if (std::stol(pidDir) == pid) {
                     closedir(dir);
@@ -50,6 +54,8 @@ bool NativeAPI::isProcessRunning(long pid)
             }
         }
     }
+    closedir(dir);
+    CubeLog::debug("Process with PID " + std::to_string(pid) + " is NOT running");
     return false;
 }
 #endif
@@ -206,8 +212,37 @@ RunningApp* NativeAPI::startApp(std::string execPath, std::string execArgs, std:
     std::string path_str = std::string(cwd + "/" + execPath).c_str();
     int status = posix_spawn(&pid, path_str.c_str(), NULL, NULL, argv, environ);
 
+    // check if the process was created
     if (status == 0) {
         temp->setPID(pid);
+        CubeLog::debug("Process created with PID: " + std::to_string(pid));
+        // setup stdout and stderr
+        // get the stdout and stderr file descriptors fo the child process
+        // open /proc/pid/fd/1 and /proc/pid/fd/2
+        std::string stdoutPath = "/proc/" + std::to_string(pid) + "/fd/1";
+        std::string stderrPath = "/proc/" + std::to_string(pid) + "/fd/2";
+        std::string stdinPath = "/proc/" + std::to_string(pid) + "/fd/0";
+        int stdoutFd = open(stdoutPath.c_str(), O_WRONLY);
+        int stderrFd = open(stderrPath.c_str(), O_WRONLY);
+        int stdinFd = open(stdinPath.c_str(), O_RDONLY);
+        if (stdoutFd == -1) {
+            CubeLog::error("Failed to open stdout file descriptor");
+            return nullptr;
+        }
+        if (stderrFd == -1) {
+            CubeLog::error("Failed to open stderr file descriptor");
+            return nullptr;
+        }
+        if (stdinFd == -1) {
+            CubeLog::error("Failed to open stdin file descriptor");
+            return nullptr;
+        }
+        temp->setStdOutWrite(stdoutFd);
+        temp->setStdErrWrite(stderrFd);
+        temp->setStdInRead(stdinFd);
+        temp->setStdOutRead(stdoutFd);
+        temp->setStdErrRead(stderrFd);
+        temp->setStdInWrite(stdinFd);
         return temp;
     } else {
         std::cerr << "posix_spawn failed: " << status << std::endl;
@@ -225,7 +260,9 @@ RunningApp* NativeAPI::startApp(std::string execPath, std::string execArgs, std:
 bool NativeAPI::stopApp(std::string execPath)
 {
     CubeLog::info("Stopping app: " + execPath);
-
+#ifdef __linux__
+    std::replace(execPath.begin(), execPath.end(), '\\', '/');
+#endif
     if (isProcessRunning(execPath)) {
         std::string command = "pkill " + execPath;
         if (system(command.c_str()) == -1) {
@@ -262,23 +299,13 @@ bool NativeAPI::stopApp(long pid)
 #ifdef __linux__
     int status = kill(pid, SIGKILL);
     if (status == -1) {
-        CubeLog::error("1Failed to stop app with PID: " + std::to_string(pid));
-        CubeLog::error("Error: " + std::to_string(errno));
+        CubeLog::error("Failed to stop app with PID=" + std::to_string(pid) + ". Error: " + std::to_string(errno));
         CubeLog::error("status: " + std::to_string(status));
         return false;
     }
 #endif
-    uint8_t waits = 1;
-    while(isProcessRunning(pid) && waits < 10) {
-        genericSleep(1000);
-        CubeLog::debug("Waiting for app to stop: " + std::to_string(pid) + " (" + std::to_string(waits++) + ")");
-    }
-    if(waits >= 10){
-        CubeLog::error("3Failed to stop app with PID: " + std::to_string(pid));
-        return false;
-    }
     if (isProcessRunning(pid)) {
-        CubeLog::error("2Failed to stop app with PID: " + std::to_string(pid));
+        CubeLog::error("Failed to stop app with PID: " + std::to_string(pid));
         return false;
     } else {
         CubeLog::info("App stopped: " + std::to_string(pid));

@@ -73,10 +73,12 @@ void GUI::eventLoop()
     messageBox->setVisible(true); 
 
     latch.wait();
-    this->renderer->addLoopTask([&](){
-        menu->draw();
-        messageBox->draw();
-    });
+    if(this->renderer->isReady() && this->renderer->getIsRunning()){
+        this->renderer->addLoopTask([&](){
+            menu->draw();
+            messageBox->draw();
+        });
+    }
     
     for(auto area: menu->getClickableAreas()){
         this->eventManager->addClickableArea(area);

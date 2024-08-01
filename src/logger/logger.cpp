@@ -130,6 +130,7 @@ std::vector<unsigned int> CubeLog::readLogIDs;
  */
 void CubeLog::log(std::string message, bool print, LogLevel level, std::source_location location){
     CUBE_LOG_ENTRY entry = CUBE_LOG_ENTRY(message, &location, CubeLog::staticVerbosity, level);
+    CubeLog::logEntries.push_back(entry);
     Color::Modifier colorDebug(Color::FG_GREEN);
     Color::Modifier colorInfo(Color::FG_WHITE);
     Color::Modifier colorWarning(Color::FG_MAGENTA);
@@ -159,8 +160,6 @@ void CubeLog::log(std::string message, bool print, LogLevel level, std::source_l
             break;
         }
     }
-    std::lock_guard<std::mutex> lock(CubeLog::logMutex);
-    CubeLog::logEntries.push_back(entry);
 }
 
 /**
@@ -170,6 +169,7 @@ void CubeLog::log(std::string message, bool print, LogLevel level, std::source_l
  * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
  */
 void CubeLog::debug(std::string message, std::source_location location){
+    std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     CubeLog::log(message, true, LogLevel::LOGGER_DEBUG, location);
 }
 
@@ -180,6 +180,7 @@ void CubeLog::debug(std::string message, std::source_location location){
  * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
  */
 void CubeLog::error(std::string message, std::source_location location){
+    std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     CubeLog::log(message, true, LogLevel::LOGGER_ERROR, location);
 }
 
@@ -190,6 +191,7 @@ void CubeLog::error(std::string message, std::source_location location){
  * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
  */
 void CubeLog::info(std::string message, std::source_location location){
+    std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     CubeLog::log(message, true, LogLevel::LOGGER_INFO, location);
 }
 
@@ -200,6 +202,7 @@ void CubeLog::info(std::string message, std::source_location location){
  * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
  */
 void CubeLog::warning(std::string message, std::source_location location){
+    std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     CubeLog::log(message, true, LogLevel::LOGGER_WARNING, location);
 }
 
@@ -210,6 +213,7 @@ void CubeLog::warning(std::string message, std::source_location location){
  * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
  */
 void CubeLog::critical(std::string message, std::source_location location){
+    std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     CubeLog::log(message, true, LogLevel::LOGGER_CRITICAL, location);
 }
 
