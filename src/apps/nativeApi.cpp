@@ -31,8 +31,24 @@ bool NativeAPI::isProcessRunning(const std::string& processName)
 
 bool NativeAPI::isProcessRunning(long pid)
 {
-    if (kill(pid, 0) == 0) {
-        return true;
+    // check if the process is running
+    DIR* dir = opendir("/proc");
+    if (dir == nullptr) {
+        perror("opendir");
+        return false;
+    }
+
+    struct dirent* entry;
+    while ((entry = readdir(dir)) != nullptr) {
+        if (entry->d_type == DT_DIR) {
+            std::string pidDir = entry->d_name;
+            if (pidDir.find_first_not_of("0123456789") == std::string::npos) {
+                if (std::stol(pidDir) == pid) {
+                    closedir(dir);
+                    return true;
+                }
+            }
+        }
     }
     return false;
 }
@@ -89,14 +105,11 @@ RunningApp* NativeAPI::startApp(std::string execPath, std::string execArgs, std:
     std::string cwd = std::filesystem::current_path().string();
     std::string fullPath = cwd + "/" + execPath;
 #ifdef __linux__
-    if(fullPath.find("\\") != std::string::npos){
-        fullPath = std::regex_replace(fullPath, std::regex("\\\\"), "/");
-    }   
+    std::replace(execPath.begin(), execPath.end(), '\\', '/');
 #endif
-    std::filesystem::path p = std::filesystem::path(fullPath);
-    CubeLog::critical("App path: " + p.string());
+    std::filesystem::path p = std::filesystem::path(execPath);
     if (!std::filesystem::exists(p)) {
-        CubeLog::error("App not found: " + execPath);
+        CubeLog::error("App not found: " + p.string());
         return nullptr;
     }
     std::string command = execPath + " " + execArgs;
@@ -212,6 +225,7 @@ RunningApp* NativeAPI::startApp(std::string execPath, std::string execArgs, std:
 bool NativeAPI::stopApp(std::string execPath)
 {
     CubeLog::info("Stopping app: " + execPath);
+
     if (isProcessRunning(execPath)) {
         std::string command = "pkill " + execPath;
         if (system(command.c_str()) == -1) {
@@ -243,24 +257,33 @@ bool NativeAPI::stopApp(long pid)
     if (TerminateProcess(hProcess, 0) == 0) {
         CubeLog::error("Failed to stop app with PID: " + std::to_string(pid));
         return false;
-    } else {
-        CubeLog::info("App stopped: " + std::to_string(pid));
-        return true;
     }
 #endif
 #ifdef __linux__
-    if (kill(pid, SIGKILL) == -1) {
-        CubeLog::error("Failed to stop app with PID: " + std::to_string(pid));
+    int status = kill(pid, SIGKILL);
+    if (status == -1) {
+        CubeLog::error("1Failed to stop app with PID: " + std::to_string(pid));
+        CubeLog::error("Error: " + std::to_string(errno));
+        CubeLog::error("status: " + std::to_string(status));
         return false;
     }
-    if (kill(pid, 0) == 0) {
-        CubeLog::error("Failed to stop app with PID: " + std::to_string(pid));
+#endif
+    uint8_t waits = 1;
+    while(isProcessRunning(pid) && waits < 10) {
+        genericSleep(1000);
+        CubeLog::debug("Waiting for app to stop: " + std::to_string(pid) + " (" + std::to_string(waits++) + ")");
+    }
+    if(waits >= 10){
+        CubeLog::error("3Failed to stop app with PID: " + std::to_string(pid));
+        return false;
+    }
+    if (isProcessRunning(pid)) {
+        CubeLog::error("2Failed to stop app with PID: " + std::to_string(pid));
         return false;
     } else {
         CubeLog::info("App stopped: " + std::to_string(pid));
         return true;
     }
-#endif
 }
 
 #ifdef __linux__
@@ -314,8 +337,12 @@ long NativeAPI::getPID(std::string execPath)
 
 bool NativeAPI::isExecutableInstalled(std::string execPath)
 {
+#ifdef __linux__
+    execPath = std::regex_replace(execPath, std::regex("\\\\"), "/");
+#endif
     CubeLog::info("Checking if app is installed: " + execPath);
     std::filesystem::path p = std::filesystem::path(execPath);
+    CubeLog::info("Path string: " + p.string());
     if (!std::filesystem::exists(p)) {
         CubeLog::error("App not found: " + execPath);
         return false;

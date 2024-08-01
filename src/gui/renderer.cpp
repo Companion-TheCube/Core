@@ -86,6 +86,8 @@ int Renderer::thread()
         }
         this->window.display();
     }
+    this->window.setActive(false);
+    this->window.close();
     return 0;
 }
 

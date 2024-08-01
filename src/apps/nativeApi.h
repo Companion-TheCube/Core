@@ -24,6 +24,7 @@
 #include <string>
 #include "RunningApp.h"
 #include <utils.h>
+#include <algorithm>
 
 class NativeAPI {
 public:
