@@ -3,18 +3,18 @@
 CharacterManager::CharacterManager(Shader* sh)
 {
     this->shader = sh;
-    CubeLog::log("CharacterManager Started. Loading built-in characters.", true);
+    CubeLog::info("CharacterManager Started. Loading built-in characters.");
     this->loadBuiltInCharacters();
-    CubeLog::log("Built-in characters loaded. Loading app characters.", true);
-    if(!this->loadAppCharacters()){
-        CubeLog::log("No app characters found.", true);
+    CubeLog::info("Built-in characters loaded. Loading app characters.");
+    if (!this->loadAppCharacters()) {
+        CubeLog::info("No app characters found.");
     }
-    CubeLog::log("All characters loaded. Character manager ready.", true);
+    CubeLog::info("All characters loaded. Character manager ready.");
 }
 
 CharacterManager::~CharacterManager()
 {
-    for(auto character: this->characters){
+    for (auto character : this->characters) {
         delete character;
     }
 }
@@ -49,24 +49,23 @@ bool CharacterManager::setCharacterByName(std::string name)
 
 C_Character* CharacterManager::getCharacterByName(std::string name)
 {
-    for(auto character: this->characters){
-        if(character->getName().compare(name) == 0){
-            CubeLog::log("getCharacterByName(" + name + "): found!", true);
+    for (auto character : this->characters) {
+        if (character->getName().compare(name) == 0) {
+            CubeLog::info("getCharacterByName(" + name + "): found!");
             character->setVisible(true);
             return character;
         }
     }
-    CubeLog::log("getCharacterByName(" + name + "): NOT found!", true);
+    CubeLog::info("getCharacterByName(" + name + "): NOT found!");
     return nullptr;
 }
 
 std::vector<std::string> CharacterManager::getCharacterNames()
 {
     std::vector<std::string> names;
-    for(auto character: this->characters){
+    for (auto character : this->characters) {
         names.push_back(character->getName());
     }
-    CubeLog::log("getCharacterNames(): Returning " + std::to_string(names.size()) + " names.", true);
+    CubeLog::info("getCharacterNames(): Returning " + std::to_string(names.size()) + " names.");
     return names;
 }
-

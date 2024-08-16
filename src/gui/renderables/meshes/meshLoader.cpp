@@ -4,19 +4,19 @@ MeshLoader::MeshLoader(Shader* shdr, std::vector<std::string> toLoad)
 {
     this->shader = shdr;
     std::vector<std::string> filenames = this->getMeshFileNames();
-    for(auto filename: filenames){
+    for (auto filename : filenames) {
         std::string name = filename.substr(filename.find_last_of('/') + 1, filename.find(".mesh") - filename.find_last_of('/') - 1);
-        if(std::find(toLoad.begin(), toLoad.end(), name) == toLoad.end()){
+        if (std::find(toLoad.begin(), toLoad.end(), name) == toLoad.end()) {
             continue;
         }
-        CubeLog::log("MeshLoader: Found mesh file: " + filename, true);
-        CubeLog::log("Attempting to load mesh file: " + filename, true);
+        CubeLog::info("MeshLoader: Found mesh file: " + filename);
+        CubeLog::info("Attempting to load mesh file: " + filename);
         std::vector<MeshObject*> objects = this->loadMesh(filename);
-        CubeLog::log("MeshLoader: Loaded " + std::to_string(objects.size()) + " objects from file: " + filename, true);
+        CubeLog::info("MeshLoader: Loaded " + std::to_string(objects.size()) + " objects from file: " + filename);
         this->collections.push_back(new ObjectCollection());
         // collection name is filename minus ".mesh"
         this->collections.at(collections.size() - 1)->name = filename.substr(filename.find_last_of('/') + 1, filename.find(".mesh") - filename.find_last_of('/') - 1);
-        for(auto object: objects){
+        for (auto object : objects) {
             this->collections.at(collections.size() - 1)->objects.push_back(object);
         }
     }
@@ -24,7 +24,7 @@ MeshLoader::MeshLoader(Shader* shdr, std::vector<std::string> toLoad)
 
 MeshLoader::~MeshLoader()
 {
-    for(auto collection: this->collections){
+    for (auto collection : this->collections) {
         delete collection;
     }
 }
@@ -32,8 +32,8 @@ MeshLoader::~MeshLoader()
 std::vector<MeshObject*> MeshLoader::getObjects()
 {
     std::vector<MeshObject*> objects;
-    for(auto collection: this->collections){
-        for(auto object: collection->objects){
+    for (auto collection : this->collections) {
+        for (auto object : collection->objects) {
             objects.push_back(object);
         }
     }
@@ -48,11 +48,11 @@ std::vector<ObjectCollection*> MeshLoader::getCollections()
 std::vector<std::string> MeshLoader::getMeshFileNames()
 {
     std::vector<std::string> names;
-    for(auto& p: std::filesystem::directory_iterator("meshes/")){
-        CubeLog::log("MeshLoader: Found file: " + p.path().string(), true);
+    for (auto& p : std::filesystem::directory_iterator("meshes/")) {
+        CubeLog::info("MeshLoader: Found file: " + p.path().string());
         names.push_back(p.path().string());
     }
-    CubeLog::log("MeshLoader: Found " + std::to_string(names.size()) + " mesh files", true);
+    CubeLog::info("MeshLoader: Found " + std::to_string(names.size()) + " mesh files");
     return names;
 }
 
@@ -60,16 +60,16 @@ std::vector<MeshObject*> MeshLoader::loadMesh(std::string path)
 {
     std::vector<MeshObject*> objects;
     std::ifstream
-    file(path);
-    if(!file.is_open()){
-        CubeLog::log("MeshLoader: Failed to open file: " + path, true);
+        file(path);
+    if (!file.is_open()) {
+        CubeLog::info("MeshLoader: Failed to open file: " + path);
         return objects;
     }
     float scale = 1.0f;
     std::string line;
-    while(std::getline(file, line)){
+    while (std::getline(file, line)) {
         // if line starts with a "#" its a comment, skip it
-        if(line[0] == '#'){
+        if (line[0] == '#') {
             continue;
         }
         // the file is broken down into sections for each type of primitive: cubes, pyramids, etc
@@ -82,21 +82,21 @@ std::vector<MeshObject*> MeshLoader::loadMesh(std::string path)
         std::istringstream iss(line);
         std::string type;
         iss >> type;
-        if(line.find("@SCALE") != std::string::npos){
+        if (line.find("@SCALE") != std::string::npos) {
             // the scale value is the next token on the line
             std::string floatStr = line.substr(6);
             std::istringstream iss(floatStr);
             float sc;
             iss >> sc;
             scale = sc;
-            CubeLog::log("MeshLoader: Scaling all objects by: " + std::to_string(scale), true);
+            CubeLog::info("MeshLoader: Scaling all objects by: " + std::to_string(scale));
         }
         // TODO: change this to use RRGGBB data for shape type
-        else if(type == "$CUBES"){
-            CubeLog::log("MeshLoader: Loading cubes...", true);
+        else if (type == "$CUBES") {
+            CubeLog::info("MeshLoader: Loading cubes...");
             unsigned int count = 0;
-            while(std::getline(file, line)){
-                if(line[0] == '$'){
+            while (std::getline(file, line)) {
+                if (line[0] == '$') {
                     break;
                 }
                 // std::cout<<".";
@@ -115,11 +115,10 @@ std::vector<MeshObject*> MeshLoader::loadMesh(std::string path)
                 objects.at(objects.size() - 1)->uniformScale(0.5f * scale);
                 count++;
             }
-            CubeLog::log("MeshLoader: Loaded " + std::to_string(count) + " cubes", true);
-        }
-        else if(type == "$PYRAMIDS"){
-            while(std::getline(file, line)){
-                if(line[0] == '$'){
+            CubeLog::info("MeshLoader: Loaded " + std::to_string(count) + " cubes");
+        } else if (type == "$PYRAMIDS") {
+            while (std::getline(file, line)) {
+                if (line[0] == '$') {
                     break;
                 }
                 std::istringstream iss(line);
@@ -127,10 +126,9 @@ std::vector<MeshObject*> MeshLoader::loadMesh(std::string path)
                 iss >> x >> y >> z;
                 // objects.push_back(new PyramidMeshObject(x, y, z));
             }
-        }
-        else if(type == "$SPHERES"){
-            while(std::getline(file, line)){
-                if(line[0] == '$'){
+        } else if (type == "$SPHERES") {
+            while (std::getline(file, line)) {
+                if (line[0] == '$') {
                     break;
                 }
                 std::istringstream iss(line);
@@ -138,10 +136,9 @@ std::vector<MeshObject*> MeshLoader::loadMesh(std::string path)
                 iss >> x >> y >> z;
                 // objects.push_back(new SphereMeshObject(x, y, z));
             }
-        }
-        else if(type == "$CYLINDERS"){
-            while(std::getline(file, line)){
-                if(line[0] == '$'){
+        } else if (type == "$CYLINDERS") {
+            while (std::getline(file, line)) {
+                if (line[0] == '$') {
                     break;
                 }
                 std::istringstream iss(line);
@@ -149,10 +146,9 @@ std::vector<MeshObject*> MeshLoader::loadMesh(std::string path)
                 iss >> x >> y >> z;
                 // objects.push_back(new CylinderMeshObject(x, y, z));
             }
-        }
-        else if(type == "$CONE"){
-            while(std::getline(file, line)){
-                if(line[0] == '$'){
+        } else if (type == "$CONE") {
+            while (std::getline(file, line)) {
+                if (line[0] == '$') {
                     break;
                 }
                 std::istringstream iss(line);
@@ -160,10 +156,9 @@ std::vector<MeshObject*> MeshLoader::loadMesh(std::string path)
                 iss >> x >> y >> z;
                 // objects.push_back(new ConeMeshObject(x, y, z));
             }
-        }
-        else if(type == "$TORUS"){
-            while(std::getline(file, line)){
-                if(line[0] == '$'){
+        } else if (type == "$TORUS") {
+            while (std::getline(file, line)) {
+                if (line[0] == '$') {
                     break;
                 }
                 std::istringstream iss(line);
@@ -175,7 +170,5 @@ std::vector<MeshObject*> MeshLoader::loadMesh(std::string path)
     }
     return objects;
 }
-
-
 
 // Path: src/gui/characters/meshes/meshObject.h

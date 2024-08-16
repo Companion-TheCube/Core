@@ -174,7 +174,7 @@ RunningApp* NativeAPI::startApp(std::string execPath, std::string execArgs, std:
     si.hStdInput = temp->getStdInReadHandle();
     si.dwFlags |= STARTF_USESTDHANDLES;
 
-    std::string cwd = std::filesystem::current_path().string();
+    cwd = std::filesystem::current_path().string();
     std::string execCommand = cwd + "\\" + execPath + " " + execArgs;
     CubeLog::debug("Exec command: " + execCommand);
     if (!CreateProcess(NULL,

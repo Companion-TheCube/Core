@@ -43,7 +43,7 @@ API::~API()
 void API::start()
 {
     // start the API
-    CubeLog::log("API starting...", true);
+    CubeLog::info("API starting...");
     this->listenerThread = std::jthread(&API::httpApiThreadFn, this);
 }
 
@@ -54,13 +54,13 @@ void API::start()
 void API::stop()
 {
     // stop the API
-    CubeLog::log("API stopping...", true);
+    CubeLog::info("API stopping...");
     this->listenerThread.request_stop();
     this->server->stop();
     this->listenerThread.join();
     delete this->server;
     this->server = nullptr;
-    CubeLog::log("API stopped", true);
+    CubeLog::info("API stopped");
 }
 
 /**
@@ -70,7 +70,7 @@ void API::stop()
 void API::restart()
 {
     // restart the API
-    CubeLog::log("API restarting...", true);
+    CubeLog::info("API restarting...");
     this->stop();
     this->start();
 }
@@ -86,7 +86,7 @@ void API::restart()
 void API::addEndpoint(std::string name, std::string path, int endpointType, std::function<std::string(const httplib::Request& req, httplib::Response& res)> action)
 {
     // add an endpoint
-    CubeLog::log("Adding endpoint: " + name + " at " + path, true);
+    CubeLog::info("Adding endpoint: " + name + " at " + path);
     Endpoint* endpoint = new Endpoint(endpointType, name, path);
     endpoint->setAction(action);
     this->endpoints.push_back(endpoint);
@@ -146,7 +146,7 @@ bool API::removeEndpoint(std::string name)
  */
 void API::httpApiThreadFn()
 {
-    CubeLog::log("API listener thread starting...", true);
+    CubeLog::info("API listener thread starting...");
     try {
         this->server = new CubeHttpServer("0.0.0.0", 55280);
         // TODO: set up authentication
@@ -159,15 +159,15 @@ void API::httpApiThreadFn()
             // presence may be set to private if the user does not want to share that information with others on the network.
             CubeLog::debug("Endpoint type: " + std::to_string(this->endpoints.at(i)->endpointType));
             if (this->endpoints.at(i)->isPublic()) {
-                CubeLog::log("Adding public endpoint: " + this->endpoints.at(i)->getName() + " at " + this->endpoints.at(i)->getPath(), true);
+                CubeLog::info("Adding public endpoint: " + this->endpoints.at(i)->getName() + " at " + this->endpoints.at(i)->getPath());
                 this->server->addEndpoint(this->endpoints.at(i)->isGetType(), this->endpoints[i]->getPath(), [&, i](const httplib::Request& req, httplib::Response& res) {
                     std::string returned = this->endpoints.at(i)->doAction(req, res);
                     if (returned != "")
                         res.set_content(returned, "text/plain");
-                    CubeLog::log("Endpoint action returned: " + (returned == "" ? "empty string" : returned), true);
+                    CubeLog::info("Endpoint action returned: " + (returned == "" ? "empty string" : returned));
                 });
             } else {
-                CubeLog::log("Adding non public endpoint: " + this->endpoints.at(i)->getName() + " at " + this->endpoints.at(i)->getPath(), true);
+                CubeLog::info("Adding non public endpoint: " + this->endpoints.at(i)->getName() + " at " + this->endpoints.at(i)->getPath());
                 this->server->addEndpoint(this->endpoints.at(i)->isGetType(), this->endpoints.at(i)->getPath(), [&, i](const httplib::Request& req, httplib::Response& res) {
                     // res.set_content("Endpoint not public", "text/plain");
                     // res.status = httplib::StatusCode::Forbidden_403;
@@ -194,7 +194,7 @@ void API::httpApiThreadFn()
                     std::string returned = this->endpoints.at(i)->doAction(req, res);
                     if (returned != "")
                         res.set_content(returned, "text/plain");
-                    CubeLog::log("Endpoint action returned: " + (returned == "" ? "empty string" : returned), true);
+                    CubeLog::info("Endpoint action returned: " + (returned == "" ? "empty string" : returned));
                 });
             }
         }
@@ -339,10 +339,10 @@ CubeHttpServer::~CubeHttpServer()
 void CubeHttpServer::start()
 {
     // start the server
-    CubeLog::log("HTTP server starting...", true);
+    CubeLog::info("HTTP server starting...");
     this->server->bind_to_port(this->address.c_str(), this->port);
     this->server->set_logger([&](const httplib::Request& req, const httplib::Response& res) {
-        CubeLog::log("HTTP server: " + req.method + " " + req.path + " " + std::to_string(res.status), true);
+        CubeLog::info("HTTP server: " + req.method + " " + req.path + " " + std::to_string(res.status));
     });
     this->server->set_error_handler([&](const httplib::Request& req, httplib::Response& res) {
         CubeLog::error("HTTP server: " + req.method + " " + req.path + " " + std::to_string(res.status));
@@ -357,7 +357,7 @@ void CubeHttpServer::start()
 void CubeHttpServer::stop()
 {
     // stop the server
-    CubeLog::log("HTTP server stopping...", true);
+    CubeLog::info("HTTP server stopping...");
     this->server->stop();
 }
 
@@ -368,7 +368,7 @@ void CubeHttpServer::stop()
 void CubeHttpServer::restart()
 {
     // restart the server
-    CubeLog::log("HTTP server restarting...", true);
+    CubeLog::info("HTTP server restarting...");
     this->stop();
     this->start();
 }

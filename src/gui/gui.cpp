@@ -1,12 +1,11 @@
 // TODO: Need to add a sort of status bar to the top of the screen. It should show the time and whether or not a person is detected. probably more.
 // TODO: we should monitor the CubeLog for errors and display them in the status bar. This will require a way to get the last error message from the CubeLog. <- this is done in CubeLog
 
-
 #include "./gui.h"
 
 /**
  * @brief Construct a new GUI::GUI object
- * 
+ *
  * @param logger a CubeLog object
  */
 GUI::GUI()
@@ -16,23 +15,23 @@ GUI::GUI()
     latch.wait();
     this->eventManager = new EventManager();
     this->eventLoopThread = std::jthread(&GUI::eventLoop, this);
-    CubeLog::log("GUI initialized", true);
+    CubeLog::info("GUI initialized");
 }
 
 /**
  * @brief Destroy the GUI::GUI object. Deletes the renderer and joins the event loop thread
- * 
+ *
  */
 GUI::~GUI()
 {
     delete this->renderer;
     this->eventLoopThread.join();
-    CubeLog::log("GUI destroyed", true);
+    CubeLog::info("GUI destroyed");
 }
 
 /**
  * @brief Start the event loop. This method will run until the renderer is no longer running or stop() is called
- * 
+ *
  */
 void GUI::eventLoop()
 {
@@ -41,8 +40,10 @@ void GUI::eventLoop()
     EventHandler* keyPressHandler = this->eventManager->getEvent(keyPressIndex);
     keyPressHandler->setAction([&](void* data) {
         sf::Event* event = (sf::Event*)data;
-        if(event!=nullptr) CubeLog::log("Key pressed: " + std::to_string(event->key.code), true);
-        else CubeLog::log("Key pressed: nullptr", true);
+        if (event != nullptr)
+            CubeLog::info("Key pressed: " + std::to_string(event->key.code));
+        else
+            CubeLog::info("Key pressed: nullptr");
     });
     keyPressHandler->setName("KeyPressed");
     keyPressHandler->setEventType(sf::Event::KeyPressed);
@@ -51,8 +52,10 @@ void GUI::eventLoop()
     EventHandler* keyAPressedHandler = this->eventManager->getEvent(keyAPressedIndex);
     keyAPressedHandler->setAction([&](void* data) {
         sf::Event* event = (sf::Event*)data;
-        if(event!=nullptr) CubeLog::log("Key A pressed", true);
-        else CubeLog::log("Key A pressed: nullptr", true);
+        if (event != nullptr)
+            CubeLog::info("Key A pressed");
+        else
+            CubeLog::info("Key A pressed: nullptr");
     });
     keyAPressedHandler->setName("KeyAPressed");
     keyAPressedHandler->setEventType(sf::Event::KeyPressed);
@@ -62,33 +65,32 @@ void GUI::eventLoop()
     auto menu = new Menu(this->renderer->getShader(), latch);
     messageBox = new CubeMessageBox(this->renderer->getShader(), this->renderer->getTextShader(), this->renderer, latch);
     // menu->setVisible(false);
-    this->renderer->addSetupTask([&](){
+    this->renderer->addSetupTask([&]() {
         menu->setup();
         messageBox->setup();
     });
-    
 
     // TODO: make this not visible by default. Add a method for showing message box messages that checks if the menu is visible so
     // that we don't draw on top of the menu. Then, in the loop, if the messagebox is pending, and the menu gets closed, show the messagebox.
-    messageBox->setVisible(true); 
+    messageBox->setVisible(true);
 
     latch.wait();
-    if(this->renderer->isReady() && this->renderer->getIsRunning()){
-        this->renderer->addLoopTask([&](){
+    if (this->renderer->isReady() && this->renderer->getIsRunning()) {
+        this->renderer->addLoopTask([&]() {
             menu->draw();
             messageBox->draw();
         });
     }
-    
-    for(auto area: menu->getClickableAreas()){
+
+    for (auto area : menu->getClickableAreas()) {
         this->eventManager->addClickableArea(area);
     }
 
-    CubeLog::log("Starting event handler loop...", true);
+    CubeLog::info("Starting event handler loop...");
     while (this->renderer->getIsRunning()) {
         // std::vector<EventHandler*> managerEvents = this->eventManager->getEvents();
         std::vector<sf::Event> events = this->renderer->getEvents();
-        for(int i = 0; i < events.size(); i++){
+        for (int i = 0; i < events.size(); i++) {
             this->eventManager->triggerEvent(events[i].type, &events[i]);
             this->eventManager->triggerEvent(static_cast<SpecificEventTypes>(events[i].key.code), &events[i]);
             this->eventManager->triggerEvent(static_cast<SpecificEventTypes>(events[i].key.code), events[i].type, &events[i]);
@@ -100,53 +102,54 @@ void GUI::eventLoop()
         Sleep(1);
 #endif
     }
-    CubeLog::log("Event handler loop stopped", true);
+    CubeLog::info("Event handler loop stopped");
     delete menu;
     delete messageBox;
 }
 
 /**
  * @brief Stop the event loop
- * 
+ *
  */
-void GUI::stop(){
+void GUI::stop()
+{
     this->renderer->stop();
 }
 
 HttpEndPointData_t GUI::getHttpEndpointData()
 {
     HttpEndPointData_t actions;
-    actions.push_back({PUBLIC_ENDPOINT | GET_ENDPOINT, [&](const httplib::Request &req, httplib::Response &res){
-        // this->stop();
-        std::string p = "no param";
-        for(auto param : req.params){
-            if(param.first == "text"){
-                this->messageBox->setText(param.second);
-                p = param.second;
-            }
-        }
-        CubeLog::log("Endpoint stop called and message set to: " + p, true);
-        return "Stop called";
-    }});
-    actions.push_back({PUBLIC_ENDPOINT | GET_ENDPOINT, [&](const httplib::Request &req, httplib::Response &res){
-        std::string paramsString;
-        for(auto param : req.params){
-            paramsString += param.first + ": " + param.second + "\n";
-        }
-        CubeLog::info("Endpoint action 2: \n");
-        CubeLog::info(paramsString);
-        return "\"Endpoint action 2\" logged";
-    }});
+    actions.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT, [&](const httplib::Request& req, httplib::Response& res) {
+                           // this->stop();
+                           std::string p = "no param";
+                           for (auto param : req.params) {
+                               if (param.first == "text") {
+                                   this->messageBox->setText(param.second);
+                                   p = param.second;
+                               }
+                           }
+                           CubeLog::info("Endpoint stop called and message set to: " + p);
+                           return "Stop called";
+                       } });
+    actions.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT, [&](const httplib::Request& req, httplib::Response& res) {
+                           std::string paramsString;
+                           for (auto param : req.params) {
+                               paramsString += param.first + ": " + param.second + "\n";
+                           }
+                           CubeLog::info("Endpoint action 2: \n");
+                           CubeLog::info(paramsString);
+                           return "\"Endpoint action 2\" logged";
+                       } });
     return actions;
 }
 
-std::vector<std::pair<std::string,std::vector<std::string>>> GUI::getHttpEndpointNamesAndParams()
+std::vector<std::pair<std::string, std::vector<std::string>>> GUI::getHttpEndpointNamesAndParams()
 {
-    std::vector<std::pair<std::string,std::vector<std::string>>> names;
+    std::vector<std::pair<std::string, std::vector<std::string>>> names;
     std::vector<std::string> stopParams;
     stopParams.push_back("text");
-    names.push_back({"stop", stopParams});
-    names.push_back({"action2", {}});
+    names.push_back({ "stop", stopParams });
+    names.push_back({ "action2", {} });
     return names;
 }
 
@@ -156,6 +159,5 @@ std::string GUI::getIntefaceName() const
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-
 
 ///////////////////////////////////////////////////////////////////////////////
