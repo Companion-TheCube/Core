@@ -72,7 +72,7 @@ void GUI::eventLoop()
 
     // TODO: make this not visible by default. Add a method for showing message box messages that checks if the menu is visible so
     // that we don't draw on top of the menu. Then, in the loop, if the messagebox is pending, and the menu gets closed, show the messagebox.
-    messageBox->setVisible(true);
+    messageBox->setVisible(false);
 
     latch.wait();
     if (this->renderer->isReady() && this->renderer->getIsRunning()) {
@@ -80,6 +80,8 @@ void GUI::eventLoop()
             menu->draw();
             messageBox->draw();
         });
+    }else{
+        CubeLog::error("Renderer is not ready or is not running");
     }
 
     for (auto area : menu->getClickableAreas()) {
@@ -95,12 +97,7 @@ void GUI::eventLoop()
             this->eventManager->triggerEvent(static_cast<SpecificEventTypes>(events[i].key.code), &events[i]);
             this->eventManager->triggerEvent(static_cast<SpecificEventTypes>(events[i].key.code), events[i].type, &events[i]);
         }
-#ifdef __linux__
-        usleep(1000);
-#endif
-#ifdef _WIN32
-        Sleep(1);
-#endif
+        genericSleep(5);
     }
     CubeLog::info("Event handler loop stopped");
     delete menu;

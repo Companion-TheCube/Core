@@ -14,6 +14,7 @@
 #include "messageBox/messageBox.h"
 #include <latch>
 #include "../api/api.h"
+#include <utils.h>
 
 
 class GUI : public I_API_Interface{

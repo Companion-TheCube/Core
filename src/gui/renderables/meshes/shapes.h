@@ -170,7 +170,7 @@ public:
 };
 
 #define CUBE_VERTICES_CONST 1.0f
-#define EDGE_VERTICES_OFFSET 0.05f
+#define EDGE_VERTICES_OFFSET 0.02f
 #define BLACK_FLOATS 0.0f
 #define WHITE_FLOATS 1.f
 

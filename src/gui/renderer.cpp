@@ -68,7 +68,7 @@ int Renderer::thread()
     this->setupTasksRun();
     CubeLog::info("Renderer initialized. Starting Loop...");
     this->ready = true;
-    latch->count_down();
+    this->latch->count_down(); // Send a signal to the GUI that the renderer is ready
     while (running) {
         for (auto event = sf::Event {}; this->window.pollEvent(event);) {
             this->events.push_back(event);
