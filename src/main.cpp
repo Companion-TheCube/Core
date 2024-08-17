@@ -164,15 +164,15 @@ int main(int argc, char* argv[])
     if (customLogLevelF)
         settings.setSetting("LogLevelF", logLevelFile);
     logger->setLogLevel(settings.logLevelPrint, settings.logLevelFile);
-    if(supportsExtendedColors()){
+    if (supportsExtendedColors()) {
         CubeLog::info("Extended colors supported.");
-    } else if(supportsBasicColors()){
+    } else if (supportsBasicColors()) {
         CubeLog::info("Basic colors supported.");
     } else {
         CubeLog::info("No colors supported.");
     }
-    CubeLog::log("Logger initialized.", true);
-    CubeLog::log("Settings loaded.", true);
+    CubeLog::info("Logger initialized.");
+    CubeLog::info("Settings loaded.");
 
     /////////////////////////////////////////////////////////////////
     // RtAudio setup
@@ -189,17 +189,17 @@ int main(int argc, char* argv[])
         std::cout << "\nNo audio devices found! Exiting.\n";
         exit(0);
     }
-    CubeLog::log("Audio devices found: " + std::to_string(deviceIds.size()), true);
+    CubeLog::info("Audio devices found: " + std::to_string(deviceIds.size()));
     for (auto device : deviceNames) {
-        CubeLog::log("Device: " + device, true);
+        CubeLog::info("Device: " + device);
     }
 
     RtAudio::StreamParameters parameters;
-    CubeLog::log("Setting up audio stream with default audio device.", true);
+    CubeLog::info("Setting up audio stream with default audio device.");
     parameters.deviceId = dac.getDefaultOutputDevice();
     // find the device name for the audio device id
     std::string deviceName = dac.getDeviceInfo(parameters.deviceId).name;
-    CubeLog::log("Using audio device: " + deviceName, true);
+    CubeLog::info("Using audio device: " + deviceName);
     parameters.nChannels = 2;
     parameters.firstChannel = 0;
     unsigned int sampleRate = 44100;
@@ -216,7 +216,7 @@ int main(int argc, char* argv[])
         std::cout << dac.getErrorText() << std::endl;
         CubeLog::error(dac.getErrorText());
     }
-    CubeLog::log("Audio stream started.", true);
+    CubeLog::info("Audio stream started.");
     /////////////////////////////////////////////////////////////////
     // Logger test
     /////////////////////////////////////////////////////////////////
@@ -238,7 +238,8 @@ int main(int argc, char* argv[])
         // allInsertionsSuccess &=  (-1 < CubeDB::getDBManager()->getDatabase("apps")->insertData("apps", { "app_id", "app_name", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason" }, { "1", "CMD", "native", "apps\\customcmd", "", "test source", "test update path", "test last check", "test last update", "test last fail", "test last fail reason" })); // test insert
         allInsertionsSuccess &= (-1 < CubeDB::getDBManager()->getDatabase("apps")->insertData("apps", { "app_id", "app_name", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason" }, { "2", "ConsoleApp1", "native", "apps\\consoleApp1", "arg1 arg2 arg3 arg4", "test source", "test update path", "test last check", "test last update", "test last fail", "test last fail reason" })); // test insert
         allInsertionsSuccess &= (-1 < CubeDB::getDBManager()->getDatabase("apps")->insertData("apps", { "app_id", "app_name", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason" }, { "3", "ConsoleApp2", "native", "apps\\consoleApp1", "arg1 arg2 arg3 arg4", "test source", "test update path", "test last check", "test last update", "test last fail", "test last fail reason" })); // test insert
-        if(!allInsertionsSuccess) CubeLog::warning("Failed to insert data into database. Last error: " + CubeDB::getDBManager()->getDatabase("apps")->getLastError());
+        if (!allInsertionsSuccess)
+            CubeLog::warning("Failed to insert data into database. Last error: " + CubeDB::getDBManager()->getDatabase("apps")->getLastError());
         AppsManager appsManager;
         // db_cube->openAll();
         auto gui = std::make_shared<GUI>();
@@ -249,7 +250,7 @@ int main(int argc, char* argv[])
         api_builder.addInterface(logger);
         api_builder.start();
         bool running = true;
-        CubeLog::log("Entering main loop...", true);
+        CubeLog::info("Entering main loop...");
         while (running) {
             genericSleep(100);
             // get cin and check if it's "exit", "quit", "q", or "e", then break, or if it's "sound" toggle the sound
@@ -264,7 +265,7 @@ int main(int argc, char* argv[])
                     data[2] = 0;
             }
         }
-        CubeLog::log("Exiting main loop...", true);
+        CubeLog::info("Exiting main loop...");
         std::cout << "Exiting..." << std::endl;
         // sineWaveSound.stop();
     }

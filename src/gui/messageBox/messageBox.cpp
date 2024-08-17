@@ -10,17 +10,17 @@ CubeMessageBox::CubeMessageBox(Shader* shader, Shader* textShader, Renderer* ren
     this->visible = false;
     this->latch = &latch;
     this->renderer = renderer;
-    CubeLog::log("MessageBox initialized", true);
+    CubeLog::info("MessageBox initialized");
 }
 
 CubeMessageBox::~CubeMessageBox()
 {
-    CubeLog::log("MessageBox destroyed", true);
+    CubeLog::info("MessageBox destroyed");
 }
 
 void CubeMessageBox::setup()
 {
-    
+
     float radius = BOX_RADIUS;
     float diameter = radius * 2;
     float xStart = -0.2;
@@ -52,28 +52,25 @@ void CubeMessageBox::setup()
     CubeLog::debug("MessageBox top right, top left, bottom left, bottom right arcs setup done");
     std::lock_guard<std::mutex> lock(this->mutex);
     this->latch->count_down();
-    CubeLog::log("MessageBox setup", true);
+    CubeLog::info("MessageBox setup");
 }
 
 void CubeMessageBox::setText(std::string text)
 {
     // TODO: make the text wrap around the box
-    auto fn = [&, text](){
-        CubeLog::log("Objects size: " + std::to_string(this->objects.size()), true);
-        CubeLog::log("TextMeshIndices size: " + std::to_string(this->textMeshIndices.size()), true);
-        CubeLog::log("Objects size in memory: " + std::to_string(this->objects.size() * sizeof(MeshObject)), true);
-        for(size_t index = 0; index < this->textMeshIndices.size(); index++)
-        {
+    auto fn = [&, text]() {
+        CubeLog::info("Objects size: " + std::to_string(this->objects.size()));
+        CubeLog::info("TextMeshIndices size: " + std::to_string(this->textMeshIndices.size()));
+        CubeLog::info("Objects size in memory: " + std::to_string(this->objects.size() * sizeof(MeshObject)));
+        for (size_t index = 0; index < this->textMeshIndices.size(); index++) {
             // delete the object referenced by the textMeshIndices
             this->objects[this->textMeshIndices[index]]->~MeshObject();
         }
         // remove the vector entries for the textMeshIndices
-        for(size_t index = 0; index < this->textMeshIndices.size(); index++)
-        {
+        for (size_t index = 0; index < this->textMeshIndices.size(); index++) {
             this->objects.erase(this->objects.begin() + this->textMeshIndices[index]);
             // decrement all the indices after the current index
-            for(size_t i = index + 1; i < this->textMeshIndices.size(); i++)
-            {
+            for (size_t i = index + 1; i < this->textMeshIndices.size(); i++) {
                 this->textMeshIndices[i]--;
             }
         }
@@ -85,20 +82,17 @@ void CubeMessageBox::setText(std::string text)
         std::vector<std::string> lines;
         std::string line;
         std::istringstream textStream(text);
-        while(std::getline(textStream, line))
-        {
+        while (std::getline(textStream, line)) {
             lines.push_back(line);
         }
-        for(size_t i = 0; i < lines.size(); i++)
-        {
-            this->objects.push_back(new M_Text(textShader, lines[i], this->messageTextSize, {1.f,1.f,1.f}, { textXStart + STENCIL_INSET_PX, textYStart - STENCIL_INSET_PX - ((i + 1) * this->messageTextSize * (i>0?1.1:1.f))}));
+        for (size_t i = 0; i < lines.size(); i++) {
+            this->objects.push_back(new M_Text(textShader, lines[i], this->messageTextSize, { 1.f, 1.f, 1.f }, { textXStart + STENCIL_INSET_PX, textYStart - STENCIL_INSET_PX - ((i + 1) * this->messageTextSize * (i > 0 ? 1.1 : 1.f)) }));
             this->textMeshIndices.push_back(this->objects.size() - 1);
         }
-        CubeLog::log("MessageBox text set", true);
+        CubeLog::info("MessageBox text set");
     };
     this->renderer->addSetupTask(fn);
 }
-
 
 bool CubeMessageBox::setVisible(bool visible)
 {
@@ -115,15 +109,12 @@ bool CubeMessageBox::getVisible()
 
 void CubeMessageBox::draw()
 {
-    if(!this->visible)
-    {
+    if (!this->visible) {
         return;
     }
-    for(auto object : this->objects)
-    {
+    for (auto object : this->objects) {
         object->draw();
     }
-    
 }
 
 void CubeMessageBox::setPosition(glm::vec2 position)

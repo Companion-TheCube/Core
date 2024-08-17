@@ -1,6 +1,7 @@
 #include "shapes.h"
 
-void checkGLError(const std::string& location) {
+void checkGLError(const std::string& location)
+{
     GLenum error = glGetError();
     if (error != GL_NO_ERROR) {
         std::cerr << "OpenGL error at " << location << ": " << error << std::endl;
@@ -15,7 +16,7 @@ M_Text::M_Text(Shader* sh, std::string text, float fontSize, glm::vec3 color, gl
     this->color = color;
     this->position = position;
     this->buildText();
-    CubeLog::log("Created Text", true);
+    CubeLog::info("Created Text");
 }
 
 void M_Text::reloadFont() // TODO: verify / test this function
@@ -29,13 +30,14 @@ FT_Library M_Text::ft;
 FT_Face M_Text::face;
 bool M_Text::faceInitialized = false;
 
-void M_Text::buildText(){
-    if(!faceInitialized){
+void M_Text::buildText()
+{
+    if (!faceInitialized) {
         if (FT_Init_FreeType(&ft)) {
             CubeLog::error("ERROR::FREETYPE: Could not init FreeType Library");
         }
         std::string fontPath = GlobalSettings::selectedFontPath;
-        if(!std::filesystem::exists(fontPath)){
+        if (!std::filesystem::exists(fontPath)) {
             CubeLog::error("ERROR::FREETYPE: Font file does not exist");
             fontPath = "fonts/Roboto/Roboto-Regular.ttf";
         }
@@ -134,13 +136,13 @@ void M_Text::draw()
         float h = ch.Size.y;
         float vertices[6][4] = {
             // Positions            // Texture Coords
-            { xpos, ypos + h,       0.0f, 0.0f }, // Top-left
-            { xpos + w, ypos,       1.0f, 1.0f }, // Bottom-right
-            { xpos, ypos,           0.0f, 1.0f }, // Bottom-left
+            { xpos, ypos + h, 0.0f, 0.0f }, // Top-left
+            { xpos + w, ypos, 1.0f, 1.0f }, // Bottom-right
+            { xpos, ypos, 0.0f, 1.0f }, // Bottom-left
 
-            { xpos, ypos + h,       0.0f, 0.0f }, // Top-left
-            { xpos + w, ypos + h,   1.0f, 0.0f }, // Top-right
-            { xpos + w, ypos,       1.0f, 1.0f }  // Bottom-right
+            { xpos, ypos + h, 0.0f, 0.0f }, // Top-left
+            { xpos + w, ypos + h, 1.0f, 0.0f }, // Top-right
+            { xpos + w, ypos, 1.0f, 1.0f } // Bottom-right
         };
         glBindTexture(GL_TEXTURE_2D, ch.TextureID);
         glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
@@ -206,10 +208,11 @@ void M_Text::rotateAbout(float angle, glm::vec3 axis, glm::vec3 point)
 
 glm::vec3 M_Text::getCenterPoint()
 {
-    return {this->position.x, this->position.y, 0.f};
+    return { this->position.x, this->position.y, 0.f };
 }
 
-std::vector<Vertex> M_Text::getVertices(){
+std::vector<Vertex> M_Text::getVertices()
+{
     std::vector<Vertex> vertices;
     return vertices;
 }
@@ -275,12 +278,12 @@ M_PartCircle::M_PartCircle(Shader* sh, unsigned int numSegments, float radius, g
     modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, 0.0f));
     modelMatrix = glm::scale(modelMatrix, glm::vec3(1.0f, 1.0f, 1.0f));
     setModelMatrix(modelMatrix);
-    CubeLog::log("Created PartCircle", true);
+    CubeLog::info("Created PartCircle");
 }
 
 M_PartCircle::~M_PartCircle()
 {
-    CubeLog::log("Destroyed PartCircle", true);
+    CubeLog::info("Destroyed PartCircle");
     glDeleteVertexArrays(1, VAO);
     glDeleteBuffers(1, VBO);
 }
@@ -395,7 +398,7 @@ float M_PartCircle::getWidth()
 
 //////////////////////////////////////////////////////////////////////////////////////////
 
-M_Rect::M_Rect( Shader* sh, glm::vec3 position, glm::vec2 size, float fillColor, float borderColor)
+M_Rect::M_Rect(Shader* sh, glm::vec3 position, glm::vec2 size, float fillColor, float borderColor)
 {
     this->shader = sh;
     this->vertexDataFill.push_back({ position.x + size.x, position.y, position.z, fillColor });
@@ -430,12 +433,12 @@ M_Rect::M_Rect( Shader* sh, glm::vec3 position, glm::vec2 size, float fillColor,
     modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, 0.0f));
     modelMatrix = glm::scale(modelMatrix, glm::vec3(1.0f, 1.0f, 1.0f));
     setModelMatrix(modelMatrix);
-    CubeLog::log("Created Rect", true);
+    CubeLog::info("Created Rect");
 }
 
 M_Rect::~M_Rect()
 {
-    CubeLog::log("Destroyed Rect", true);
+    CubeLog::info("Destroyed Rect");
     glDeleteVertexArrays(1, VAO);
     glDeleteBuffers(1, VBO);
 }
@@ -589,12 +592,12 @@ M_Line::M_Line(Shader* sh, glm::vec3 start, glm::vec3 end)
     modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, 0.0f));
     modelMatrix = glm::scale(modelMatrix, glm::vec3(1.0f, 1.0f, 1.0f));
     setModelMatrix(modelMatrix);
-    CubeLog::log("Created Line", true);
+    CubeLog::info("Created Line");
 }
 
 M_Line::~M_Line()
 {
-    CubeLog::log("Destroyed Line", true);
+    CubeLog::info("Destroyed Line");
     glDeleteVertexArrays(1, VAO);
     glDeleteBuffers(1, VBO);
 }
@@ -738,12 +741,12 @@ M_Arc::M_Arc(Shader* sh, unsigned int numSegments, float radius, float startAngl
     modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, 0.0f));
     modelMatrix = glm::scale(modelMatrix, glm::vec3(1.0f, 1.0f, 1.0f));
     setModelMatrix(modelMatrix);
-    CubeLog::log("Created Arc", true);
+    CubeLog::info("Created Arc");
 }
 
 M_Arc::~M_Arc()
 {
-    CubeLog::log("Destroyed Arc", true);
+    CubeLog::info("Destroyed Arc");
     glDeleteVertexArrays(1, VAO);
     glDeleteBuffers(1, VBO);
 }

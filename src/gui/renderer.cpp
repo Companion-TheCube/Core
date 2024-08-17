@@ -1,5 +1,5 @@
-//TODO: migrate from SFML to GLFW since we aren't using any SFML specific features
-// Path: src/gui/renderer.h
+// TODO: migrate from SFML to GLFW since we aren't using any SFML specific features
+//  Path: src/gui/renderer.h
 #include "renderer.h"
 
 Renderer::Renderer(std::latch& latch)
@@ -13,7 +13,7 @@ Renderer::~Renderer()
     this->ready = false;
     this->stop();
     this->t.join();
-    CubeLog::log("Renderer destroyed", true);
+    CubeLog::info("Renderer destroyed");
 }
 
 void Renderer::stop()
@@ -35,7 +35,7 @@ int Renderer::thread()
         CubeLog::error("Failed to initialize GLEW");
         exit(EXIT_FAILURE);
     }
-    CubeLog::log("OpenGL Version: " + std::string((char*)glGetString(GL_VERSION)), true);
+    CubeLog::info("OpenGL Version: " + std::string((char*)glGetString(GL_VERSION)));
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_STENCIL_TEST);
     glEnable(GL_CULL_FACE);
@@ -47,7 +47,7 @@ int Renderer::thread()
     glViewport(0, 0, window.getSize().x, window.getSize().y);
     glDepthFunc(GL_LESS);
     glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); 
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 #ifdef _WIN32
     this->window.setMouseCursorVisible(true);
@@ -66,7 +66,7 @@ int Renderer::thread()
     C_Character* character = characterManager->getCharacterByName("TheCube");
     characterManager->setCharacter(character);
     this->setupTasksRun();
-    CubeLog::log("Renderer initialized. Starting Loop...", true);
+    CubeLog::info("Renderer initialized. Starting Loop...");
     this->ready = true;
     latch->count_down();
     while (running) {
@@ -77,7 +77,8 @@ int Renderer::thread()
         this->window.setActive();
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // Set clear color to black
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); // Clear the color buffer, the depth buffer and the stencil buffer
-        if(this->running) this->loopTasksRun();
+        if (this->running)
+            this->loopTasksRun();
         if (characterManager->getCharacter() != nullptr) {
             characterManager->getCharacter()->draw();
             characterManager->getCharacter()->animateRandomFunny(); // TODO:replace with actual animation system
@@ -145,7 +146,8 @@ void Renderer::setupTasksRun()
 
 void Renderer::loopTasksRun()
 {
-    if(this->loopQueue.size() == 0) return;
+    if (this->loopQueue.size() == 0)
+        return;
     TaskQueue queue;
     while (this->loopQueue.size() > 0) {
         auto task = this->loopQueue.pop();

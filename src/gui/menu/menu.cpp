@@ -8,20 +8,20 @@
  */
 Menu::Menu(Shader* shader, std::latch& latch)
 {
-    CubeLog::log("Creating Menu class object", true);
+    CubeLog::info("Creating Menu class object");
     this->latch = &latch;
     this->shader = shader;
     this->visible = false;
     this->clickArea = ClickableArea();
     this->clickArea.clickableObject = this;
-        this->clickArea.xMin = 0;
-        this->clickArea.xMax = 720;
-        this->clickArea.yMin = 0;
-        this->clickArea.yMax = 720;
-        this->setOnClick([&](void* data) {
-            this->setVisible(!this->getVisible());
-        });
-    CubeLog::log("Menu created", true);
+    this->clickArea.xMin = 0;
+    this->clickArea.xMax = 720;
+    this->clickArea.yMin = 0;
+    this->clickArea.yMax = 720;
+    this->setOnClick([&](void* data) {
+        this->setVisible(!this->getVisible());
+    });
+    CubeLog::info("Menu created");
 }
 
 /**
@@ -30,7 +30,7 @@ Menu::Menu(Shader* shader, std::latch& latch)
  */
 Menu::~Menu()
 {
-    CubeLog::log("Menu destroyed", true);
+    CubeLog::info("Menu destroyed");
     for (auto object : this->objects) {
         delete object;
     }
@@ -44,7 +44,7 @@ Menu::~Menu()
  */
 void Menu::addMenuEntry(std::string text, std::function<void(void*)> action)
 {
-    CubeLog::log("Adding MenuEntry with text: " + text, true);
+    CubeLog::info("Adding MenuEntry with text: " + text);
     float startY = (((menuItemTextSize * 1.2) + MENU_ITEM_PADDING_PX) * this->childrenClickables.size()) + MENU_TOP_PADDING_PX;
     float textX = mapRange(MENU_POSITION_SCREEN_RELATIVE_X_LEFT, SCREEN_RELATIVE_MIN_X, SCREEN_RELATIVE_MAX_X, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X) + (STENCIL_INSET_PX * 2);
     float textY = mapRange(MENU_POSITION_SCREEN_RELATIVE_Y_TOP, SCREEN_RELATIVE_MIN_Y, SCREEN_RELATIVE_MAX_Y, SCREEN_PX_MIN_Y, SCREEN_PX_MAX_Y) - startY - (STENCIL_INSET_PX * 2) - this->menuItemTextSize;
@@ -57,8 +57,8 @@ void Menu::addMenuEntry(std::string text, std::function<void(void*)> action)
     yMaxTemp += (MENU_ITEM_PADDING_PX);
     this->childrenClickables.at(this->childrenClickables.size() - 1)->setClickAreaSize(textX, textX + (menuWidthPx - (STENCIL_INSET_PX * 2)), yMinTemp, yMaxTemp);
     this->childrenClickables.at(this->childrenClickables.size() - 1)->setVisible(true);
-        this->childrenClickables.at(this->childrenClickables.size() - 1)->setOnClick(action);
-    CubeLog::log("MenuEntry added with text: " + text + " and clickable area: " + std::to_string(this->childrenClickables.at(this->childrenClickables.size() - 1)->getClickableArea()->xMin) + "x" + std::to_string(this->childrenClickables.at(this->childrenClickables.size() - 1)->getClickableArea()->yMin) + " to " + std::to_string(this->childrenClickables.at(this->childrenClickables.size() - 1)->getClickableArea()->xMax) + "x" + std::to_string(this->childrenClickables.at(this->childrenClickables.size() - 1)->getClickableArea()->yMax), true);
+    this->childrenClickables.at(this->childrenClickables.size() - 1)->setOnClick(action);
+    CubeLog::info("MenuEntry added with text: " + text + " and clickable area: " + std::to_string(this->childrenClickables.at(this->childrenClickables.size() - 1)->getClickableArea()->xMin) + "x" + std::to_string(this->childrenClickables.at(this->childrenClickables.size() - 1)->getClickableArea()->yMin) + " to " + std::to_string(this->childrenClickables.at(this->childrenClickables.size() - 1)->getClickableArea()->xMax) + "x" + std::to_string(this->childrenClickables.at(this->childrenClickables.size() - 1)->getClickableArea()->yMax));
 }
 
 /**
@@ -80,7 +80,7 @@ void Menu::addMenuEntry(std::string text, std::function<void(void*)> action, std
  */
 void Menu::addHorizontalRule()
 {
-    CubeLog::log("Adding horizontal rule", true);
+    CubeLog::info("Adding horizontal rule");
     float startY = (((menuItemTextSize * 1.2) + MENU_ITEM_PADDING_PX) * this->childrenClickables.size()) + MENU_TOP_PADDING_PX + ((menuItemTextSize + (MENU_ITEM_PADDING_PX * 2)) / 2);
     // get start x from screen relative position of menu
     float startX = mapRange(MENU_POSITION_SCREEN_RELATIVE_X_LEFT, SCREEN_RELATIVE_MIN_X, SCREEN_RELATIVE_MAX_X, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X) + (STENCIL_INSET_PX * 2) + 30;
@@ -95,7 +95,7 @@ void Menu::addHorizontalRule()
  */
 void Menu::scrollVert(int y)
 {
-    CubeLog::log("Scrolling menu vertically by: " + std::to_string(y), true);
+    CubeLog::info("Scrolling menu vertically by: " + std::to_string(y));
     // TODO: get the scroll data into this function
     this->scrollVertPosition += y;
     if (this->scrollVertPosition < 0) {
@@ -123,31 +123,31 @@ void Menu::setup()
     this->stencil = new MenuStencil({ stencilX_start, stencilY_start }, { stencilWidth, stencilHeight }, stencilShader);
 
     this->addMenuEntry("< Settings", [&](void* data) {
-        CubeLog::log("Settings clicked", true);
+        CubeLog::info("Settings clicked");
         this->setVisible(false);
     });
 
     this->addHorizontalRule();
     /////// TESTING //////////// TODO:
     this->addMenuEntry("Test addMenuEntry() 1 very long test text that is very long", [&](void* data) {
-        CubeLog::log("Test clicked", true);
+        CubeLog::info("Test clicked");
     });
 
     this->addMenuEntry("addMenuEntry() 2", [&](void* data) {
-        CubeLog::log("Test clicked", true);
+        CubeLog::info("Test clicked");
     });
 
     this->addHorizontalRule();
 
     this->addMenuEntry("addMenuEntry() 3", [&](void* data) {
-        CubeLog::log("Test clicked", true);
+        CubeLog::info("Test clicked");
     });
     ////////// END TESTING //////////
 
     std::lock_guard<std::mutex> lock(this->mutex);
     this->ready = true;
     this->latch->count_down();
-    CubeLog::log("Menu setup done", true);
+    CubeLog::info("Menu setup done");
 }
 
 /**
@@ -157,7 +157,7 @@ void Menu::setup()
  */
 void Menu::onClick(void* data)
 {
-    // CubeLog::log("Menu clicked", true);
+    // CubeLog::info("Menu clicked");
     if (this->action != nullptr && this->onClickEnabled) {
         this->action(data);
     }
@@ -170,7 +170,7 @@ void Menu::onClick(void* data)
  */
 void Menu::onRightClick(void* data)
 {
-    CubeLog::log("Menu right clicked", true);
+    CubeLog::info("Menu right clicked");
     if (this->rightAction != nullptr && this->visible) {
         this->rightAction(data);
     }
@@ -197,8 +197,8 @@ bool Menu::setVisible(bool visible)
         this->clickArea.yMin = 0;
         this->clickArea.yMax = 720;
     }
-    if(this->visible){
-        // TODO: create a timeout that will hide the menu after a certain amount of time. will need to adjust clickable area so that it catches clicks 
+    if (this->visible) {
+        // TODO: create a timeout that will hide the menu after a certain amount of time. will need to adjust clickable area so that it catches clicks
         // for the entire menu area to reset the timer. Will also need to fix the issue where clicks don't propagate to all areas that are possible,
     }
     return temp;
@@ -350,7 +350,7 @@ MenuBox::MenuBox(glm::vec2 position, glm::vec2 size, Shader* shader)
     this->objects.push_back(new M_Arc(shader, 50, radius, 180, 270, { xStart + radius, yStart + radius, Z_DISTANCE + 0.001 + this->index })); // bottom left
     this->objects.push_back(new M_Arc(shader, 50, radius, 180, 90, { xStart + radius, yStart + size.y - radius, Z_DISTANCE + 0.001 + this->index })); // top left
 
-    CubeLog::log("MenuBox created of size: " + std::to_string(size.x) + "x" + std::to_string(size.y) + " at position: " + std::to_string(position.x) + "x" + std::to_string(position.y), true);
+    CubeLog::info("MenuBox created of size: " + std::to_string(size.x) + "x" + std::to_string(size.y) + " at position: " + std::to_string(position.x) + "x" + std::to_string(position.y));
 }
 
 /**
@@ -362,7 +362,7 @@ MenuBox::~MenuBox()
     for (auto object : this->objects) {
         delete object;
     }
-    CubeLog::log("MenuBox destroyed", true);
+    CubeLog::info("MenuBox destroyed");
 }
 
 /**
@@ -438,7 +438,12 @@ MenuEntry::MenuEntry(std::string text, Shader* shader, glm::vec2 position, float
     this->visible = true;
     this->shader = shader;
 
-    this->objects.push_back(new M_Text(shader, text, size, {1.f,1.f,1.f,},position));
+    this->objects.push_back(new M_Text(shader, text, size, {
+                                                               1.f,
+                                                               1.f,
+                                                               1.f,
+                                                           },
+        position));
 
     this->size.x = this->objects.at(0)->getWidth();
     this->size.y = size;
@@ -451,7 +456,7 @@ MenuEntry::MenuEntry(std::string text, Shader* shader, glm::vec2 position, float
     this->clickArea.yMin = clickY - this->size.y;
     this->clickArea.yMax = clickY;
 
-    CubeLog::log("MenuEntry created with text: " + text + " with click area: " + std::to_string(this->clickArea.xMin) + "x" + std::to_string(this->clickArea.yMin) + " to " + std::to_string(this->clickArea.xMax) + "x" + std::to_string(this->clickArea.yMax), true);
+    CubeLog::info("MenuEntry created with text: " + text + " with click area: " + std::to_string(this->clickArea.xMin) + "x" + std::to_string(this->clickArea.yMin) + " to " + std::to_string(this->clickArea.xMax) + "x" + std::to_string(this->clickArea.yMax));
 }
 
 /**
@@ -463,7 +468,7 @@ MenuEntry::~MenuEntry()
     for (auto object : this->objects) {
         delete object;
     }
-    CubeLog::log("MenuEntry destroyed", true);
+    CubeLog::info("MenuEntry destroyed");
 }
 
 /**
@@ -473,7 +478,7 @@ MenuEntry::~MenuEntry()
  */
 void MenuEntry::onClick(void* data)
 {
-    CubeLog::log("MenuEntry clicked", true);
+    CubeLog::info("MenuEntry clicked");
     if (this->action != nullptr && this->visible) {
         this->action(data);
     }
@@ -481,7 +486,7 @@ void MenuEntry::onClick(void* data)
 
 void MenuEntry::onRightClick(void* data)
 {
-    CubeLog::log("MenuEntry right clicked", true);
+    CubeLog::info("MenuEntry right clicked");
     if (this->rightAction != nullptr && this->visible) {
         this->rightAction(data);
     }
@@ -501,13 +506,13 @@ bool MenuEntry::getVisible()
 
 void MenuEntry::setOnClick(std::function<void(void*)> action)
 {
-    CubeLog::log("Setting onClick action for MenuEntry with text: " + this->text, true);
+    CubeLog::info("Setting onClick action for MenuEntry with text: " + this->text);
     this->action = action;
 }
 
 void MenuEntry::setOnRightClick(std::function<void(void*)> action)
 {
-    CubeLog::log("Setting onRightClick action for MenuEntry with text: " + this->text, true);
+    CubeLog::info("Setting onRightClick action for MenuEntry with text: " + this->text);
     this->rightAction = action;
 }
 
@@ -577,7 +582,7 @@ void MenuEntry::setClickAreaSize(unsigned int xMin, unsigned int xMax, unsigned 
 
 MenuStencil::MenuStencil(glm::vec2 position, glm::vec2 size, Shader* shader)
 {
-    CubeLog::log("Creating MenuStencil at position: " + std::to_string(position.x) + "x" + std::to_string(position.y) + " of size: " + std::to_string(size.x) + "x" + std::to_string(size.y), true);
+    CubeLog::info("Creating MenuStencil at position: " + std::to_string(position.x) + "x" + std::to_string(position.y) + " of size: " + std::to_string(size.x) + "x" + std::to_string(size.y));
     this->position = position;
     this->size = size;
     this->shader = shader;
@@ -606,11 +611,10 @@ MenuStencil::MenuStencil(glm::vec2 position, glm::vec2 size, Shader* shader)
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void*)0);
     glEnableVertexAttribArray(0);
 
-    
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
-    CubeLog::log("MenuStencil created", true);
+    CubeLog::info("MenuStencil created");
 }
 
 MenuStencil::~MenuStencil()
@@ -618,7 +622,7 @@ MenuStencil::~MenuStencil()
     glDeleteVertexArrays(1, &this->VAO);
     glDeleteBuffers(1, &this->VBO);
     glDeleteBuffers(1, &this->EBO);
-    CubeLog::log("MenuStencil destroyed", true);
+    CubeLog::info("MenuStencil destroyed");
 }
 
 void MenuStencil::setPosition(glm::vec2 position)
@@ -719,8 +723,8 @@ MenuHorizontalRule::MenuHorizontalRule(glm::vec2 position, float size, Shader* s
     // convert size to screen relative size
     float sizeX = mapRange(size, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X, SCREEN_RELATIVE_MIN_WIDTH, SCREEN_RELATIVE_MAX_WIDTH);
     this->objects.push_back(new M_Line(shader, { pos, Z_DISTANCE + 0.01 }, { pos.x + sizeX, pos.y, Z_DISTANCE + 0.01 }));
-    CubeLog::log("MenuHorizontalRule created at position: " + std::to_string(position.x) + "x" + std::to_string(position.y) + " of size: " + std::to_string(size), true);
-    CubeLog::log("MenuHorizontalRule created with screen relative position: " + std::to_string(pos.x) + "x" + std::to_string(pos.y) + " of size: " + std::to_string(sizeX), true);
+    CubeLog::info("MenuHorizontalRule created at position: " + std::to_string(position.x) + "x" + std::to_string(position.y) + " of size: " + std::to_string(size));
+    CubeLog::info("MenuHorizontalRule created with screen relative position: " + std::to_string(pos.x) + "x" + std::to_string(pos.y) + " of size: " + std::to_string(sizeX));
 }
 
 MenuHorizontalRule::~MenuHorizontalRule()
@@ -728,7 +732,7 @@ MenuHorizontalRule::~MenuHorizontalRule()
     for (auto object : this->objects) {
         delete object;
     }
-    CubeLog::log("MenuHorizontalRule destroyed", true);
+    CubeLog::info("MenuHorizontalRule destroyed");
 }
 
 void MenuHorizontalRule::setPosition(glm::vec2 position)
@@ -770,12 +774,12 @@ bool MenuHorizontalRule::getVisible()
 
 void MenuHorizontalRule::onClick(void* data)
 {
-    CubeLog::log("MenuHorizontalRule clicked", true);
+    CubeLog::info("MenuHorizontalRule clicked");
 }
 
 void MenuHorizontalRule::onRightClick(void* data)
 {
-    CubeLog::log("MenuHorizontalRule right clicked", true);
+    CubeLog::info("MenuHorizontalRule right clicked");
 }
 
 std::vector<MeshObject*> MenuHorizontalRule::getObjects()
