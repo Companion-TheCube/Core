@@ -26,6 +26,33 @@ AppsManager::~AppsManager()
     std::stop_token st = this->appsManagerThread.get_stop_token();
     this->appsManagerThread.request_stop();
     this->appsManagerThread.join();
+#ifdef __linux__
+    // destroy all the pipes
+    for(auto app: this->runningApps){
+        if(app.second->getStdOutRead() != 0){
+            close(app.second->getStdOutRead());
+            
+        }
+        if(app.second->getStdOutWrite() != 0){
+            close(app.second->getStdOutWrite());
+        }
+        if(app.second->getStdErrRead() != 0){
+            close(app.second->getStdErrRead());
+        }
+        if(app.second->getStdErrWrite() != 0){
+            close(app.second->getStdErrWrite());
+        }
+        if(app.second->getStdInRead() != 0){
+            close(app.second->getStdInRead());
+        }
+        if(app.second->getStdInWrite() != 0){
+            close(app.second->getStdInWrite());
+        }
+        if(app.second->getActions() != nullptr){
+            posix_spawn_file_actions_destroy(app.second->getActions());
+        }
+    }
+#endif
     CubeLog::debug("Stopping all apps.");
     this->stopAllApps();
     CubeLog::info("AppsManager destructor finished.");
@@ -33,7 +60,8 @@ AppsManager::~AppsManager()
 
 void AppsManager::appsManagerThreadFn()
 {
-    CubeLog::info("AppsManager thread started.");
+    CubeLog::info("AppsManager thread starting. Waiting one second to allow DBManager to start.");
+    genericSleep(1000); // Give the DB manager time to start
     while (CubeDB::getDBManager() == nullptr || !CubeDB::getDBManager()->isDatabaseManagerReady()) {
         CubeLog::debug("Waiting for DBManager to be initialized.");
         genericSleep(1);
@@ -50,7 +78,7 @@ void AppsManager::appsManagerThreadFn()
     this->dockerApi = std::make_shared<DockerAPI>("http://127.0.0.1:2375");
     this->killAbandonedContainers();
     this->killAbandonedProcesses();
-
+    CubeLog::info("AppsManager thread started.");
 
     // testing
     for(auto id: this->appIDs){
@@ -107,7 +135,7 @@ void AppsManager::appsManagerThreadFn()
                         if (bSuccess && dwRead > 0) {
                             chBuf[dwRead] = '\0';
                             std::string str(chBuf);
-                            CubeLog::info("STDOUT - " + this->runningApps[appID]->getAppName() + ": " + str);
+                            CubeLog::debug("STDOUT - " + this->runningApps[appID]->getAppName() + ": " + str);
                         }
                     }
                 }
@@ -123,7 +151,7 @@ void AppsManager::appsManagerThreadFn()
                         if (bSuccess && dwRead > 0) {
                             chBuf[dwRead] = '\0';
                             std::string str(chBuf);
-                            CubeLog::info("STDERR - " + this->runningApps[appID]->getAppName() + ": " + str);
+                            CubeLog::debug("STDERR - " + this->runningApps[appID]->getAppName() + ": " + str);
                         }
                     }
                 }
@@ -132,24 +160,68 @@ void AppsManager::appsManagerThreadFn()
                 // first we check to see if the pipe is valid
                 if(this->runningApps[appID]->getStdOutRead() != 0){
                     char buffer[4096];
-                    int bytesRead = read(this->runningApps[appID]->getStdOutRead(), buffer, sizeof(buffer));
-                    if (bytesRead > 0) {
-                        buffer[bytesRead] = '\0';
-                        std::string str(buffer);
-                        CubeLog::info("STDOUT - " + this->runningApps[appID]->getAppName() + ": " + str);
+                    struct pollfd fds[1];
+                    fds[0].fd = this->runningApps[appID]->getStdOutRead();
+                    fds[0].events = POLLIN;
+                    int ret = poll(fds, 1, 0);
+                    if (ret > 0) {
+                        if (fds[0].revents & POLLIN) {
+                            int bytesRead = read(this->runningApps[appID]->getStdOutRead(), buffer, sizeof(buffer));
+                            if (bytesRead > 0) {
+                                buffer[bytesRead] = '\0';
+                                std::string str(buffer);
+                                CubeLog::debug("STDOUT - " + this->runningApps[appID]->getAppName() + ": " + str);
+                            }else if(bytesRead < 0){
+                                CubeLog::error("Error reading from stdout pipe for app: " + appID);
+                            }
+                        }
                     }
+                }else{
+                    CubeLog::error("Stdout pipe is null for app: " + appID);
                 }
                 // then we check stderr
                 if(this->runningApps[appID]->getStdErrRead() != 0){
                     char buffer[4096];
-                    int bytesRead = read(this->runningApps[appID]->getStdErrRead(), buffer, sizeof(buffer));
-                    if (bytesRead > 0) {
-                        buffer[bytesRead] = '\0';
-                        std::string str(buffer);
-                        CubeLog::info("STDERR - " + this->runningApps[appID]->getAppName() + ": " + str);
+                    struct pollfd fds[1];
+                    fds[0].fd = this->runningApps[appID]->getStdErrRead();
+                    fds[0].events = POLLIN;
+                    int ret = poll(fds, 1, 0);
+                    if (ret > 0) {
+                        if (fds[0].revents & POLLIN) {
+                            int bytesRead = read(this->runningApps[appID]->getStdErrRead(), buffer, sizeof(buffer));
+                            if (bytesRead > 0) {
+                                buffer[bytesRead] = '\0';
+                                std::string str(buffer);
+                                CubeLog::debug("STDERR - " + this->runningApps[appID]->getAppName() + ": " + str);
+                            }else if(bytesRead < 0){
+                                CubeLog::error("Error reading from stderr pipe for app: " + appID);
+                            }
+                        }
                     }
+                }else{
+                    CubeLog::error("Stderr pipe is null for app: " + appID);
                 }
-                
+                if(this->runningApps[appID]->getStdInRead() != 0){
+                    char buffer[4096];
+                    struct pollfd fds[1];
+                    fds[0].fd = this->runningApps[appID]->getStdInRead();
+                    fds[0].events = POLLIN;
+                    int ret = poll(fds, 1, 0);
+                    if (ret > 0) {
+                        if (fds[0].revents & POLLIN) {
+                            int bytesRead = read(this->runningApps[appID]->getStdInRead(), buffer, sizeof(buffer));
+                            if (bytesRead > 0) {
+                                buffer[bytesRead] = '\0';
+                                std::string str(buffer);
+                                CubeLog::info("STDIN - " + this->runningApps[appID]->getAppName() + ": " + str);
+                            }else if (bytesRead < 0) {
+                                CubeLog::error("Error reading from stdin pipe for app: " + appID);
+                            }
+                        }
+                    }
+                }else{
+                    CubeLog::error("Stdin pipe is null for app: " + appID);
+                }
 #endif
                 if(AppsManager::consoleLoggingEnabled)
                     CubeLog::debug("Finished checking stdout and stderr for app: " + appID);

@@ -1,5 +1,11 @@
 #pragma once
 #include <string>
+#include <iostream>
+#include <vector>
+#include <sstream>
+#include <fstream>
+#include <algorithm>
+#include <spawn.h>
 #ifndef WIN32_INCLUDED
 #define WIN32_INCLUDED
 #ifdef _WIN32
@@ -39,6 +45,7 @@ class RunningApp {
     int g_hChildStd_ERR_Wr = 0;
     int g_hChildStd_IN_Rd = 0;
     int g_hChildStd_IN_Wr = 0;
+    posix_spawn_file_actions_t g_actions;
 #endif
 public:
     RunningApp(unsigned long pid, std::string appID, std::string appName, std::string execPath, std::string execArgs, std::string appSource, std::string updatePath, std::string role, std::string updateLastCheck, std::string updateLastUpdate, std::string updateLastFail, std::string updateLastFailReason, long containerID);
@@ -85,11 +92,12 @@ public:
     int getStdErrWrite();
     int getStdInRead();
     int getStdInWrite();
-    bool setStdOutRead(int fd);
-    bool setStdOutWrite(int fd);
-    bool setStdErrRead(int fd);
-    bool setStdErrWrite(int fd);
-    bool setStdInRead(int fd);
-    bool setStdInWrite(int fd);
+    posix_spawn_file_actions_t* getActions();
+    void setStdOutRead(int fd);
+    void setStdOutWrite(int fd);
+    void setStdErrRead(int fd);
+    void setStdErrWrite(int fd);
+    void setStdInRead(int fd);
+    void setStdInWrite(int fd);
 #endif
 };

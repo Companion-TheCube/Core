@@ -256,39 +256,38 @@ int RunningApp::getStdInWrite()
     return this->g_hChildStd_IN_Wr;
 }
 
-bool RunningApp::setStdOutRead(int fd)
+posix_spawn_file_actions_t* RunningApp::getActions()
+{
+    return &this->g_actions;
+}
+
+void RunningApp::setStdOutRead(int fd)
 {
     this->g_hChildStd_OUT_Rd = fd;
-    return true;
 }
 
-bool RunningApp::setStdOutWrite(int fd)
+void RunningApp::setStdOutWrite(int fd)
 {
     this->g_hChildStd_OUT_Wr = fd;
-    return true;
 }
 
-bool RunningApp::setStdErrRead(int fd)
+void RunningApp::setStdErrRead(int fd)
 {
     this->g_hChildStd_ERR_Rd = fd;
-    return true;
 }
 
-bool RunningApp::setStdErrWrite(int fd)
+void RunningApp::setStdErrWrite(int fd)
 {
     this->g_hChildStd_ERR_Wr = fd;
-    return true;
 }
 
-bool RunningApp::setStdInRead(int fd)
+void RunningApp::setStdInRead(int fd)
 {
     this->g_hChildStd_IN_Rd = fd;
-    return true;
 }
 
-bool RunningApp::setStdInWrite(int fd)
+void RunningApp::setStdInWrite(int fd)
 {
     this->g_hChildStd_IN_Wr = fd;
-    return true;
 }
 #endif

@@ -4,6 +4,7 @@
 #include "./../database/cubeDB.h"
 #include "./../utils.h"
 #include "RunningApp.h"
+#include <poll.h>
 
 class AppsManager {
 private:
