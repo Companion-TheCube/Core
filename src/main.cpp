@@ -32,10 +32,10 @@ int main(int argc, char* argv[])
 {
     std::cout << "Starting..." << std::endl;
 #ifdef __linux___
-    if (setenv("DISPLAY", ":1", 1) != 0) {
-        std::cout << "Error setting DISPLAY=:0 environment variable. Exiting." << std::endl;
-        return 1;
-    }
+    // if (setenv("DISPLAY", ":1", 1) != 0) {
+    //     std::cout << "Error setting DISPLAY=:0 environment variable. Exiting." << std::endl;
+    //     return 1;
+    // }
 #endif
     /////////////////////////////////////////////////////////////////
     // Argument parsing
