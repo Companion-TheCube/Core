@@ -1,14 +1,14 @@
 #pragma once
-#include <globalSettings.h>
 #include "../meshObject.h"
 #include <ft2build.h>
+#include <globalSettings.h>
 #include FT_FREETYPE_H
 
 struct Character {
-    unsigned int TextureID;  // ID handle of the glyph texture
-    glm::ivec2   Size;       // Size of glyph
-    glm::ivec2   Bearing;    // Offset from baseline to left/top of glyph
-    unsigned int Advance;    // Offset to advance to next glyph
+    unsigned int TextureID; // ID handle of the glyph texture
+    glm::ivec2 Size; // Size of glyph
+    glm::ivec2 Bearing; // Offset from baseline to left/top of glyph
+    unsigned int Advance; // Offset to advance to next glyph
 };
 
 class M_Text : public MeshObject {
@@ -31,6 +31,10 @@ private:
     static FT_Library ft;
     static FT_Face face;
     static bool faceInitialized;
+    glm::mat4 capturedProjectionMatrix;
+    glm::mat4 capturedViewMatrix;
+    glm::mat4 capturedModelMatrix;
+
 public:
     M_Text(Shader* sh, std::string text, float fontSize, glm::vec3 color, glm::vec2 position);
     ~M_Text();
@@ -50,6 +54,8 @@ public:
     void setText(std::string text);
     float getWidth();
     void reloadFont();
+    void capturePosition();
+    void restorePosition();
 };
 
 class M_PartCircle : public MeshObject {
@@ -65,6 +71,10 @@ private:
     unsigned int numSegments;
     float startAngle;
     float endAngle;
+    glm::mat4 capturedProjectionMatrix;
+    glm::mat4 capturedViewMatrix;
+    glm::mat4 capturedModelMatrix;
+
 public:
     M_PartCircle(Shader* sh, unsigned int numSegments, float radius, glm::vec3 centerPoint, float startAngle, float endAngle, float fillColor);
     ~M_PartCircle();
@@ -81,6 +91,8 @@ public:
     glm::vec3 getCenterPoint();
     std::vector<Vertex> getVertices();
     float getWidth();
+    void capturePosition();
+    void restorePosition();
 };
 
 class M_Rect : public MeshObject {
@@ -94,8 +106,12 @@ private:
     glm::mat4 projectionMatrix;
     glm::mat4 viewMatrix;
     glm::mat4 modelMatrix;
+    glm::mat4 capturedProjectionMatrix;
+    glm::mat4 capturedViewMatrix;
+    glm::mat4 capturedModelMatrix;
+
 public:
-    M_Rect(Shader* sh, glm::vec3 position, glm::vec2 size,  float fillColor, float borderColor);
+    M_Rect(Shader* sh, glm::vec3 position, glm::vec2 size, float fillColor, float borderColor);
     ~M_Rect();
     void draw();
     void setProjectionMatrix(glm::mat4 projectionMatrix);
@@ -110,6 +126,8 @@ public:
     glm::vec3 getCenterPoint();
     std::vector<Vertex> getVertices();
     float getWidth();
+    void capturePosition();
+    void restorePosition();
 };
 
 class M_Line : public MeshObject {
@@ -120,6 +138,10 @@ private:
     glm::mat4 projectionMatrix;
     glm::mat4 viewMatrix;
     glm::mat4 modelMatrix;
+    glm::mat4 capturedProjectionMatrix;
+    glm::mat4 capturedViewMatrix;
+    glm::mat4 capturedModelMatrix;
+
 public:
     M_Line(Shader* sh, glm::vec3 start, glm::vec3 end);
     ~M_Line();
@@ -136,9 +158,11 @@ public:
     glm::vec3 getCenterPoint();
     std::vector<Vertex> getVertices();
     float getWidth();
+    void capturePosition();
+    void restorePosition();
 };
 
-class M_Arc: public MeshObject{
+class M_Arc : public MeshObject {
 private:
     unsigned int numSegments;
     float radius;
@@ -151,6 +175,10 @@ private:
     glm::mat4 projectionMatrix;
     glm::mat4 viewMatrix;
     glm::mat4 modelMatrix;
+    glm::mat4 capturedProjectionMatrix;
+    glm::mat4 capturedViewMatrix;
+    glm::mat4 capturedModelMatrix;
+
 public:
     M_Arc(Shader* sh, unsigned int numSegments, float radius, float startAngle, float endAngle, glm::vec3 centerPoint);
     ~M_Arc();
@@ -167,6 +195,8 @@ public:
     glm::vec3 getCenterPoint();
     std::vector<Vertex> getVertices();
     float getWidth();
+    void capturePosition();
+    void restorePosition();
 };
 
 #define CUBE_VERTICES_CONST 1.0f
@@ -175,6 +205,10 @@ public:
 #define WHITE_FLOATS 1.f
 
 class Cube : public MeshObject {
+private:
+    glm::mat4 capturedProjectionMatrix;
+    glm::mat4 capturedViewMatrix;
+    glm::mat4 capturedModelMatrix;
 public:
     const Vertex cubeVertices[8] = {
         // Front face
@@ -235,14 +269,14 @@ public:
         3, 2, 6, 6, 7, 3 // right face
     };
     GLuint VAOs[7], VBOs[7], EBOs[7];
-    const unsigned int faceIndices[6] = {0, 1, 2, 2, 3, 0};
+    const unsigned int faceIndices[6] = { 0, 1, 2, 2, 3, 0 };
     Cube(Shader* sh);
     ~Cube();
     Shader* shader;
     glm::mat4 projectionMatrix;
     glm::mat4 viewMatrix;
     glm::mat4 modelMatrix;
-    
+
     void draw();
     void setProjectionMatrix(glm::mat4 projectionMatrix);
     void setViewMatrix(glm::vec3 viewMatrix);
@@ -256,4 +290,6 @@ public:
     glm::vec3 getCenterPoint();
     std::vector<Vertex> getVertices();
     float getWidth();
+    void capturePosition();
+    void restorePosition();
 };

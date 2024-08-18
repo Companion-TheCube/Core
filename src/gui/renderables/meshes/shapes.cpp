@@ -236,6 +236,18 @@ float M_Text::getWidth()
     return this->width;
 }
 
+void M_Text::capturePosition(){
+    this->capturedModelMatrix = this->modelMatrix;
+    this->capturedViewMatrix = this->viewMatrix;
+    this->capturedProjectionMatrix = this->projectionMatrix;
+}
+
+void M_Text::restorePosition(){
+    this->modelMatrix = this->capturedModelMatrix;
+    this->viewMatrix = this->capturedViewMatrix;
+    this->projectionMatrix = this->capturedProjectionMatrix;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////
 
 M_PartCircle::M_PartCircle(Shader* sh, unsigned int numSegments, float radius, glm::vec3 centerPoint, float startAngle, float endAngle, float fillColor)
@@ -394,6 +406,18 @@ std::vector<Vertex> M_PartCircle::getVertices()
 float M_PartCircle::getWidth()
 {
     return this->radius;
+}
+
+void M_PartCircle::capturePosition(){
+    this->capturedModelMatrix = this->modelMatrix;
+    this->capturedViewMatrix = this->viewMatrix;
+    this->capturedProjectionMatrix = this->projectionMatrix;
+}
+
+void M_PartCircle::restorePosition(){
+    this->modelMatrix = this->capturedModelMatrix;
+    this->viewMatrix = this->capturedViewMatrix;
+    this->projectionMatrix = this->capturedProjectionMatrix;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -568,6 +592,18 @@ float M_Rect::getWidth()
     return this->vertexDataFill[0].x - this->vertexDataFill[1].x;
 }
 
+void M_Rect::capturePosition(){
+    this->capturedModelMatrix = this->modelMatrix;
+    this->capturedViewMatrix = this->viewMatrix;
+    this->capturedProjectionMatrix = this->projectionMatrix;
+}
+
+void M_Rect::restorePosition(){
+    this->modelMatrix = this->capturedModelMatrix;
+    this->viewMatrix = this->capturedViewMatrix;
+    this->projectionMatrix = this->capturedProjectionMatrix;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////
 
 M_Line::M_Line(Shader* sh, glm::vec3 start, glm::vec3 end)
@@ -707,6 +743,18 @@ float M_Line::getWidth()
     return this->vertexData[0].x - this->vertexData[1].x;
 }
 
+void M_Line::capturePosition(){
+    this->capturedModelMatrix = this->modelMatrix;
+    this->capturedViewMatrix = this->viewMatrix;
+    this->capturedProjectionMatrix = this->projectionMatrix;
+}
+
+void M_Line::restorePosition(){
+    this->modelMatrix = this->capturedModelMatrix;
+    this->viewMatrix = this->capturedViewMatrix;
+    this->projectionMatrix = this->capturedProjectionMatrix;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////
 
 M_Arc::M_Arc(Shader* sh, unsigned int numSegments, float radius, float startAngle, float endAngle, glm::vec3 centerPoint)
@@ -816,6 +864,18 @@ std::vector<Vertex> M_Arc::getVertices()
 float M_Arc::getWidth()
 {
     return this->radius;
+}
+
+void M_Arc::capturePosition(){
+    this->capturedModelMatrix = this->modelMatrix;
+    this->capturedViewMatrix = this->viewMatrix;
+    this->capturedProjectionMatrix = this->projectionMatrix;
+}
+
+void M_Arc::restorePosition(){
+    this->modelMatrix = this->capturedModelMatrix;
+    this->viewMatrix = this->capturedViewMatrix;
+    this->projectionMatrix = this->capturedProjectionMatrix;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -932,23 +992,33 @@ void Cube::uniformScale(float scale)
 
 void Cube::rotateAbout(float angle, glm::vec3 point)
 {
-    // calculate the axis of rotation based on the models current position and the point of rotation
-    glm::vec3 axis = point - getCenterPoint();
+    glm::mat4 originalModelMatrix = modelMatrix; // Save the original model matrix
+    modelMatrix = glm::mat4(1.0f); // Reset model matrix to identity
+
+    glm::vec3 axis = glm::normalize(point - getCenterPoint()); // Normalize the axis
     glm::mat4 tempMat = glm::mat4(1.0f); // Start with an identity matrix
     tempMat = glm::translate(tempMat, point);
     tempMat = glm::rotate(tempMat, glm::radians(angle), axis);
     tempMat = glm::translate(tempMat, -point);
-    modelMatrix = tempMat * modelMatrix; // Apply the new transformation to the existing model matrix
+
+    modelMatrix = tempMat * originalModelMatrix; // Apply the rotation to the original matrix
 }
+
 
 void Cube::rotateAbout(float angle, glm::vec3 axis, glm::vec3 point)
 {
+    glm::mat4 originalModelMatrix = modelMatrix; // Save the original model matrix
+    modelMatrix = glm::mat4(1.0f); // Reset model matrix to identity
+
+    glm::vec3 normalizedAxis = glm::normalize(axis); // Normalize the axis
     glm::mat4 tempMat = glm::mat4(1.0f); // Start with an identity matrix
     tempMat = glm::translate(tempMat, point);
-    tempMat = glm::rotate(tempMat, glm::radians(angle), axis);
+    tempMat = glm::rotate(tempMat, glm::radians(angle), normalizedAxis);
     tempMat = glm::translate(tempMat, -point);
-    modelMatrix = tempMat * modelMatrix; // Apply the new transformation to the existing model matrix
+    
+    modelMatrix = tempMat * originalModelMatrix; // Apply the rotation to the original matrix
 }
+
 
 glm::vec3 Cube::getCenterPoint()
 {
@@ -969,4 +1039,16 @@ std::vector<Vertex> Cube::getVertices()
 float Cube::getWidth()
 {
     return cubeVertices[0].x - cubeVertices[1].x;
+}
+
+void Cube::capturePosition(){
+    this->capturedModelMatrix = this->modelMatrix;
+    this->capturedViewMatrix = this->viewMatrix;
+    this->capturedProjectionMatrix = this->projectionMatrix;
+}
+
+void Cube::restorePosition(){
+    this->modelMatrix = this->capturedModelMatrix;
+    this->viewMatrix = this->capturedViewMatrix;
+    this->projectionMatrix = this->capturedProjectionMatrix;
 }

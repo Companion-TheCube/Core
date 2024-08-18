@@ -1,5 +1,7 @@
 #include "theCube.h"
 
+#define M_PI 3.14159265358979323846
+
 TheCube::TheCube(Shader* sh)
 {
     this->shader = sh;
@@ -64,6 +66,9 @@ TheCube::TheCube(Shader* sh)
         object->translate(glm::vec3(6.0f, 0.0f, 0.0f));
     }
 
+    for(auto object : this->objects){
+        object->capturePosition();
+    }
     // this->objects.push_back(new Cube(this->shader));
     this->name = "TheCube";
     CubeLog::info("Created character " + this->name);
@@ -92,16 +97,18 @@ void TheCube::animateRandomFunny()
     // count that results in a smooth animation. We can use sin() to achieve this.
     float angle = sin((double)this->animationFrame / 10.f) * 0.7f;
     for (auto object : this->getPartByName("shoeR")->objects) {
-        object->rotateAbout(angle, glm::vec3(2.f / 3.f, 0.0f, -1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+        object->rotateAbout(angle, glm::vec3(2.f / 3.f, 1.0f, -1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
     }
     // calculate the angle for the second part of the character, several frames ahead of the first part
-    angle = sin((double)(this->animationFrame + 45) / 10.f) * 0.7f;
+    float angle2 = sin((double)(this->animationFrame + 45) / 10.f) * 0.7f;
     for (auto object : this->getPartByName("shoeL")->objects) {
-        object->rotateAbout(angle, glm::vec3(2.f / 3.f, 0.f, -1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+        object->rotateAbout(angle2, glm::vec3(2.f / 3.f, 1.f, -1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
     }
-
-    for(auto object : this->objects){
-        object->rotateAbout(angle, glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+    float angle3 = sin((double)(this->animationFrame + 90) / 10.f) * 0.7f;
+    this->objects.at(0)->rotate(angle3, glm::vec3(0.0f, 1.0f, 0.0f));
+    if(fmod(this->animationFrame, 62.831853) < 0.2){
+        // reset all the objects positions to prevent drift
+        for (auto object : this->objects) object->restorePosition();
     }
 }
 

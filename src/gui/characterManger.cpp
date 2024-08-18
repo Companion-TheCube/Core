@@ -32,7 +32,7 @@ void CharacterManager::setCharacter(C_Character* character)
 bool CharacterManager::loadAppCharacters()
 {
     // TODO: This will need to interface with the list of registered apps and find the ones
-    // that have characters to load.
+    // that have characters to load. Their character data should be stored in the database.
     return false;
 }
 

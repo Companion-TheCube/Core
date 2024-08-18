@@ -5,7 +5,9 @@
 #include <sstream>
 #include <fstream>
 #include <algorithm>
+#ifdef __linux__
 #include <spawn.h>
+#endif
 #ifndef WIN32_INCLUDED
 #define WIN32_INCLUDED
 #ifdef _WIN32

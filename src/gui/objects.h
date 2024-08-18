@@ -42,6 +42,8 @@ public:
     virtual std::vector<Vertex> getVertices() = 0;
     virtual float getWidth() = 0;
     virtual ~MeshObject(){};
+    virtual void capturePosition() = 0;
+    virtual void restorePosition() = 0;
 };
 
 enum Expression{
