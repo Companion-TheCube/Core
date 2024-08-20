@@ -69,7 +69,7 @@ std::vector<MeshObject*> MeshLoader::loadMesh(std::string path)
     std::string line;
     while (std::getline(file, line)) {
         // if line starts with a "#" its a comment, skip it
-        if (line[0] == '#') {
+        if (line.length() == 0 || line[0] == '#') {
             continue;
         }
         // the file is broken down into sections for each type of primitive: cubes, pyramids, etc
@@ -96,7 +96,7 @@ std::vector<MeshObject*> MeshLoader::loadMesh(std::string path)
             CubeLog::info("MeshLoader: Loading cubes...");
             unsigned int count = 0;
             while (std::getline(file, line)) {
-                if (line[0] == '$') {
+                if (line.length() == 0 || line[0] == '#' || line[0] == '$') {
                     break;
                 }
                 // std::cout<<".";

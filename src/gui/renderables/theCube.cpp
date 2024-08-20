@@ -8,10 +8,10 @@ TheCube::TheCube(Shader* sh)
     this->visible = true;
     this->animationFrame = 0;
 
-    this->objects.push_back(new Cube(this->shader));
-    this->objects.at(0)->translate(glm::vec3(-0.1f, 0.3f, -0.5f));
-    this->objects.at(0)->uniformScale(0.6f);
-    this->objects.at(0)->rotateAbout(30.f, glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+    // this->objects.push_back(new Cube(this->shader));
+    // this->objects.at(0)->translate(glm::vec3(-0.1f, 0.3f, -0.5f));
+    // this->objects.at(0)->uniformScale(0.6f);
+    // this->objects.at(0)->rotateAbout(30.f, glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f));
 
     // this->objects.push_back(new Cube(this->shader));
     // this->objects.at(objects.size() - 1)->translate(glm::vec3(1.f, 1.0f, -0.5f));
@@ -26,8 +26,11 @@ TheCube::TheCube(Shader* sh)
     // this->objects.at(objects.size() - 1)->uniformScale(0.25f);
 
     std::vector<std::string> toLoad;
-    toLoad.push_back("shoeL");
-    toLoad.push_back("shoeR");
+    // toLoad.push_back("shoeL");
+    // toLoad.push_back("shoeR");
+    // toLoad.push_back("handL");
+    // toLoad.push_back("handR");
+    toLoad.push_back("theCube");
     this->loader = new MeshLoader(this->shader, toLoad);
     // find the "shoe" collection in loader
     for (auto collection : this->loader->collections) {
@@ -49,6 +52,15 @@ TheCube::TheCube(Shader* sh)
         this->parts.at(this->parts.size() - 1)->centerPoint = glm::vec3(x, y, z);
     }
 
+    // for (auto object : this->getPartByName("handR")->objects) {
+    //     object->rotate(90.f, glm::vec3(1.0f, 0.0f, 0.0f));
+    //     object->translate(glm::vec3(-10.0f, 0.0f, 0.0f));
+    // }
+
+    // for(auto object : this->getPartByName("handL")->objects){
+    //     object->rotate(-90.f, glm::vec3(1.0f, 0.0f, 0.0f));
+    // }
+
     for (auto part : this->parts) {
         for (auto object : part->objects) {
             object->translate(glm::vec3(0.0f, 5.0f, -4.0f));
@@ -60,11 +72,20 @@ TheCube::TheCube(Shader* sh)
                 object->rotateAbout(30.f, glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f));
             }
         }
+        if(part->name == "handL" || part->name == "handR"){
+            for (auto object : part->objects) {
+                object->translate(glm::vec3(2.0f, 0.0f, -0.5f));
+                // object->rotateAbout(-90.f, glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+                object->rotateAbout(30.f, glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+            }
+        }
     }
 
-    for (auto object : this->getPartByName("shoeL")->objects) {
-        object->translate(glm::vec3(6.0f, 0.0f, 0.0f));
-    }
+    
+
+    // for (auto object : this->getPartByName("shoeL")->objects) {
+    //     object->translate(glm::vec3(6.0f, 0.0f, 0.0f));
+    // }
 
     for(auto object : this->objects){
         object->capturePosition();
@@ -95,15 +116,15 @@ void TheCube::animateRandomFunny()
     this->animationFrame++;
     // this->animationFrame continuously counts up. We need to calculate an angle based on this frame
     // count that results in a smooth animation. We can use sin() to achieve this.
-    float angle = sin((double)this->animationFrame / 10.f) * 0.7f;
-    for (auto object : this->getPartByName("shoeR")->objects) {
-        object->rotateAbout(angle, glm::vec3(2.f / 3.f, 1.0f, -1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
-    }
-    // calculate the angle for the second part of the character, several frames ahead of the first part
-    float angle2 = sin((double)(this->animationFrame + 45) / 10.f) * 0.7f;
-    for (auto object : this->getPartByName("shoeL")->objects) {
-        object->rotateAbout(angle2, glm::vec3(2.f / 3.f, 1.f, -1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
-    }
+    // float angle = sin((double)this->animationFrame / 10.f) * 0.7f;
+    // for (auto object : this->getPartByName("shoeR")->objects) {
+    //     object->rotateAbout(angle, glm::vec3(2.f / 3.f, 1.0f, -1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+    // }
+    // // calculate the angle for the second part of the character, several frames ahead of the first part
+    // float angle2 = sin((double)(this->animationFrame + 45) / 10.f) * 0.7f;
+    // for (auto object : this->getPartByName("shoeL")->objects) {
+    //     object->rotateAbout(angle2, glm::vec3(2.f / 3.f, 1.f, -1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+    // }
     float angle3 = sin((double)(this->animationFrame + 90) / 10.f) * 0.7f;
     this->objects.at(0)->rotate(angle3, glm::vec3(0.0f, 1.0f, 0.0f));
     if(fmod(this->animationFrame, 62.831853) < 0.2){
