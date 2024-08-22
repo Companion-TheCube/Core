@@ -46,6 +46,7 @@ TheCube::TheCube(Shader* sh)
             y += center.y;
             z += center.z;
         }
+        
         x /= collection->objects.size();
         y /= collection->objects.size();
         z /= collection->objects.size();
