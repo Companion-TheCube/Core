@@ -293,3 +293,5 @@ public:
     void capturePosition();
     void restorePosition();
 };
+
+// TODO: create a generic object class that can utilize vertex and face data loaded from a file
