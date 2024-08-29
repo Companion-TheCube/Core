@@ -1,10 +1,17 @@
 #include "meshLoader.h"
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "tiny_obj_loader.h"
 
 MeshLoader::MeshLoader(Shader* shdr, std::vector<std::string> toLoad)
 {
+    // TODO: Add support for loading .obj files
     this->shader = shdr;
-    std::vector<std::string> filenames = this->getMeshFileNames();
+    std::vector<std::string> filenames = this->getFileNames();
     for (auto filename : filenames) {
+        // ensure filetype is .mesh
+        if (filename.find(".mesh") == std::string::npos || filename.find(".mesh") == filename.length() - 5) {
+            continue;
+        }
         std::string name = filename.substr(filename.find_last_of('/') + 1, filename.find(".mesh") - filename.find_last_of('/') - 1);
         if (std::find(toLoad.begin(), toLoad.end(), name) == toLoad.end()) {
             continue;
@@ -20,6 +27,10 @@ MeshLoader::MeshLoader(Shader* shdr, std::vector<std::string> toLoad)
             this->collections.at(collections.size() - 1)->objects.push_back(object);
         }
     }
+
+    
+
+    CubeLog::info("MeshLoader: Loaded " + std::to_string(this->collections.size()) + " collections");
 }
 
 MeshLoader::~MeshLoader()
@@ -45,7 +56,7 @@ std::vector<ObjectCollection*> MeshLoader::getCollections()
     return this->collections;
 }
 
-std::vector<std::string> MeshLoader::getMeshFileNames()
+std::vector<std::string> MeshLoader::getFileNames()
 {
     std::vector<std::string> names;
     for (auto& p : std::filesystem::directory_iterator("meshes/")) {
@@ -59,8 +70,7 @@ std::vector<std::string> MeshLoader::getMeshFileNames()
 std::vector<MeshObject*> MeshLoader::loadMesh(std::string path)
 {
     std::vector<MeshObject*> objects;
-    std::ifstream
-        file(path);
+    std::ifstream file(path);
     if (!file.is_open()) {
         CubeLog::info("MeshLoader: Failed to open file: " + path);
         return objects;

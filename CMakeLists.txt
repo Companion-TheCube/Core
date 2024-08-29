@@ -39,6 +39,7 @@ FetchContent_Declare(SFML
 FetchContent_MakeAvailable(SFML)
 include(FetchContent)
 
+
 if(WIN32)
     # Settings for Windows
     set(RTAUDIO_API_DS ON CACHE BOOL "" FORCE)
@@ -82,6 +83,13 @@ if(NOT EXISTS ${ARGPARSE_HEADER})
     file(DOWNLOAD
         https://raw.githubusercontent.com/p-ranav/argparse/master/include/argparse/argparse.hpp
         ${ARGPARSE_HEADER}
+    )
+endif()
+set(TINY_OBJ_LOADER_HEADER ${CMAKE_SOURCE_DIR}/libraries/tiny_obj_loader.h)
+if(NOT EXISTS ${TINY_OBJ_LOADER_HEADER})
+    file(DOWNLOAD
+        https://raw.githubusercontent.com/tinyobjloader/tinyobjloader/50461d0e0a77c178bb478e9319d7de82f469a848/tiny_obj_loader.h
+        ${TINY_OBJ_LOADER_HEADER}
     )
 endif()
 
