@@ -295,3 +295,35 @@ public:
 };
 
 // TODO: create a generic object class that can utilize vertex and face data loaded from a file
+
+class OBJObject : public MeshObject {
+private:
+    Shader* shader;
+    std::vector<Vertex> vertexData;
+    std::vector<unsigned int> faceData;
+    GLuint VAO, VBO, EBO;
+    glm::mat4 projectionMatrix;
+    glm::mat4 viewMatrix;
+    glm::mat4 modelMatrix;
+    glm::mat4 capturedProjectionMatrix;
+    glm::mat4 capturedViewMatrix;
+    glm::mat4 capturedModelMatrix;
+public:
+    OBJObject(Shader* sh, std::vector<Vertex> vertices);
+    ~OBJObject();
+    void draw();
+    void setProjectionMatrix(glm::mat4 projectionMatrix);
+    void setViewMatrix(glm::vec3 viewMatrix);
+    void setModelMatrix(glm::mat4 modelMatrix);
+    void translate(glm::vec3 translation);
+    void rotate(float angle, glm::vec3 axis);
+    void scale(glm::vec3 scale);
+    void uniformScale(float scale);
+    void rotateAbout(float angle, glm::vec3 axis, glm::vec3 point);
+    void rotateAbout(float angle, glm::vec3 point);
+    glm::vec3 getCenterPoint();
+    std::vector<Vertex> getVertices();
+    float getWidth();
+    void capturePosition();
+    void restorePosition();
+};

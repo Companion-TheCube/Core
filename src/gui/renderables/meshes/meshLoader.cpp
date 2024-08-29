@@ -7,9 +7,10 @@ MeshLoader::MeshLoader(Shader* shdr, std::vector<std::string> toLoad)
     // TODO: Add support for loading .obj files
     this->shader = shdr;
     std::vector<std::string> filenames = this->getFileNames();
+    // load .mesh files
     for (auto filename : filenames) {
         // ensure filetype is .mesh
-        if (filename.find(".mesh") == std::string::npos || filename.find(".mesh") == filename.length() - 5) {
+        if (filename.find(".mesh") == std::string::npos || filename.find(".mesh") != filename.length() - 5) {
             continue;
         }
         std::string name = filename.substr(filename.find_last_of('/') + 1, filename.find(".mesh") - filename.find_last_of('/') - 1);
@@ -28,7 +29,92 @@ MeshLoader::MeshLoader(Shader* shdr, std::vector<std::string> toLoad)
         }
     }
 
-    
+    // load .obj files
+    for (auto filename : filenames) {
+        // ensure filetype is .obj
+        if (filename.find(".obj") == std::string::npos || filename.find(".obj") != filename.length() - 4) {
+            continue;
+        }
+        std::string name = filename.substr(filename.find_last_of('/') + 1, filename.find(".obj") - filename.find_last_of('/') - 1);
+        if (std::find(toLoad.begin(), toLoad.end(), name) == toLoad.end()) {
+            continue;
+        }
+        CubeLog::info("MeshLoader: Found obj file: " + filename);
+        CubeLog::info("Attempting to load obj file: " + filename);
+
+        tinyobj::attrib_t attrib;
+        std::vector<tinyobj::shape_t> shapes;
+        std::vector<tinyobj::material_t> mats;
+        std::string warn, err;
+        std::map<int, tinyobj::material_t> materials;
+        std::vector<OBJObject*> objects;
+        std::vector<Vertex> vertices;
+
+        // Load the OBJ file and its materials
+        bool success = tinyobj::LoadObj(&attrib, &shapes, &mats, &warn, &err, filename.c_str(), nullptr, true);
+
+        if (!warn.empty()) {
+            CubeLog::info("MeshLoader: " + warn);
+        }
+
+        if (!err.empty()) {
+            CubeLog::error("MeshLoader: Failed to load obj file: " + filename);
+            CubeLog::error(err);
+            continue;
+        }
+
+        if (!success) {
+            CubeLog::error("MeshLoader: Failed to load obj file: " + filename);
+            continue;
+        }
+
+        // Store materials in a map for easy access
+        for (size_t i = 0; i < mats.size(); ++i) {
+            materials[i] = mats[i];
+        }
+
+        // Extract vertex positions and colors from the shapes
+        for (const auto& shape : shapes) {
+            for (size_t f = 0; f < shape.mesh.indices.size(); f++) {
+                const tinyobj::index_t& index = shape.mesh.indices[f];
+                Vertex vertex = {
+                    attrib.vertices[3 * index.vertex_index + 0],
+                    attrib.vertices[3 * index.vertex_index + 1],
+                    attrib.vertices[3 * index.vertex_index + 2],
+                    1.0f, 1.0f, 1.0f // Default white color if no material
+                };
+
+                // Get the material ID associated with the face
+                int material_id = shape.mesh.material_ids[f / 3]; // Assumes triangles (3 vertices per face)
+
+                // Check if the material exists
+                if (materials.count(material_id) > 0) {
+                    tinyobj::material_t material = materials[material_id];
+                    // Assign diffuse color from the material
+                    vertex.r = material.diffuse[0];
+                    vertex.g = material.diffuse[1];
+                    vertex.b = material.diffuse[2];
+                }
+
+                vertices.push_back(vertex);
+            }
+        }
+
+        if (!err.empty()) {
+            CubeLog::info("MeshLoader: " + err);
+        }
+        CubeLog::info("MeshLoader: Loaded " + std::to_string(shapes.size()) + " shapes from obj file: " + filename);
+        for (auto shape : shapes) {
+            objects.push_back(new OBJObject(this->shader, vertices));
+        }
+        CubeLog::info("MeshLoader: Loaded " + std::to_string(objects.size()) + " objects from obj file: " + filename);
+        this->collections.push_back(new ObjectCollection());
+        // collection name is filename minus ".obj"
+        this->collections.at(collections.size() - 1)->name = filename.substr(filename.find_last_of('/') + 1, filename.find(".obj") - filename.find_last_of('/') - 1);
+        for (auto object : objects) {
+            this->collections.at(collections.size() - 1)->objects.push_back(object);
+        }
+    }
 
     CubeLog::info("MeshLoader: Loaded " + std::to_string(this->collections.size()) + " collections");
 }

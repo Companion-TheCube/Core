@@ -30,7 +30,7 @@ TheCube::TheCube(Shader* sh)
     // toLoad.push_back("shoeR");
     // toLoad.push_back("handL");
     // toLoad.push_back("handR");
-    toLoad.push_back("theCube");
+    toLoad.push_back("untitled");
     this->loader = new MeshLoader(this->shader, toLoad);
     // find the "shoe" collection in loader
     for (auto collection : this->loader->collections) {
@@ -127,7 +127,10 @@ void TheCube::animateRandomFunny()
     //     object->rotateAbout(angle2, glm::vec3(2.f / 3.f, 1.f, -1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
     // }
     float angle3 = sin((double)(this->animationFrame + 90) / 10.f) * 0.7f;
-    this->objects.at(0)->rotate(angle3, glm::vec3(0.0f, 1.0f, 0.0f));
+    // this->objects.at(0)->rotate(angle3, glm::vec3(0.0f, 1.0f, 0.0f));
+    for(auto object : this->objects){
+        object->rotate(angle3, glm::vec3(0.0f, 1.0f, 0.0f));
+    }
     if(fmod(this->animationFrame, 62.831853) < 0.2){
         // reset all the objects positions to prevent drift
         for (auto object : this->objects) object->restorePosition();

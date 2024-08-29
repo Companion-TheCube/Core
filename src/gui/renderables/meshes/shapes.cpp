@@ -1052,3 +1052,140 @@ void Cube::restorePosition(){
     this->viewMatrix = this->capturedViewMatrix;
     this->projectionMatrix = this->capturedProjectionMatrix;
 }
+
+//////////////////////////////////////////////////////////////////////////////////////////
+
+OBJObject::OBJObject(Shader* sh, std::vector<Vertex> vertices)
+{
+    this->shader = sh;
+    this->vertexData = vertices;
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, this->vertexData.size() * sizeof(Vertex), &this->vertexData[0], GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glBindVertexArray(0);
+    setProjectionMatrix(glm::perspective(glm::radians(45.0f), 720.0f / 720.0f, 0.1f, 100.0f));
+    setViewMatrix(glm::vec3(0.0f, 0.0f, 6.0f));
+    glm::mat4 modelMatrix = glm::mat4(1.0f);
+    modelMatrix = glm::rotate(modelMatrix, glm::radians(0.f), glm::vec3(1.0f, 0.0f, 0.0f));
+    modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, -1.0f, -2.0f));
+    modelMatrix = glm::scale(modelMatrix, glm::vec3(1.f, 1.f, 1.f));
+    setModelMatrix(modelMatrix);
+    CubeLog::info("Created OBJObject");
+}
+
+void OBJObject::draw()
+{
+    shader->use();
+    shader->setMat4("model", modelMatrix);
+    shader->setMat4("view", viewMatrix);
+    shader->setMat4("projection", projectionMatrix);
+    glBindVertexArray(VAO);
+    glDrawArrays(GL_TRIANGLES, 0, this->vertexData.size());
+    glBindVertexArray(0);
+}
+
+void OBJObject::setProjectionMatrix(glm::mat4 projection)
+{
+    this->projectionMatrix = projection;
+}
+
+void OBJObject::setViewMatrix(glm::vec3 view)
+{
+    this->viewMatrix = glm::lookAt(view, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+}
+
+void OBJObject::setModelMatrix(glm::mat4 model)
+{
+    this->modelMatrix = model;
+}
+
+void OBJObject::rotate(float angle, glm::vec3 axis)
+{
+    modelMatrix = glm::rotate(modelMatrix, glm::radians(angle), axis);
+}
+
+void OBJObject::translate(glm::vec3 translation)
+{
+    modelMatrix = glm::translate(modelMatrix, translation);
+}
+
+void OBJObject::scale(glm::vec3 scale)
+{
+    modelMatrix = glm::scale(modelMatrix, scale);
+}
+
+OBJObject::~OBJObject()
+{
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteBuffers(1, &VBO);
+}
+
+void OBJObject::uniformScale(float scale)
+{
+    this->scale(glm::vec3(scale, scale, scale));
+}
+
+void OBJObject::rotateAbout(float angle, glm::vec3 point)
+{
+    glm::mat4 originalModelMatrix = modelMatrix; // Save the original model matrix
+    modelMatrix = glm::mat4(1.0f); // Reset model matrix to identity
+
+    glm::vec3 axis = glm::normalize(point - getCenterPoint()); // Normalize the axis
+    glm::mat4 tempMat = glm::mat4(1.0f); // Start with an identity matrix
+    tempMat = glm::translate(tempMat, point);
+    tempMat = glm::rotate(tempMat, glm::radians(angle), axis);
+    tempMat = glm::translate(tempMat, -point);
+
+    modelMatrix = tempMat * originalModelMatrix; // Apply the rotation to the original matrix
+}
+
+void OBJObject::rotateAbout(float angle, glm::vec3 axis, glm::vec3 point)
+{
+    glm::mat4 originalModelMatrix = modelMatrix; // Save the original model matrix
+    modelMatrix = glm::mat4(1.0f); // Reset model matrix to identity
+
+    glm::vec3 normalizedAxis = glm::normalize(axis); // Normalize the axis
+    glm::mat4 tempMat = glm::mat4(1.0f); // Start with an identity matrix
+    tempMat = glm::translate(tempMat, point);
+    tempMat = glm::rotate(tempMat, glm::radians(angle), normalizedAxis);
+    tempMat = glm::translate(tempMat, -point);
+
+    modelMatrix = tempMat * originalModelMatrix; // Apply the rotation to the original matrix
+}
+
+glm::vec3 OBJObject::getCenterPoint()
+{
+    // get the center of the cube form the model matrix
+    glm::vec4 center = modelMatrix * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+    return glm::vec3(center.x, center.y, center.z);
+}
+
+std::vector<Vertex> OBJObject::getVertices()
+{
+    return this->vertexData;
+}
+
+float OBJObject::getWidth()
+{
+    return this->vertexData[0].x - this->vertexData[1].x;
+}
+
+void OBJObject::capturePosition(){
+    this->capturedModelMatrix = this->modelMatrix;
+    this->capturedViewMatrix = this->viewMatrix;
+    this->capturedProjectionMatrix = this->projectionMatrix;
+}
+
+void OBJObject::restorePosition(){
+    this->modelMatrix = this->capturedModelMatrix;
+    this->viewMatrix = this->capturedViewMatrix;
+    this->projectionMatrix = this->capturedProjectionMatrix;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
