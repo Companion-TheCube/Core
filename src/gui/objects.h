@@ -44,6 +44,7 @@ public:
     virtual ~MeshObject(){};
     virtual void capturePosition() = 0;
     virtual void restorePosition() = 0;
+    virtual void setVisibility(bool visible) = 0;
 };
 
 enum Expression{

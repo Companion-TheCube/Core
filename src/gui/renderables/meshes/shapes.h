@@ -34,7 +34,7 @@ private:
     glm::mat4 capturedProjectionMatrix;
     glm::mat4 capturedViewMatrix;
     glm::mat4 capturedModelMatrix;
-
+    bool visible = true;
 public:
     M_Text(Shader* sh, std::string text, float fontSize, glm::vec3 color, glm::vec2 position);
     ~M_Text();
@@ -56,6 +56,7 @@ public:
     void reloadFont();
     void capturePosition();
     void restorePosition();
+    void setVisibility(bool visible);
 };
 
 class M_PartCircle : public MeshObject {
@@ -74,6 +75,7 @@ private:
     glm::mat4 capturedProjectionMatrix;
     glm::mat4 capturedViewMatrix;
     glm::mat4 capturedModelMatrix;
+    bool visible = true;
 
 public:
     M_PartCircle(Shader* sh, unsigned int numSegments, float radius, glm::vec3 centerPoint, float startAngle, float endAngle, float fillColor);
@@ -93,6 +95,7 @@ public:
     float getWidth();
     void capturePosition();
     void restorePosition();
+    void setVisibility(bool visible);
 };
 
 class M_Rect : public MeshObject {
@@ -109,6 +112,7 @@ private:
     glm::mat4 capturedProjectionMatrix;
     glm::mat4 capturedViewMatrix;
     glm::mat4 capturedModelMatrix;
+    bool visible = true;
 
 public:
     M_Rect(Shader* sh, glm::vec3 position, glm::vec2 size, float fillColor, float borderColor);
@@ -128,6 +132,7 @@ public:
     float getWidth();
     void capturePosition();
     void restorePosition();
+    void setVisibility(bool visible);
 };
 
 class M_Line : public MeshObject {
@@ -141,6 +146,7 @@ private:
     glm::mat4 capturedProjectionMatrix;
     glm::mat4 capturedViewMatrix;
     glm::mat4 capturedModelMatrix;
+    bool visible = true;
 
 public:
     M_Line(Shader* sh, glm::vec3 start, glm::vec3 end);
@@ -160,6 +166,7 @@ public:
     float getWidth();
     void capturePosition();
     void restorePosition();
+    void setVisibility(bool visible);
 };
 
 class M_Arc : public MeshObject {
@@ -178,6 +185,7 @@ private:
     glm::mat4 capturedProjectionMatrix;
     glm::mat4 capturedViewMatrix;
     glm::mat4 capturedModelMatrix;
+    bool visible = true;
 
 public:
     M_Arc(Shader* sh, unsigned int numSegments, float radius, float startAngle, float endAngle, glm::vec3 centerPoint);
@@ -197,6 +205,7 @@ public:
     float getWidth();
     void capturePosition();
     void restorePosition();
+    void setVisibility(bool visible);
 };
 
 #define CUBE_VERTICES_CONST 1.0f
@@ -209,6 +218,7 @@ private:
     glm::mat4 capturedProjectionMatrix;
     glm::mat4 capturedViewMatrix;
     glm::mat4 capturedModelMatrix;
+    bool visible = true;
 public:
     const Vertex cubeVertices[8] = {
         // Front face
@@ -292,6 +302,7 @@ public:
     float getWidth();
     void capturePosition();
     void restorePosition();
+    void setVisibility(bool visible);
 };
 
 // TODO: create a generic object class that can utilize vertex and face data loaded from a file
@@ -308,6 +319,7 @@ private:
     glm::mat4 capturedProjectionMatrix;
     glm::mat4 capturedViewMatrix;
     glm::mat4 capturedModelMatrix;
+    bool visible = true;
 public:
     OBJObject(Shader* sh, std::vector<Vertex> vertices);
     ~OBJObject();
@@ -326,4 +338,5 @@ public:
     float getWidth();
     void capturePosition();
     void restorePosition();
+    void setVisibility(bool visible);
 };

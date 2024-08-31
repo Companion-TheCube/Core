@@ -248,6 +248,11 @@ void M_Text::restorePosition(){
     this->projectionMatrix = this->capturedProjectionMatrix;
 }
 
+void M_Text::setVisibility(bool visible)
+{
+    this->visible = visible;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////
 
 M_PartCircle::M_PartCircle(Shader* sh, unsigned int numSegments, float radius, glm::vec3 centerPoint, float startAngle, float endAngle, float fillColor)
@@ -418,6 +423,11 @@ void M_PartCircle::restorePosition(){
     this->modelMatrix = this->capturedModelMatrix;
     this->viewMatrix = this->capturedViewMatrix;
     this->projectionMatrix = this->capturedProjectionMatrix;
+}
+
+void M_PartCircle::setVisibility(bool visible)
+{
+    this->visible = visible;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -604,6 +614,11 @@ void M_Rect::restorePosition(){
     this->projectionMatrix = this->capturedProjectionMatrix;
 }
 
+void M_Rect::setVisibility(bool visible)
+{
+    this->visible = visible;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////
 
 M_Line::M_Line(Shader* sh, glm::vec3 start, glm::vec3 end)
@@ -755,6 +770,11 @@ void M_Line::restorePosition(){
     this->projectionMatrix = this->capturedProjectionMatrix;
 }
 
+void M_Line::setVisibility(bool visibility)
+{
+    this->visible = visibility;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////
 
 M_Arc::M_Arc(Shader* sh, unsigned int numSegments, float radius, float startAngle, float endAngle, glm::vec3 centerPoint)
@@ -876,6 +896,11 @@ void M_Arc::restorePosition(){
     this->modelMatrix = this->capturedModelMatrix;
     this->viewMatrix = this->capturedViewMatrix;
     this->projectionMatrix = this->capturedProjectionMatrix;
+}
+
+void M_Arc::setVisibility(bool visibility)
+{
+    this->visible = visibility;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -1053,6 +1078,10 @@ void Cube::restorePosition(){
     this->projectionMatrix = this->capturedProjectionMatrix;
 }
 
+void Cube::setVisibility(bool visible)
+{
+    this->visible = visible;
+}
 //////////////////////////////////////////////////////////////////////////////////////////
 
 OBJObject::OBJObject(Shader* sh, std::vector<Vertex> vertices)
@@ -1073,7 +1102,7 @@ OBJObject::OBJObject(Shader* sh, std::vector<Vertex> vertices)
     setViewMatrix(glm::vec3(0.0f, 0.0f, 6.0f));
     glm::mat4 modelMatrix = glm::mat4(1.0f);
     modelMatrix = glm::rotate(modelMatrix, glm::radians(0.f), glm::vec3(1.0f, 0.0f, 0.0f));
-    modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, -1.0f, -2.0f));
+    modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, -0.0f, 0.0f));
     modelMatrix = glm::scale(modelMatrix, glm::vec3(1.f, 1.f, 1.f));
     setModelMatrix(modelMatrix);
     CubeLog::info("Created OBJObject");
@@ -1081,6 +1110,7 @@ OBJObject::OBJObject(Shader* sh, std::vector<Vertex> vertices)
 
 void OBJObject::draw()
 {
+    if(!visible) return;
     shader->use();
     shader->setMat4("model", modelMatrix);
     shader->setMat4("view", viewMatrix);
@@ -1186,6 +1216,11 @@ void OBJObject::restorePosition(){
     this->modelMatrix = this->capturedModelMatrix;
     this->viewMatrix = this->capturedViewMatrix;
     this->projectionMatrix = this->capturedProjectionMatrix;
+}
+
+void OBJObject::setVisibility(bool visible)
+{
+    this->visible = visible;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////

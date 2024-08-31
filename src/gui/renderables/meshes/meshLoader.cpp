@@ -54,7 +54,7 @@ MeshLoader::MeshLoader(Shader* shdr, std::vector<std::string> toLoad)
         bool success = tinyobj::LoadObj(&attrib, &shapes, &mats, &warn, &err, filename.c_str(), nullptr, true);
 
         if (!warn.empty()) {
-            CubeLog::info("MeshLoader: " + warn);
+            CubeLog::warning("MeshLoader: " + warn);
         }
 
         if (!err.empty()) {

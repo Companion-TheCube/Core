@@ -30,7 +30,7 @@ TheCube::TheCube(Shader* sh)
     // toLoad.push_back("shoeR");
     // toLoad.push_back("handL");
     // toLoad.push_back("handR");
-    toLoad.push_back("untitled");
+    toLoad.push_back("TheCubeCharacter");
     this->loader = new MeshLoader(this->shader, toLoad);
     // find the "shoe" collection in loader
     for (auto collection : this->loader->collections) {
@@ -53,34 +53,35 @@ TheCube::TheCube(Shader* sh)
         this->parts.at(this->parts.size() - 1)->centerPoint = glm::vec3(x, y, z);
     }
 
-    // for (auto object : this->getPartByName("handR")->objects) {
-    //     object->rotate(90.f, glm::vec3(1.0f, 0.0f, 0.0f));
-    //     object->translate(glm::vec3(-10.0f, 0.0f, 0.0f));
-    // }
+    for (auto object : this->objects) {
+        // object->rotate(90.f, glm::vec3(1.0f, 0.0f, 0.0f));
+        object->translate(glm::vec3(0.0f, -1.0f, -10.0f));
+        object->scale(glm::vec3(3.f, 3.f, 3.f));
+    }
 
     // for(auto object : this->getPartByName("handL")->objects){
     //     object->rotate(-90.f, glm::vec3(1.0f, 0.0f, 0.0f));
     // }
 
-    for (auto part : this->parts) {
-        for (auto object : part->objects) {
-            object->translate(glm::vec3(0.0f, 5.0f, -4.0f));
-        }
-        if (part->name == "shoeL" || part->name == "shoeR") {
-            for (auto object : part->objects) {
-                object->translate(glm::vec3(0.0f, 0.0f, -5.0f));
-                object->rotateAbout(-90.f, glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f));
-                object->rotateAbout(30.f, glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f));
-            }
-        }
-        if(part->name == "handL" || part->name == "handR"){
-            for (auto object : part->objects) {
-                object->translate(glm::vec3(2.0f, 0.0f, -0.5f));
-                // object->rotateAbout(-90.f, glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f));
-                object->rotateAbout(30.f, glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f));
-            }
-        }
-    }
+    // for (auto part : this->parts) {
+    //     for (auto object : part->objects) {
+    //         object->translate(glm::vec3(0.0f, 5.0f, -4.0f));
+    //     }
+    //     if (part->name == "shoeL" || part->name == "shoeR") {
+    //         for (auto object : part->objects) {
+    //             object->translate(glm::vec3(0.0f, 0.0f, -5.0f));
+    //             object->rotateAbout(-90.f, glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+    //             object->rotateAbout(30.f, glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+    //         }
+    //     }
+    //     if(part->name == "handL" || part->name == "handR"){
+    //         for (auto object : part->objects) {
+    //             object->translate(glm::vec3(2.0f, 0.0f, -0.5f));
+    //             // object->rotateAbout(-90.f, glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+    //             object->rotateAbout(30.f, glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+    //         }
+    //     }
+    // }
 
     
 
