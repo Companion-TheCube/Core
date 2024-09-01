@@ -78,9 +78,9 @@ MeshLoader::MeshLoader(Shader* shdr, std::vector<std::string> toLoad)
             for (size_t f = 0; f < shape.mesh.indices.size(); f++) {
                 const tinyobj::index_t& index = shape.mesh.indices[f];
                 Vertex vertex = {
-                    attrib.vertices[3 * index.vertex_index + 0],
-                    attrib.vertices[3 * index.vertex_index + 1],
                     attrib.vertices[3 * index.vertex_index + 2],
+                    attrib.vertices[3 * index.vertex_index + 1],
+                    attrib.vertices[3 * index.vertex_index + 0],
                     1.0f, 1.0f, 1.0f // Default white color if no material
                 };
 

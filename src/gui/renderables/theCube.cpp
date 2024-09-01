@@ -26,11 +26,9 @@ TheCube::TheCube(Shader* sh)
     // this->objects.at(objects.size() - 1)->uniformScale(0.25f);
 
     std::vector<std::string> toLoad;
-    // toLoad.push_back("shoeL");
-    // toLoad.push_back("shoeR");
-    // toLoad.push_back("handL");
-    // toLoad.push_back("handR");
-    toLoad.push_back("TheCubeCharacter");
+    toLoad.push_back("OpenEyesSmile");
+    toLoad.push_back("ClosedEyesSmile");
+    toLoad.push_back("TheCubeMain");
     this->loader = new MeshLoader(this->shader, toLoad);
     // find the "shoe" collection in loader
     for (auto collection : this->loader->collections) {
@@ -46,10 +44,11 @@ TheCube::TheCube(Shader* sh)
             y += center.y;
             z += center.z;
         }
-        
+
         x /= collection->objects.size();
         y /= collection->objects.size();
         z /= collection->objects.size();
+        CubeLog::warning("Center point for " + collection->name + " is " + std::to_string(x) + ", " + std::to_string(y) + ", " + std::to_string(z));
         this->parts.at(this->parts.size() - 1)->centerPoint = glm::vec3(x, y, z);
     }
 
@@ -57,6 +56,11 @@ TheCube::TheCube(Shader* sh)
         // object->rotate(90.f, glm::vec3(1.0f, 0.0f, 0.0f));
         object->translate(glm::vec3(0.0f, -1.0f, -10.0f));
         object->scale(glm::vec3(3.f, 3.f, 3.f));
+        object->rotate(-90.f, glm::vec3(0.0f, 1.0f, 0.0f));
+    }
+
+    for (auto object : this->getPartByName("ClosedEyesSmile")->objects) {
+        object->setVisibility(false);
     }
 
     // for(auto object : this->getPartByName("handL")->objects){
@@ -83,13 +87,11 @@ TheCube::TheCube(Shader* sh)
     //     }
     // }
 
-    
-
     // for (auto object : this->getPartByName("shoeL")->objects) {
     //     object->translate(glm::vec3(6.0f, 0.0f, 0.0f));
     // }
 
-    for(auto object : this->objects){
+    for (auto object : this->objects) {
         object->capturePosition();
     }
     // this->objects.push_back(new Cube(this->shader));
@@ -116,6 +118,22 @@ void TheCube::animateRandomFunny()
     // this->objects.at(3)->rotateAbout(2.f, glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f));
 
     this->animationFrame++;
+    if (this->animationFrame % 300 == 0) {
+        for (auto object : this->getPartByName("OpenEyesSmile")->objects) {
+            object->setVisibility(false);
+        }
+        for (auto object : this->getPartByName("ClosedEyesSmile")->objects) {
+            object->setVisibility(true);
+        }
+    }
+    if ((this->animationFrame % 300) - 15 == 0) {
+        for (auto object : this->getPartByName("OpenEyesSmile")->objects) {
+            object->setVisibility(true);
+        }
+        for (auto object : this->getPartByName("ClosedEyesSmile")->objects) {
+            object->setVisibility(false);
+        }
+    }
     // this->animationFrame continuously counts up. We need to calculate an angle based on this frame
     // count that results in a smooth animation. We can use sin() to achieve this.
     // float angle = sin((double)this->animationFrame / 10.f) * 0.7f;
@@ -129,12 +147,13 @@ void TheCube::animateRandomFunny()
     // }
     float angle3 = sin((double)(this->animationFrame + 90) / 10.f) * 0.7f;
     // this->objects.at(0)->rotate(angle3, glm::vec3(0.0f, 1.0f, 0.0f));
-    for(auto object : this->objects){
-        object->rotate(angle3, glm::vec3(0.0f, 1.0f, 0.0f));
+    for (auto object : this->objects) {
+        object->rotateAbout(angle3, glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, -1.0f, -10.0f));
     }
-    if(fmod(this->animationFrame, 62.831853) < 0.2){
+    if (fmod(this->animationFrame, 62.831853) < 0.2) {
         // reset all the objects positions to prevent drift
-        for (auto object : this->objects) object->restorePosition();
+        for (auto object : this->objects)
+            object->restorePosition();
     }
 }
 

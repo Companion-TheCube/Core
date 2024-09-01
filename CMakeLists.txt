@@ -161,6 +161,12 @@ else()
     set(HTTP_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/http")
 endif()
 
+if(WIN32)
+    set(MTL_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Debug")
+else()
+    set(MTL_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+endif()
+
 # Create the destination directories if they don't exist
 file(MAKE_DIRECTORY ${SHADER_DEST_DIR})
 file(MAKE_DIRECTORY ${MESHES_DEST_DIR})
@@ -232,7 +238,7 @@ add_custom_command(
     TARGET CubeCore POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy
     ${MESHES_SOURCE_DIR}/black_and_white.mtl
-    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+    ${MTL_DEST_DIR}
     COMMAND ${CMAKE_COMMAND} -E echo "Copying black_and_white.mtl to output directory"
 )
 

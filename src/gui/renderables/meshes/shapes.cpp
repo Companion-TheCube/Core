@@ -1101,9 +1101,10 @@ OBJObject::OBJObject(Shader* sh, std::vector<Vertex> vertices)
     setProjectionMatrix(glm::perspective(glm::radians(45.0f), 720.0f / 720.0f, 0.1f, 100.0f));
     setViewMatrix(glm::vec3(0.0f, 0.0f, 6.0f));
     glm::mat4 modelMatrix = glm::mat4(1.0f);
-    modelMatrix = glm::rotate(modelMatrix, glm::radians(0.f), glm::vec3(1.0f, 0.0f, 0.0f));
-    modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, -0.0f, 0.0f));
+    // modelMatrix = glm::rotate(modelMatrix, glm::radians(0.f), glm::vec3(0.0f, 1.0f, 0.0f));
+    modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, 0.0f));
     modelMatrix = glm::scale(modelMatrix, glm::vec3(1.f, 1.f, 1.f));
+    // modelMatrix = glm::rotate(modelMatrix, glm::radians(0.f), glm::vec3(0.0f, 1.0f, 0.0f));
     setModelMatrix(modelMatrix);
     CubeLog::info("Created OBJObject");
 }
@@ -1191,9 +1192,14 @@ void OBJObject::rotateAbout(float angle, glm::vec3 axis, glm::vec3 point)
 
 glm::vec3 OBJObject::getCenterPoint()
 {
-    // get the center of the cube form the model matrix
-    glm::vec4 center = modelMatrix * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
-    return glm::vec3(center.x, center.y, center.z);
+    // get the center of the object by parsing the vertex data
+    float x = 0, y = 0, z = 0;
+    for (int i = 0; i < this->vertexData.size(); i++) {
+        x += this->vertexData[i].x;
+        y += this->vertexData[i].y;
+        z += this->vertexData[i].z;
+    }
+    return glm::vec3(x / this->vertexData.size(), y / this->vertexData.size(), z / this->vertexData.size());
 }
 
 std::vector<Vertex> OBJObject::getVertices()
