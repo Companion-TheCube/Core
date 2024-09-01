@@ -1199,7 +1199,13 @@ glm::vec3 OBJObject::getCenterPoint()
         y += this->vertexData[i].y;
         z += this->vertexData[i].z;
     }
-    return glm::vec3(x / this->vertexData.size(), y / this->vertexData.size(), z / this->vertexData.size());
+    x /= this->vertexData.size();
+    y /= this->vertexData.size();
+    z /= this->vertexData.size();
+
+    // move this point to incorporate the model matrix
+    glm::vec4 center = modelMatrix * glm::vec4(x, y, z, 1.0f);
+    return glm::vec3(center.x, center.y, center.z);
 }
 
 std::vector<Vertex> OBJObject::getVertices()
