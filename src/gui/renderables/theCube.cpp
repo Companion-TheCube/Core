@@ -12,9 +12,8 @@ TheCube::TheCube(Shader* sh)
     toLoad.push_back("TheCubeMain");
     toLoad.push_back("OpenEyesSmile");
     toLoad.push_back("ClosedEyesSmile");
-    this->loader = new MeshLoader(this->shader, toLoad);
-    // find the "shoe" collection in loader
-    for (auto collection : this->loader->collections) {
+    auto meshLoader = new MeshLoader(this->shader, toLoad);
+    for (auto collection : meshLoader->collections) {
         this->parts.push_back(new CharacterPart());
         this->parts.at(this->parts.size() - 1)->name = collection->name;
         // average the center points of all objects in the collection
@@ -35,9 +34,17 @@ TheCube::TheCube(Shader* sh)
         this->parts.at(this->parts.size() - 1)->centerPoint = glm::vec3(x, y, z);
     }
 
+    toLoad.clear();
+    toLoad.push_back("TheCube_Test.json");
+    auto animationLoader = new AnimationLoader(toLoad);
+
+    for (auto animation : animationLoader->getAnimations()) {
+        this->animations.push_back(animation);
+    }
+
     for (auto object : this->objects) {
         // object->rotate(90.f, glm::vec3(1.0f, 0.0f, 0.0f));
-        object->translate(glm::vec3(0.0f, -2.5f, -10.0f));
+        object->translate(glm::vec3(1.9f, -2.5f, -10.0f));
         object->uniformScale(5.f);
         object->rotate(-80.f, glm::vec3(0.0f, 1.0f, 0.0f));
     }
@@ -51,6 +58,7 @@ TheCube::TheCube(Shader* sh)
     }
     this->name = "TheCube";
     CubeLog::info("Created character " + this->name);
+    delete meshLoader;
 }
 
 TheCube::~TheCube()
@@ -58,11 +66,62 @@ TheCube::~TheCube()
     for (auto object : this->objects) {
         delete object;
     }
-    delete this->loader;
 }
 
-void TheCube::animateRandomFunny()
+bool TheCube::animateRandomFunny()
 {
+    if(this->currentFunnyExpression == Expression::FUNNY_INDEX){
+        // Randomly select a funny expression
+        int random = rand() % 5;
+        switch(random){
+            case 0:
+                this->currentFunnyExpression = Expression::FUNNY_BOUNCE;
+                break;
+            case 1:
+                this->currentFunnyExpression = Expression::FUNNY_EXPAND;
+                break;
+            case 2:
+                this->currentFunnyExpression = Expression::FUNNY_JUMP;
+                break;
+            case 3:
+                this->currentFunnyExpression = Expression::FUNNY_SHRINK;
+                break;
+            case 4:
+                this->currentFunnyExpression = Expression::FUNNY_SPIN;
+                break;
+            default:
+                this->currentFunnyExpression = Expression::FUNNY_BOUNCE;
+                break;
+        }
+        this->animationFrame = 0;
+    }
+
+    switch(this->currentFunnyExpression){
+        case Expression::FUNNY_BOUNCE:
+            // TODO: Implement bounce animation. Return true when animation is complete.
+            // 1. scale x,z up while translating y down in order to keep the bottom of the TheCube on the ground
+            // 2. scale x,z down while translating y up to return to original position
+            // 3. translate y up to simulate a bounce
+            // 4. translate y down to return to original position
+            // 5. scale x,z up while translating y down in order to keep the bottom of the TheCube on the ground
+            // 6. scale x,z down while translating y up to return to original position
+            return false;
+        case Expression::FUNNY_EXPAND:
+            // TODO: Implement expand animation. Return true when animation is complete.
+            return false;
+        case Expression::FUNNY_JUMP:
+            // TODO: Implement jump animation. Return true when animation is complete.
+            return false;
+        case Expression::FUNNY_SHRINK:
+            // TODO: Implement shrink animation. Return true when animation is complete.
+            return false;
+        case Expression::FUNNY_SPIN:
+            // TODO: Implement spin animation. Return true when animation is complete.
+            return false;
+        default:
+            return true;
+    }
+
     this->animationFrame++;
     if (this->animationFrame % 300 == 0) {
         for (auto object : this->getPartByName("OpenEyesSmile")->objects) {
@@ -94,28 +153,34 @@ void TheCube::animateRandomFunny()
     }
 }
 
-void TheCube::animateJumpUp()
+bool TheCube::animateJumpUp()
 {
+    return true;
 }
 
-void TheCube::animateJumpLeft()
+bool TheCube::animateJumpLeft()
 {
+    return true;
 }
 
-void TheCube::animateJumpRight()
+bool TheCube::animateJumpRight()
 {
+    return true;
 }
 
-void TheCube::animateJumpLeftThroughWall()
+bool TheCube::animateJumpLeftThroughWall()
 {
+    return true;
 }
 
-void TheCube::animateJumpRightThroughWall()
+bool TheCube::animateJumpRightThroughWall()
 {
+    return true;
 }
 
 void TheCube::expression(Expression e)
 {
+    this->currentExpression = e;
 }
 
 std::string TheCube::getName()

@@ -267,4 +267,137 @@ std::vector<MeshObject*> MeshLoader::loadMesh(std::string path)
     return objects;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+AnimationLoader::AnimationLoader(std::vector<std::string> animationNames)
+{
+    this->animationNames = animationNames;
+    this->animations = this->loadAnimations(this->getFileNames());
+}
+
+AnimationLoader::~AnimationLoader()
+{
+}
+
+std::vector<std::string> AnimationLoader::getFileNames()
+{
+    std::vector<std::string> names;
+    try{
+        for (auto& p : std::filesystem::directory_iterator("animations/")) {
+            CubeLog::info("AnimationLoader: Found file: " + p.path().string());
+            names.push_back(p.path().string());
+        }
+        CubeLog::info("AnimationLoader: Found " + std::to_string(names.size()) + " animation files");
+    } catch (std::filesystem::filesystem_error& e) {
+        CubeLog::error("AnimationLoader: Failed to load animation files");
+        CubeLog::error(e.what());
+    }
+    return names;
+}
+
+std::vector<Animation> AnimationLoader::loadAnimations(std::vector<std::string> fileNames)
+{
+    std::vector<Animation> animations;
+    for (auto filename : fileNames) {
+        CubeLog::info("AnimationLoader: Loading animation file: " + filename);
+        animations.push_back(this->loadAnimation(filename));
+    }
+    return animations;
+}
+
+Animation AnimationLoader::loadAnimation(std::string fileName)
+{
+    Animation animation;
+    // use lohmann json to load the file
+    std::ifstream file(fileName);
+    if (!file.is_open()) {
+        CubeLog::info("AnimationLoader: Failed to open file: " + fileName);
+        return animation;
+    }
+    nlohmann::json j;
+    try{
+        file >> j;
+    } catch (nlohmann::json::parse_error& e) {
+        CubeLog::error("AnimationLoader: Failed to parse json file: " + fileName);
+        CubeLog::error(e.what());
+        return animation;
+    }
+    // j is an array of keyframes
+    for (auto keyframe : j) {
+        try{
+            animation.keyframes.push_back(loadKeyframe(keyframe));
+        } catch (nlohmann::json::exception& e) {
+            CubeLog::error("AnimationLoader: Failed to load keyframe from file: " + fileName);
+            CubeLog::error(e.what());
+            return animation;
+        } catch (AnimationLoaderException& e) {
+            std::string mes = e.what();
+            CubeLog::error("AnimationLoader: " + mes);
+            return animation;
+        }
+    }
+    CubeLog::info("AnimationLoader: Loaded " + std::to_string(animation.keyframes.size()) + " keyframes from file: " + fileName);    
+    return animation;
+}
+
+AnimationKeyframe AnimationLoader::loadKeyframe(nlohmann::json keyframe)
+{
+    AnimationKeyframe kf;
+    if(keyframe["type"] == "TRANSLATE")
+        kf.type = AnimationType::TRANSLATE;
+    else if(keyframe["type"] == "ROTATE")
+        kf.type = AnimationType::ROTATE;
+    else if(keyframe["type"] == "SCALE_XYZ")
+        kf.type = AnimationType::SCALE_XYZ;
+    else if(keyframe["type"] == "UNIFORM_SCALE")
+        kf.type = AnimationType::UNIFORM_SCALE;
+    else if(keyframe["type"] == "ROTATE_ABOUT")
+        kf.type = AnimationType::ROTATE_ABOUT;
+    else
+        throw AnimationLoaderException("Invalid keyframe type: " + keyframe["type"]);
+    kf.value = keyframe["value"];
+    kf.time = keyframe["time"];
+    kf.axis = glm::vec3(keyframe["axis"]["x"], keyframe["axis"]["y"], keyframe["axis"]["z"]);
+    kf.point = glm::vec3(keyframe["point"]["x"], keyframe["point"]["y"], keyframe["point"]["z"]);
+    std::string easingFunction = keyframe["easingFunction"];
+    if (easingFunction == "linear") {
+        kf.easingFunction = [](float t) { return t; };
+    } else if (easingFunction == "easeIn") {
+        kf.easingFunction = [](float t) { return t * t; };
+    } else if (easingFunction == "easeOut") {
+        kf.easingFunction = [](float t) { return t * (2 - t); };
+    } else if (easingFunction == "easeInOut") {
+        kf.easingFunction = [](float t) { return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; };
+    } else {
+        kf.easingFunction = [](float t) { return 0.f; }; // if no easing function is specified, assume this is the init state
+    }
+    return kf;
+}
+
+std::vector<std::string> AnimationLoader::getAnimationNames()
+{
+    return this->animationNames;
+}
+
+std::vector<Animation> AnimationLoader::getAnimations()
+{
+    return this->animations;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+int AnimationLoaderException::count = 0;
+
+AnimationLoaderException::AnimationLoaderException(std::string message)
+{
+    AnimationLoaderException::count++;
+    this->message = "Error Count: " + std::to_string(AnimationLoaderException::count) + "\n" + message;
+}
+
+const char* AnimationLoaderException::what() const throw()
+{
+    return this->message.c_str();
+}
+
+
 // Path: src/gui/characters/meshes/meshObject.h

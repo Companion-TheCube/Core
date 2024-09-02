@@ -63,9 +63,15 @@ enum Expression{
     SHOCKED,
     INJURED,
     DEAD,
+    FUNNY_INDEX,
+    FUNNY_BOUNCE,
+    FUNNY_SPIN,
+    FUNNY_SHRINK,
+    FUNNY_EXPAND,
+    FUNNY_JUMP,
     NULL_EXPRESSION,
     COUNT
-};
+};  
 
 class Object{
     public:
@@ -78,12 +84,12 @@ class Object{
 class C_Character : public Object{
     public:
         virtual ~C_Character(){};
-        virtual void animateRandomFunny() = 0;
-        virtual void animateJumpUp() = 0;
-        virtual void animateJumpLeft() = 0;
-        virtual void animateJumpRight() = 0;
-        virtual void animateJumpLeftThroughWall() = 0;
-        virtual void animateJumpRightThroughWall() = 0;
+        virtual bool animateRandomFunny() = 0;
+        virtual bool animateJumpUp() = 0;
+        virtual bool animateJumpLeft() = 0;
+        virtual bool animateJumpRight() = 0;
+        virtual bool animateJumpLeftThroughWall() = 0;
+        virtual bool animateJumpRightThroughWall() = 0;
         virtual void expression(Expression) = 0;
         virtual std::string getName() = 0;
         virtual bool setVisible(bool visible) = 0;

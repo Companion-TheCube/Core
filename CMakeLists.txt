@@ -144,6 +144,14 @@ else()
     set(MESHES_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/meshes")
 endif()
 
+set(ANIMATIONS_SOURCE_DIR "${CMAKE_SOURCE_DIR}/src/gui/renderables/meshes/animations")
+
+if(WIN32)
+    set(ANIMATIONS_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Debug/animations")
+else()
+    set(ANIMATIONS_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/animations")
+endif()
+
 # Define the source and destination directories for fonts
 set(FONTS_SOURCE_DIR "${CMAKE_SOURCE_DIR}/fonts")
 
@@ -231,6 +239,18 @@ add_custom_command(
     ${MESHES_SOURCE_DIR}
     ${MESHES_DEST_DIR}
     COMMAND ${CMAKE_COMMAND} -E echo "Copying meshess to output directory"
+)
+
+# Create the animations directory if it doesn't exist
+file(MAKE_DIRECTORY ${ANIMATIONS_DEST_DIR})
+
+# Add a custom command to copy the animations directory
+add_custom_command(
+    TARGET CubeCore POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${ANIMATIONS_SOURCE_DIR}
+    ${ANIMATIONS_DEST_DIR}
+    COMMAND ${CMAKE_COMMAND} -E echo "Copying animations to output directory"
 )
 
 # Add a custom command to copy black_and_white.mtl from the meshFiles directory to the output directory
