@@ -1,0 +1,43 @@
+#pragma once
+#include "../objects.h"
+#include "../shader.h"
+#include "cmath"
+#include "meshObject.h"
+#include "meshLoader.h"
+#include "shapes.h"
+#include <logger.h>
+#include <vector>
+
+
+
+class TheCube : public C_Character {
+private:
+    void rotate(float angle, float x, float y, float z);
+    void translate(float x, float y, float z);
+    void scale(float x, float y, float z);
+    std::string name;
+    Shader* shader;
+    std::vector<MeshObject*> objects;
+    std::vector<Animation> animations;
+    std::vector<CharacterPart*> parts;
+    unsigned long long animationFrame;
+    bool visible;
+    ExpressionNames_enum currentExpression;
+    ExpressionNames_enum currentFunnyExpression;
+
+public:
+    TheCube(Shader* sh);
+    ~TheCube();
+    void draw();
+    bool animateRandomFunny();
+    bool animateJumpUp();
+    bool animateJumpLeft();
+    bool animateJumpRight();
+    bool animateJumpLeftThroughWall();
+    bool animateJumpRightThroughWall();
+    void expression(ExpressionNames_enum);
+    std::string getName();
+    CharacterPart* getPartByName(std::string name);
+    bool setVisible(bool visible);
+    bool getVisible();
+};

@@ -8,7 +8,7 @@
 #include <sstream>
 #include <filesystem>
 #include "./../renderables/meshObject.h"
-#include "./../renderables/meshes/shapes.h"
+#include "./../renderables/shapes.h"
 #include "./../objects.h"
 #include <typeinfo>
 

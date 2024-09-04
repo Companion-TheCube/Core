@@ -2,28 +2,35 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
 
-MeshLoader::MeshLoader(Shader* shdr, std::vector<std::string> toLoad)
+MeshLoader::MeshLoader(Shader* shdr, std::string folderName, std::vector<std::string> toLoad)
 {
-    // TODO: Add support for loading .obj files
+    this->folderName = folderName;
     this->shader = shdr;
     std::vector<std::string> filenames = this->getFileNames();
+    for (auto name : filenames) {
+        CubeLog::info("MeshLoader: Found file: " + name);
+    }
     // load .mesh files
     for (auto filename : filenames) {
         // ensure filetype is .mesh
         if (filename.find(".mesh") == std::string::npos || filename.find(".mesh") != filename.length() - 5) {
             continue;
         }
-        std::string name = filename.substr(filename.find_last_of('/') + 1, filename.find(".mesh") - filename.find_last_of('/') - 1);
+        // replace "\" with "/" for windows
+        std::string _filename = std::regex_replace(filename, std::regex("\\"), "/");
+        std::string name = _filename.substr(_filename.find_last_of('/') + 1, _filename.find(".mesh") - _filename.find_last_of('/') - 1);
         if (std::find(toLoad.begin(), toLoad.end(), name) == toLoad.end()) {
             continue;
         }
-        CubeLog::info("MeshLoader: Found mesh file: " + filename);
-        CubeLog::info("Attempting to load mesh file: " + filename);
-        std::vector<MeshObject*> objects = this->loadMesh(filename);
-        CubeLog::info("MeshLoader: Loaded " + std::to_string(objects.size()) + " objects from file: " + filename);
+        CubeLog::info("MeshLoader: Found mesh file: " + _filename);
+        CubeLog::info("Attempting to load mesh file: " + _filename);
+        // concatenate the folder name with the filename
+        _filename = "meshes/" + this->folderName + "/" + name + ".mesh";
+        std::vector<MeshObject*> objects = this->loadMesh(_filename);
+        CubeLog::info("MeshLoader: Loaded " + std::to_string(objects.size()) + " objects from file: " + _filename);
         this->collections.push_back(new ObjectCollection());
         // collection name is filename minus ".mesh"
-        this->collections.at(collections.size() - 1)->name = filename.substr(filename.find_last_of('/') + 1, filename.find(".mesh") - filename.find_last_of('/') - 1);
+        this->collections.at(collections.size() - 1)->name = filename.substr(_filename.find_last_of('/') + 1, _filename.find(".mesh") - _filename.find_last_of('/') - 1);
         for (auto object : objects) {
             this->collections.at(collections.size() - 1)->objects.push_back(object);
         }
@@ -35,12 +42,14 @@ MeshLoader::MeshLoader(Shader* shdr, std::vector<std::string> toLoad)
         if (filename.find(".obj") == std::string::npos || filename.find(".obj") != filename.length() - 4) {
             continue;
         }
-        std::string name = filename.substr(filename.find_last_of('/') + 1, filename.find(".obj") - filename.find_last_of('/') - 1);
+        // replace "\" with "/" for windows
+        std::string _filename = std::regex_replace(filename, std::regex("\\\\"), "/");
+        std::string name = _filename.substr(_filename.find_last_of('/') + 1, _filename.find(".obj") - _filename.find_last_of('/') - 1);
         if (std::find(toLoad.begin(), toLoad.end(), name) == toLoad.end()) {
             continue;
         }
-        CubeLog::info("MeshLoader: Found obj file: " + filename);
-        CubeLog::info("Attempting to load obj file: " + filename);
+        CubeLog::info("MeshLoader: Found obj file: " + _filename);
+        CubeLog::info("Attempting to load obj file: " + _filename);
 
         tinyobj::attrib_t attrib;
         std::vector<tinyobj::shape_t> shapes;
@@ -51,20 +60,20 @@ MeshLoader::MeshLoader(Shader* shdr, std::vector<std::string> toLoad)
         std::vector<Vertex> vertices;
 
         // Load the OBJ file and its materials
-        bool success = tinyobj::LoadObj(&attrib, &shapes, &mats, &warn, &err, filename.c_str(), nullptr, true);
+        bool success = tinyobj::LoadObj(&attrib, &shapes, &mats, &warn, &err, _filename.c_str(), nullptr, true);
 
         if (!warn.empty()) {
             CubeLog::warning("MeshLoader: " + warn);
         }
 
         if (!err.empty()) {
-            CubeLog::error("MeshLoader: Failed to load obj file: " + filename);
+            CubeLog::error("MeshLoader: Failed to load obj file: " + _filename);
             CubeLog::error(err);
             continue;
         }
 
         if (!success) {
-            CubeLog::error("MeshLoader: Failed to load obj file: " + filename);
+            CubeLog::error("MeshLoader: Failed to load obj file: " + _filename);
             continue;
         }
 
@@ -103,14 +112,14 @@ MeshLoader::MeshLoader(Shader* shdr, std::vector<std::string> toLoad)
         if (!err.empty()) {
             CubeLog::info("MeshLoader: " + err);
         }
-        CubeLog::info("MeshLoader: Loaded " + std::to_string(shapes.size()) + " shapes from obj file: " + filename);
+        CubeLog::info("MeshLoader: Loaded " + std::to_string(shapes.size()) + " shapes from obj file: " + _filename);
         for (auto shape : shapes) {
             objects.push_back(new OBJObject(this->shader, vertices));
         }
-        CubeLog::info("MeshLoader: Loaded " + std::to_string(objects.size()) + " objects from obj file: " + filename);
+        CubeLog::info("MeshLoader: Loaded " + std::to_string(objects.size()) + " objects from obj file: " + _filename);
         this->collections.push_back(new ObjectCollection());
         // collection name is filename minus ".obj"
-        this->collections.at(collections.size() - 1)->name = filename.substr(filename.find_last_of('/') + 1, filename.find(".obj") - filename.find_last_of('/') - 1);
+        this->collections.at(collections.size() - 1)->name = _filename.substr(_filename.find_last_of('/') + 1, _filename.find(".obj") - _filename.find_last_of('/') - 1);
         for (auto object : objects) {
             this->collections.at(collections.size() - 1)->objects.push_back(object);
         }
@@ -145,9 +154,15 @@ std::vector<ObjectCollection*> MeshLoader::getCollections()
 std::vector<std::string> MeshLoader::getFileNames()
 {
     std::vector<std::string> names;
-    for (auto& p : std::filesystem::directory_iterator("meshes/")) {
-        CubeLog::info("MeshLoader: Found file: " + p.path().string());
-        names.push_back(p.path().string());
+    for (auto& p : std::filesystem::directory_iterator("meshes/" + this->folderName)) {
+        if (p.is_directory()) {
+            continue;
+        }
+        // check that the file is a .mesh or .obj file
+        if (p.path().has_extension() && (p.path().extension() == ".mesh" || p.path().extension() == ".obj")) {
+            CubeLog::info("MeshLoader: Found file: " + p.path().string());
+            names.push_back(p.path().string());
+        }
     }
     CubeLog::info("MeshLoader: Found " + std::to_string(names.size()) + " mesh files");
     return names;
@@ -269,10 +284,24 @@ std::vector<MeshObject*> MeshLoader::loadMesh(std::string path)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-AnimationLoader::AnimationLoader(std::vector<std::string> animationNames)
+AnimationLoader::AnimationLoader(std::string folderName, std::vector<std::string> animationNames)
 {
+    this->folderName = folderName;
     this->animationNames = animationNames;
-    this->animations = this->loadAnimations(this->getFileNames());
+    // cross reference the animation names with the files in the folder
+    std::vector<std::string> fileNames = this->getFileNames();
+    for (auto name : this->animationNames) {
+        if (std::find(fileNames.begin(), fileNames.end(), name) == fileNames.end()) {
+            CubeLog::warning("AnimationLoader: Animation file not found: " + name);
+        }
+        if (name == "character.json") {
+            CubeLog::warning("AnimationLoader: Skipping character.json");
+            continue;
+        }
+        // if the filename is not in the animationNames list, remove it
+        fileNames.erase(std::remove(fileNames.begin(), fileNames.end(), name), fileNames.end());
+    }
+    this->animations = this->loadAnimations(fileNames);
 }
 
 AnimationLoader::~AnimationLoader()
@@ -282,10 +311,19 @@ AnimationLoader::~AnimationLoader()
 std::vector<std::string> AnimationLoader::getFileNames()
 {
     std::vector<std::string> names;
-    try{
-        for (auto& p : std::filesystem::directory_iterator("animations/")) {
-            CubeLog::info("AnimationLoader: Found file: " + p.path().string());
-            names.push_back(p.path().string());
+    try {
+        for (auto& p : std::filesystem::directory_iterator("meshes/" + this->folderName)) {
+            if (p.is_directory()) {
+                continue;
+            }
+            // check that the file is a .json file
+            if (p.path().has_extension() && p.path().extension() == ".json") {
+                if (p.path().filename() == "character.json") {
+                    continue;
+                }
+                CubeLog::info("AnimationLoader: Found file: " + p.path().string());
+                names.push_back(p.path().string());
+            }
         }
         CubeLog::info("AnimationLoader: Found " + std::to_string(names.size()) + " animation files");
     } catch (std::filesystem::filesystem_error& e) {
@@ -315,16 +353,24 @@ Animation AnimationLoader::loadAnimation(std::string fileName)
         return animation;
     }
     nlohmann::json j;
-    try{
+    try {
         file >> j;
     } catch (nlohmann::json::parse_error& e) {
         CubeLog::error("AnimationLoader: Failed to parse json file: " + fileName);
         CubeLog::error(e.what());
         return animation;
     }
-    // j is an array of keyframes
-    for (auto keyframe : j) {
-        try{
+    // j is an object with properties "name, "expression", and "frames"
+    try {
+        animation.name = j["name"];
+        animation.expression = j["expression"];
+    } catch (nlohmann::json::exception& e) {
+        CubeLog::error("AnimationLoader: Failed to load animation from file: " + fileName);
+        CubeLog::error(e.what());
+        return animation;
+    }
+    for (auto keyframe : j["frames"]) {
+        try {
             animation.keyframes.push_back(loadKeyframe(keyframe));
         } catch (nlohmann::json::exception& e) {
             CubeLog::error("AnimationLoader: Failed to load keyframe from file: " + fileName);
@@ -336,22 +382,22 @@ Animation AnimationLoader::loadAnimation(std::string fileName)
             return animation;
         }
     }
-    CubeLog::info("AnimationLoader: Loaded " + std::to_string(animation.keyframes.size()) + " keyframes from file: " + fileName);    
+    CubeLog::info("AnimationLoader: Loaded " + std::to_string(animation.keyframes.size()) + " keyframes from file: " + fileName);
     return animation;
 }
 
 AnimationKeyframe AnimationLoader::loadKeyframe(nlohmann::json keyframe)
 {
     AnimationKeyframe kf;
-    if(keyframe["type"] == "TRANSLATE")
+    if (keyframe["type"] == "TRANSLATE")
         kf.type = AnimationType::TRANSLATE;
-    else if(keyframe["type"] == "ROTATE")
+    else if (keyframe["type"] == "ROTATE")
         kf.type = AnimationType::ROTATE;
-    else if(keyframe["type"] == "SCALE_XYZ")
+    else if (keyframe["type"] == "SCALE_XYZ")
         kf.type = AnimationType::SCALE_XYZ;
-    else if(keyframe["type"] == "UNIFORM_SCALE")
+    else if (keyframe["type"] == "UNIFORM_SCALE")
         kf.type = AnimationType::UNIFORM_SCALE;
-    else if(keyframe["type"] == "ROTATE_ABOUT")
+    else if (keyframe["type"] == "ROTATE_ABOUT")
         kf.type = AnimationType::ROTATE_ABOUT;
     else
         throw AnimationLoaderException("Invalid keyframe type: " + keyframe["type"]);
@@ -386,6 +432,68 @@ std::vector<Animation> AnimationLoader::getAnimations()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+ExpressionLoader::ExpressionLoader(std::string folderName, std::vector<std::string> expressionNames)
+{
+    this->expressionNames = expressionNames;
+}
+
+ExpressionLoader::~ExpressionLoader()
+{
+}
+
+std::vector<std::string> ExpressionLoader::getFileNames()
+{
+    std::vector<std::string> names;
+    for (auto& p : std::filesystem::directory_iterator("expressions/")) {
+        CubeLog::info("ExpressionLoader: Found file: " + p.path().string());
+        names.push_back(p.path().string());
+    }
+    CubeLog::info("ExpressionLoader: Found " + std::to_string(names.size()) + " expression files");
+    return names;
+}
+
+std::vector<ExpressionDefinition> ExpressionLoader::loadExpressions(std::vector<std::string> fileNames)
+{
+    std::vector<ExpressionDefinition> expressions;
+    for (auto filename : fileNames) {
+        CubeLog::info("ExpressionLoader: Loading expression file: " + filename);
+        std::ifstream file(filename);
+        if (!file.is_open()) {
+            CubeLog::info("ExpressionLoader: Failed to open file: " + filename);
+            continue;
+        }
+        nlohmann::json j;
+        try {
+            file >> j;
+        } catch (nlohmann::json::parse_error& e) {
+            CubeLog::error("ExpressionLoader: Failed to parse json file: " + filename);
+            CubeLog::error(e.what());
+            continue;
+        }
+        for (auto expression : j) {
+            expressions.push_back({ expression["name"], expression["expression"], expression["objects"], expression["visibility"] });
+        }
+    }
+    return expressions;
+}
+
+std::vector<ExpressionDefinition> ExpressionLoader::getAllExpressions()
+{
+    return this->expressions;
+}
+
+ExpressionDefinition ExpressionLoader::getExpressionByName(std::string name)
+{
+    for (auto expression : this->expressions) {
+        if (expression.name.compare(name) == 0) {
+            return expression;
+        }
+    }
+    return { "", "", {}, {} };
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 int AnimationLoaderException::count = 0;
 
 AnimationLoaderException::AnimationLoaderException(std::string message)
@@ -398,6 +506,5 @@ const char* AnimationLoaderException::what() const throw()
 {
     return this->message.c_str();
 }
-
 
 // Path: src/gui/characters/meshes/meshObject.h

@@ -47,7 +47,7 @@ public:
     virtual void setVisibility(bool visible) = 0;
 };
 
-enum Expression{
+enum ExpressionNames_enum{
     NEUTRAL,
     HAPPY,
     SAD,
@@ -90,7 +90,7 @@ class C_Character : public Object{
         virtual bool animateJumpRight() = 0;
         virtual bool animateJumpLeftThroughWall() = 0;
         virtual bool animateJumpRightThroughWall() = 0;
-        virtual void expression(Expression) = 0;
+        virtual void expression(ExpressionNames_enum) = 0;
         virtual std::string getName() = 0;
         virtual bool setVisible(bool visible) = 0;
 };

@@ -9,7 +9,7 @@
 #include <latch>
 #include <typeinfo>
 #include "./../renderables/meshObject.h"
-#include "./../renderables/meshes/shapes.h"
+#include "./../renderables/shapes.h"
 #include "./../objects.h"
 #include "./../shader.h"
 #include "./../renderer.h"

@@ -56,19 +56,20 @@ int Renderer::thread()
     this->window.setMouseCursorVisible(false);
 #endif
 
-    Shader edges("./shaders/edges.vs", "./shaders/edges.fs");
-    this->shader = &edges;
+    Shader edgesShader("./shaders/edges.vs", "./shaders/edges.fs");
+    this->shader = &edgesShader;
 
     Shader textShader("shaders/text.vs", "shaders/text.fs");
     this->textShader = &textShader;
 
-    auto characterManager = new CharacterManager(&edges);
-    C_Character* character = characterManager->getCharacterByName("TheCube");
+    auto characterManager = new CharacterManager(&edgesShader);
+    C_Character* character = characterManager->getCharacterByName("TheCube"); // TODO: this call should return a nullptr if the character is not found. Then we should throw an error.
     characterManager->setCharacter(character);
     this->setupTasksRun();
     CubeLog::info("Renderer initialized. Starting Loop...");
     this->ready = true;
     this->latch->count_down(); // Send a signal to the GUI that the renderer is ready
+    // this->window.setActive();
     while (running) {
         for (auto event = sf::Event {}; this->window.pollEvent(event);) {
             this->events.push_back(event);
@@ -81,7 +82,7 @@ int Renderer::thread()
             this->loopTasksRun();
         if (characterManager->getCharacter() != nullptr) {
             characterManager->getCharacter()->draw();
-            characterManager->getCharacter()->animateRandomFunny(); // TODO:replace with actual animation system
+            characterManager->getCharacter()->animateRandomFunny(); // TODO: replace with actual animation system
         }
         for (auto object : this->objects) {
             object->draw();

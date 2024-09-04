@@ -1,5 +1,5 @@
 #pragma once
-#include "../meshObject.h"
+#include "meshObject.h"
 #include <ft2build.h>
 #include <globalSettings.h>
 #include FT_FREETYPE_H

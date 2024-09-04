@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../../shader.h"
-#include "../meshObject.h"
+#include "../shader.h"
+#include "meshObject.h"
 #include "shapes.h"
 #include <fstream>
 #include <iostream>
@@ -16,10 +16,12 @@ struct ObjectCollection {
 };
 
 class MeshLoader {
+private:
+    std::string folderName;
 public:
     std::vector<ObjectCollection*> collections;
     Shader* shader;
-    MeshLoader(Shader* shdr, std::vector<std::string> toLoad);
+    MeshLoader(Shader* shdr, std::string folderName, std::vector<std::string> toLoad);
     ~MeshLoader();
     std::vector<MeshObject*> loadMesh(std::string path);
     std::vector<std::string> getFileNames();
@@ -46,6 +48,7 @@ struct AnimationKeyframe {
 
 struct Animation {
     std::string name;
+    std::string expression;
     std::vector<AnimationKeyframe> keyframes;
 };
 
@@ -58,8 +61,9 @@ private:
     Animation loadAnimation(std::string fileName);
     std::vector<std::string> getAnimationNames();
     AnimationKeyframe loadKeyframe(nlohmann::json keyframe);
+    std::string folderName;
 public:
-    AnimationLoader(std::vector<std::string> animationNames);
+    AnimationLoader(std::string folderName, std::vector<std::string> animationNames);
     ~AnimationLoader();
     std::vector<Animation> getAnimations();
 };
@@ -71,4 +75,25 @@ private:
 public:
     AnimationLoaderException(std::string message);
     const char* what() const throw();
+};
+
+struct ExpressionDefinition {
+    std::string name;
+    std::string expression;
+    std::vector<std::string> objects;
+    std::vector<bool> visibility;
+};
+
+class ExpressionLoader {
+private:
+    std::vector<std::string> expressionNames;
+    std::vector<std::string> getFileNames();
+    std::vector<ExpressionDefinition> loadExpressions(std::vector<std::string> fileNames);
+    std::vector<ExpressionDefinition> expressions;
+    std::string folderName;
+public:
+    ExpressionLoader(std::string folderName, std::vector<std::string> expressionNames);
+    ~ExpressionLoader();
+    std::vector<ExpressionDefinition> getAllExpressions();
+    ExpressionDefinition getExpressionByName(std::string name);
 };

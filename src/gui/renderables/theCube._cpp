@@ -1,127 +1,21 @@
-#include "characterManager.h"
+#include "theCube.h"
 
-CharacterManager::CharacterManager(Shader* sh)
+#define M_PI 3.14159265358979323846
+
+TheCube::TheCube(Shader* sh)
 {
     this->shader = sh;
-    CubeLog::info("CharacterManager Started. Loading built-in characters.");
-    this->loadBuiltInCharacters();
-    CubeLog::info("Built-in characters loaded. Loading app characters.");
-    if (!this->loadAppCharacters()) {
-        CubeLog::info("No app characters found.");
-    }
-    CubeLog::info("All characters loaded. Character manager ready.");
-}
-
-CharacterManager::~CharacterManager()
-{
-    for (auto character : this->characters) {
-        delete character;
-    }
-}
-
-C_Character* CharacterManager::getCharacter()
-{
-    return this->currentCharacter;
-}
-
-void CharacterManager::setCharacter(C_Character* character)
-{
-    this->currentCharacter = character;
-}
-
-bool CharacterManager::loadAppCharacters()
-{
-    // TODO: This will need to interface with the list of registered apps and find the ones
-    // that have characters to load. Their character data should be stored in the database.
-    return false;
-}
-
-bool CharacterManager::loadBuiltInCharacters()
-{
-    this->characters.push_back(new Character_generic(this->shader, "Character_TheCube"));
-    return false;
-}
-
-bool CharacterManager::setCharacterByName(std::string name)
-{
-    return false;
-}
-
-C_Character* CharacterManager::getCharacterByName(std::string name)
-{
-    for (auto character : this->characters) {
-        if (character->getName().compare(name) == 0) {
-            CubeLog::info("getCharacterByName(" + name + "): found!");
-            character->setVisible(true);
-            return character;
-        }
-    }
-    CubeLog::info("getCharacterByName(" + name + "): NOT found!");
-    return nullptr;
-}
-
-std::vector<std::string> CharacterManager::getCharacterNames()
-{
-    std::vector<std::string> names;
-    for (auto character : this->characters) {
-        names.push_back(character->getName());
-    }
-    CubeLog::info("getCharacterNames(): Returning " + std::to_string(names.size()) + " names.");
-    return names;
-}
-
-////////////////////////////////////////////////////////////
-
-/**
- * @brief Construct a new Character:: Character object
- * 
- * @param sh The shader to use
- * @param folder The folder to load the character from
- */
-Character_generic::Character_generic(Shader* sh, std::string folder)
-{
-    this->shader = sh;
-    this->visible = false;
+    this->visible = true;
     this->animationFrame = 0;
     this->currentExpression = ExpressionNames_enum::NEUTRAL;
     this->currentFunnyExpression = ExpressionNames_enum::FUNNY_INDEX;
 
-    // Load character.json from the folder. This file should contain the list of objects, animations and expressions to load.
-    std::ifstream file("meshes/" + folder + "/character.json");
-    if (!file.is_open()) {
-        CubeLog::error("Failed to open " + folder + "/character.json");
-        return;
-    }
-    nlohmann::json json;
-    try{
-        file >> json;
-    } catch (nlohmann::json::parse_error& e) {
-        CubeLog::error("Failed to parse " + folder + "/character.json");
-        CubeLog::error(e.what());
-        return;
-    }
-    
-    // The "objects" key should contain an array of object filenames to load
-    std::vector<std::string> objectsToLoad;
-    for (auto object : json["objects"]) {
-        objectsToLoad.push_back(object);
-    }
-
-    // The "animations" key should contain an array of animation filenames to load
-    std::vector<std::string> animationsToLoad;
-    for( auto animation : json["animations"]) {
-        animationsToLoad.push_back(animation);
-    }
-    
-    // The "expressions" key should contain an array of expression filenames to load
-    std::vector<std::string> expressionsToLoad;
-    for(auto expression : json["expressions"]) {
-        expressionsToLoad.push_back(expression);
-    }
-
-    auto meshLoader = new MeshLoader(this->shader, folder, objectsToLoad);
-
-    for(auto collection : meshLoader->collections) {
+    std::vector<std::string> toLoad;
+    toLoad.push_back("TheCubeMain");
+    toLoad.push_back("OpenEyesSmile");
+    toLoad.push_back("ClosedEyesSmile");
+    auto meshLoader = new MeshLoader(this->shader, "", toLoad);
+    for (auto collection : meshLoader->collections) {
         this->parts.push_back(new CharacterPart());
         this->parts.at(this->parts.size() - 1)->name = collection->name;
         // average the center points of all objects in the collection
@@ -142,40 +36,41 @@ Character_generic::Character_generic(Shader* sh, std::string folder)
         this->parts.at(this->parts.size() - 1)->centerPoint = glm::vec3(x, y, z);
     }
 
-    auto animationLoader = new AnimationLoader(folder, animationsToLoad);
+    toLoad.clear();
+    toLoad.push_back("TheCube_Test.json");
+    auto animationLoader = new AnimationLoader("",toLoad);
+
     for (auto animation : animationLoader->getAnimations()) {
         this->animations.push_back(animation);
     }
 
-    auto expressionLoader = new ExpressionLoader(folder, expressionsToLoad);
-    for (auto expression : expressionLoader->getAllExpressions()) {
-        this->expressions.push_back(expression);
-    }
-
-    // set object to initial position
     for (auto object : this->objects) {
+        // object->rotate(90.f, glm::vec3(1.0f, 0.0f, 0.0f));
         object->translate(glm::vec3(1.9f, -2.5f, -10.0f));
         object->uniformScale(5.f);
         object->rotate(-80.f, glm::vec3(0.0f, 1.0f, 0.0f));
     }
 
+    for (auto object : this->getPartByName("ClosedEyesSmile")->objects) {
+        object->setVisibility(false);
+    }
+
     for (auto object : this->objects) {
         object->capturePosition();
     }
-
-    this->name = json["name"];
-
+    this->name = "TheCube";
     CubeLog::info("Created character " + this->name);
+    delete meshLoader;
 }
 
-Character_generic::~Character_generic()
+TheCube::~TheCube()
 {
     for (auto object : this->objects) {
         delete object;
     }
 }
 
-bool Character_generic::animateRandomFunny()
+bool TheCube::animateRandomFunny()
 {
     if (this->currentFunnyExpression == ExpressionNames_enum::FUNNY_INDEX) {
         // Randomly select a funny expression
@@ -222,10 +117,6 @@ bool Character_generic::animateRandomFunny()
         //
         // set this->currenFunnyExpression to FUNNY_INDEX when the animation is complete
 
-        if(this->getPartByName("OpenEyesSmile") == nullptr || this->getPartByName("ClosedEyesSmile") == nullptr) {
-            CubeLog::error("Failed to find OpenEyesSmile or ClosedEyesSmile");
-            return true;
-        }
         this->animationFrame++;
         if (this->animationFrame % 300 == 0) {
             for (auto object : this->getPartByName("OpenEyesSmile")->objects) {
@@ -280,28 +171,42 @@ bool Character_generic::animateRandomFunny()
     }
 }
 
-CharacterPart* Character_generic::getPartByName(std::string name)
+bool TheCube::animateJumpUp()
 {
-    for (auto part : this->parts) {
-        if (part->name.compare(name) == 0) {
-            return part;
-        }
-    }
-    return nullptr;
+    return true;
 }
 
-bool Character_generic::setVisible(bool visible)
+bool TheCube::animateJumpLeft()
 {
-    this->visible = visible;
-    return this->visible;
+    return true;
 }
 
-bool Character_generic::getVisible()
+bool TheCube::animateJumpRight()
 {
-    return this->visible;
+    return true;
 }
 
-void Character_generic::draw()
+bool TheCube::animateJumpLeftThroughWall()
+{
+    return true;
+}
+
+bool TheCube::animateJumpRightThroughWall()
+{
+    return true;
+}
+
+void TheCube::expression(ExpressionNames_enum e)
+{
+    this->currentExpression = e;
+}
+
+std::string TheCube::getName()
+{
+    return name;
+}
+
+void TheCube::draw()
 {
     if (!this->visible) {
         return;
@@ -311,42 +216,7 @@ void Character_generic::draw()
     }
 }
 
-std::string Character_generic::getName()
-{
-    return this->name;
-}
-
-bool Character_generic::animateJumpUp()
-{
-    return true;
-}
-
-bool Character_generic::animateJumpLeft()
-{
-    return true;
-}
-
-bool Character_generic::animateJumpRight()
-{
-    return true;
-}
-
-bool Character_generic::animateJumpLeftThroughWall()
-{
-    return true;
-}
-
-bool Character_generic::animateJumpRightThroughWall()
-{
-    return true;
-}
-
-void Character_generic::expression(ExpressionNames_enum e)
-{
-    this->currentExpression = e;
-}
-
-void Character_generic::rotate(float angle, float x, float y, float z)
+void TheCube::rotate(float angle, float x, float y, float z)
 {
     for (auto object : this->objects) {
         glm::vec3 axis = glm::vec3(x, y, z);
@@ -354,7 +224,7 @@ void Character_generic::rotate(float angle, float x, float y, float z)
     }
 }
 
-void Character_generic::translate(float x, float y, float z)
+void TheCube::translate(float x, float y, float z)
 {
     for (auto object : this->objects) {
         glm::vec3 axis = glm::vec3(x, y, z);
@@ -362,7 +232,7 @@ void Character_generic::translate(float x, float y, float z)
     }
 }
 
-void Character_generic::scale(float x, float y, float z)
+void TheCube::scale(float x, float y, float z)
 {
     for (auto object : this->objects) {
         glm::vec3 axis = glm::vec3(x, y, z);
@@ -370,4 +240,24 @@ void Character_generic::scale(float x, float y, float z)
     }
 }
 
-////////////////////////////////////////////////////////////
+CharacterPart* TheCube::getPartByName(std::string name)
+{
+    for (auto part : this->parts) {
+        if (part->name == name) {
+            return part;
+        }
+    }
+    return nullptr;
+}
+
+bool TheCube::setVisible(bool visible)
+{
+    bool temp = this->visible;
+    this->visible = visible;
+    return temp;
+}
+
+bool TheCube::getVisible()
+{
+    return this->visible;
+}

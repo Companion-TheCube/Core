@@ -1,0 +1,34 @@
+{
+    "objects": ["ClosedEyesSmile", "OpenEyesSmile", "TheCubeMain"],
+    "animations": [
+        "anim_funnyBounce",
+        "anim_funnyExpand",
+        "anim_funnyJump",
+        "anim_funnyShrink",
+        "anim_funnySpin",
+        "anim_jumpUp",
+        "anim_jumpLeft",
+        "anim_jumpRight",
+        "anim_jumpLeftThroughWall",
+        "anim_jumpRightThroughWall",
+        "anim_jumpUpThroughCeil"
+    ],
+    "expressions": [
+        "expr_neutral",
+        "expr_happy",
+        "expr_sad",
+        "expr_angry",
+        "expr_frustrated",
+        "expr_surprised",
+        "expr_scared",
+        "expr_disgusted",
+        "expr_dizzy",
+        "expr_sick",
+        "expr_sleepy",
+        "expr_confused",
+        "expr_shocked",
+        "expr_injured",
+        "expr_dead"
+    ],
+    "name": "TheCube"
+}
