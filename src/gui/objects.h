@@ -47,31 +47,7 @@ public:
     virtual void setVisibility(bool visible) = 0;
 };
 
-enum ExpressionNames_enum{
-    NEUTRAL,
-    HAPPY,
-    SAD,
-    ANGRY,
-    FRUSTRATED,
-    SURPRISED,
-    SCARED,
-    DISGUSTED,
-    DIZZY,
-    SICK,
-    SLEEPY,
-    CONFUSED,
-    SHOCKED,
-    INJURED,
-    DEAD,
-    FUNNY_INDEX,
-    FUNNY_BOUNCE,
-    FUNNY_SPIN,
-    FUNNY_SHRINK,
-    FUNNY_EXPAND,
-    FUNNY_JUMP,
-    NULL_EXPRESSION,
-    COUNT
-};  
+
 
 class Object{
     public:
@@ -79,20 +55,6 @@ class Object{
         virtual void draw() = 0;
         virtual bool setVisible(bool visible) = 0;
         virtual bool getVisible() = 0;
-};
-
-class C_Character : public Object{
-    public:
-        virtual ~C_Character(){};
-        virtual bool animateRandomFunny() = 0;
-        virtual bool animateJumpUp() = 0;
-        virtual bool animateJumpLeft() = 0;
-        virtual bool animateJumpRight() = 0;
-        virtual bool animateJumpLeftThroughWall() = 0;
-        virtual bool animateJumpRightThroughWall() = 0;
-        virtual void expression(ExpressionNames_enum) = 0;
-        virtual std::string getName() = 0;
-        virtual bool setVisible(bool visible) = 0;
 };
 
 class M_Box: public Object{

@@ -1,30 +1,16 @@
 #pragma once
-#include <vector>
 #include "objects.h"
+#include <vector>
 // #include "renderables/theCube.h"
-#include "meshObject.h"
-#include "meshLoader.h"
-#include "shapes.h"
-#include <iostream>
+#include "renderables/meshLoader.h"
+#include "renderables/meshObject.h"
+#include "renderables/shapes.h"
 #include "shader.h"
+#include <../database/cubeDB.h>
+#include <iostream>
 #include <logger.h>
+#include <thread>
 
-class CharacterManager{
-    private:
-        std::vector<C_Character*> characters;
-        C_Character* currentCharacter;
-        Shader* shader;
-    public:
-        CharacterManager(Shader* sh);
-        ~CharacterManager();
-        C_Character* getCharacter();
-        void setCharacter(C_Character*);
-        bool loadAppCharacters();
-        bool loadBuiltInCharacters();
-        bool setCharacterByName(std::string name);
-        C_Character* getCharacterByName(std::string name);
-        std::vector<std::string> getCharacterNames();
-};
 
 struct CharacterPart {
     std::string name;
@@ -32,7 +18,7 @@ struct CharacterPart {
     glm::vec3 centerPoint;
 };
 
-class Character_generic : public C_Character {
+class Character_generic : public Object {
 private:
     void rotate(float angle, float x, float y, float z);
     void translate(float x, float y, float z);
@@ -45,22 +31,53 @@ private:
     std::vector<CharacterPart*> parts;
     unsigned long long animationFrame;
     bool visible;
-    ExpressionNames_enum currentExpression;
-    ExpressionNames_enum currentFunnyExpression;
+    Expressions::ExpressionNames_enum currentExpression;
+    Animations::AnimationNames_enum currentAnimationName;
+    Animation* currentAnimation;
+    ExpressionDefinition* currentExpressionDef;
+
 public:
     Character_generic(Shader* sh, std::string folder); // load character data from folder
     Character_generic(Shader* sh, unsigned long id); // load character data from database
     ~Character_generic();
     void draw();
-    bool animateRandomFunny();
-    bool animateJumpUp();
-    bool animateJumpLeft();
-    bool animateJumpRight();
-    bool animateJumpLeftThroughWall();
-    bool animateJumpRightThroughWall();
-    void expression(ExpressionNames_enum);
+    void animate();
+    void expression();
+    void triggerExpression(Expressions::ExpressionNames_enum);
+    void triggerAnimation(Animations::AnimationNames_enum);
     std::string getName();
     CharacterPart* getPartByName(std::string name);
     bool setVisible(bool visible);
     bool getVisible();
+};
+
+class CharacterManager {
+private:
+    std::vector<Character_generic*> characters;
+    Character_generic* currentCharacter;
+    Shader* shader;
+    
+    
+    std::condition_variable animationCV;
+    std::condition_variable expressionCV;
+    bool exitThreads = false;
+    bool animationThreadReady = false;
+    bool expressionThreadReady = false;
+public:
+    std::mutex animationMutex;
+    std::mutex expressionMutex;
+    std::mutex drawMutex;
+    std::condition_variable drawCV;
+    std::jthread* animationThread;
+    std::jthread* expressionThread;
+    CharacterManager(Shader* sh);
+    ~CharacterManager();
+    Character_generic* getCharacter();
+    void setCharacter(Character_generic*);
+    bool loadAppCharacters();
+    bool loadBuiltInCharacters();
+    bool setCharacterByName(std::string name);
+    Character_generic* getCharacterByName(std::string name);
+    std::vector<std::string> getCharacterNames();
+    void triggerAnimationAndExpressionThreads();
 };

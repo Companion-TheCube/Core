@@ -400,7 +400,7 @@ AnimationKeyframe AnimationLoader::loadKeyframe(nlohmann::json keyframe)
     else if (keyframe["type"] == "ROTATE_ABOUT")
         kf.type = AnimationType::ROTATE_ABOUT;
     else
-        throw AnimationLoaderException("Invalid keyframe type: " + keyframe["type"]);
+        throw AnimationLoaderException("Invalid keyframe type.");
     kf.value = keyframe["value"];
     kf.time = keyframe["time"];
     kf.axis = glm::vec3(keyframe["axis"]["x"], keyframe["axis"]["y"], keyframe["axis"]["z"]);
@@ -484,12 +484,52 @@ std::vector<ExpressionDefinition> ExpressionLoader::getAllExpressions()
 
 ExpressionDefinition ExpressionLoader::getExpressionByName(std::string name)
 {
-    for (auto expression : this->expressions) {
-        if (expression.name.compare(name) == 0) {
-            return expression;
+    // Convert name to lowercase
+    std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+
+    // Map from string to Expressions enum
+    static const std::unordered_map<std::string, Expressions::ExpressionNames_enum> nameToExpression = {
+        {"neutral", Expressions::NEUTRAL},
+        {"default", Expressions::NEUTRAL},
+        {"happy", Expressions::HAPPY},
+        {"sad", Expressions::SAD},
+        {"angry", Expressions::ANGRY},
+        {"surprised", Expressions::SURPRISED},
+        {"disgusted", Expressions::DISGUSTED},
+        {"scared", Expressions::SCARED},
+        {"confused", Expressions::CONFUSED},
+        {"dizzy", Expressions::DIZZY},
+        {"sick", Expressions::SICK},
+        {"sleepy", Expressions::SLEEPY},
+        {"confused", Expressions::CONFUSED},
+        {"shocked", Expressions::SHOCKED},
+        {"injured", Expressions::INJURED},
+        {"dead", Expressions::DEAD},
+        {"screaming", Expressions::SCREAMING},
+        {"talking", Expressions::TALKING},
+        {"listening", Expressions::LISTENING},
+        {"sleeping", Expressions::SLEEPING},
+        {"dead", Expressions::DEAD},
+        {"funny_index", Expressions::FUNNY_INDEX},
+        {"funny_bounce", Expressions::FUNNY_BOUNCE},
+        {"funny_spin", Expressions::FUNNY_SPIN},
+        {"funny_shrink", Expressions::FUNNY_SHRINK},
+        {"funny_expand", Expressions::FUNNY_EXPAND},
+        {"funny_jump", Expressions::FUNNY_JUMP},
+    };
+
+    // Find the expression in the map
+    auto it = nameToExpression.find(name);
+    if (it != nameToExpression.end()) {
+        for (auto expression : this->expressions) {
+            if (expression.name == it->second) {
+                return expression;
+            }
         }
     }
-    return { "", "", {}, {} };
+
+    // Default return value if no match is found
+    return { Expressions::NEUTRAL, "", {}, {} };
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

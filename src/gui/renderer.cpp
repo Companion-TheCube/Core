@@ -28,7 +28,7 @@ int Renderer::thread()
     settings.depthBits = 24;
     settings.stencilBits = 8;
     this->window.create(sf::VideoMode(720, 720), "TheCube", sf::Style::None, settings);
-    window.setVerticalSyncEnabled(true);
+    this->window.setVerticalSyncEnabled(true);
     this->window.setFramerateLimit(30);
     glewExperimental = GL_TRUE; // Enable full GLEW functionality
     if (GLEW_OK != glewInit()) {
@@ -63,7 +63,7 @@ int Renderer::thread()
     this->textShader = &textShader;
 
     auto characterManager = new CharacterManager(&edgesShader);
-    C_Character* character = characterManager->getCharacterByName("TheCube"); // TODO: this call should return a nullptr if the character is not found. Then we should throw an error.
+    Character_generic* character = characterManager->getCharacterByName("TheCube"); // TODO: this call should return a nullptr if the character is not found. Then we should throw an error.
     characterManager->setCharacter(character);
     this->setupTasksRun();
     CubeLog::info("Renderer initialized. Starting Loop...");
@@ -81,8 +81,15 @@ int Renderer::thread()
         if (this->running)
             this->loopTasksRun();
         if (characterManager->getCharacter() != nullptr) {
+            // hold here until the animation and expression threads are ready
+            std::unique_lock<std::mutex> lock2(characterManager->animationMutex);
+            std::unique_lock<std::mutex> lock3(characterManager->expressionMutex);
+            lock2.unlock();
+            lock3.unlock();
+
             characterManager->getCharacter()->draw();
-            characterManager->getCharacter()->animateRandomFunny(); // TODO: replace with actual animation system
+
+            characterManager->triggerAnimationAndExpressionThreads();
         }
         for (auto object : this->objects) {
             object->draw();

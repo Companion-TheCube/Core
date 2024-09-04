@@ -6,9 +6,10 @@
 #include <fstream>
 #include <iostream>
 #include <logger.h>
-#include <vector>
-#include <string>
 #include <nlohmann/json.hpp>
+#include <string>
+#include <vector>
+#include <algorithm> 
 
 struct ObjectCollection {
     std::vector<MeshObject*> objects;
@@ -18,6 +19,7 @@ struct ObjectCollection {
 class MeshLoader {
 private:
     std::string folderName;
+
 public:
     std::vector<ObjectCollection*> collections;
     Shader* shader;
@@ -28,6 +30,61 @@ public:
     std::vector<MeshObject*> getObjects();
     std::vector<ObjectCollection*> getCollections();
 };
+
+namespace Expressions {
+enum ExpressionNames_enum {
+    NEUTRAL,
+    HAPPY,
+    SAD,
+    ANGRY,
+    FRUSTRATED,
+    SURPRISED,
+    SCARED,
+    DISGUSTED,
+    DIZZY,
+    SICK,
+    SLEEPY,
+    CONFUSED,
+    SHOCKED,
+    INJURED,
+    DEAD,
+    CRYING,
+    SCREAMING,
+    TALKING,
+    LISTENING,
+    SLEEPING,
+    FUNNY_INDEX,
+    FUNNY_BOUNCE,
+    FUNNY_SPIN,
+    FUNNY_SHRINK,
+    FUNNY_EXPAND,
+    FUNNY_JUMP,
+    NULL_EXPRESSION,
+    COUNT
+};
+}
+
+namespace Animations {
+enum AnimationNames_enum {
+    NEUTRAL,
+    JUMP_RIGHT_THROUGH_WALL,
+    JUMP_LEFT_THROUGH_WALL,
+    JUMP_UP_THROUGH_CEILING,
+    JUMP_RIGHT,
+    JUMP_LEFT,
+    JUMP_UP,
+    JUMP_DOWN,
+    JUMP_FORWARD,
+    JUMP_BACKWARD,
+    FUNNY_INDEX,
+    FUNNY_BOUNCE,
+    FUNNY_SPIN,
+    FUNNY_SHRINK,
+    FUNNY_EXPAND,
+    FUNNY_JUMP,
+    COUNT
+};
+}
 
 enum AnimationType {
     TRANSLATE, // uses type, axis, and time
@@ -47,7 +104,7 @@ struct AnimationKeyframe {
 };
 
 struct Animation {
-    std::string name;
+    Animations::AnimationNames_enum name;
     std::string expression;
     std::vector<AnimationKeyframe> keyframes;
 };
@@ -62,6 +119,7 @@ private:
     std::vector<std::string> getAnimationNames();
     AnimationKeyframe loadKeyframe(nlohmann::json keyframe);
     std::string folderName;
+
 public:
     AnimationLoader(std::string folderName, std::vector<std::string> animationNames);
     ~AnimationLoader();
@@ -72,13 +130,14 @@ class AnimationLoaderException : public std::exception {
 private:
     static int count;
     std::string message;
+
 public:
     AnimationLoaderException(std::string message);
     const char* what() const throw();
 };
 
 struct ExpressionDefinition {
-    std::string name;
+    Expressions::ExpressionNames_enum name;
     std::string expression;
     std::vector<std::string> objects;
     std::vector<bool> visibility;
@@ -91,6 +150,7 @@ private:
     std::vector<ExpressionDefinition> loadExpressions(std::vector<std::string> fileNames);
     std::vector<ExpressionDefinition> expressions;
     std::string folderName;
+
 public:
     ExpressionLoader(std::string folderName, std::vector<std::string> expressionNames);
     ~ExpressionLoader();

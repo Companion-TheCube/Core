@@ -1,15 +1,52 @@
 #include "characterManager.h"
 
+// TODO: Character manager needs some static methods that handle changing / triggering animations and expressions.
+// These methods should be called from the GUI and should be able to handle any character that is loaded.
 CharacterManager::CharacterManager(Shader* sh)
 {
     this->shader = sh;
     CubeLog::info("CharacterManager Started. Loading built-in characters.");
-    this->loadBuiltInCharacters();
+    if (this->loadBuiltInCharacters()) {
+        CubeLog::info("Built-in characters loaded.");
+    } else {
+        CubeLog::error("Failed to load one or more built-in characters.");
+    }
     CubeLog::info("Built-in characters loaded. Loading app characters.");
     if (!this->loadAppCharacters()) {
         CubeLog::info("No app characters found.");
     }
     CubeLog::info("All characters loaded. Character manager ready.");
+
+    this->animationThread = new std::jthread([&]() {
+        while (true) {
+            std::unique_lock<std::mutex> lock(this->animationMutex);
+            this->animationCV.wait(lock, [&] { return this->animationThreadReady || this->exitThreads; });
+            if (this->exitThreads) {
+                break;
+            }
+            this->animationThreadReady = false;
+            lock.unlock();
+            this->drawCV.notify_one();
+
+            CubeLog::critical("CharacterManager::animationThread: Calling animate()");
+            this->getCharacter()->animate();
+        }
+    });
+    this->expressionThread = new std::jthread([&]() {
+        while (true) {
+            std::unique_lock<std::mutex> lock(this->expressionMutex);
+            this->expressionCV.wait(lock, [&] { return this->expressionThreadReady || this->exitThreads; });
+            if (this->exitThreads) {
+                break;
+            }
+            this->expressionThreadReady = false;
+            lock.unlock();
+            this->drawCV.notify_one();
+
+            CubeLog::critical("CharacterManager::expressionThread: Calling expression()");
+            this->getCharacter()->expression();
+        }
+    });
 }
 
 CharacterManager::~CharacterManager()
@@ -17,14 +54,22 @@ CharacterManager::~CharacterManager()
     for (auto character : this->characters) {
         delete character;
     }
+
+    this->animationMutex.lock();
+    this->expressionMutex.lock();
+    this->exitThreads = true;
+    this->animationCV.notify_one();
+    this->expressionCV.notify_one();
+    this->animationThread->join();
+    this->expressionThread->join();
 }
 
-C_Character* CharacterManager::getCharacter()
+Character_generic* CharacterManager::getCharacter()
 {
     return this->currentCharacter;
 }
 
-void CharacterManager::setCharacter(C_Character* character)
+void CharacterManager::setCharacter(Character_generic* character)
 {
     this->currentCharacter = character;
 }
@@ -38,8 +83,11 @@ bool CharacterManager::loadAppCharacters()
 
 bool CharacterManager::loadBuiltInCharacters()
 {
+    // TODO: There should be a list of built in characters in the database that we can load.
+    // Then, we load the characters and if one fails or is not found, we return false.
+    // For now, we will just load TheCube.
     this->characters.push_back(new Character_generic(this->shader, "Character_TheCube"));
-    return false;
+    return true;
 }
 
 bool CharacterManager::setCharacterByName(std::string name)
@@ -47,7 +95,7 @@ bool CharacterManager::setCharacterByName(std::string name)
     return false;
 }
 
-C_Character* CharacterManager::getCharacterByName(std::string name)
+Character_generic* CharacterManager::getCharacterByName(std::string name)
 {
     for (auto character : this->characters) {
         if (character->getName().compare(name) == 0) {
@@ -70,11 +118,21 @@ std::vector<std::string> CharacterManager::getCharacterNames()
     return names;
 }
 
-////////////////////////////////////////////////////////////
+void CharacterManager::triggerAnimationAndExpressionThreads()
+{
+    std::lock_guard<std::mutex> lock(this->animationMutex);
+    std::lock_guard<std::mutex> lock2(this->expressionMutex);
+    this->expressionThreadReady = true;
+    this->animationThreadReady = true;
+    this->animationCV.notify_one();
+    this->expressionCV.notify_one();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
  * @brief Construct a new Character:: Character object
- * 
+ *
  * @param sh The shader to use
  * @param folder The folder to load the character from
  */
@@ -83,8 +141,8 @@ Character_generic::Character_generic(Shader* sh, std::string folder)
     this->shader = sh;
     this->visible = false;
     this->animationFrame = 0;
-    this->currentExpression = ExpressionNames_enum::NEUTRAL;
-    this->currentFunnyExpression = ExpressionNames_enum::FUNNY_INDEX;
+    this->currentExpression = Expressions::NEUTRAL;
+    this->currentAnimation = nullptr;
 
     // Load character.json from the folder. This file should contain the list of objects, animations and expressions to load.
     std::ifstream file("meshes/" + folder + "/character.json");
@@ -93,14 +151,14 @@ Character_generic::Character_generic(Shader* sh, std::string folder)
         return;
     }
     nlohmann::json json;
-    try{
+    try {
         file >> json;
     } catch (nlohmann::json::parse_error& e) {
         CubeLog::error("Failed to parse " + folder + "/character.json");
         CubeLog::error(e.what());
         return;
     }
-    
+
     // The "objects" key should contain an array of object filenames to load
     std::vector<std::string> objectsToLoad;
     for (auto object : json["objects"]) {
@@ -109,19 +167,19 @@ Character_generic::Character_generic(Shader* sh, std::string folder)
 
     // The "animations" key should contain an array of animation filenames to load
     std::vector<std::string> animationsToLoad;
-    for( auto animation : json["animations"]) {
+    for (auto animation : json["animations"]) {
         animationsToLoad.push_back(animation);
     }
-    
+
     // The "expressions" key should contain an array of expression filenames to load
     std::vector<std::string> expressionsToLoad;
-    for(auto expression : json["expressions"]) {
+    for (auto expression : json["expressions"]) {
         expressionsToLoad.push_back(expression);
     }
 
     auto meshLoader = new MeshLoader(this->shader, folder, objectsToLoad);
 
-    for(auto collection : meshLoader->collections) {
+    for (auto collection : meshLoader->collections) {
         this->parts.push_back(new CharacterPart());
         this->parts.at(this->parts.size() - 1)->name = collection->name;
         // average the center points of all objects in the collection
@@ -175,109 +233,60 @@ Character_generic::~Character_generic()
     }
 }
 
-bool Character_generic::animateRandomFunny()
+void Character_generic::animate()
 {
-    if (this->currentFunnyExpression == ExpressionNames_enum::FUNNY_INDEX) {
-        // Randomly select a funny expression
-        // int random = rand() % 5;
-        int random = 0;
-        switch (random) {
-        case 0:
-            this->currentFunnyExpression = ExpressionNames_enum::FUNNY_BOUNCE;
-            CubeLog::info("Bounce Animation selected");
-            break;
-        case 1:
-            this->currentFunnyExpression = ExpressionNames_enum::FUNNY_EXPAND;
-            CubeLog::info("Expand Animation selected");
-            break;
-        case 2:
-            this->currentFunnyExpression = ExpressionNames_enum::FUNNY_JUMP;
-            CubeLog::info("Jump Animation selected");
-            break;
-        case 3:
-            this->currentFunnyExpression = ExpressionNames_enum::FUNNY_SHRINK;
-            CubeLog::info("Shrink Animation selected");
-            break;
-        case 4:
-            this->currentFunnyExpression = ExpressionNames_enum::FUNNY_SPIN;
-            CubeLog::info("Spin Animation selected");
-            break;
-        default:
-            this->currentFunnyExpression = ExpressionNames_enum::FUNNY_BOUNCE;
-            CubeLog::info("Bounce Animation selected (default)");
-            break;
-        }
-        this->animationFrame = 0;
-    }
+    // 1. If the current animation is nullptr or AnimationNames_enum::NUEUTRAL, return true
+    //
 
-    switch (this->currentFunnyExpression) {
-    case ExpressionNames_enum::FUNNY_BOUNCE: {
-        // TODO: Implement bounce animation. Return true when animation is complete.
-        // 1. scale x,z up while translating y down in order to keep the bottom of the TheCube on the ground
-        // 2. scale x,z down while translating y up to return to original position
-        // 3. translate y up to simulate a bounce
-        // 4. translate y down to return to original position
-        // 5. scale x,z up while translating y down in order to keep the bottom of the TheCube on the ground
-        // 6. scale x,z down while translating y up to return to original position
-        //
-        // set this->currenFunnyExpression to FUNNY_INDEX when the animation is complete
+    // The below is old. Remove at some point.
+    // TODO: Implement bounce animation. Return true when animation is complete.
+    // 1. scale x,z up while translating y down in order to keep the bottom of the TheCube on the ground
+    // 2. scale x,z down while translating y up to return to original position
+    // 3. translate y up to simulate a bounce
+    // 4. translate y down to return to original position
+    // 5. scale x,z up while translating y down in order to keep the bottom of the TheCube on the ground
+    // 6. scale x,z down while translating y up to return to original position
+    //
+    // set this->currenFunnyExpression to FUNNY_INDEX when the animation is complete
 
-        if(this->getPartByName("OpenEyesSmile") == nullptr || this->getPartByName("ClosedEyesSmile") == nullptr) {
-            CubeLog::error("Failed to find OpenEyesSmile or ClosedEyesSmile");
-            return true;
-        }
-        this->animationFrame++;
-        if (this->animationFrame % 300 == 0) {
-            for (auto object : this->getPartByName("OpenEyesSmile")->objects) {
-                object->setVisibility(false);
-            }
-            for (auto object : this->getPartByName("ClosedEyesSmile")->objects) {
-                object->setVisibility(true);
-            }
-        }
-        if ((this->animationFrame % 300) - 15 == 0) {
-            for (auto object : this->getPartByName("OpenEyesSmile")->objects) {
-                object->setVisibility(true);
-            }
-            for (auto object : this->getPartByName("ClosedEyesSmile")->objects) {
-                object->setVisibility(false);
-            }
-        }
-        // this->animationFrame continuously counts up. We need to calculate an angle based on this frame
-        // count that results in a smooth animation. We can use sin() to achieve this.
-        float angle = sin(glm::radians((double)(this->animationFrame) + 90));
-        float angleDegrees = glm::degrees(angle);
-        for (auto object : this->objects) {
-            object->rotateAbout(angleDegrees / 70, glm::vec3(0.0f, 1.0f, 0.0f), this->objects.at(1)->getCenterPoint());
-        }
-        if (fmod(this->animationFrame, 360.f) < 0.2) {
-            // reset all the objects positions to prevent drift
-            for (auto object : this->objects)
-                object->restorePosition();
-        }
-    }
+    // if(this->getPartByName("OpenEyesSmile") == nullptr || this->getPartByName("ClosedEyesSmile") == nullptr) {
+    //     CubeLog::error("Failed to find OpenEyesSmile or ClosedEyesSmile");
+    //     return true;
+    // }
+    // this->animationFrame++;
+    // if (this->animationFrame % 300 == 0) {
+    //     for (auto object : this->getPartByName("OpenEyesSmile")->objects) {
+    //         object->setVisibility(false);
+    //     }
+    //     for (auto object : this->getPartByName("ClosedEyesSmile")->objects) {
+    //         object->setVisibility(true);
+    //     }
+    // }
+    // if ((this->animationFrame % 300) - 15 == 0) {
+    //     for (auto object : this->getPartByName("OpenEyesSmile")->objects) {
+    //         object->setVisibility(true);
+    //     }
+    //     for (auto object : this->getPartByName("ClosedEyesSmile")->objects) {
+    //         object->setVisibility(false);
+    //     }
+    // }
+    // this->animationFrame continuously counts up. We need to calculate an angle based on this frame
+    // count that results in a smooth animation. We can use sin() to achieve this.
+    // float angle = sin(glm::radians((double)(this->animationFrame) + 90));
+    // float angleDegrees = glm::degrees(angle);
+    // for (auto object : this->objects) {
+    //     object->rotateAbout(angleDegrees / 70, glm::vec3(0.0f, 1.0f, 0.0f), this->objects.at(1)->getCenterPoint());
+    // }
+    // if (fmod(this->animationFrame, 360.f) < 0.2) {
+    //     // reset all the objects positions to prevent drift
+    //     for (auto object : this->objects)
+    //         object->restorePosition();
+    // }
+}
 
-        return false;
-    case ExpressionNames_enum::FUNNY_EXPAND:
-        // TODO: Implement expand animation. Return true when animation is complete.
-        // set this->currenFunnyExpression to FUNNY_INDEX when the animation is complete
-        return false;
-    case ExpressionNames_enum::FUNNY_JUMP:
-        // TODO: Implement jump animation. Return true when animation is complete.
-        // set this->currenFunnyExpression to FUNNY_INDEX when the animation is complete
-        return false;
-    case ExpressionNames_enum::FUNNY_SHRINK:
-        // TODO: Implement shrink animation. Return true when animation is complete.
-        // set this->currenFunnyExpression to FUNNY_INDEX when the animation is complete
-        return false;
-    case ExpressionNames_enum::FUNNY_SPIN:
-        // TODO: Implement spin animation. Return true when animation is complete.
-        // set this->currenFunnyExpression to FUNNY_INDEX when the animation is complete
-        return false;
-    default:
-        // set this->currenFunnyExpression to FUNNY_INDEX
-        return true;
-    }
+void Character_generic::expression()
+{
+    // TODO: do the stuff that needs to be done to change the expression of the character based on the currentExpression
 }
 
 CharacterPart* Character_generic::getPartByName(std::string name)
@@ -316,36 +325,6 @@ std::string Character_generic::getName()
     return this->name;
 }
 
-bool Character_generic::animateJumpUp()
-{
-    return true;
-}
-
-bool Character_generic::animateJumpLeft()
-{
-    return true;
-}
-
-bool Character_generic::animateJumpRight()
-{
-    return true;
-}
-
-bool Character_generic::animateJumpLeftThroughWall()
-{
-    return true;
-}
-
-bool Character_generic::animateJumpRightThroughWall()
-{
-    return true;
-}
-
-void Character_generic::expression(ExpressionNames_enum e)
-{
-    this->currentExpression = e;
-}
-
 void Character_generic::rotate(float angle, float x, float y, float z)
 {
     for (auto object : this->objects) {
@@ -367,6 +346,28 @@ void Character_generic::scale(float x, float y, float z)
     for (auto object : this->objects) {
         glm::vec3 axis = glm::vec3(x, y, z);
         object->scale(axis);
+    }
+}
+
+void Character_generic::triggerAnimation(Animations::AnimationNames_enum name)
+{
+    for (auto animation : this->animations) {
+        if (animation.name == name) {
+            this->currentAnimation = &animation;
+            this->currentAnimationName = name;
+            return;
+        }
+    }
+}
+
+void Character_generic::triggerExpression(Expressions::ExpressionNames_enum e)
+{
+    for (auto expression : this->expressions) {
+        if (expression.name == e) {
+            this->currentExpression = e;
+            this->currentExpressionDef = &expression;
+            return;
+        }
     }
 }
 
