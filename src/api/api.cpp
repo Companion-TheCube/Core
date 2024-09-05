@@ -5,14 +5,14 @@
 #include "api.h"
 
 /**
- * @brief Construct a new API::API object
+ * @brief Construct a new API::API object. This creates a new CubeAuth object for authentication.
  *
  */
 API::API()
 {
     this->endpoints = std::vector<Endpoint*>();
     this->auth = new CubeAuth();
-    //// TESTING AUTHENTICATION ////
+    // TODO: // TESTING AUTHENTICATION ////
     std::pair<std::string, std::string> keys = auth->generateKeyPair();
     CubeLog::info("Public key: " + keys.first);
     CubeLog::info("Private key: " + keys.second);
@@ -37,7 +37,7 @@ API::~API()
 }
 
 /**
- * @brief Start the API. This starts the API listener thread and the HTTP server.
+ * @brief Start the API. Starts the API listener thread and the HTTP server.
  *
  */
 void API::start()
@@ -76,7 +76,7 @@ void API::restart()
 }
 
 /**
- * @brief Add an endpoint to the API. This creates a new endpoint object and adds it to the list of endpoints.
+ * @brief Add an endpoint to the API. Creates a new endpoint object and adds it to the list of endpoints.
  *
  * @param name the name of the endpoint
  * @param path the path of the endpoint
@@ -141,7 +141,7 @@ bool API::removeEndpoint(std::string name)
 
 /**
  * @brief The API listener thread function. This function is called when the API listener thread is started and runs until the thread API listener thread is stopped.
- * Expected to started as a std::jthread.
+ * Expected to be started as a std::jthread.
  *
  */
 void API::httpApiThreadFn()

@@ -1,15 +1,27 @@
 #include "builder.h"
-
+/**
+ * @brief Construct a new api builder::api builder object
+ * 
+ * @param api - An instance of the API object as a shared pointer
+ */
 API_Builder::API_Builder(std::shared_ptr<API> api)
 {
     this->api = api;
 }
 
+/**
+ * @brief Destroy the API Builder::API Builder object
+ * 
+ */
 API_Builder::~API_Builder()
 {
     CubeLog::info("API Builder destroyed");
 }
 
+/**
+ * @brief Start the API builder process. This will build all the endpoints and start the API.
+ * 
+ */
 void API_Builder::start()
 {
     // Start the API

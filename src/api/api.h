@@ -69,6 +69,7 @@ private:
     CubeHttpServer *server;
     std::vector<std::pair<std::string, bool>> endpointTriggers;
     CubeAuth *auth;
+    void httpApiThreadFn();
 public:
     API();
     ~API();
@@ -79,6 +80,5 @@ public:
     std::vector<Endpoint*> getEndpoints();
     Endpoint* getEndpointByName(std::string name);
     bool removeEndpoint(std::string name);
-    void httpApiThreadFn();
 };
 
