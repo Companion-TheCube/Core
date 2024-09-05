@@ -28,7 +28,7 @@ CharacterManager::CharacterManager(Shader* sh)
             lock.unlock();
             this->drawCV.notify_one();
 
-            CubeLog::critical("CharacterManager::animationThread: Calling animate()");
+            // CubeLog::critical("CharacterManager::animationThread: Calling animate()");
             this->getCharacter()->animate();
         }
     });
@@ -43,7 +43,7 @@ CharacterManager::CharacterManager(Shader* sh)
             lock.unlock();
             this->drawCV.notify_one();
 
-            CubeLog::critical("CharacterManager::expressionThread: Calling expression()");
+            // CubeLog::critical("CharacterManager::expressionThread: Calling expression()");
             this->getCharacter()->expression();
         }
     });
@@ -87,6 +87,7 @@ bool CharacterManager::loadBuiltInCharacters()
     // Then, we load the characters and if one fails or is not found, we return false.
     // For now, we will just load TheCube.
     this->characters.push_back(new Character_generic(this->shader, "Character_TheCube"));
+    // this->getCharacter()->triggerAnimation(Animations::NEUTRAL);
     return true;
 }
 
@@ -142,7 +143,9 @@ Character_generic::Character_generic(Shader* sh, std::string folder)
     this->visible = false;
     this->animationFrame = 0;
     this->currentExpression = Expressions::NEUTRAL;
-    this->currentAnimation = nullptr;
+    this->currentExpressionDef = { Expressions::ExpressionNames_enum::COUNT, "", {}, {} };
+    this->currentAnimation = { Animations::AnimationNames_enum::COUNT, "", {} };
+    this->currentAnimationName = Animations::NEUTRAL;
 
     // Load character.json from the folder. This file should contain the list of objects, animations and expressions to load.
     std::ifstream file("meshes/" + folder + "/character.json");
@@ -150,9 +153,9 @@ Character_generic::Character_generic(Shader* sh, std::string folder)
         CubeLog::error("Failed to open " + folder + "/character.json");
         return;
     }
-    nlohmann::json json;
+    nlohmann::json characterData;
     try {
-        file >> json;
+        file >> characterData;
     } catch (nlohmann::json::parse_error& e) {
         CubeLog::error("Failed to parse " + folder + "/character.json");
         CubeLog::error(e.what());
@@ -161,19 +164,19 @@ Character_generic::Character_generic(Shader* sh, std::string folder)
 
     // The "objects" key should contain an array of object filenames to load
     std::vector<std::string> objectsToLoad;
-    for (auto object : json["objects"]) {
+    for (auto object : characterData["objects"]) {
         objectsToLoad.push_back(object);
     }
 
     // The "animations" key should contain an array of animation filenames to load
     std::vector<std::string> animationsToLoad;
-    for (auto animation : json["animations"]) {
+    for (auto animation : characterData["animations"]) {
         animationsToLoad.push_back(animation);
     }
 
     // The "expressions" key should contain an array of expression filenames to load
     std::vector<std::string> expressionsToLoad;
-    for (auto expression : json["expressions"]) {
+    for (auto expression : characterData["expressions"]) {
         expressionsToLoad.push_back(expression);
     }
 
@@ -200,28 +203,92 @@ Character_generic::Character_generic(Shader* sh, std::string folder)
         this->parts.at(this->parts.size() - 1)->centerPoint = glm::vec3(x, y, z);
     }
 
-    auto animationLoader = new AnimationLoader(folder, animationsToLoad);
-    for (auto animation : animationLoader->getAnimations()) {
-        this->animations.push_back(animation);
+    this->animationLoader = new AnimationLoader(folder, animationsToLoad);    
+    this->expressionLoader = new ExpressionLoader(folder, expressionsToLoad);
+
+    float x, y, z;
+    try{
+        x = characterData["initPos"]["x"];
+        y = characterData["initPos"]["y"];
+        z = characterData["initPos"]["z"];
+    } catch (nlohmann::json::exception& e) {
+        CubeLog::error("Character_generic: Failed to load character position from file: " + folder + "/character.json");
+        CubeLog::error(e.what());
+        x = 0.0f;
+        y = 0.0f;
+        z = 0.0f;
+    } catch (std::exception& e) {
+        CubeLog::error("Character_generic: Failed to load character position from file: " + folder + "/character.json");
+        CubeLog::error(e.what());
+        x = 0.0f;
+        y = 0.0f;
+        z = 0.0f;
+    }
+    for(auto object : this->objects) {
+        object->translate(glm::vec3(x, y, z));
     }
 
-    auto expressionLoader = new ExpressionLoader(folder, expressionsToLoad);
-    for (auto expression : expressionLoader->getAllExpressions()) {
-        this->expressions.push_back(expression);
+    try{
+        x = characterData["initScale"]["x"];
+        y = characterData["initScale"]["y"];
+        z = characterData["initScale"]["z"];
+    } catch (nlohmann::json::exception& e) {
+        CubeLog::error("Character_generic: Failed to load character scale from file: " + folder + "/character.json");
+        CubeLog::error(e.what());
+        x = 1.0f;
+        y = 1.0f;
+        z = 1.0f;
+    } catch (std::exception& e) {
+        CubeLog::error("Character_generic: Failed to load character scale from file: " + folder + "/character.json");
+        CubeLog::error(e.what());
+        x = 1.0f;
+        y = 1.0f;
+        z = 1.0f;
+    }
+    for(auto object : this->objects) {
+        object->scale(glm::vec3(x, y, z));
     }
 
-    // set object to initial position
-    for (auto object : this->objects) {
-        object->translate(glm::vec3(1.9f, -2.5f, -10.0f));
-        object->uniformScale(5.f);
-        object->rotate(-80.f, glm::vec3(0.0f, 1.0f, 0.0f));
+    float val;
+    try{
+        x = characterData["initRot"]["x"];
+        y = characterData["initRot"]["y"];
+        z = characterData["initRot"]["z"];
+        val = characterData["initRot"]["value"];
+    } catch (nlohmann::json::exception& e) {
+        CubeLog::error("Character_generic: Failed to load character rotation from file: " + folder + "/character.json");
+        CubeLog::error(e.what());
+        x = 0.0f;
+        y = 0.0f;
+        z = 0.0f;
+        val = 0.f;
+    } catch (std::exception& e) {
+        CubeLog::error("Character_generic: Failed to load character rotation from file: " + folder + "/character.json");
+        CubeLog::error(e.what());
+        x = 0.0f;
+        y = 0.0f;
+        z = 0.0f;
+        val = 0.f;
+    }
+    for(auto object : this->objects) {
+        object->rotate(val, glm::vec3(x, y, z));
     }
 
     for (auto object : this->objects) {
         object->capturePosition();
     }
 
-    this->name = json["name"];
+    try{
+        this->name = characterData["name"];
+    } catch (nlohmann::json::exception& e) {
+        CubeLog::error("Character_generic: Failed to load character name from file: " + folder + "/character.json");
+        CubeLog::error(e.what());
+        this->name = "unknown";
+    } catch (std::exception& e) {
+        CubeLog::error("Character_generic: Failed to load character name from file: " + folder + "/character.json");
+        CubeLog::error(e.what());
+        this->name = "unknown";
+    }
 
     CubeLog::info("Created character " + this->name);
 }
@@ -235,53 +302,76 @@ Character_generic::~Character_generic()
 
 void Character_generic::animate()
 {
-    // 1. If the current animation is nullptr or AnimationNames_enum::NUEUTRAL, return true
-    //
-
-    // The below is old. Remove at some point.
-    // TODO: Implement bounce animation. Return true when animation is complete.
-    // 1. scale x,z up while translating y down in order to keep the bottom of the TheCube on the ground
-    // 2. scale x,z down while translating y up to return to original position
-    // 3. translate y up to simulate a bounce
-    // 4. translate y down to return to original position
-    // 5. scale x,z up while translating y down in order to keep the bottom of the TheCube on the ground
-    // 6. scale x,z down while translating y up to return to original position
-    //
-    // set this->currenFunnyExpression to FUNNY_INDEX when the animation is complete
-
-    // if(this->getPartByName("OpenEyesSmile") == nullptr || this->getPartByName("ClosedEyesSmile") == nullptr) {
-    //     CubeLog::error("Failed to find OpenEyesSmile or ClosedEyesSmile");
-    //     return true;
-    // }
-    // this->animationFrame++;
-    // if (this->animationFrame % 300 == 0) {
-    //     for (auto object : this->getPartByName("OpenEyesSmile")->objects) {
-    //         object->setVisibility(false);
-    //     }
-    //     for (auto object : this->getPartByName("ClosedEyesSmile")->objects) {
-    //         object->setVisibility(true);
-    //     }
-    // }
-    // if ((this->animationFrame % 300) - 15 == 0) {
-    //     for (auto object : this->getPartByName("OpenEyesSmile")->objects) {
-    //         object->setVisibility(true);
-    //     }
-    //     for (auto object : this->getPartByName("ClosedEyesSmile")->objects) {
-    //         object->setVisibility(false);
-    //     }
-    // }
-    // this->animationFrame continuously counts up. We need to calculate an angle based on this frame
-    // count that results in a smooth animation. We can use sin() to achieve this.
-    // float angle = sin(glm::radians((double)(this->animationFrame) + 90));
-    // float angleDegrees = glm::degrees(angle);
-    // for (auto object : this->objects) {
-    //     object->rotateAbout(angleDegrees / 70, glm::vec3(0.0f, 1.0f, 0.0f), this->objects.at(1)->getCenterPoint());
-    // }
-    // if (fmod(this->animationFrame, 360.f) < 0.2) {
-    //     // reset all the objects positions to prevent drift
-    //     for (auto object : this->objects)
-    //         object->restorePosition();
-    // }
+    // get a high accuracy time point
+    // std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
+    std::lock_guard<std::mutex> lock(this->currentMutex);
+    if (this->currentAnimationName == Animations::AnimationNames_enum::COUNT || this->nextAnimationName != Animations::AnimationNames_enum::COUNT) {
+        CubeLog::info("Character_generic::animate: No current animation. Setting animation to NEUTRAL");
+        std::lock_guard<std::mutex> lock(this->nextMutex);
+        this->currentAnimation = this->nextAnimation;
+        this->currentAnimationName = this->nextAnimationName;
+        this->nextAnimation = { Animations::AnimationNames_enum::COUNT, "", {} };
+        this->nextAnimationName = Animations::AnimationNames_enum::COUNT;
+        this->animationFrame = 0;
+    }
+    bool foundKeyframe = false;
+    for (auto keyframe : this->currentAnimation.keyframes) {
+        if (keyframe.timeStart <= this->animationFrame && keyframe.timeEnd > this->animationFrame) {
+            foundKeyframe = true;
+            double f = this->animationFrame;
+            double s = keyframe.timeStart;
+            double e = keyframe.timeEnd;
+            double f_normal = (f - s) / (e - s);
+            double f2_normal = (f>0)?(f - s - 1) / (e - s):0.f;
+            double fn_eased = keyframe.easingFunction(f_normal);
+            double fn2_eased = keyframe.easingFunction(f2_normal);
+            double calcValue = (double)keyframe.value * (fn_eased - fn2_eased);
+            switch (keyframe.type) {
+            case Animations::TRANSLATE:
+                {
+                    this->translate(keyframe.axis.x * calcValue, keyframe.axis.y * calcValue, keyframe.axis.z * calcValue);
+                    break;
+                }
+            case Animations::ROTATE:
+                {
+                    this->rotate(calcValue, keyframe.axis.x, keyframe.axis.y, keyframe.axis.z);
+                    break;
+                }
+            case Animations::SCALE_XYZ:
+                {
+                    calcValue = calcValue + 1.f;
+                    this->scale((keyframe.axis.x>0?1*calcValue:1) , (keyframe.axis.y>0?1*calcValue:1), (keyframe.axis.z>0?1*calcValue:1));
+                    break;
+                }
+            case Animations::UNIFORM_SCALE:
+                {
+                    this->scale(calcValue, calcValue, calcValue);
+                    break;
+                }
+            case Animations::ROTATE_ABOUT:
+                {
+                    for(auto object : this->objects) {
+                        object->rotateAbout(calcValue, keyframe.axis, keyframe.point );
+                    }
+                    break;
+                }
+            default:
+                CubeLog::error("Character_generic::animate: Invalid animation type");
+                break;
+            }
+        }
+    }
+    this->animationFrame++;
+    if(!foundKeyframe) {
+        this->triggerAnimation(Animations::NEUTRAL);
+        this->animationFrame = 0;
+        for(auto object : this->objects) {
+            object->restorePosition();
+        }
+    }
+    // std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
+    // std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
+    // CubeLog::info("Character_generic::animate: Animation took " + std::to_string(time_span.count()) + " seconds."); // about 0.000030 seconds
 }
 
 void Character_generic::expression()
@@ -328,33 +418,31 @@ std::string Character_generic::getName()
 void Character_generic::rotate(float angle, float x, float y, float z)
 {
     for (auto object : this->objects) {
-        glm::vec3 axis = glm::vec3(x, y, z);
-        object->rotate(angle, axis);
+        object->rotate(angle, glm::vec3(x, y, z));
     }
 }
 
 void Character_generic::translate(float x, float y, float z)
 {
     for (auto object : this->objects) {
-        glm::vec3 axis = glm::vec3(x, y, z);
-        object->translate(axis);
+        object->translate(glm::vec3(x, y, z));
     }
 }
 
 void Character_generic::scale(float x, float y, float z)
 {
     for (auto object : this->objects) {
-        glm::vec3 axis = glm::vec3(x, y, z);
-        object->scale(axis);
+        object->scale(glm::vec3(x, y, z));
     }
 }
 
 void Character_generic::triggerAnimation(Animations::AnimationNames_enum name)
 {
-    for (auto animation : this->animations) {
+    std::lock_guard<std::mutex> lock(this->nextMutex);
+    for (auto animation : this->animationLoader->getAnimationsVector()) {
         if (animation.name == name) {
-            this->currentAnimation = &animation;
-            this->currentAnimationName = name;
+            this->nextAnimation = this->animationLoader->getAnimationByEnum(name);
+            this->nextAnimationName = name;
             return;
         }
     }
@@ -362,10 +450,11 @@ void Character_generic::triggerAnimation(Animations::AnimationNames_enum name)
 
 void Character_generic::triggerExpression(Expressions::ExpressionNames_enum e)
 {
-    for (auto expression : this->expressions) {
+    std::lock_guard<std::mutex> lock(this->nextMutex);
+    for (auto expression : this->expressionLoader->getExpressionsVector()) {
         if (expression.name == e) {
-            this->currentExpression = e;
-            this->currentExpressionDef = &expression;
+            this->nextExpression = e;
+            this->nextExpressionDef = this->expressionLoader->getExpressionByEnum(e);
             return;
         }
     }

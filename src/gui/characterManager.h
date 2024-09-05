@@ -26,16 +26,21 @@ private:
     std::string name;
     Shader* shader;
     std::vector<MeshObject*> objects;
-    std::vector<Animation> animations;
-    std::vector<ExpressionDefinition> expressions;
+    AnimationLoader* animationLoader;
+    ExpressionLoader* expressionLoader;
     std::vector<CharacterPart*> parts;
     unsigned long long animationFrame;
     bool visible;
     Expressions::ExpressionNames_enum currentExpression;
+    Expressions::ExpressionNames_enum nextExpression;
     Animations::AnimationNames_enum currentAnimationName;
-    Animation* currentAnimation;
-    ExpressionDefinition* currentExpressionDef;
-
+    Animations::AnimationNames_enum nextAnimationName;
+    Animation currentAnimation;
+    Animation nextAnimation;
+    ExpressionDefinition currentExpressionDef;
+    ExpressionDefinition nextExpressionDef;
+    std::mutex currentMutex;
+    std::mutex nextMutex;
 public:
     Character_generic(Shader* sh, std::string folder); // load character data from folder
     Character_generic(Shader* sh, unsigned long id); // load character data from database

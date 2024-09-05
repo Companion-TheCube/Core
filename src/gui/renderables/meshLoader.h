@@ -84,21 +84,22 @@ enum AnimationNames_enum {
     FUNNY_JUMP,
     COUNT
 };
-}
 
 enum AnimationType {
-    TRANSLATE, // uses type, axis, and time
-    ROTATE, // uses type, axis, and time
-    SCALE_XYZ, // uses type, axis, and time
+    TRANSLATE, // uses type, value, axis, and time
+    ROTATE, // uses type, value, axis, and time
+    SCALE_XYZ, // uses type, value, axis, and time
     UNIFORM_SCALE, // uses type, value, and time
-    ROTATE_ABOUT // uses type, axis, point, and time
+    ROTATE_ABOUT // uses type, value, point, and time
 };
+}
 
 struct AnimationKeyframe {
-    AnimationType type;
+    Animations::AnimationType type;
     float value;
-    unsigned int time; // in frames
-    std::function<float(float)> easingFunction;
+    unsigned int timeStart; // in frames
+    unsigned int timeEnd; // in frames
+    std::function<double(double)> easingFunction;
     glm::vec3 axis;
     glm::vec3 point; // relative to the object's center
 };
@@ -111,19 +112,21 @@ struct Animation {
 
 class AnimationLoader {
 private:
-    std::vector<Animation> animations;
-    std::vector<std::string> animationNames;
+    std::map<Animations::AnimationNames_enum, Animation> animationsMap;
     std::vector<std::string> getFileNames();
-    std::vector<Animation> loadAnimations(std::vector<std::string> fileNames);
+    void loadAnimations(std::vector<std::string> fileNames);
     Animation loadAnimation(std::string fileName);
-    std::vector<std::string> getAnimationNames();
     AnimationKeyframe loadKeyframe(nlohmann::json keyframe);
     std::string folderName;
 
 public:
-    AnimationLoader(std::string folderName, std::vector<std::string> animationNames);
+    AnimationLoader(std::string folderName, std::vector<std::string> animationFileNames);
     ~AnimationLoader();
-    std::vector<Animation> getAnimations();
+    std::vector<Animation> getAnimationsVector();
+    Animation getAnimationByName(std::string name);
+    Animation getAnimationByEnum(Animations::AnimationNames_enum name);
+    std::map<Animations::AnimationNames_enum, Animation> getAnimations();
+    std::vector<std::string> getAnimationNames();
 };
 
 class AnimationLoaderException : public std::exception {
@@ -145,15 +148,16 @@ struct ExpressionDefinition {
 
 class ExpressionLoader {
 private:
-    std::vector<std::string> expressionNames;
+    std::map<Expressions::ExpressionNames_enum, ExpressionDefinition> expressionsMap;
     std::vector<std::string> getFileNames();
     std::vector<ExpressionDefinition> loadExpressions(std::vector<std::string> fileNames);
-    std::vector<ExpressionDefinition> expressions;
     std::string folderName;
 
 public:
-    ExpressionLoader(std::string folderName, std::vector<std::string> expressionNames);
+    ExpressionLoader(std::string folderName, std::vector<std::string> expressionFileNames);
     ~ExpressionLoader();
-    std::vector<ExpressionDefinition> getAllExpressions();
+    std::vector<ExpressionDefinition> getExpressionsVector();
+    std::map<Expressions::ExpressionNames_enum, ExpressionDefinition> getExpressions();
+    ExpressionDefinition getExpressionByEnum(Expressions::ExpressionNames_enum name);
     ExpressionDefinition getExpressionByName(std::string name);
 };

@@ -1,12 +1,12 @@
 {
-    "name": "TheCube_funnyBounce",
+    "name": "neutral",
     "expression": "neutral",
     "frames":[
     {
         "type": "ROTATE",
         "value": 0,
         "time": 0,
-        "easingFunction": "",
+        "easing": "",
         "axis": {
             "x": 0,
             "y": 1,
@@ -22,7 +22,7 @@
         "type": "ROTATE",
         "value": -60,
         "time": 60,
-        "easingFunction": "easeInOut",
+        "easing": "easeInOut",
         "axis": {
             "x": 0,
             "y": 1,
@@ -38,7 +38,7 @@
         "type": "ROTATE",
         "value": 120,
         "time": 120,
-        "easingFunction": "easeInOut",
+        "easing": "easeInOut",
         "axis": {
             "x": 0,
             "y": 1,

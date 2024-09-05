@@ -35,6 +35,7 @@ private:
     glm::mat4 capturedViewMatrix;
     glm::mat4 capturedModelMatrix;
     bool visible = true;
+    std::mutex mutex;
 public:
     M_Text(Shader* sh, std::string text, float fontSize, glm::vec3 color, glm::vec2 position);
     ~M_Text();
@@ -76,7 +77,7 @@ private:
     glm::mat4 capturedViewMatrix;
     glm::mat4 capturedModelMatrix;
     bool visible = true;
-
+    std::mutex mutex;
 public:
     M_PartCircle(Shader* sh, unsigned int numSegments, float radius, glm::vec3 centerPoint, float startAngle, float endAngle, float fillColor);
     ~M_PartCircle();
@@ -113,7 +114,7 @@ private:
     glm::mat4 capturedViewMatrix;
     glm::mat4 capturedModelMatrix;
     bool visible = true;
-
+    std::mutex mutex;
 public:
     M_Rect(Shader* sh, glm::vec3 position, glm::vec2 size, float fillColor, float borderColor);
     ~M_Rect();
@@ -147,7 +148,7 @@ private:
     glm::mat4 capturedViewMatrix;
     glm::mat4 capturedModelMatrix;
     bool visible = true;
-
+    std::mutex mutex;
 public:
     M_Line(Shader* sh, glm::vec3 start, glm::vec3 end);
     ~M_Line();
@@ -186,7 +187,7 @@ private:
     glm::mat4 capturedViewMatrix;
     glm::mat4 capturedModelMatrix;
     bool visible = true;
-
+    std::mutex mutex;
 public:
     M_Arc(Shader* sh, unsigned int numSegments, float radius, float startAngle, float endAngle, glm::vec3 centerPoint);
     ~M_Arc();
@@ -219,6 +220,7 @@ private:
     glm::mat4 capturedViewMatrix;
     glm::mat4 capturedModelMatrix;
     bool visible = true;
+    std::mutex mutex;
 public:
     const Vertex cubeVertices[8] = {
         // Front face
@@ -320,6 +322,7 @@ private:
     glm::mat4 capturedViewMatrix;
     glm::mat4 capturedModelMatrix;
     bool visible = true;
+    std::mutex mutex;
 public:
     OBJObject(Shader* sh, std::vector<Vertex> vertices);
     ~OBJObject();

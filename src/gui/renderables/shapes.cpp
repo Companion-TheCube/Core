@@ -1112,6 +1112,7 @@ OBJObject::OBJObject(Shader* sh, std::vector<Vertex> vertices)
 void OBJObject::draw()
 {
     if(!visible) return;
+    this->mutex.lock();
     shader->use();
     shader->setMat4("model", modelMatrix);
     shader->setMat4("view", viewMatrix);
@@ -1119,36 +1120,49 @@ void OBJObject::draw()
     glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLES, 0, this->vertexData.size());
     glBindVertexArray(0);
+    this->mutex.unlock();
 }
 
 void OBJObject::setProjectionMatrix(glm::mat4 projection)
 {
+    this->mutex.lock();
     this->projectionMatrix = projection;
+    this->mutex.unlock();
 }
 
 void OBJObject::setViewMatrix(glm::vec3 view)
 {
+    this->mutex.lock();
     this->viewMatrix = glm::lookAt(view, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    this->mutex.unlock();
 }
 
 void OBJObject::setModelMatrix(glm::mat4 model)
 {
+    this->mutex.lock();
     this->modelMatrix = model;
+    this->mutex.unlock();
 }
 
 void OBJObject::rotate(float angle, glm::vec3 axis)
 {
+    this->mutex.lock();
     modelMatrix = glm::rotate(modelMatrix, glm::radians(angle), axis);
+    this->mutex.unlock();
 }
 
 void OBJObject::translate(glm::vec3 translation)
 {
+    this->mutex.lock();
     modelMatrix = glm::translate(modelMatrix, translation);
+    this->mutex.unlock();
 }
 
 void OBJObject::scale(glm::vec3 scale)
 {
+    this->mutex.lock();
     modelMatrix = glm::scale(modelMatrix, scale);
+    this->mutex.unlock();
 }
 
 OBJObject::~OBJObject()
@@ -1164,6 +1178,7 @@ void OBJObject::uniformScale(float scale)
 
 void OBJObject::rotateAbout(float angle, glm::vec3 point)
 {
+    this->mutex.lock();
     glm::mat4 originalModelMatrix = modelMatrix; // Save the original model matrix
     modelMatrix = glm::mat4(1.0f); // Reset model matrix to identity
 
@@ -1174,10 +1189,12 @@ void OBJObject::rotateAbout(float angle, glm::vec3 point)
     tempMat = glm::translate(tempMat, -point);
 
     modelMatrix = tempMat * originalModelMatrix; // Apply the rotation to the original matrix
+    this->mutex.unlock();
 }
 
 void OBJObject::rotateAbout(float angle, glm::vec3 axis, glm::vec3 point)
 {
+    this->mutex.lock();
     glm::mat4 originalModelMatrix = modelMatrix; // Save the original model matrix
     modelMatrix = glm::mat4(1.0f); // Reset model matrix to identity
 
@@ -1188,6 +1205,7 @@ void OBJObject::rotateAbout(float angle, glm::vec3 axis, glm::vec3 point)
     tempMat = glm::translate(tempMat, -point);
 
     modelMatrix = tempMat * originalModelMatrix; // Apply the rotation to the original matrix
+    this->mutex.unlock();
 }
 
 glm::vec3 OBJObject::getCenterPoint()
@@ -1219,15 +1237,19 @@ float OBJObject::getWidth()
 }
 
 void OBJObject::capturePosition(){
+    this->mutex.lock();
     this->capturedModelMatrix = this->modelMatrix;
     this->capturedViewMatrix = this->viewMatrix;
     this->capturedProjectionMatrix = this->projectionMatrix;
+    this->mutex.unlock();
 }
 
 void OBJObject::restorePosition(){
+    this->mutex.lock();
     this->modelMatrix = this->capturedModelMatrix;
     this->viewMatrix = this->capturedViewMatrix;
     this->projectionMatrix = this->capturedProjectionMatrix;
+    this->mutex.unlock();
 }
 
 void OBJObject::setVisibility(bool visible)

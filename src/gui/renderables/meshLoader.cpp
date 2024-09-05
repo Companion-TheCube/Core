@@ -2,6 +2,8 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
 
+#define M_PI 3.14159265358979323846
+
 MeshLoader::MeshLoader(Shader* shdr, std::string folderName, std::vector<std::string> toLoad)
 {
     this->folderName = folderName;
@@ -284,13 +286,12 @@ std::vector<MeshObject*> MeshLoader::loadMesh(std::string path)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-AnimationLoader::AnimationLoader(std::string folderName, std::vector<std::string> animationNames)
+AnimationLoader::AnimationLoader(std::string folderName, std::vector<std::string> animationFileNames)
 {
     this->folderName = folderName;
-    this->animationNames = animationNames;
     // cross reference the animation names with the files in the folder
     std::vector<std::string> fileNames = this->getFileNames();
-    for (auto name : this->animationNames) {
+    for (auto name : animationFileNames) {
         if (std::find(fileNames.begin(), fileNames.end(), name) == fileNames.end()) {
             CubeLog::warning("AnimationLoader: Animation file not found: " + name);
         }
@@ -301,7 +302,7 @@ AnimationLoader::AnimationLoader(std::string folderName, std::vector<std::string
         // if the filename is not in the animationNames list, remove it
         fileNames.erase(std::remove(fileNames.begin(), fileNames.end(), name), fileNames.end());
     }
-    this->animations = this->loadAnimations(fileNames);
+    this->loadAnimations(fileNames);
 }
 
 AnimationLoader::~AnimationLoader()
@@ -316,11 +317,8 @@ std::vector<std::string> AnimationLoader::getFileNames()
             if (p.is_directory()) {
                 continue;
             }
-            // check that the file is a .json file
-            if (p.path().has_extension() && p.path().extension() == ".json") {
-                if (p.path().filename() == "character.json") {
-                    continue;
-                }
+            // check that the file is a .json file and starts with "anim_" or "animation_"
+            if (p.path().has_extension() && p.path().extension() == ".json" && (p.path().filename().string().find("anim_") != std::string::npos || p.path().filename().string().find("animation_") != std::string::npos)) {
                 CubeLog::info("AnimationLoader: Found file: " + p.path().string());
                 names.push_back(p.path().string());
             }
@@ -329,18 +327,21 @@ std::vector<std::string> AnimationLoader::getFileNames()
     } catch (std::filesystem::filesystem_error& e) {
         CubeLog::error("AnimationLoader: Failed to load animation files");
         CubeLog::error(e.what());
+    } catch (std::exception& e) {
+        CubeLog::error("AnimationLoader: Failed to load animation files");
+        CubeLog::error(e.what());
     }
     return names;
 }
 
-std::vector<Animation> AnimationLoader::loadAnimations(std::vector<std::string> fileNames)
+void AnimationLoader::loadAnimations(std::vector<std::string> fileNames)
 {
     std::vector<Animation> animations;
     for (auto filename : fileNames) {
         CubeLog::info("AnimationLoader: Loading animation file: " + filename);
-        animations.push_back(this->loadAnimation(filename));
+        Animation animation = this->loadAnimation(filename);
+        animationsMap[animation.name] = animation;
     }
-    return animations;
 }
 
 Animation AnimationLoader::loadAnimation(std::string fileName)
@@ -352,33 +353,86 @@ Animation AnimationLoader::loadAnimation(std::string fileName)
         CubeLog::info("AnimationLoader: Failed to open file: " + fileName);
         return animation;
     }
-    nlohmann::json j;
+    nlohmann::json jsonObject;
     try {
-        file >> j;
+        file >> jsonObject;
     } catch (nlohmann::json::parse_error& e) {
         CubeLog::error("AnimationLoader: Failed to parse json file: " + fileName);
         CubeLog::error(e.what());
         return animation;
     }
-    // j is an object with properties "name, "expression", and "frames"
+    // jsonObject is an object with properties "name, "expression", and "frames"
     try {
-        animation.name = j["name"];
-        animation.expression = j["expression"];
+        std::string name = jsonObject["name"]; // the name of the animation
+        static const std::unordered_map<std::string, Animations::AnimationNames_enum> nameToAnimation = {
+            {"neutral", Animations::NEUTRAL},
+            {"jump_right_through_wall", Animations::JUMP_RIGHT_THROUGH_WALL},
+            {"jump_left_through_wall", Animations::JUMP_LEFT_THROUGH_WALL},
+            {"jump_up_through_ceiling", Animations::JUMP_UP_THROUGH_CEILING},
+            {"jump_right", Animations::JUMP_RIGHT},
+            {"jump_left", Animations::JUMP_LEFT},
+            {"jump_up", Animations::JUMP_UP},
+            {"jump_down", Animations::JUMP_DOWN},
+            {"jump_forward", Animations::JUMP_FORWARD},
+            {"jump_backward", Animations::JUMP_BACKWARD},
+            {"funny_index", Animations::FUNNY_INDEX},
+            {"funny_bounce", Animations::FUNNY_BOUNCE},
+            {"funny_spin", Animations::FUNNY_SPIN},
+            {"funny_shrink", Animations::FUNNY_SHRINK},
+            {"funny_expand", Animations::FUNNY_EXPAND},
+            {"funny_jump", Animations::FUNNY_JUMP},
+        };
+        auto it = nameToAnimation.find(name);
+        if (it == nameToAnimation.end()) {
+            CubeLog::error("AnimationLoader: Invalid animation name: " + name);
+            return animation;
+        } else {
+            animation.name = it->second;
+        }
+        animation.expression = jsonObject["expression"]; // the expression to be used with this animation
+    } catch (nlohmann::json::parse_error e) {
+        CubeLog::error("AnimationLoader: Failed to parse animation file: " + fileName);
+        CubeLog::error(e.what());
+        return animation;
+    } catch (nlohmann::json::type_error e) {
+        CubeLog::error("AnimationLoader: Failed to load animation from file: " + fileName);
+        CubeLog::error(e.what());
+        return animation;
+    } catch (nlohmann::json::other_error e) {
+        CubeLog::error("AnimationLoader: Failed to load animation from file: " + fileName);
+        CubeLog::error(e.what());
+        return animation;
     } catch (nlohmann::json::exception& e) {
         CubeLog::error("AnimationLoader: Failed to load animation from file: " + fileName);
         CubeLog::error(e.what());
         return animation;
+    } catch (std::exception& e) {
+        CubeLog::error("AnimationLoader: Failed to load animation from file: " + fileName);
+        CubeLog::error(e.what());
+        return animation;
     }
-    for (auto keyframe : j["frames"]) {
+    for (auto keyframe : jsonObject["frames"]) {
         try {
             animation.keyframes.push_back(loadKeyframe(keyframe));
-        } catch (nlohmann::json::exception& e) {
+        } catch (nlohmann::json::type_error& e) {
+            CubeLog::error("AnimationLoader: Failed to load keyframe from file: " + fileName);
+            CubeLog::error(e.what());
+            return animation;
+        } catch (nlohmann::json::parse_error& e) {
+            CubeLog::error("AnimationLoader: Failed to load keyframe from file: " + fileName);
+            CubeLog::error(e.what());
+            return animation;
+        } catch (nlohmann::json::other_error& e) {
             CubeLog::error("AnimationLoader: Failed to load keyframe from file: " + fileName);
             CubeLog::error(e.what());
             return animation;
         } catch (AnimationLoaderException& e) {
             std::string mes = e.what();
-            CubeLog::error("AnimationLoader: " + mes);
+            CubeLog::error("AnimationLoader encountered an error: \n" + mes);
+            return animation;
+        } catch (std::exception& e) {
+            CubeLog::error("AnimationLoader: Failed to load keyframe from file: " + fileName);
+            CubeLog::error(e.what());
             return animation;
         }
     }
@@ -386,55 +440,210 @@ Animation AnimationLoader::loadAnimation(std::string fileName)
     return animation;
 }
 
+/**
+ * @brief Parse a json object into an AnimationKeyframe object
+ * 
+ * @param keyframe - The json object to parse
+ * @return AnimationKeyframe - The parsed keyframe
+ */
 AnimationKeyframe AnimationLoader::loadKeyframe(nlohmann::json keyframe)
 {
-    AnimationKeyframe kf;
-    if (keyframe["type"] == "TRANSLATE")
-        kf.type = AnimationType::TRANSLATE;
-    else if (keyframe["type"] == "ROTATE")
-        kf.type = AnimationType::ROTATE;
-    else if (keyframe["type"] == "SCALE_XYZ")
-        kf.type = AnimationType::SCALE_XYZ;
-    else if (keyframe["type"] == "UNIFORM_SCALE")
-        kf.type = AnimationType::UNIFORM_SCALE;
-    else if (keyframe["type"] == "ROTATE_ABOUT")
-        kf.type = AnimationType::ROTATE_ABOUT;
-    else
-        throw AnimationLoaderException("Invalid keyframe type.");
-    kf.value = keyframe["value"];
-    kf.time = keyframe["time"];
-    kf.axis = glm::vec3(keyframe["axis"]["x"], keyframe["axis"]["y"], keyframe["axis"]["z"]);
-    kf.point = glm::vec3(keyframe["point"]["x"], keyframe["point"]["y"], keyframe["point"]["z"]);
-    std::string easingFunction = keyframe["easingFunction"];
-    if (easingFunction == "linear") {
-        kf.easingFunction = [](float t) { return t; };
-    } else if (easingFunction == "easeIn") {
-        kf.easingFunction = [](float t) { return t * t; };
-    } else if (easingFunction == "easeOut") {
-        kf.easingFunction = [](float t) { return t * (2 - t); };
-    } else if (easingFunction == "easeInOut") {
-        kf.easingFunction = [](float t) { return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; };
-    } else {
-        kf.easingFunction = [](float t) { return 0.f; }; // if no easing function is specified, assume this is the init state
+    static const std::unordered_map<std::string, Animations::AnimationType> nameToAnimType = {
+        {"TRANSLATE", Animations::TRANSLATE},
+        {"ROTATE", Animations::ROTATE},
+        {"SCALE_XYZ", Animations::SCALE_XYZ},
+        {"UNIFORM_SCALE", Animations::UNIFORM_SCALE},
+        {"ROTATE_ABOUT", Animations::ROTATE_ABOUT},
+    };
+    std::string type;
+    try{
+        type = keyframe["type"];
+    } catch (nlohmann::json::exception& e) {
+        throw AnimationLoaderException("Keyframe missing type");
     }
-    return kf;
+    AnimationKeyframe newKeyFrame;
+    auto it = nameToAnimType.find(type);
+    if (it == nameToAnimType.end()) {
+        throw AnimationLoaderException("Invalid animation type: " + type);
+    } else {
+        newKeyFrame.type = it->second;
+    }
+    float value;
+    try {
+        value = keyframe["value"];
+    } catch (nlohmann::json::exception& e) {
+        throw AnimationLoaderException("Keyframe missing value");
+    }
+    newKeyFrame.value = value;
+    unsigned int timeStart;
+    unsigned int timeEnd;
+    try {
+        timeStart = keyframe["time"]["start"];
+        timeEnd = keyframe["time"]["end"];
+    } catch (nlohmann::json::exception& e) {
+        throw AnimationLoaderException("Keyframe missing time");
+    }
+    newKeyFrame.timeStart = timeStart;
+    newKeyFrame.timeEnd = timeEnd;
+    glm::vec3 axis;
+    try {
+        axis = glm::vec3(keyframe["axis"]["x"], keyframe["axis"]["y"], keyframe["axis"]["z"]);
+    } catch (nlohmann::json::exception& e) {
+        throw AnimationLoaderException("Keyframe missing axis");
+    }
+    newKeyFrame.axis = axis;
+    glm::vec3 point;
+    try {
+        point = glm::vec3(keyframe["point"]["x"], keyframe["point"]["y"], keyframe["point"]["z"]);
+    } catch (nlohmann::json::exception& e) {
+        throw AnimationLoaderException("Keyframe missing point");
+    }
+    newKeyFrame.point = point;
+    static const std::unordered_map<std::string, std::function<double(double)>> easingFunctions = {
+        {"linear", [](double t) { return t; }},
+        {"easeIn", [](double t) { return t * t; }},
+        {"easeOut", [](double t) { return t * (2 - t); }},
+        {"easeInOut", [](double t) { return 0.5f * (1 - cos(M_PI * t)); }},
+    };
+    std::string easing;
+    try {
+        easing = keyframe["easing"];
+    } catch (nlohmann::json::exception& e) {
+        throw AnimationLoaderException("Keyframe missing easing");
+    }
+    auto easingFunction = easingFunctions.find(easing);
+    if (easingFunction == easingFunctions.end()) {
+        newKeyFrame.easingFunction = [](double t) { return t; }; // default to linear
+    } else {
+        newKeyFrame.easingFunction = easingFunction->second;
+    }
+    return newKeyFrame;
 }
 
+/**
+ * @brief Get the names of all loaded animations
+ * 
+ * @return std::vector<std::string> 
+ */
 std::vector<std::string> AnimationLoader::getAnimationNames()
 {
-    return this->animationNames;
+    static const std::unordered_map<Animations::AnimationNames_enum, std::string> animToName = {
+        {Animations::NEUTRAL, "NEUTRAL"},
+        {Animations::JUMP_RIGHT_THROUGH_WALL, "JUMP_RIGHT_THROUGH_WALL"},
+        {Animations::JUMP_LEFT_THROUGH_WALL, "JUMP_LEFT_THROUGH_WALL"},
+        {Animations::JUMP_UP_THROUGH_CEILING, "JUMP_UP_THROUGH_CEILING"},
+        {Animations::JUMP_RIGHT, "JUMP_RIGHT"},
+        {Animations::JUMP_LEFT, "JUMP_LEFT"},
+        {Animations::JUMP_UP, "JUMP_UP"},
+        {Animations::JUMP_DOWN, "JUMP_DOWN"},
+        {Animations::JUMP_FORWARD, "JUMP_FORWARD"},
+        {Animations::JUMP_BACKWARD, "JUMP_BACKWARD"},
+        {Animations::FUNNY_INDEX, "FUNNY_INDEX"},
+        {Animations::FUNNY_BOUNCE, "FUNNY_BOUNCE"},
+        {Animations::FUNNY_SPIN, "FUNNY_SPIN"},
+        {Animations::FUNNY_SHRINK, "FUNNY_SHRINK"},
+        {Animations::FUNNY_EXPAND, "FUNNY_EXPAND"},
+        {Animations::FUNNY_JUMP, "FUNNY_JUMP"},
+    };
+    std::vector<std::string> names;
+    for (auto& [key, value] : animToName) {
+        names.push_back(value);
+    }
+    return names;
 }
 
-std::vector<Animation> AnimationLoader::getAnimations()
+/**
+ * @brief Get all loaded animations as a vector
+ * 
+ * @return std::vector<Animation> 
+ */
+std::vector<Animation> AnimationLoader::getAnimationsVector()
 {
-    return this->animations;
+    std::vector<Animation> animations;
+    for (auto& [key, value] : animationsMap) {
+        animations.push_back(value);
+    }
+    return animations;
+}
+
+/**
+ * @brief Get an animation by name
+ * 
+ * @param name - The name of the animation
+ * @return Animation - The animation
+ */
+Animation AnimationLoader::getAnimationByName(std::string name)
+{
+    // Convert name to lowercase
+    std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+
+    // Map from string to Animations enum
+    static const std::unordered_map<std::string, Animations::AnimationNames_enum> nameToAnimation = {
+        {"neutral", Animations::NEUTRAL},
+        {"jump_right_through_wall", Animations::JUMP_RIGHT_THROUGH_WALL},
+        {"jump_left_through_wall", Animations::JUMP_LEFT_THROUGH_WALL},
+        {"jump_up_through_ceiling", Animations::JUMP_UP_THROUGH_CEILING},
+        {"jump_right", Animations::JUMP_RIGHT},
+        {"jump_left", Animations::JUMP_LEFT},
+        {"jump_up", Animations::JUMP_UP},
+        {"jump_down", Animations::JUMP_DOWN},
+        {"jump_forward", Animations::JUMP_FORWARD},
+        {"jump_backward", Animations::JUMP_BACKWARD},
+        {"funny_index", Animations::FUNNY_INDEX},
+        {"funny_bounce", Animations::FUNNY_BOUNCE},
+        {"funny_spin", Animations::FUNNY_SPIN},
+        {"funny_shrink", Animations::FUNNY_SHRINK},
+        {"funny_expand", Animations::FUNNY_EXPAND},
+        {"funny_jump", Animations::FUNNY_JUMP},
+    };
+
+    // Find the animation in the map
+    auto it = nameToAnimation.find(name);
+    if (it != nameToAnimation.end()) {
+        return animationsMap[it->second];
+    }else{
+        CubeLog::error("AnimationLoader: Animation not found: " + name);
+    }
+
+    // Default return neutral animation if no match is found
+    return animationsMap[Animations::NEUTRAL];
+}
+
+/**
+ * @brief Get an animation by Animations::AnimationNames_enum
+ * 
+ * @param name - The enum of the animation
+ * @return Animation - The animation
+ */
+Animation AnimationLoader::getAnimationByEnum(Animations::AnimationNames_enum name)
+{
+    return animationsMap[name];
+}
+
+/**
+ * @brief Get all loaded animations as a map
+ * 
+ * @return std::map<Animations::AnimationNames_enum, Animation> 
+ */
+std::map<Animations::AnimationNames_enum, Animation> AnimationLoader::getAnimations()
+{
+    return animationsMap;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-ExpressionLoader::ExpressionLoader(std::string folderName, std::vector<std::string> expressionNames)
+ExpressionLoader::ExpressionLoader(std::string folderName, std::vector<std::string> expressionFileNames)
 {
-    this->expressionNames = expressionNames;
+    this->folderName = folderName;
+    std::vector<std::string> fileNames = this->getFileNames();
+    for (auto name : expressionFileNames) {
+        if (std::find(fileNames.begin(), fileNames.end(), name) == fileNames.end()) {
+            CubeLog::warning("ExpressionLoader: Expression file not found: " + name);
+        }
+        // if the filename is not in the expressionFilesNames list, remove it from fileNames
+
+    }
+    this->loadExpressions(fileNames);
 }
 
 ExpressionLoader::~ExpressionLoader()
@@ -444,9 +653,15 @@ ExpressionLoader::~ExpressionLoader()
 std::vector<std::string> ExpressionLoader::getFileNames()
 {
     std::vector<std::string> names;
-    for (auto& p : std::filesystem::directory_iterator("expressions/")) {
-        CubeLog::info("ExpressionLoader: Found file: " + p.path().string());
-        names.push_back(p.path().string());
+    for (auto& p : std::filesystem::directory_iterator("meshes/" + this->folderName)) {
+        if (p.is_directory()) {
+            continue;
+        }
+        // check that the file is a .json file and starts with "expr_" (expression file)
+        if(p.path().has_extension() && p.path().extension() == ".json" && p.path().filename().string().find("expr_") == 0){
+            CubeLog::info("ExpressionLoader: Found file: " + p.path().string());
+            names.push_back(p.path().string());
+        }
     }
     CubeLog::info("ExpressionLoader: Found " + std::to_string(names.size()) + " expression files");
     return names;
@@ -462,24 +677,36 @@ std::vector<ExpressionDefinition> ExpressionLoader::loadExpressions(std::vector<
             CubeLog::info("ExpressionLoader: Failed to open file: " + filename);
             continue;
         }
-        nlohmann::json j;
+        nlohmann::json jsonObject;
         try {
-            file >> j;
+            file >> jsonObject;
         } catch (nlohmann::json::parse_error& e) {
             CubeLog::error("ExpressionLoader: Failed to parse json file: " + filename);
             CubeLog::error(e.what());
             continue;
+        } catch (nlohmann::json::exception& e) {
+            CubeLog::error("ExpressionLoader: Failed to load expression from file: " + filename);
+            CubeLog::error(e.what());
+            continue;
+        } catch (std::exception& e) {
+            CubeLog::error("ExpressionLoader: Failed to load expression from file: " + filename);
+            CubeLog::error(e.what());
+            continue;
         }
-        for (auto expression : j) {
+        for (auto expression : jsonObject) {
             expressions.push_back({ expression["name"], expression["expression"], expression["objects"], expression["visibility"] });
         }
     }
     return expressions;
 }
 
-std::vector<ExpressionDefinition> ExpressionLoader::getAllExpressions()
+std::vector<ExpressionDefinition> ExpressionLoader::getExpressionsVector()
 {
-    return this->expressions;
+    std::vector<ExpressionDefinition> expressions;
+    for (auto& [key, value] : expressionsMap) {
+        expressions.push_back(value);
+    }
+    return expressions;
 }
 
 ExpressionDefinition ExpressionLoader::getExpressionByName(std::string name)
@@ -521,15 +748,21 @@ ExpressionDefinition ExpressionLoader::getExpressionByName(std::string name)
     // Find the expression in the map
     auto it = nameToExpression.find(name);
     if (it != nameToExpression.end()) {
-        for (auto expression : this->expressions) {
-            if (expression.name == it->second) {
-                return expression;
-            }
-        }
+        return expressionsMap[it->second];
     }
 
     // Default return value if no match is found
     return { Expressions::NEUTRAL, "", {}, {} };
+}
+
+ExpressionDefinition ExpressionLoader::getExpressionByEnum(Expressions::ExpressionNames_enum name)
+{
+    return expressionsMap[name];
+}
+
+std::map<Expressions::ExpressionNames_enum, ExpressionDefinition> ExpressionLoader::getExpressions()
+{
+    return expressionsMap;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
