@@ -454,6 +454,7 @@ AnimationKeyframe AnimationLoader::loadKeyframe(nlohmann::json keyframe)
         {"SCALE_XYZ", Animations::SCALE_XYZ},
         {"UNIFORM_SCALE", Animations::UNIFORM_SCALE},
         {"ROTATE_ABOUT", Animations::ROTATE_ABOUT},
+        {"RETURN_HOME", Animations::RETURN_HOME},
     };
     std::string type;
     try{

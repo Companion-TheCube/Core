@@ -165,6 +165,10 @@ void M_Text::setViewMatrix(glm::vec3 viewMatrix)
     return; // do nothing
 }
 
+void M_Text::setViewMatrix(glm::mat4 viewMatrix){
+    return; // do nothing   
+}
+
 void M_Text::setModelMatrix(glm::mat4 modelMatrix)
 {
     return; // do nothing
@@ -253,6 +257,24 @@ void M_Text::setVisibility(bool visible)
     this->visible = visible;
 }
 
+void M_Text::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix){
+    this->mutex.lock();
+    *modelMatrix = this->capturedModelMatrix - this->modelMatrix;
+    *viewMatrix = this->capturedViewMatrix - this->viewMatrix;
+    *projectionMatrix = this->capturedProjectionMatrix - this->projectionMatrix;
+    this->mutex.unlock();
+}
+
+glm::mat4 M_Text::getModelMatrix(){
+    return this->modelMatrix;
+}
+glm::mat4 M_Text::getViewMatrix(){
+    return this->viewMatrix;
+}
+glm::mat4 M_Text::getProjectionMatrix(){
+    return this->projectionMatrix;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////
 
 M_PartCircle::M_PartCircle(Shader* sh, unsigned int numSegments, float radius, glm::vec3 centerPoint, float startAngle, float endAngle, float fillColor)
@@ -324,6 +346,12 @@ void M_PartCircle::setProjectionMatrix(glm::mat4 projectionMatrix)
 void M_PartCircle::setViewMatrix(glm::vec3 viewMatrix)
 {
     this->viewMatrix = glm::lookAt(viewMatrix, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+}
+
+void M_PartCircle::setViewMatrix(glm::mat4 viewMatrix){
+    this->mutex.lock();
+    this->viewMatrix = viewMatrix;
+    this->mutex.unlock();
 }
 
 void M_PartCircle::setModelMatrix(glm::mat4 modelMatrix)
@@ -430,6 +458,24 @@ void M_PartCircle::setVisibility(bool visible)
     this->visible = visible;
 }
 
+void M_PartCircle::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix){
+    this->mutex.lock();
+    *modelMatrix = this->capturedModelMatrix - this->modelMatrix;
+    *viewMatrix = this->capturedViewMatrix - this->viewMatrix;
+    *projectionMatrix = this->capturedProjectionMatrix - this->projectionMatrix;
+    this->mutex.unlock();
+}
+
+
+glm::mat4 M_PartCircle::getModelMatrix(){
+    return this->modelMatrix;
+}
+glm::mat4 M_PartCircle::getViewMatrix(){
+    return this->viewMatrix;
+}
+glm::mat4 M_PartCircle::getProjectionMatrix(){
+    return this->projectionMatrix;
+}
 //////////////////////////////////////////////////////////////////////////////////////////
 
 M_Rect::M_Rect(Shader* sh, glm::vec3 position, glm::vec2 size, float fillColor, float borderColor)
@@ -498,6 +544,12 @@ void M_Rect::setProjectionMatrix(glm::mat4 projectionMatrix)
 void M_Rect::setViewMatrix(glm::vec3 viewMatrix)
 {
     this->viewMatrix = glm::lookAt(viewMatrix, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+}
+
+void M_Rect::setViewMatrix(glm::mat4 viewMatrix){
+    this->mutex.lock();
+    this->viewMatrix = viewMatrix;
+    this->mutex.unlock();
 }
 
 void M_Rect::setModelMatrix(glm::mat4 modelMatrix)
@@ -619,6 +671,24 @@ void M_Rect::setVisibility(bool visible)
     this->visible = visible;
 }
 
+void M_Rect::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix){
+    this->mutex.lock();
+    *modelMatrix = this->capturedModelMatrix - this->modelMatrix;
+    *viewMatrix = this->capturedViewMatrix - this->viewMatrix;
+    *projectionMatrix = this->capturedProjectionMatrix - this->projectionMatrix;
+    this->mutex.unlock();
+}
+
+glm::mat4 M_Rect::getModelMatrix(){
+    return this->modelMatrix;
+}
+glm::mat4 M_Rect::getViewMatrix(){
+    return this->viewMatrix;
+}
+glm::mat4 M_Rect::getProjectionMatrix(){
+    return this->projectionMatrix;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////
 
 M_Line::M_Line(Shader* sh, glm::vec3 start, glm::vec3 end)
@@ -672,6 +742,12 @@ void M_Line::setProjectionMatrix(glm::mat4 projectionMatrix)
 void M_Line::setViewMatrix(glm::vec3 viewMatrix)
 {
     this->viewMatrix = glm::lookAt(viewMatrix, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+}
+
+void M_Line::setViewMatrix(glm::mat4 viewMatrix){
+    this->mutex.lock();
+    this->viewMatrix = viewMatrix;
+    this->mutex.unlock();
 }
 
 void M_Line::setModelMatrix(glm::mat4 modelMatrix)
@@ -775,6 +851,24 @@ void M_Line::setVisibility(bool visibility)
     this->visible = visibility;
 }
 
+void M_Line::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix){
+    this->mutex.lock();
+    *modelMatrix = this->capturedModelMatrix - this->modelMatrix;
+    *viewMatrix = this->capturedViewMatrix - this->viewMatrix;
+    *projectionMatrix = this->capturedProjectionMatrix - this->projectionMatrix;
+    this->mutex.unlock();
+}
+
+glm::mat4 M_Line::getModelMatrix(){
+    return this->modelMatrix;
+}
+glm::mat4 M_Line::getViewMatrix(){
+    return this->viewMatrix;
+}
+glm::mat4 M_Line::getProjectionMatrix(){
+    return this->projectionMatrix;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////
 
 M_Arc::M_Arc(Shader* sh, unsigned int numSegments, float radius, float startAngle, float endAngle, glm::vec3 centerPoint)
@@ -839,6 +933,13 @@ void M_Arc::setViewMatrix(glm::vec3 viewMatrix)
 {
     this->viewMatrix = glm::lookAt(viewMatrix, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 }
+
+void M_Arc::setViewMatrix(glm::mat4 viewMatrix){
+    this->mutex.lock();
+    this->viewMatrix = viewMatrix;
+    this->mutex.unlock();
+}
+
 void M_Arc::setModelMatrix(glm::mat4 modelMatrix)
 {
     this->modelMatrix = modelMatrix;
@@ -901,6 +1002,24 @@ void M_Arc::restorePosition(){
 void M_Arc::setVisibility(bool visibility)
 {
     this->visible = visibility;
+}
+
+void M_Arc::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix){
+    this->mutex.lock();
+    *modelMatrix = this->capturedModelMatrix - this->modelMatrix;
+    *viewMatrix = this->capturedViewMatrix - this->viewMatrix;
+    *projectionMatrix = this->capturedProjectionMatrix - this->projectionMatrix;
+    this->mutex.unlock();
+}
+
+glm::mat4 M_Arc::getModelMatrix(){
+    return this->modelMatrix;
+}
+glm::mat4 M_Arc::getViewMatrix(){
+    return this->viewMatrix;
+}
+glm::mat4 M_Arc::getProjectionMatrix(){
+    return this->projectionMatrix;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -973,6 +1092,12 @@ void Cube::setProjectionMatrix(glm::mat4 projection)
 void Cube::setViewMatrix(glm::vec3 view)
 {
     this->viewMatrix = glm::lookAt(view, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+}
+
+void Cube::setViewMatrix(glm::mat4 viewMatrix){
+    this->mutex.lock();
+    this->viewMatrix = viewMatrix;
+    this->mutex.unlock();
 }
 
 void Cube::setModelMatrix(glm::mat4 model)
@@ -1082,6 +1207,24 @@ void Cube::setVisibility(bool visible)
 {
     this->visible = visible;
 }
+
+void Cube::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix){
+    this->mutex.lock();
+    *modelMatrix = this->capturedModelMatrix - this->modelMatrix;
+    *viewMatrix = this->capturedViewMatrix - this->viewMatrix;
+    *projectionMatrix = this->capturedProjectionMatrix - this->projectionMatrix;
+    this->mutex.unlock();
+}
+
+glm::mat4 Cube::getModelMatrix(){
+    return this->modelMatrix;
+}
+glm::mat4 Cube::getViewMatrix(){
+    return this->viewMatrix;
+}
+glm::mat4 Cube::getProjectionMatrix(){
+    return this->projectionMatrix;
+}
 //////////////////////////////////////////////////////////////////////////////////////////
 
 OBJObject::OBJObject(Shader* sh, std::vector<Vertex> vertices)
@@ -1134,6 +1277,13 @@ void OBJObject::setViewMatrix(glm::vec3 view)
 {
     this->mutex.lock();
     this->viewMatrix = glm::lookAt(view, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    this->mutex.unlock();
+}
+
+
+void OBJObject::setViewMatrix(glm::mat4 viewMatrix){
+    this->mutex.lock();
+    this->viewMatrix = viewMatrix;
     this->mutex.unlock();
 }
 
@@ -1255,6 +1405,24 @@ void OBJObject::restorePosition(){
 void OBJObject::setVisibility(bool visible)
 {
     this->visible = visible;
+}
+
+void OBJObject::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix){
+    this->mutex.lock();
+    *modelMatrix = this->capturedModelMatrix - this->modelMatrix;
+    *viewMatrix = this->capturedViewMatrix - this->viewMatrix;
+    *projectionMatrix = this->capturedProjectionMatrix - this->projectionMatrix;
+    this->mutex.unlock();
+}
+
+glm::mat4 OBJObject::getModelMatrix(){
+    return this->modelMatrix;
+}
+glm::mat4 OBJObject::getViewMatrix(){
+    return this->viewMatrix;
+}
+glm::mat4 OBJObject::getProjectionMatrix(){
+    return this->projectionMatrix;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////

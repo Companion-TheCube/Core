@@ -203,11 +203,11 @@ Character_generic::Character_generic(Shader* sh, std::string folder)
         this->parts.at(this->parts.size() - 1)->centerPoint = glm::vec3(x, y, z);
     }
 
-    this->animationLoader = new AnimationLoader(folder, animationsToLoad);    
+    this->animationLoader = new AnimationLoader(folder, animationsToLoad);
     this->expressionLoader = new ExpressionLoader(folder, expressionsToLoad);
 
     float x, y, z;
-    try{
+    try {
         x = characterData["initPos"]["x"];
         y = characterData["initPos"]["y"];
         z = characterData["initPos"]["z"];
@@ -224,11 +224,11 @@ Character_generic::Character_generic(Shader* sh, std::string folder)
         y = 0.0f;
         z = 0.0f;
     }
-    for(auto object : this->objects) {
+    for (auto object : this->objects) {
         object->translate(glm::vec3(x, y, z));
     }
 
-    try{
+    try {
         x = characterData["initScale"]["x"];
         y = characterData["initScale"]["y"];
         z = characterData["initScale"]["z"];
@@ -245,12 +245,12 @@ Character_generic::Character_generic(Shader* sh, std::string folder)
         y = 1.0f;
         z = 1.0f;
     }
-    for(auto object : this->objects) {
+    for (auto object : this->objects) {
         object->scale(glm::vec3(x, y, z));
     }
 
     float val;
-    try{
+    try {
         x = characterData["initRot"]["x"];
         y = characterData["initRot"]["y"];
         z = characterData["initRot"]["z"];
@@ -270,7 +270,7 @@ Character_generic::Character_generic(Shader* sh, std::string folder)
         z = 0.0f;
         val = 0.f;
     }
-    for(auto object : this->objects) {
+    for (auto object : this->objects) {
         object->rotate(val, glm::vec3(x, y, z));
     }
 
@@ -278,7 +278,7 @@ Character_generic::Character_generic(Shader* sh, std::string folder)
         object->capturePosition();
     }
 
-    try{
+    try {
         this->name = characterData["name"];
     } catch (nlohmann::json::exception& e) {
         CubeLog::error("Character_generic: Failed to load character name from file: " + folder + "/character.json");
@@ -322,39 +322,48 @@ void Character_generic::animate()
             double s = keyframe.timeStart;
             double e = keyframe.timeEnd;
             double f_normal = (f - s) / (e - s);
-            double f2_normal = (f>0)?(f - s - 1) / (e - s):0.f;
+            double f2_normal = (f > 0) ? (f - s - 1) / (e - s) : 0.f;
             double fn_eased = keyframe.easingFunction(f_normal);
             double fn2_eased = keyframe.easingFunction(f2_normal);
             double calcValue = (double)keyframe.value * (fn_eased - fn2_eased);
             switch (keyframe.type) {
-            case Animations::TRANSLATE:
-                {
-                    this->translate(keyframe.axis.x * calcValue, keyframe.axis.y * calcValue, keyframe.axis.z * calcValue);
-                    break;
+            case Animations::TRANSLATE: {
+                this->translate(keyframe.axis.x * calcValue, keyframe.axis.y * calcValue, keyframe.axis.z * calcValue);
+                break;
+            }
+            case Animations::ROTATE: {
+                this->rotate(calcValue, keyframe.axis.x, keyframe.axis.y, keyframe.axis.z);
+                break;
+            }
+            case Animations::SCALE_XYZ: {
+                calcValue = calcValue + 1.f;
+                this->scale((keyframe.axis.x > 0 ? 1 * calcValue : 1), (keyframe.axis.y > 0 ? 1 * calcValue : 1), (keyframe.axis.z > 0 ? 1 * calcValue : 1));
+                break;
+            }
+            case Animations::UNIFORM_SCALE: {
+                calcValue = calcValue + 1.f;
+                this->scale(calcValue, calcValue, calcValue);
+                break;
+            }
+            case Animations::ROTATE_ABOUT: {
+                for (auto object : this->objects) {
+                    object->rotateAbout(calcValue, keyframe.axis, keyframe.point);
                 }
-            case Animations::ROTATE:
-                {
-                    this->rotate(calcValue, keyframe.axis.x, keyframe.axis.y, keyframe.axis.z);
-                    break;
+                break;
+            }
+            case Animations::RETURN_HOME: {
+                glm::mat4 modelDiff, projectionDiff, viewDiff;
+                glm::mat4 calcValueMat4 = glm::mat4(calcValue);
+                for (auto object : this->objects) {
+                    // get the differences between the current position and the captured position
+                    object->getRestorePositionDiff(&modelDiff, &viewDiff, &projectionDiff);
+                    // apply the differences to the object
+                    object->setModelMatrix(object->getModelMatrix() + (modelDiff * calcValueMat4));
+                    object->setViewMatrix(object->getViewMatrix() + (viewDiff * calcValueMat4));
+                    object->setProjectionMatrix(object->getProjectionMatrix() + (projectionDiff * calcValueMat4));
                 }
-            case Animations::SCALE_XYZ:
-                {
-                    calcValue = calcValue + 1.f;
-                    this->scale((keyframe.axis.x>0?1*calcValue:1) , (keyframe.axis.y>0?1*calcValue:1), (keyframe.axis.z>0?1*calcValue:1));
-                    break;
-                }
-            case Animations::UNIFORM_SCALE:
-                {
-                    this->scale(calcValue, calcValue, calcValue);
-                    break;
-                }
-            case Animations::ROTATE_ABOUT:
-                {
-                    for(auto object : this->objects) {
-                        object->rotateAbout(calcValue, keyframe.axis, keyframe.point );
-                    }
-                    break;
-                }
+                break;
+            }
             default:
                 CubeLog::error("Character_generic::animate: Invalid animation type");
                 break;
@@ -362,10 +371,10 @@ void Character_generic::animate()
         }
     }
     this->animationFrame++;
-    if(!foundKeyframe) {
+    if (!foundKeyframe) {
         this->triggerAnimation(Animations::NEUTRAL);
         this->animationFrame = 0;
-        for(auto object : this->objects) {
+        for (auto object : this->objects) {
             object->restorePosition();
         }
     }

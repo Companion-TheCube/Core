@@ -42,7 +42,11 @@ public:
     void draw();
     void setProjectionMatrix(glm::mat4 projectionMatrix);
     void setViewMatrix(glm::vec3 viewMatrix);
+    void setViewMatrix(glm::mat4 viewMatrix);
     void setModelMatrix(glm::mat4 modelMatrix);
+    glm::mat4 getModelMatrix();
+    glm::mat4 getViewMatrix();
+    glm::mat4 getProjectionMatrix();
     void translate(glm::vec3 translation);
     void rotate(float angle, glm::vec3 axis);
     void scale(glm::vec3 scale);
@@ -58,6 +62,7 @@ public:
     void capturePosition();
     void restorePosition();
     void setVisibility(bool visible);
+    void getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix);
 };
 
 class M_PartCircle : public MeshObject {
@@ -84,7 +89,11 @@ public:
     void draw();
     void setProjectionMatrix(glm::mat4 projectionMatrix);
     void setViewMatrix(glm::vec3 viewMatrix);
+    void setViewMatrix(glm::mat4 viewMatrix);    
     void setModelMatrix(glm::mat4 modelMatrix);
+    glm::mat4 getModelMatrix();
+    glm::mat4 getViewMatrix();
+    glm::mat4 getProjectionMatrix();
     void translate(glm::vec3 translation);
     void rotate(float angle, glm::vec3 axis);
     void scale(glm::vec3 scale);
@@ -97,6 +106,7 @@ public:
     void capturePosition();
     void restorePosition();
     void setVisibility(bool visible);
+    void getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix);
 };
 
 class M_Rect : public MeshObject {
@@ -121,7 +131,11 @@ public:
     void draw();
     void setProjectionMatrix(glm::mat4 projectionMatrix);
     void setViewMatrix(glm::vec3 viewMatrix);
+    void setViewMatrix(glm::mat4 viewMatrix);
     void setModelMatrix(glm::mat4 modelMatrix);
+    glm::mat4 getModelMatrix();
+    glm::mat4 getViewMatrix();
+    glm::mat4 getProjectionMatrix();
     void translate(glm::vec3 translation);
     void rotate(float angle, glm::vec3 axis);
     void scale(glm::vec3 scale);
@@ -134,6 +148,7 @@ public:
     void capturePosition();
     void restorePosition();
     void setVisibility(bool visible);
+    void getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix);
 };
 
 class M_Line : public MeshObject {
@@ -155,7 +170,11 @@ public:
     void draw();
     void setProjectionMatrix(glm::mat4 projectionMatrix);
     void setViewMatrix(glm::vec3 viewMatrix);
+    void setViewMatrix(glm::mat4 viewMatrix);
     void setModelMatrix(glm::mat4 modelMatrix);
+    glm::mat4 getModelMatrix();
+    glm::mat4 getViewMatrix();
+    glm::mat4 getProjectionMatrix();
     void translate(glm::vec3 translation);
     void rotate(float angle, glm::vec3 axis);
     void scale(glm::vec3 scale);
@@ -168,6 +187,7 @@ public:
     void capturePosition();
     void restorePosition();
     void setVisibility(bool visible);
+    void getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix);
 };
 
 class M_Arc : public MeshObject {
@@ -194,7 +214,11 @@ public:
     void draw();
     void setProjectionMatrix(glm::mat4 projectionMatrix);
     void setViewMatrix(glm::vec3 viewMatrix);
+    void setViewMatrix(glm::mat4 viewMatrix);
     void setModelMatrix(glm::mat4 modelMatrix);
+    glm::mat4 getModelMatrix();
+    glm::mat4 getViewMatrix();
+    glm::mat4 getProjectionMatrix();
     void translate(glm::vec3 translation);
     void rotate(float angle, glm::vec3 axis);
     void scale(glm::vec3 scale);
@@ -207,6 +231,7 @@ public:
     void capturePosition();
     void restorePosition();
     void setVisibility(bool visible);
+    void getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix);
 };
 
 #define CUBE_VERTICES_CONST 1.0f
@@ -292,7 +317,11 @@ public:
     void draw();
     void setProjectionMatrix(glm::mat4 projectionMatrix);
     void setViewMatrix(glm::vec3 viewMatrix);
+    void setViewMatrix(glm::mat4 viewMatrix);
     void setModelMatrix(glm::mat4 modelMatrix);
+    glm::mat4 getModelMatrix();
+    glm::mat4 getViewMatrix();
+    glm::mat4 getProjectionMatrix();
     void translate(glm::vec3 translation);
     void rotate(float angle, glm::vec3 axis);
     void scale(glm::vec3 scale);
@@ -305,6 +334,7 @@ public:
     void capturePosition();
     void restorePosition();
     void setVisibility(bool visible);
+    void getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix);
 };
 
 // TODO: create a generic object class that can utilize vertex and face data loaded from a file
@@ -329,7 +359,11 @@ public:
     void draw();
     void setProjectionMatrix(glm::mat4 projectionMatrix);
     void setViewMatrix(glm::vec3 viewMatrix);
+    void setViewMatrix(glm::mat4 viewMatrix);
     void setModelMatrix(glm::mat4 modelMatrix);
+    glm::mat4 getModelMatrix();
+    glm::mat4 getViewMatrix();
+    glm::mat4 getProjectionMatrix();
     void translate(glm::vec3 translation);
     void rotate(float angle, glm::vec3 axis);
     void scale(glm::vec3 scale);
@@ -342,4 +376,5 @@ public:
     void capturePosition();
     void restorePosition();
     void setVisibility(bool visible);
+    void getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix);
 };

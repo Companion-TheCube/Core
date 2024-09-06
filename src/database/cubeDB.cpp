@@ -84,7 +84,7 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
             res.set_content(j.dump(), "application/json");
             return j.dump();
         }
-        char buffer[65535];
+        // char* buffer = new char[65535];
         std::string stringBlob = "none";
         // 1MB blob size limit
         char* blob = new char[1024*1024];
@@ -184,6 +184,7 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
         }
         j["blob_id"] = blob_id;
         res.set_content(j.dump(), "application/json");
+        delete[] blob;
         return j.dump();
     }};
     HttpEndPointDataSinglet_t insertDataTest = {PUBLIC_ENDPOINT | GET_ENDPOINT, [&](const httplib::Request &req, httplib::Response &res){

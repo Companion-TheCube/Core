@@ -55,8 +55,8 @@ void API_Builder::start()
                 nlohmann::json endpoint_json;
                 endpoint_json["name"] = endpointNames.at(i).first;
                 endpoint_json["params"] = endpointNames.at(i).second;
-                endpoint_json["public"] = i_face_obj->getHttpEndpointData().at(i).first & PUBLIC_ENDPOINT == PUBLIC_ENDPOINT ? "true" : "false";
-                endpoint_json["endpoint_type"] = i_face_obj->getHttpEndpointData().at(i).first & GET_ENDPOINT == GET_ENDPOINT ? "GET" : "POST";
+                endpoint_json["public"] = (i_face_obj->getHttpEndpointData().at(i).first & PUBLIC_ENDPOINT) == PUBLIC_ENDPOINT ? "true" : "false";
+                endpoint_json["endpoint_type"] = (i_face_obj->getHttpEndpointData().at(i).first & GET_ENDPOINT) == GET_ENDPOINT ? "GET" : "POST";
                 j[name].push_back(endpoint_json);
             }
         }

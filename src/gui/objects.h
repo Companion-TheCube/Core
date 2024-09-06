@@ -14,7 +14,13 @@ struct Vertex{
 };
 
 struct ClickableArea{
-    ClickableArea(){};
+    ClickableArea(){
+        this->xMin = 0;
+        this->xMax = 0;
+        this->yMin = 0;
+        this->yMax = 0;
+        this->clickableObject = nullptr;
+    };
     ClickableArea(unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax, Clickable* clickableObject){
         this->xMin = xMin;
         this->xMax = xMax;
@@ -31,7 +37,11 @@ public:
     virtual void draw() = 0;
     virtual void setProjectionMatrix(glm::mat4 projectionMatrix) = 0;
     virtual void setViewMatrix(glm::vec3 viewMatrix) = 0;
+    virtual void setViewMatrix(glm::mat4 viewMatrix) = 0;
     virtual void setModelMatrix(glm::mat4 modelMatrix) = 0;
+    virtual glm::mat4 getModelMatrix() = 0;
+    virtual glm::mat4 getViewMatrix() = 0;
+    virtual glm::mat4 getProjectionMatrix() = 0;
     virtual void translate(glm::vec3 translation) = 0;
     virtual void rotate(float angle, glm::vec3 axis) = 0;
     virtual void scale(glm::vec3 scale) = 0;
@@ -45,6 +55,7 @@ public:
     virtual void capturePosition() = 0;
     virtual void restorePosition() = 0;
     virtual void setVisibility(bool visible) = 0;
+    virtual void getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix) = 0;
 };
 
 
