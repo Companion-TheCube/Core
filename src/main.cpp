@@ -143,12 +143,11 @@ int main(int argc, char* argv[])
     std::cout << versionInfo << std::endl;
     auto logVerbosity = argumentParser.get<int>("--logVerbosity");
     auto logLevelPrint = argumentParser.get<int>("--LogLevelP");
-    auto logLevelFile = argumentParser.get<int>("--LogLevelF");
+    auto logLevelFile = argumentParser.get<int>("--LogLevelF");    
     /////////////////////////////////////////////////////////////////
-    // Settings ang Logger setup
+    // Settings and Logger setup
     /////////////////////////////////////////////////////////////////
     GlobalSettings settings;
-    // auto logger = new CubeLog();
     auto logger = std::make_shared<CubeLog>();
     auto settingsLoader = new SettingsLoader(&settings);
     settingsLoader->loadSettings();
@@ -173,6 +172,9 @@ int main(int argc, char* argv[])
     }
     CubeLog::info("Logger initialized.");
     CubeLog::info("Settings loaded.");
+    /////////////////////////////////////////////////////////////////
+    CubeLog::info("Loading GUI...");
+    auto gui = std::make_shared<GUI>();
 
     /////////////////////////////////////////////////////////////////
     // RtAudio setup
@@ -242,7 +244,6 @@ int main(int argc, char* argv[])
             CubeLog::warning("Failed to insert data into database. Last error: " + CubeDB::getDBManager()->getDatabase("apps")->getLastError());
         AppsManager appsManager;
         // db_cube->openAll();
-        auto gui = std::make_shared<GUI>();
         auto api = std::make_shared<API>();
         API_Builder api_builder(api);
         api_builder.addInterface(gui);
@@ -265,7 +266,7 @@ int main(int argc, char* argv[])
                     data[2] = 0;
             }
         }
-        CubeLog::info("Exiting main loop...");
+        CubeLog::info("Exited main loop...");
         std::cout << "Exiting..." << std::endl;
         // sineWaveSound.stop();
     }

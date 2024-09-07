@@ -69,6 +69,7 @@ int Renderer::thread()
     CubeLog::info("Renderer initialized. Starting Loop...");
     this->ready = true;
     this->latch->count_down(); // Send a signal to the GUI that the renderer is ready
+    auto screenMessage = new M_Text(this->textShader, "", 12, {0,1,0}, {2, 2});
     // this->window.setActive();
     while (running) {
         for (auto event = sf::Event {}; this->window.pollEvent(event);) {
@@ -93,6 +94,11 @@ int Renderer::thread()
         }
         for (auto object : this->objects) {
             object->draw();
+        }
+
+        if(CubeLog::getScreenMessage() != ""){
+            screenMessage->setText(CubeLog::getScreenMessage());
+            screenMessage->draw();
         }
         this->window.display();
     }

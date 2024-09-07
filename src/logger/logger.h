@@ -13,6 +13,7 @@
 #include <source_location>
 #include <sstream>
 #include <vector>
+#include <utils.h>
 
 enum LogVerbosity {
     MINIMUM,
@@ -78,10 +79,13 @@ private:
     std::mutex saveLogsThreadRunMutex;
     void purgeOldLogs();
     static bool hasUnreadErrors_b, hasUnreadLogs_b;
+    static std::string screenMessage;
     static std::vector<unsigned int> readErrorIDs, readLogIDs;
-
-public:
     static void log(std::string message, bool print, LogLevel level = LogLevel::LOGGER_INFO, std::source_location location = std::source_location::current());
+    std::jthread *resetThread;
+    static std::chrono::system_clock::time_point lastScreenMessageTime;
+public:
+    static void screen(std::string message, LogLevel level = LogLevel::LOGGER_INFO, std::source_location location = std::source_location::current());
     static void debug(std::string message, std::source_location location = std::source_location::current());
     static void error(std::string message, std::source_location location = std::source_location::current());
     static void info(std::string message, std::source_location location = std::source_location::current());
@@ -103,6 +107,8 @@ public:
     static bool hasUnreadErrors();
     static bool hasUnreadLogs();
     static bool hasUnreadEntries();
+
+    static std::string getScreenMessage();
 
     static std::string getSizeOfCubeLog();
 

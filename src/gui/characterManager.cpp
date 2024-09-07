@@ -445,6 +445,7 @@ void Character_generic::scale(float x, float y, float z)
     }
 }
 
+// TODO: create an overloaded version of this that allows to interrupt the current animation
 void Character_generic::triggerAnimation(Animations::AnimationNames_enum name)
 {
     std::lock_guard<std::mutex> lock(this->nextMutex);
@@ -457,6 +458,7 @@ void Character_generic::triggerAnimation(Animations::AnimationNames_enum name)
     }
 }
 
+// TODO: create an overloaded version of this that allows to interrupt the current expression
 void Character_generic::triggerExpression(Expressions::ExpressionNames_enum e)
 {
     std::lock_guard<std::mutex> lock(this->nextMutex);

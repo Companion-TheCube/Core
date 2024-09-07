@@ -125,6 +125,7 @@ bool CubeLog::hasUnreadErrors_b = false;
 bool CubeLog::hasUnreadLogs_b = false;
 std::vector<unsigned int> CubeLog::readErrorIDs;
 std::vector<unsigned int> CubeLog::readLogIDs;
+std::string CubeLog::screenMessage = "";
 
 /**
  * @brief Log a message
@@ -166,6 +167,34 @@ void CubeLog::log(std::string message, bool print, LogLevel level, std::source_l
             break;
         }
     }
+}
+
+std::chrono::system_clock::time_point CubeLog::lastScreenMessageTime = std::chrono::system_clock::now();
+
+/**
+ * @brief Log a message to the screen
+ *
+ * @param message The message to log
+ * @param level The log level of the message
+ * @param location The source location of the log message. If not provided, the location will be automatically determined.
+ */
+void CubeLog::screen(std::string message, LogLevel level, std::source_location location)
+{
+    std::lock_guard<std::mutex> lock(CubeLog::logMutex);
+    CubeLog::log("Screen Message: " + message, true, level, location);
+    CubeLog::screenMessage = message;
+    CubeLog::lastScreenMessageTime = std::chrono::system_clock::now();
+}
+
+/**
+ * @brief Get the message destined for the screen
+ *
+ * @return std::string
+ */
+std::string CubeLog::getScreenMessage()
+{
+    std::unique_lock<std::mutex> lock(CubeLog::logMutex);
+    return CubeLog::screenMessage;
 }
 
 /**
@@ -245,6 +274,24 @@ CubeLog::CubeLog(LogVerbosity verbosity, LogLevel printLevel, LogLevel fileLevel
         this->saveLogsInterval();
     });
     CubeLog::log("Logger initialized", true);
+    // create a signal to the thread that will kill the loop when we exit
+
+    this->resetThread = new std::jthread([&](std::stop_token st) {
+        while (!st.stop_requested()) {
+            // get current time point
+            auto end = std::chrono::system_clock::now();
+            std::unique_lock<std::mutex> lock(CubeLog::logMutex);
+            // get the duration
+            std::chrono::duration<double> duration = end.time_since_epoch() - CubeLog::lastScreenMessageTime.time_since_epoch();
+            // if the duration is greater than 3 seconds, clear the screen message
+            if (duration.count() > 3 && CubeLog::screenMessage.length() > 0) {
+                CubeLog::screen("");
+            }
+            lock.unlock();
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            if(st.stop_requested()) break;
+        }
+    });
 }
 
 /**
@@ -253,7 +300,7 @@ CubeLog::CubeLog(LogVerbosity verbosity, LogLevel printLevel, LogLevel fileLevel
  */
 void CubeLog::saveLogsInterval()
 {
-
+    // TODO: modify this to use std::stop_token
     while (true) {
         for (size_t i = 0; i < LOG_WRITE_OUT_INTERVAL; i++) {
             std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -295,6 +342,8 @@ void CubeLog::purgeOldLogs()
 CubeLog::~CubeLog()
 {
     CubeLog::info("Logger shutting down");
+    resetThread->request_stop();
+    resetThread->join();
     std::lock_guard<std::mutex> lock(this->saveLogsThreadRunMutex);
     this->saveLogsThreadRun = false;
     Color::Modifier colorReset(Color::FG_DEFAULT);

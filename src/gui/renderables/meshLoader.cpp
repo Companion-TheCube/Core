@@ -696,6 +696,7 @@ std::vector<ExpressionDefinition> ExpressionLoader::loadExpressions(std::vector<
         }
         for (auto expression : jsonObject) {
             expressions.push_back({ expression["name"], expression["expression"], expression["objects"], expression["visibility"] });
+            // TODO: parse the animations in the expression and add them to the object we just pushed back.
         }
     }
     return expressions;

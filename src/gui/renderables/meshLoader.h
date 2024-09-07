@@ -82,6 +82,10 @@ enum AnimationNames_enum {
     FUNNY_SHRINK,
     FUNNY_EXPAND,
     FUNNY_JUMP,
+    MOVE_TO_LOWER_LEFT,
+    MOVE_TO_LOWER_RIGHT,
+    MOVE_TO_UPPER_LEFT,
+    MOVE_TO_UPPER_RIGHT,
     COUNT
 };
 
@@ -145,6 +149,7 @@ struct ExpressionDefinition {
     std::string expression;
     std::vector<std::string> objects;
     std::vector<bool> visibility;
+    std::vector<AnimationKeyframe> animations;
 };
 
 class ExpressionLoader {
