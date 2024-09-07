@@ -3,13 +3,13 @@
 #include "../shader.h"
 #include "meshObject.h"
 #include "shapes.h"
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <logger.h>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <vector>
-#include <algorithm> 
 
 struct ObjectCollection {
     std::vector<MeshObject*> objects;
