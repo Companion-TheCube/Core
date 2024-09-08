@@ -88,14 +88,18 @@ void AppsManager::appsManagerThreadFn()
         CubeLog::error("Error getting app IDs from database.");
         return;
     }
+#ifdef __linux__
+    this->dockerApi = std::make_shared<DockerAPI>("/var/run/docker.sock");
+#endif
+#ifdef _WIN32
     this->dockerApi = std::make_shared<DockerAPI>("http://127.0.0.1:2375");
+#endif
     this->killAbandonedContainers();
     this->killAbandonedProcesses();
     CubeLog::info("AppsManager thread started.");
 
     // testing
     for(auto id: this->appIDs){
-        CubeLog::warning("testing info");
         CubeLog::debug("App ID: " + id);
         CubeLog::debug("App name: " + this->getAppName(id));
         CubeLog::debug("App exec path: " + this->getAppExecPath(id));

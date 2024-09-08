@@ -15,6 +15,13 @@ set(CMAKE_CXX_STANDARD 23)
 
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+# Set the build type if it isn't already
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug)
+endif()
+
+set(CMAKE_BUILD_PARALLEL_LEVEL 8)
+
 # determine if we are building on windows
 if(WIN32)
     set(FREETYPE_INCLUDE_DIRS "C:/Users/Andrew/Documents/freetype/include")

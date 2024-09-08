@@ -10,14 +10,14 @@ void DockerAPI::printDockerInfo()
     std::expected containers = this->getContainers_json();
     if (!containers) {
         CubeLog::error(containers.error().message);
-    }else{
+    } else {
         CubeLog::debug("Containers: " + containers.value());
     }
 
     std::expected containers_ved = this->getContainers_vec();
     if (!containers_ved) {
         CubeLog::error(containers_ved.error().message);
-    }else{
+    } else {
         for (auto container_id : containers_ved.value()) {
             CubeLog::debug("Container ID: " + container_id);
         }
@@ -26,41 +26,46 @@ void DockerAPI::printDockerInfo()
     std::expected images = this->getImages_json();
     if (!images) {
         CubeLog::error(images.error().message);
-    }else{
+    } else {
         CubeLog::debug("Images: " + images.value());
     }
 
     std::expected images_vec = this->getImages_vec();
     if (!images_vec) {
         CubeLog::error(images_vec.error().message);
-    }else{
+    } else {
         for (auto image_id : images_vec.value()) {
             CubeLog::debug("Image ID: " + image_id);
         }
-    }    
+    }
 }
 
 DockerAPI::DockerAPI(const std::string& base_url)
-    : client(base_url)
-    , base_url(base_url)
 {
+    client = new httplib::Client(base_url);
+    if (base_url.find("/var/run/docker.sock") != std::string::npos) {
+        client->set_address_family(AF_UNIX);
+        client->set_default_headers({{ "Host", "localhost" }});
+    }
+    this->base_url = base_url;
+    CubeLog::info("DockerAPI created with base_url: " + base_url);
     this->printDockerInfo();
 }
 
 DockerAPI::DockerAPI()
-    : client("http://127.0.0.1:2375")
-    , base_url("http://127.0.0.1:2375")
+    : DockerAPI("http://localhost:2375")
 {
-    this->printDockerInfo();
 }
 
 DockerAPI::~DockerAPI()
 {
+    delete client;
+    CubeLog::info("DockerAPI destroyed");
 }
 
 std::expected<std::string, DockerError> DockerAPI::getContainers_json()
 {
-    auto res = client.Get("/containers/json");
+    auto const& res = client->Get("/containers/json");
     if (res && res->status == 200) {
         return res->body;
     } else {
@@ -74,7 +79,7 @@ std::expected<std::vector<std::string>, DockerError> DockerAPI::getContainers_ve
     if (!containers) {
         return std::unexpected(containers.error());
     }
-    try{
+    try {
         nlohmann::json containers_json = nlohmann::json::parse(containers.value());
         std::vector<std::string> container_ids;
         for (auto container : containers_json) {
@@ -89,7 +94,7 @@ std::expected<std::vector<std::string>, DockerError> DockerAPI::getContainers_ve
 
 std::expected<std::string, DockerError> DockerAPI::getImages_json()
 {
-    auto res = client.Get("/images/json");
+    auto res = client->Get("/images/json");
     if (res && res->status == 200) {
         return res->body;
     } else {
@@ -103,19 +108,18 @@ std::expected<std::vector<std::string>, DockerError> DockerAPI::getImages_vec()
     if (!images) {
         return std::unexpected(images.error());
     }
-    try{
+    try {
         nlohmann::json images_json = nlohmann::json::parse(images.value());
-        if(!images_json.is_array()){
+        if (!images_json.is_array()) {
             CubeLog::error("Expected images_json to be an array, but it is not.");
             return {};
         }
         std::vector<std::string> image_ids;
         for (const auto& image : images_json) {
-            if(image.contains("Id") && image["Id"].is_string())
+            if (image.contains("Id") && image["Id"].is_string())
                 image_ids.push_back(image["Id"]);
             else
                 CubeLog::error("Expected image to contain an Id field of type string, but it does not.");
-
         }
         return image_ids;
     } catch (nlohmann::json::parse_error& e) {
@@ -127,7 +131,7 @@ std::expected<std::vector<std::string>, DockerError> DockerAPI::getImages_vec()
 std::expected<std::string, DockerError> DockerAPI::startContainer(const std::string& container_id)
 {
     std::string endpoint = "/containers/" + container_id + "/start";
-    auto res = client.Post(endpoint.c_str());
+    auto res = client->Post(endpoint.c_str());
     if (res && res->status == 204) {
         return "Container started successfully";
     } else {
@@ -138,7 +142,7 @@ std::expected<std::string, DockerError> DockerAPI::startContainer(const std::str
 std::expected<std::string, DockerError> DockerAPI::stopContainer(const std::string& container_id)
 {
     std::string endpoint = "/containers/" + container_id + "/stop";
-    auto res = client.Post(endpoint.c_str());
+    auto res = client->Post(endpoint.c_str());
     if (res && res->status == 204) {
         return "Container stopped successfully";
     } else {
@@ -149,7 +153,7 @@ std::expected<std::string, DockerError> DockerAPI::stopContainer(const std::stri
 std::expected<std::string, DockerError> DockerAPI::inspectContainer_json(const std::string& container_id)
 {
     std::string endpoint = "/containers/" + container_id + "/json";
-    auto res = client.Get(endpoint.c_str());
+    auto res = client->Get(endpoint.c_str());
     if (res && res->status == 200) {
         return res->body;
     } else {
@@ -163,7 +167,7 @@ std::expected<bool, DockerError> DockerAPI::isContainerRunning(const std::string
     if (!container) {
         return std::unexpected(container.error());
     }
-    try{
+    try {
         nlohmann::json container_json = nlohmann::json::parse(container.value());
         return container_json["State"]["Running"];
     } catch (nlohmann::json::parse_error& e) {
@@ -175,7 +179,7 @@ std::expected<bool, DockerError> DockerAPI::isContainerRunning(const std::string
 std::expected<std::string, DockerError> DockerAPI::killContainer(const std::string& container_id)
 {
     std::string endpoint = "/containers/" + container_id + "/kill";
-    auto res = client.Post(endpoint.c_str());
+    auto res = client->Post(endpoint.c_str());
     if (res && res->status == 204) {
         return "Container killed successfully";
     } else {

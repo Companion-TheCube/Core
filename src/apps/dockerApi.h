@@ -76,7 +76,7 @@ public:
 
 class DockerAPI {
 private:
-    httplib::Client client;
+    httplib::Client* client;
     std::string base_url;
     void printDockerInfo();
 public:
