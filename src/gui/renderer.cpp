@@ -2,12 +2,21 @@
 //  Path: src/gui/renderer.h
 #include "renderer.h"
 
+/**
+ * @brief Construct a new Renderer object
+ * 
+ * @param latch - a latch to synchronize the setup of the renderer
+ */
 Renderer::Renderer(std::latch& latch)
 {
     this->t = std::thread(&Renderer::thread, this);
     this->latch = &latch;
 }
 
+/**
+ * @brief Destroy the Renderer object. Stops the renderer thread and waits for it to join.
+ * 
+ */
 Renderer::~Renderer()
 {
     this->ready = false;
@@ -16,11 +25,20 @@ Renderer::~Renderer()
     CubeLog::info("Renderer destroyed");
 }
 
+/**
+ * @brief Stop the renderer thread
+ * 
+ */
 void Renderer::stop()
 {
     this->running = false;
 }
 
+/**
+ * @brief The main renderer thread. the thread will call all the setup tasks and loop tasks in the queue, along with drawing all objects.
+ * 
+ * @return int 
+ */
 int Renderer::thread()
 {
     sf::ContextSettings settings;
@@ -107,6 +125,11 @@ int Renderer::thread()
     return 0;
 }
 
+/**
+ * @brief Get the events from the event queue
+ * 
+ * @return std::vector<sf::Event> 
+ */
 std::vector<sf::Event> Renderer::getEvents()
 {
     std::vector<sf::Event> events;
@@ -117,31 +140,61 @@ std::vector<sf::Event> Renderer::getEvents()
     return events;
 }
 
+/**
+ * @brief Get the running status of the renderer
+ * 
+ * @return bool 
+ */
 bool Renderer::getIsRunning()
 {
     return this->running;
 }
 
+/**
+ * @brief Add an object to the renderer
+ * 
+ * @param object - the object to add
+ */
 void Renderer::addObject(Object* object)
 {
     this->objects.push_back(object);
 }
 
+/**
+ * @brief Get the general shader object
+ * 
+ * @return Shader* 
+ */
 Shader* Renderer::getShader()
 {
     return this->shader;
 }
 
+/**
+ * @brief Get the text shader object
+ * 
+ * @return Shader* 
+ */
 Shader* Renderer::getTextShader()
 {
     return this->textShader;
 }
 
+/**
+ * @brief Add a task to the loop queue
+ * 
+ * @param task - the task to add
+ */
 void Renderer::addLoopTask(std::function<void()> task)
 {
     this->loopQueue.push(task);
 }
 
+/**
+ * @brief Add a task to the setup queue
+ * 
+ * @param task - the task to add
+ */
 void Renderer::addSetupTask(std::function<void()> task)
 {
     this->setupQueue.push(task);
@@ -150,6 +203,10 @@ void Renderer::addSetupTask(std::function<void()> task)
 // TODO: add one-shot tasks that run once inside the loop similar to the setup tasks and loop tasks. Will also need to remove
 //  the setupTasks from the loop.
 
+/**
+ * @brief Run all the setup tasks in the queue
+ * 
+ */
 void Renderer::setupTasksRun()
 {
     while (this->setupQueue.size() > 0) {
@@ -158,6 +215,10 @@ void Renderer::setupTasksRun()
     }
 }
 
+/**
+ * @brief Run all the loop tasks in the queue
+ * 
+ */
 void Renderer::loopTasksRun()
 {
     if (this->loopQueue.size() == 0)
@@ -174,6 +235,11 @@ void Renderer::loopTasksRun()
     }
 }
 
+/**
+ * @brief Check if the renderer is ready
+ * 
+ * @return bool - true if the renderer is ready
+ */
 bool Renderer::isReady()
 {
     return this->ready;

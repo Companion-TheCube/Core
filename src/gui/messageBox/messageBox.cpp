@@ -3,6 +3,14 @@
 
 #include "messageBox.h"
 
+/**
+ * @brief Construct a new Cube Message Box object
+ * 
+ * @param shader - shader for the box
+ * @param textShader - shader for the text
+ * @param renderer - reference to the renderer
+ * @param latch - a latch to synchronize the setup of the message box
+ */
 CubeMessageBox::CubeMessageBox(Shader* shader, Shader* textShader, Renderer* renderer, std::latch& latch)
 {
     this->shader = shader;
@@ -13,11 +21,19 @@ CubeMessageBox::CubeMessageBox(Shader* shader, Shader* textShader, Renderer* ren
     CubeLog::info("MessageBox initialized");
 }
 
+/**
+ * @brief Destroy the Cube Message Box object
+ * 
+ */
 CubeMessageBox::~CubeMessageBox()
 {
     CubeLog::info("MessageBox destroyed");
 }
 
+/**
+ * @brief Setup the message box
+ * 
+ */
 void CubeMessageBox::setup()
 {
 
@@ -55,6 +71,11 @@ void CubeMessageBox::setup()
     CubeLog::info("MessageBox setup");
 }
 
+/**
+ * @brief Set the text of the message box. This adds a lambda to the renderer's setup tasks to set the text.
+ * 
+ * @param text - the text to display
+ */
 void CubeMessageBox::setText(std::string text)
 {
     // TODO: make the text wrap around the box
@@ -94,6 +115,12 @@ void CubeMessageBox::setText(std::string text)
     this->renderer->addSetupTask(fn);
 }
 
+/**
+ * @brief Set the visibility of the message box
+ * 
+ * @param visible - the visibility of the message box
+ * @return bool - the previous visibility of the message box
+ */
 bool CubeMessageBox::setVisible(bool visible)
 {
     CubeLog::debug("MessageBox visibility set to " + std::to_string(visible));
@@ -102,11 +129,20 @@ bool CubeMessageBox::setVisible(bool visible)
     return temp;
 }
 
+/**
+ * @brief Get the visibility of the message box
+ * 
+ * @return bool - the visibility of the message box
+ */
 bool CubeMessageBox::getVisible()
 {
     return this->visible;
 }
 
+/**
+ * @brief Draw the message box. This function should be called by the renderer thread.
+ * 
+ */
 void CubeMessageBox::draw()
 {
     if (!this->visible) {
@@ -117,16 +153,31 @@ void CubeMessageBox::draw()
     }
 }
 
+/**
+ * @brief Set the position of the message box
+ * 
+ * @param position - the position to set the message box to
+ */
 void CubeMessageBox::setPosition(glm::vec2 position)
 {
     // TODO:
 }
 
+/**
+ * @brief Set the size of the message box
+ * 
+ * @param size - the size to set the message box to
+ */
 void CubeMessageBox::setSize(glm::vec2 size)
 {
     // TODO:
 }
 
+/**
+ * @brief Get the objects that make up the message box
+ * 
+ * @return std::vector<MeshObject*> - the objects of the message box
+ */
 std::vector<MeshObject*> CubeMessageBox::getObjects()
 {
     return this->objects;

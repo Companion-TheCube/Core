@@ -2,6 +2,11 @@
 
 // TODO: Character manager needs some static methods that handle changing / triggering animations and expressions.
 // These methods should be called from the GUI and should be able to handle any character that is loaded.
+/**
+ * @brief Construct a new Character Manager object
+ * 
+ * @param sh - The shader to use
+ */
 CharacterManager::CharacterManager(Shader* sh)
 {
     this->shader = sh;
@@ -49,6 +54,10 @@ CharacterManager::CharacterManager(Shader* sh)
     });
 }
 
+/**
+ * @brief Destroy the Character Manager object. This will delete all characters and stop the threads that handle animations and expressions.
+ * 
+ */
 CharacterManager::~CharacterManager()
 {
     for (auto character : this->characters) {
@@ -64,16 +73,32 @@ CharacterManager::~CharacterManager()
     this->expressionThread->join();
 }
 
+/**
+ * @brief Get the Character object currently being managed
+ * 
+ * @return Character_generic* 
+ */
 Character_generic* CharacterManager::getCharacter()
 {
     return this->currentCharacter;
 }
 
+/**
+ * @brief Set the Character object to manage
+ * 
+ * @param character - The character to manage
+ */
 void CharacterManager::setCharacter(Character_generic* character)
 {
     this->currentCharacter = character;
 }
 
+/**
+ * @brief Load App characters from the database
+ * 
+ * @return true - if characters were loaded
+ * @return false - if no characters were loaded
+ */
 bool CharacterManager::loadAppCharacters()
 {
     // TODO: This will need to interface with the list of registered apps and find the ones
@@ -81,6 +106,12 @@ bool CharacterManager::loadAppCharacters()
     return false;
 }
 
+/**
+ * @brief Load built-in characters
+ * 
+ * @return true - if characters were loaded
+ * @return false - if no characters were loaded
+ */
 bool CharacterManager::loadBuiltInCharacters()
 {
     // TODO: There should be a list of built in characters in the database that we can load.
@@ -91,6 +122,13 @@ bool CharacterManager::loadBuiltInCharacters()
     return true;
 }
 
+/**
+ * @brief Set the character to manage by name
+ * 
+ * @param name - The name of the character to manage
+ * @return true - if the character was found and set
+ * @return false - if the character was not found
+ */
 bool CharacterManager::setCharacterByName(std::string name)
 {
     return false;

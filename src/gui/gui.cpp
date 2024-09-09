@@ -113,6 +113,11 @@ void GUI::stop()
     this->renderer->stop();
 }
 
+/**
+ * @brief Get the Http Endpoint Data object
+ *
+ * @return HttpEndPointData_t a vector of HttpEndPointData_t objects
+ */
 HttpEndPointData_t GUI::getHttpEndpointData()
 {
     HttpEndPointData_t actions;
@@ -140,6 +145,11 @@ HttpEndPointData_t GUI::getHttpEndpointData()
     return actions;
 }
 
+/**
+ * @brief Get the Http Endpoint Names And Params object
+ *
+ * @return std::vector<std::pair<std::string, std::vector<std::string>>> a vector of pairs of strings and vectors of strings
+ */
 std::vector<std::pair<std::string, std::vector<std::string>>> GUI::getHttpEndpointNamesAndParams()
 {
     std::vector<std::pair<std::string, std::vector<std::string>>> names;
@@ -150,11 +160,12 @@ std::vector<std::pair<std::string, std::vector<std::string>>> GUI::getHttpEndpoi
     return names;
 }
 
+/**
+ * @brief Get the Inteface Name
+ *
+ * @return std::string the name of the interface
+ */
 std::string GUI::getIntefaceName() const
 {
     return "GUI";
 }
-
-///////////////////////////////////////////////////////////////////////////////
-
-///////////////////////////////////////////////////////////////////////////////
