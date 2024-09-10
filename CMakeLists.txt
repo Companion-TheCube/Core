@@ -1,5 +1,5 @@
 # Minimum version of CMake required
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.30) 
 
 # Project name and the language used
 project(CubeCore VERSION 1.0 LANGUAGES CXX)
@@ -22,12 +22,15 @@ endif()
 
 set(CMAKE_BUILD_PARALLEL_LEVEL 8)
 
+# set(benchmark_DIR "C:/Users/Andrew/Documents/Projects/benchmark/build")
+find_package(benchmark REQUIRED)
+
 # determine if we are building on windows
 if(WIN32)
     set(FREETYPE_INCLUDE_DIRS "C:/Users/Andrew/Documents/freetype/include")
-    set(FREETYPE_LIBRARY "C:/Users/Andrew/Documents/freetype/release static/vs2015-2022/win32/freetype.lib")
+    set(FREETYPE_LIBRARY "C:/Users/Andrew/Documents/freetype/release static/vs2015-2022/win64/freetype.lib")
     set(GLEW_INCLUDE_DIRS "C:/Users/Andrew/Documents/glew-2.1.0/include")
-    set(GLEW_LIBRARIES "C:/Users/Andrew/Documents/glew-2.1.0/lib/Release/Win32/glew32.lib")
+    set(GLEW_LIBRARIES "C:/Users/Andrew/Documents/glew-2.1.0/lib/Release/x64/glew32.lib")
 else()
     find_package(GLEW REQUIRED)
 endif()
@@ -112,7 +115,7 @@ add_definitions(-DSODIUM_STATIC)
 
 if(WIN32)
     include_directories(${CMAKE_SOURCE_DIR}/libraries/libsodium/include)
-    find_library(SODIUM_LIBRARIES libsodium HINTS "${CMAKE_SOURCE_DIR}/libraries/libsodium/Win32/Release/v143/*" "${CMAKE_SOURCE_DIR}/libraries/libsodium/Win32/Debug/v143/*")
+    find_library(SODIUM_LIBRARIES libsodium HINTS "${CMAKE_SOURCE_DIR}/libraries/libsodium/x64/Release/v143/*" "${CMAKE_SOURCE_DIR}/libraries/libsodium/x64/Debug/v143/*")
 else()
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(SODIUM REQUIRED libsodium)
@@ -283,7 +286,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest)
 
 # Add test executable
-file(GLOB_RECURSE TEST_SOURCES "tests/*.cpp" "tests/**/*.cpp" "tests/**/**/*.cpp")
+file(GLOB_RECURSE TEST_SOURCES "tests/*.cpp" "tests/**/*.cpp")
 add_executable(CubeCoreTests ${TEST_SOURCES})
 target_link_libraries(CubeCoreTests PRIVATE
     gtest
@@ -304,3 +307,23 @@ target_link_libraries(CubeCoreTests PRIVATE
 
 enable_testing()
 add_test(NAME CubeCoreTests COMMAND CubeCoreTests)
+
+# Add benchmarks executable
+file(GLOB_RECURSE BENCHMARK_SOURCES "benchmarks/*.cpp" "benchmarks/**/*.cpp")
+add_executable(CubeCoreBenchmarks ${BENCHMARK_SOURCES})
+target_link_libraries(CubeCoreBenchmarks PRIVATE
+    benchmark::benchmark
+    benchmark::benchmark_main
+    sfml-graphics
+    sfml-audio
+    sfml-network
+    rtaudio
+    ${ALSA_LIBRARIES}
+    ${FREETYPE_LIBRARY}
+    ${OPENGL_LIBRARIES}
+    ${GLEW_LIBRARIES}
+    nlohmann_json::nlohmann_json
+    SQLiteCpp
+    sqlite3
+    ${SODIUM_LIBRARIES}
+)

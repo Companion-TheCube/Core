@@ -287,10 +287,10 @@ void Endpoint::setAction(std::function<std::string(const httplib::Request& req, 
 }
 
 /**
- * @brief Perform the action when the endpoint is called // TODO: response and params parameters should be combined into a single object
+ * @brief Perform the action when the endpoint is called // TODO: response and request parameters should be combined into a single object
  *
- * @param response the response from the client
- * @param params the parameters from the client
+ * @param req the request object
+ * @param res the response object
  * @return std::string the response to send back to the client
  */
 std::string Endpoint::doAction(const httplib::Request& req, httplib::Response& res)
@@ -316,6 +316,7 @@ std::function<std::string(const httplib::Request& req, httplib::Response& res)> 
  * @param address the address to bind the server to
  * @param port the port to bind the server to
  */
+// TODO: add support for unix sockets
 CubeHttpServer::CubeHttpServer(std::string address, int port)
 {
     this->address = address;

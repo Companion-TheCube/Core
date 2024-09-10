@@ -162,6 +162,8 @@ void CubeLog::log(std::string message, bool print, LogLevel level, std::source_l
         case LogLevel::LOGGER_CRITICAL:
             std::cout << colorCritical << entry.getMessageFull() << std::endl;
             break;
+        case LogLevel::LOGGER_OFF:
+            break;
         default:
             std::cout << colorDefault << entry.getMessageFull() << std::endl;
             break;
@@ -347,7 +349,7 @@ CubeLog::~CubeLog()
     std::lock_guard<std::mutex> lock(this->saveLogsThreadRunMutex);
     this->saveLogsThreadRun = false;
     Color::Modifier colorReset(Color::FG_DEFAULT);
-    std::cout << colorReset;
+    if(this->consoleLoggingEnabled) std::cout << colorReset;
     this->writeOutLogs();
 }
 
@@ -420,6 +422,7 @@ std::vector<std::string> CubeLog::getLogsAndErrorsAsStrings(bool fullMessages)
 void CubeLog::writeOutLogs()
 {
     // TODO: theres a bug here where the logs are being written to the file and existing logs are being overwritten. FIXME
+    if(this->fileLevel == LogLevel::LOGGER_OFF) return;
     std::cout << "Size of CubeLog: " << CubeLog::getSizeOfCubeLog() << std::endl;
     std::cout << "Memory footprint: " << getMemoryFootprint() << std::endl;
     std::lock_guard<std::mutex> lock(this->saveLogsMutex);
