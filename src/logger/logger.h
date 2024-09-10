@@ -108,11 +108,8 @@ public:
     static bool hasUnreadErrors();
     static bool hasUnreadLogs();
     static bool hasUnreadEntries();
-
     static std::string getScreenMessage();
-
     static std::string getSizeOfCubeLog();
-
     // API Interface
     std::string getIntefaceName() const;
     HttpEndPointData_t getHttpEndpointData();

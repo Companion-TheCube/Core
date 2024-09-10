@@ -1,5 +1,5 @@
 # Minimum version of CMake required
-cmake_minimum_required(VERSION 3.30) 
+cmake_minimum_required(VERSION 3.28)
 
 # Project name and the language used
 project(CubeCore VERSION 1.0 LANGUAGES CXX)
@@ -19,8 +19,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
 endif()
-
-set(CMAKE_BUILD_PARALLEL_LEVEL 8)
 
 # set(benchmark_DIR "C:/Users/Andrew/Documents/Projects/benchmark/build")
 find_package(benchmark REQUIRED)
@@ -291,6 +289,8 @@ add_executable(CubeCoreTests ${TEST_SOURCES})
 target_link_libraries(CubeCoreTests PRIVATE
     gtest
     gtest_main
+    gmock
+    gmock_main
     sfml-graphics
     sfml-audio
     sfml-network

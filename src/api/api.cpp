@@ -1,4 +1,4 @@
-// TODO: Interprocess communication between the the CubeCore and the "Apps" which will facilitated through a library that the Apps can use.
+// TODO: Interprocess communication between the the CubeCore and the "Apps" which will facilitated through a unix socket.
 
 // TODO: HTTP API needs an endpoint that lists all endpoints
 
