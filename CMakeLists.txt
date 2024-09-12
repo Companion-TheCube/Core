@@ -21,7 +21,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 # set(benchmark_DIR "C:/Users/Andrew/Documents/Projects/benchmark/build")
-find_package(benchmark REQUIRED)
+find_package(benchmark QUIET)
 
 # determine if we are building on windows
 if(WIN32)
@@ -308,22 +308,27 @@ target_link_libraries(CubeCoreTests PRIVATE
 enable_testing()
 add_test(NAME CubeCoreTests COMMAND CubeCoreTests)
 
-# Add benchmarks executable
-file(GLOB_RECURSE BENCHMARK_SOURCES "benchmarks/*.cpp" "benchmarks/**/*.cpp")
-add_executable(CubeCoreBenchmarks ${BENCHMARK_SOURCES})
-target_link_libraries(CubeCoreBenchmarks PRIVATE
-    benchmark::benchmark
-    benchmark::benchmark_main
-    sfml-graphics
-    sfml-audio
-    sfml-network
-    rtaudio
-    ${ALSA_LIBRARIES}
-    ${FREETYPE_LIBRARY}
-    ${OPENGL_LIBRARIES}
-    ${GLEW_LIBRARIES}
-    nlohmann_json::nlohmann_json
-    SQLiteCpp
-    sqlite3
-    ${SODIUM_LIBRARIES}
-)
+if(benchmark_FOUND)
+    # Add benchmarks executable
+    file(GLOB_RECURSE BENCHMARK_SOURCES "benchmarks/*.cpp" "benchmarks/**/*.cpp")
+    add_executable(CubeCoreBenchmarks ${BENCHMARK_SOURCES})
+    target_link_libraries(CubeCoreBenchmarks PRIVATE
+        benchmark::benchmark
+        benchmark::benchmark_main
+        sfml-graphics
+        sfml-audio
+        sfml-network
+        rtaudio
+        ${ALSA_LIBRARIES}
+        ${FREETYPE_LIBRARY}
+        ${OPENGL_LIBRARIES}
+        ${GLEW_LIBRARIES}
+        nlohmann_json::nlohmann_json
+        SQLiteCpp
+        sqlite3
+        ${SODIUM_LIBRARIES}
+    )
+else()
+    message(WARNING "Google Benchmark not found, skipping benchmarks.")
+    message(WARNING "To build benchmarks, insstall Google Benchmark and re-run CMake.")
+endif()

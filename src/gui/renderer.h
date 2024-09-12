@@ -1,5 +1,6 @@
 #pragma once
 #ifndef __GLEW_H__
+#define GLEW_STATIC
 #include "GL/glew.h"
 #endif
 #include <thread>
