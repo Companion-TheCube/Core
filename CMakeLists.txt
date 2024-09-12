@@ -20,9 +20,6 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
 endif()
 
-# set(benchmark_DIR "C:/Users/Andrew/Documents/Projects/benchmark/build")
-find_package(benchmark QUIET)
-
 # determine if we are building on windows
 if(WIN32)
     set(FREETYPE_INCLUDE_DIRS "C:/Users/Andrew/Documents/freetype/include")
@@ -307,6 +304,8 @@ target_link_libraries(CubeCoreTests PRIVATE
 
 enable_testing()
 add_test(NAME CubeCoreTests COMMAND CubeCoreTests)
+
+find_package(benchmark QUIET)
 
 if(benchmark_FOUND)
     # Add benchmarks executable
