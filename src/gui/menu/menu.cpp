@@ -131,6 +131,9 @@ void Menu::setup()
     /////// TESTING //////////// TODO:
     this->addMenuEntry("Test addMenuEntry() 1 very long test text that is very long", [&](void* data) {
         CubeLog::info("Test clicked");
+        if(GlobalSettings::setSetting("selectedFontPath", GlobalSettings::fontPaths.at(0))){
+            CubeLog::info("SelectedFontPath: " + GlobalSettings::selectedFontPath);
+        }
     });
 
     this->addMenuEntry("addMenuEntry() 2", [&](void* data) {
@@ -438,12 +441,7 @@ MenuEntry::MenuEntry(std::string text, Shader* shader, glm::vec2 position, float
     this->visible = true;
     this->shader = shader;
 
-    this->objects.push_back(new M_Text(shader, text, size, {
-                                                               1.f,
-                                                               1.f,
-                                                               1.f,
-                                                           },
-        position));
+    this->objects.push_back(new M_Text(shader, text, size, {1.f,1.f,1.f,},position));
 
     this->size.x = this->objects.at(0)->getWidth();
     this->size.y = size;

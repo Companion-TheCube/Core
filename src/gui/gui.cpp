@@ -80,7 +80,7 @@ void GUI::eventLoop()
             menu->draw();
             messageBox->draw();
         });
-    }else{
+    } else {
         CubeLog::error("Renderer is not ready or is not running");
     }
 
@@ -121,27 +121,29 @@ void GUI::stop()
 HttpEndPointData_t GUI::getHttpEndpointData()
 {
     HttpEndPointData_t actions;
-    actions.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT, [&](const httplib::Request& req, httplib::Response& res) {
-                           // this->stop();
-                           std::string p = "no param";
-                           for (auto param : req.params) {
-                               if (param.first == "text") {
-                                   this->messageBox->setText(param.second);
-                                   p = param.second;
-                               }
-                           }
-                           CubeLog::info("Endpoint stop called and message set to: " + p);
-                           return "Stop called";
-                       } });
-    actions.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT, [&](const httplib::Request& req, httplib::Response& res) {
-                           std::string paramsString;
-                           for (auto param : req.params) {
-                               paramsString += param.first + ": " + param.second + "\n";
-                           }
-                           CubeLog::info("Endpoint action 2: \n");
-                           CubeLog::info(paramsString);
-                           return "\"Endpoint action 2\" logged";
-                       } });
+    actions.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
+        [&](const httplib::Request& req, httplib::Response& res) {
+            // this->stop();
+            std::string p = "no param";
+            for (auto param : req.params) {
+                if (param.first == "text") {
+                    this->messageBox->setText(param.second);
+                    p = param.second;
+                }
+            }
+            CubeLog::info("Endpoint stop called and message set to: " + p);
+            return "Stop called";
+        } });
+    actions.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
+        [&](const httplib::Request& req, httplib::Response& res) {
+            std::string paramsString;
+            for (auto param : req.params) {
+                paramsString += param.first + ": " + param.second + "\n";
+            }
+            CubeLog::info("Endpoint action 2: \n");
+            CubeLog::info(paramsString);
+            return "\"Endpoint action 2\" logged";
+        } });
     return actions;
 }
 

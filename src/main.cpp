@@ -112,7 +112,6 @@ int main(int argc, char* argv[])
     argumentParser.add_argument("-L", "--LogLevelP")
         .help("Set log level for printing to console (0-6)")
         .default_value(3)
-        .choices("0", "1", "2", "3")
         .action([&](const std::string& value) {
             if (LogLevel(std::stoi(value)) >= LogLevel::LOGGER_LOGLEVELCOUNT)
                 throw std::runtime_error("Invalid log level.");
@@ -120,9 +119,8 @@ int main(int argc, char* argv[])
             return std::stoi(value);
         });
     argumentParser.add_argument("-f", "--LogLevelF")
-        .help("Set log level for writing to file (0-3)")
+        .help("Set log level for writing to file (0-6)")
         .default_value(3)
-        .choices("0", "1", "2", "3")
         .action([&](const std::string& value) {
             if (LogLevel(std::stoi(value)) >= LogLevel::LOGGER_LOGLEVELCOUNT)
                 throw std::runtime_error("Invalid log level.");

@@ -19,7 +19,7 @@ M_Text::M_Text(Shader* sh, std::string text, float fontSize, glm::vec3 color, gl
     CubeLog::info("Created Text");
 }
 
-void M_Text::reloadFont() // TODO: verify / test this function
+void M_Text::reloadFont() // TODO: this is not working. although the setting gets changed, this never loads the new font.
 {
     FT_Done_Face(face);
     FT_Done_FreeType(ft);
@@ -40,6 +40,8 @@ void M_Text::buildText()
         if (!std::filesystem::exists(fontPath)) {
             CubeLog::error("ERROR::FREETYPE: Font file does not exist");
             fontPath = "fonts/Roboto/Roboto-Regular.ttf";
+        }else{
+            GlobalSettings::setSettingCB("selectedFontPath", std::bind(&M_Text::reloadFont, this));
         }
         if (FT_New_Face(ft, fontPath.c_str(), 0, &face)) {
             CubeLog::error("ERROR::FREETYPE: Failed to load font");
@@ -121,6 +123,9 @@ M_Text::~M_Text()
 
 void M_Text::draw()
 {
+    if(!this->faceInitialized){
+        this->buildText();
+    }
     this->shader->use();
     shader->setVec3("textColor", this->color.x, this->color.y, this->color.z);
     shader->setMat4("projection", projectionMatrix);
