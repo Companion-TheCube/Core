@@ -1,3 +1,5 @@
+// TODO: the font is being loaded for each instance of an M_Text object and should be made static so that it only gets loaded once and is shared between all instances of M_Text
+
 #include "shapes.h"
 
 void checkGLError(const std::string& location)
@@ -16,14 +18,24 @@ M_Text::M_Text(Shader* sh, std::string text, float fontSize, glm::vec3 color, gl
     this->color = color;
     this->position = position;
     this->buildText();
+    GlobalSettings::setSettingCB("selectedFontPath", [&](){
+        this->reloadFace = true;
+    });
     CubeLog::info("Created Text");
 }
 
-void M_Text::reloadFont() // TODO: this is not working. although the setting gets changed, this never loads the new font.
+void M_Text::reloadFont()
 {
+    CubeLog::info("Reloading font");
     FT_Done_Face(face);
-    FT_Done_FreeType(ft);
-    faceInitialized = false;
+    this->Characters.clear();
+    this->vertexData.clear();
+    this->vertexData.shrink_to_fit();
+    this->width = 0;
+    M_Text::faceInitialized = false;
+    // rebuild the text
+    this->buildText();
+    CubeLog::info("Reloaded font");
 }
 
 FT_Library M_Text::ft;
@@ -32,23 +44,26 @@ bool M_Text::faceInitialized = false;
 
 void M_Text::buildText()
 {
-    if (!faceInitialized) {
+    if (!M_Text::faceInitialized) {
         if (FT_Init_FreeType(&ft)) {
             CubeLog::error("ERROR::FREETYPE: Could not init FreeType Library");
         }
         std::string fontPath = GlobalSettings::selectedFontPath;
+        CubeLog::info("Loading font: " + fontPath);
         if (!std::filesystem::exists(fontPath)) {
             CubeLog::error("ERROR::FREETYPE: Font file does not exist");
             fontPath = "fonts/Roboto/Roboto-Regular.ttf";
-        }else{
-            GlobalSettings::setSettingCB("selectedFontPath", std::bind(&M_Text::reloadFont, this));
         }
         if (FT_New_Face(ft, fontPath.c_str(), 0, &face)) {
             CubeLog::error("ERROR::FREETYPE: Failed to load font");
         }
-        faceInitialized = true;
+        M_Text::faceInitialized = true;
+        
+        CubeLog::info("Loaded font: " + std::string(FT_Get_Postscript_Name(face)));
     }
-    FT_Set_Pixel_Sizes(face, 0, this->fontSize);
+    if(FT_Set_Pixel_Sizes(face, 0, this->fontSize)){
+        CubeLog::error("ERROR::FREETYPE: Failed to set pixel size");
+    }
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     checkGLError("0.1");
     for (unsigned char c = 0; c < 128; c++) {
@@ -112,6 +127,8 @@ void M_Text::buildText()
 
 M_Text::~M_Text()
 {
+    FT_Done_Face(face);
+    FT_Done_FreeType(ft);
     // delete all the openGl stuff
     glDeleteVertexArrays(1, &this->VAO);
     glDeleteBuffers(1, &this->VBO);
@@ -123,8 +140,12 @@ M_Text::~M_Text()
 
 void M_Text::draw()
 {
+    if(reloadFace){
+        reloadFont();
+        this->reloadFace = false;
+    }
     if(!this->faceInitialized){
-        this->buildText();
+        return;
     }
     this->shader->use();
     shader->setVec3("textColor", this->color.x, this->color.y, this->color.z);
@@ -207,12 +228,21 @@ void M_Text::uniformScale(float scale)
 
 void M_Text::rotateAbout(float angle, glm::vec3 point)
 {
-    // TODO: Implement rotation of text
+    glm::vec3 axis = point - glm::vec3(this->position.x, this->position.y, 0.f);
+    rotateAbout(angle, axis, point);
+    
 }
 
 void M_Text::rotateAbout(float angle, glm::vec3 axis, glm::vec3 point)
 {
-    // TODO: Implement rotation of text
+    glm::mat4 tempMat = glm::mat4(1.0f); // Start with an identity matrix
+    tempMat = glm::translate(tempMat, point);
+    tempMat = glm::rotate(tempMat, glm::radians(angle), glm::normalize(axis));
+    tempMat = glm::translate(tempMat, -point);
+    for (int i = 0; i < this->vertexData.size(); i++) {
+        glm::vec4 point = tempMat * glm::vec4(this->vertexData[i].x, this->vertexData[i].y, this->vertexData[i].z, 1.0f);
+        this->vertexData[i] = { point.x, point.y, point.z, 1.f };
+    }
 }
 
 glm::vec3 M_Text::getCenterPoint()
@@ -762,12 +792,14 @@ void M_Line::setModelMatrix(glm::mat4 modelMatrix)
 
 void M_Line::translate(glm::vec3 translation)
 {
-    this->vertexData[0].x += translation.x;
-    this->vertexData[0].y += translation.y;
-    this->vertexData[0].z += translation.z;
-    this->vertexData[1].x += translation.x;
-    this->vertexData[1].y += translation.y;
-    this->vertexData[1].z += translation.z;
+    // this->vertexData[0].x += translation.x;
+    // this->vertexData[0].y += translation.y;
+    // this->vertexData[0].z += translation.z;
+    // this->vertexData[1].x += translation.x;
+    // this->vertexData[1].y += translation.y;
+    // this->vertexData[1].z += translation.z;
+    // update the matrixes
+    this->modelMatrix = glm::translate(this->modelMatrix, translation);
 }
 
 void M_Line::rotate(float angle, glm::vec3 axis)
@@ -778,6 +810,8 @@ void M_Line::rotate(float angle, glm::vec3 axis)
     glm::vec4 end = tempMat * glm::vec4(this->vertexData[1].x, this->vertexData[1].y, this->vertexData[1].z, 1.0f);
     this->vertexData[0] = { start.x, start.y, start.z, 1.f };
     this->vertexData[1] = { end.x, end.y, end.z, 1.f };
+    this->modelMatrix = glm::rotate(this->modelMatrix, glm::radians(angle), axis);
+
 }
 
 void M_Line::scale(glm::vec3 scale)
@@ -790,6 +824,7 @@ void M_Line::scale(glm::vec3 scale)
     this->vertexData[1].x *= avgScale;
     this->vertexData[1].y *= avgScale;
     this->vertexData[1].z *= avgScale;
+    this->modelMatrix = glm::scale(this->modelMatrix, scale);
 }
 
 void M_Line::uniformScale(float scale)
@@ -797,6 +832,7 @@ void M_Line::uniformScale(float scale)
     this->vertexData[1].x *= scale;
     this->vertexData[1].y *= scale;
     this->vertexData[1].z *= scale;
+    this->modelMatrix = glm::scale(this->modelMatrix, glm::vec3(scale, scale, scale));
 }
 
 void M_Line::rotateAbout(float angle, glm::vec3 point)
@@ -810,6 +846,9 @@ void M_Line::rotateAbout(float angle, glm::vec3 point)
     glm::vec4 end = tempMat * glm::vec4(this->vertexData[1].x, this->vertexData[1].y, this->vertexData[1].z, 1.0f);
     this->vertexData[0] = { start.x, start.y, start.z, 1.f };
     this->vertexData[1] = { end.x, end.y, end.z, 1.f };
+    this->modelMatrix = glm::translate(this->modelMatrix, point);
+    this->modelMatrix = glm::rotate(this->modelMatrix, glm::radians(angle), axis);
+    this->modelMatrix = glm::translate(this->modelMatrix, -point);
 }
 
 void M_Line::rotateAbout(float angle, glm::vec3 axis, glm::vec3 point)
@@ -822,6 +861,9 @@ void M_Line::rotateAbout(float angle, glm::vec3 axis, glm::vec3 point)
     glm::vec4 end = tempMat * glm::vec4(this->vertexData[1].x, this->vertexData[1].y, this->vertexData[1].z, 1.0f);
     this->vertexData[0] = { start.x, start.y, start.z, 1.f };
     this->vertexData[1] = { end.x, end.y, end.z, 1.f };
+    this->modelMatrix = glm::translate(this->modelMatrix, point);
+    this->modelMatrix = glm::rotate(this->modelMatrix, glm::radians(angle), axis);
+    this->modelMatrix = glm::translate(this->modelMatrix, -point);
 }
 
 glm::vec3 M_Line::getCenterPoint()

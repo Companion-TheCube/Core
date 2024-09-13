@@ -10,6 +10,7 @@ struct GlobalSettings {
     static LogLevel logLevelPrint;
     static LogLevel logLevelFile;
     static std::vector<std::pair<std::string, std::function<void()>>> settingChangeCallbacks;
+    static std::mutex settingChangeMutex;
 
     GlobalSettings(){
         GlobalSettings::fontPaths = loadFontPaths();
@@ -23,12 +24,12 @@ struct GlobalSettings {
 
     static void setSettingCB(std::string key, std::function<void()> callback){
         // find the callback and remove it
-        for(auto it = settingChangeCallbacks.begin(); it != settingChangeCallbacks.end(); it++){
-            if(it->first == key){
-                settingChangeCallbacks.erase(it);
-                break;
-            }
-        }
+        // for(auto it = settingChangeCallbacks.begin(); it != settingChangeCallbacks.end(); it++){
+        //     if(it->first == key){
+        //         settingChangeCallbacks.erase(it);
+        //         break;
+        //     }
+        // }
         settingChangeCallbacks.push_back({key, callback});
     }
 
@@ -42,6 +43,7 @@ struct GlobalSettings {
     }
 
     static bool setSetting(std::string key, nlohmann::json::value_type value){
+        std::unique_lock<std::mutex> lock(settingChangeMutex);
         if(key == "logVerbosity"){
             int tempVal = value.get<int>();
             GlobalSettings::logVerbosity = static_cast<LogVerbosity>(tempVal);

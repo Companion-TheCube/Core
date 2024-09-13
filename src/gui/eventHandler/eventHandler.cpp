@@ -361,24 +361,47 @@ void EventManager::addClickableArea(ClickableArea* clickableArea)
  */
 bool EventManager::checkClickableAreas(sf::Event event)
 {
-    if (event.type != sf::Event::MouseButtonPressed) {
+    if (sf::Event::MouseButtonPressed == event.type) {
+        this->mouseDownPosition = { event.mouseButton.x, event.mouseButton.y };
+    }
+    if (event.type != sf::Event::MouseButtonReleased) {
         return false;
     }
-    for (ClickableArea* area : this->clickableAreas) {
-        // get the x and y from the event
-        int x = event.mouseButton.x;
-        int y = event.mouseButton.y;
-        // check if the x and y are within the area
-        CubeLog::info("Checking clickable area: x:" + std::to_string(x) + " y:" + std::to_string(y) + " area: xMin:" + std::to_string(area->xMin) + " xMax:" + std::to_string(area->xMax) + " yMin:" + std::to_string(area->yMin) + " yMax:" + std::to_string(area->yMax));
-        if (x < area->xMax && x > area->xMin && y < area->yMax && y > area->yMin) {
-            if (event.mouseButton.button == sf::Mouse::Left) {
-                area->clickableObject->onClick(&event);
-                return true;
+    int xChange = event.mouseButton.x - std::get<0>(this->mouseDownPosition);
+    int yChange = event.mouseButton.y - std::get<1>(this->mouseDownPosition);
+    float distance = sqrt(pow(xChange, 2) + pow(yChange, 2));
+    if (distance < 5) {
+        CubeLog::info("Distance is less than 5");
+        for (ClickableArea* area : this->clickableAreas) {
+            // get the x and y from the event
+            int x = event.mouseButton.x;
+            int y = event.mouseButton.y;
+            // check if the x and y are within the area
+            CubeLog::info("Checking clickable area: x:" + std::to_string(x) + " y:" + std::to_string(y) + " area: xMin:" + std::to_string(area->xMin) + " xMax:" + std::to_string(area->xMax) + " yMin:" + std::to_string(area->yMin) + " yMax:" + std::to_string(area->yMax));
+            if (x < area->xMax && x > area->xMin && y < area->yMax && y > area->yMin) {
+                if (event.mouseButton.button == sf::Mouse::Left) {
+                    area->clickableObject->onClick(&event);
+                    return true;
+                }
+                if (event.mouseButton.button == sf::Mouse::Right) {
+                    area->clickableObject->onRightClick(&event);
+                    return true;
+                }
             }
-            if (event.mouseButton.button == sf::Mouse::Right) {
-                area->clickableObject->onRightClick(&event);
-                return true;
-            }
+        }
+    }else{
+        if(std::abs(float(yChange)) * (0.5f) > std::abs(float(xChange))){
+            CubeLog::info("Dragged Y");
+            sf::Event ev;
+            ev.type = sf::Event::MouseWheelScrolled;
+            ev.mouseWheelScroll.delta = -yChange;
+            triggerEvent(SpecificEventTypes::DRAG_Y, &ev);
+        }else if(std::abs(float(xChange) * (0.5f)) > std::abs(float(yChange))){
+            CubeLog::info("Dragged X");
+            sf::Event ev;
+            ev.type = sf::Event::MouseWheelScrolled;
+            ev.mouseWheelScroll.delta = xChange;
+            triggerEvent(SpecificEventTypes::DRAG_X, &ev);
         }
     }
     return false;

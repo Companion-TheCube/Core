@@ -31,6 +31,7 @@ private:
     static FT_Library ft;
     static FT_Face face;
     static bool faceInitialized;
+    bool reloadFace;
     glm::mat4 capturedProjectionMatrix;
     glm::mat4 capturedViewMatrix;
     glm::mat4 capturedModelMatrix;

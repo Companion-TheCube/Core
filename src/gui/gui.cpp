@@ -63,6 +63,20 @@ void GUI::eventLoop()
 
     std::latch latch(2); // make sure this accounts for all of the setup tasks
     auto menu = new Menu(this->renderer->getShader(), latch);
+
+    int drag_y_HandlerIndex = this->eventManager->createEvent("DRAG_Y");
+    EventHandler* drag_y_Handler = this->eventManager->getEvent(drag_y_HandlerIndex);
+    drag_y_Handler->setAction([&](void* data) {
+        sf::Event* event = (sf::Event*)data;
+        if (event != nullptr)
+            menu->scrollVert(event->mouseWheelScroll.delta);
+        else
+            CubeLog::info("Drag Y: nullptr");
+    });
+    drag_y_Handler->setName("DRAG_Y");
+    drag_y_Handler->setEventType(sf::Event::Count);
+    drag_y_Handler->setSpecificEventType(SpecificEventTypes::DRAG_Y);
+
     messageBox = new CubeMessageBox(this->renderer->getShader(), this->renderer->getTextShader(), this->renderer, latch);
     // menu->setVisible(false);
     this->renderer->addSetupTask([&]() {

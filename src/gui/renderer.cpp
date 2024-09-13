@@ -71,7 +71,7 @@ int Renderer::thread()
     this->window.setMouseCursorVisible(true);
 #endif
 #ifdef __linux__
-    this->window.setMouseCursorVisible(false);
+    this->window.setMouseCursorVisible(true); // TODO: change this to false for production
 #endif
 
     Shader edgesShader("./shaders/edges.vs", "./shaders/edges.fs");

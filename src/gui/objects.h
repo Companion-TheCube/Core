@@ -34,6 +34,7 @@ struct ClickableArea{
 
 class MeshObject {
 public:
+    std::string type = "";
     virtual void draw() = 0;
     virtual void setProjectionMatrix(glm::mat4 projectionMatrix) = 0;
     virtual void setViewMatrix(glm::vec3 viewMatrix) = 0;

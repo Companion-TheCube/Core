@@ -127,6 +127,8 @@ enum SpecificEventTypes: unsigned int{
     JOYSTICKBUTTONPRESSED,
     JOYSTICKBUTTONRELEASED,
     JOYSTICKMOVED,
+    DRAG_Y,
+    DRAG_X,
     NULL_EVENT
 };
 
@@ -157,6 +159,7 @@ private:
     std::vector<EventHandler*> events;
     std::vector<ClickableArea*> clickableAreas;
     bool checkClickableAreas(sf::Event event);
+    std::tuple<int, int> mouseDownPosition;
 public:
     EventManager();
     ~EventManager();

@@ -91,7 +91,7 @@ void Menu::addHorizontalRule()
 /**
  * @brief Scroll the menu vertically
  *
- * @param y the amount to scroll
+ * @param y the amount to scroll, positive moves the menu up, negative moves the menu down
  */
 void Menu::scrollVert(int y)
 {
@@ -102,6 +102,16 @@ void Menu::scrollVert(int y)
         this->scrollVertPosition = 0;
     }
     // TODO: update the positions of the objects
+    for(auto clickable : this->childrenClickables){
+        float new_y_min, new_y_max;
+        new_y_min = clickable->getClickableArea()->yMin - y;
+        new_y_max = clickable->getClickableArea()->yMax - y;
+        clickable->setClickAreaSize(clickable->getClickableArea()->xMin, clickable->getClickableArea()->xMax, new_y_min, new_y_max);
+        for(auto object : clickable->getObjects()){
+            if(object->type == "MenuHorizontalRule") object->translate({0, mapRange(float(y), SCREEN_PX_MAX_Y, SCREEN_PX_MIN_Y, SCREEN_RELATIVE_MAX_HEIGHT, 0.f), 0});
+            else object->translate({0, y, 0});
+        }
+    }
 }
 
 /**
@@ -122,6 +132,8 @@ void Menu::setup()
     float stencilHeight = mapRange(MENU_HEIGHT_SCREEN_RELATIVE, SCREEN_RELATIVE_MIN_HEIGHT, SCREEN_RELATIVE_MAX_HEIGHT, SCREEN_PX_MIN_Y, SCREEN_PX_MAX_Y) - (STENCIL_INSET_PX * 2);
     this->stencil = new MenuStencil({ stencilX_start, stencilY_start }, { stencilWidth, stencilHeight }, stencilShader);
 
+    
+
     this->addMenuEntry("< Settings", [&](void* data) {
         CubeLog::info("Settings clicked");
         this->setVisible(false);
@@ -131,13 +143,19 @@ void Menu::setup()
     /////// TESTING //////////// TODO:
     this->addMenuEntry("Test addMenuEntry() 1 very long test text that is very long", [&](void* data) {
         CubeLog::info("Test clicked");
-        if(GlobalSettings::setSetting("selectedFontPath", GlobalSettings::fontPaths.at(0))){
-            CubeLog::info("SelectedFontPath: " + GlobalSettings::selectedFontPath);
+        // find the font "lobster"
+        for (auto font : GlobalSettings::fontPaths) {
+            if (font.find("Lobster") != std::string::npos) {
+                if (GlobalSettings::setSetting("selectedFontPath", font)) {
+                    CubeLog::info("SelectedFontPath: " + GlobalSettings::selectedFontPath);
+                }
+            }
         }
     });
 
-    this->addMenuEntry("addMenuEntry() 2", [&](void* data) {
-        CubeLog::info("Test clicked");
+    this->addMenuEntry("Scroll by 10", [&](void* data) {
+        CubeLog::info("Scroll by 10");
+        this->scrollVert(10);
     });
 
     this->addHorizontalRule();
@@ -145,6 +163,27 @@ void Menu::setup()
     this->addMenuEntry("addMenuEntry() 3", [&](void* data) {
         CubeLog::info("Test clicked");
     });
+
+    for (auto font : GlobalSettings::fontPaths) {
+        // use the freetype libary to get the font name
+        FT_Library ft;
+        FT_Face face;
+        FT_Init_FreeType(&ft);
+        if (FT_New_Face(ft, font.c_str(), 0, &face)) {
+            CubeLog::error("Could not load font: " + font);
+        } else {
+            CubeLog::info("Loaded font: " + std::string(face->family_name) + ":" + std::string(face->style_name));
+            std::string fontName = std::string(face->family_name) + ":" + std::string(face->style_name);
+            this->addMenuEntry(fontName, [&, fontName, font](void* data) {
+                CubeLog::info("Changing to font: " + fontName);
+                if (GlobalSettings::setSetting("selectedFontPath", font)) {
+                    CubeLog::info("SelectedFontPath: " + GlobalSettings::selectedFontPath);
+                }
+            });
+        }
+        FT_Done_Face(face);
+        FT_Done_FreeType(ft);
+    }
     ////////// END TESTING //////////
 
     std::lock_guard<std::mutex> lock(this->mutex);
@@ -441,7 +480,12 @@ MenuEntry::MenuEntry(std::string text, Shader* shader, glm::vec2 position, float
     this->visible = true;
     this->shader = shader;
 
-    this->objects.push_back(new M_Text(shader, text, size, {1.f,1.f,1.f,},position));
+    this->objects.push_back(new M_Text(shader, text, size, {
+                                                               1.f,
+                                                               1.f,
+                                                               1.f,
+                                                           },
+        position));
 
     this->size.x = this->objects.at(0)->getWidth();
     this->size.y = size;
@@ -721,6 +765,7 @@ MenuHorizontalRule::MenuHorizontalRule(glm::vec2 position, float size, Shader* s
     // convert size to screen relative size
     float sizeX = mapRange(size, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X, SCREEN_RELATIVE_MIN_WIDTH, SCREEN_RELATIVE_MAX_WIDTH);
     this->objects.push_back(new M_Line(shader, { pos, Z_DISTANCE + 0.01 }, { pos.x + sizeX, pos.y, Z_DISTANCE + 0.01 }));
+    this->objects.at(0)->type = "MenuHorizontalRule";
     CubeLog::info("MenuHorizontalRule created at position: " + std::to_string(position.x) + "x" + std::to_string(position.y) + " of size: " + std::to_string(size));
     CubeLog::info("MenuHorizontalRule created with screen relative position: " + std::to_string(pos.x) + "x" + std::to_string(pos.y) + " of size: " + std::to_string(sizeX));
 }

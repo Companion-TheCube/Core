@@ -6,3 +6,4 @@ LogLevel GlobalSettings::logLevelPrint = LogLevel::LOGGER_INFO;
 LogLevel GlobalSettings::logLevelFile = LogLevel::LOGGER_INFO;
 std::vector<std::string> GlobalSettings::fontPaths = {};
 std::vector<std::pair<std::string, std::function<void()>>> GlobalSettings::settingChangeCallbacks = {};
+std::mutex GlobalSettings::settingChangeMutex;
