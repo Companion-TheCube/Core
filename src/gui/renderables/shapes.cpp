@@ -21,13 +21,13 @@ M_Text::M_Text(Shader* sh, std::string text, float fontSize, glm::vec3 color, gl
     GlobalSettings::setSettingCB("selectedFontPath", [&](){
         this->reloadFace = true;
     });
-    CubeLog::info("Created Text");
+    CubeLog::debug("Created Text: " + text);
 }
 
 void M_Text::reloadFont()
 {
-    CubeLog::info("Reloading font");
-    FT_Done_Face(face);
+    CubeLog::debug("Reloading font");
+    FT_Done_Face(M_Text::face);
     this->Characters.clear();
     this->vertexData.clear();
     this->vertexData.shrink_to_fit();
@@ -35,7 +35,7 @@ void M_Text::reloadFont()
     M_Text::faceInitialized = false;
     // rebuild the text
     this->buildText();
-    CubeLog::info("Reloaded font");
+    CubeLog::debug("Reloaded font");
 }
 
 FT_Library M_Text::ft;
@@ -45,29 +45,26 @@ bool M_Text::faceInitialized = false;
 void M_Text::buildText()
 {
     if (!M_Text::faceInitialized) {
-        if (FT_Init_FreeType(&ft)) {
+        if (FT_Init_FreeType(&M_Text::ft)) {
             CubeLog::error("ERROR::FREETYPE: Could not init FreeType Library");
         }
         std::string fontPath = GlobalSettings::selectedFontPath;
-        CubeLog::info("Loading font: " + fontPath);
         if (!std::filesystem::exists(fontPath)) {
             CubeLog::error("ERROR::FREETYPE: Font file does not exist");
             fontPath = "fonts/Roboto/Roboto-Regular.ttf";
         }
-        if (FT_New_Face(ft, fontPath.c_str(), 0, &face)) {
+        if (FT_New_Face(M_Text::ft, fontPath.c_str(), 0, &M_Text::face)) {
             CubeLog::error("ERROR::FREETYPE: Failed to load font");
         }
         M_Text::faceInitialized = true;
-        
-        CubeLog::info("Loaded font: " + std::string(FT_Get_Postscript_Name(face)));
     }
-    if(FT_Set_Pixel_Sizes(face, 0, this->fontSize)){
+    if(FT_Set_Pixel_Sizes(M_Text::face, 0, this->fontSize)){
         CubeLog::error("ERROR::FREETYPE: Failed to set pixel size");
     }
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     checkGLError("0.1");
     for (unsigned char c = 0; c < 128; c++) {
-        if (FT_Load_Char(face, c, FT_LOAD_RENDER)) {
+        if (FT_Load_Char(M_Text::face, c, FT_LOAD_RENDER)) {
             CubeLog::error("ERROR::FREETYPE: Failed to load Glyph");
             continue;
         }
@@ -80,12 +77,12 @@ void M_Text::buildText()
             GL_TEXTURE_2D,
             0,
             GL_RED,
-            face->glyph->bitmap.width,
-            face->glyph->bitmap.rows,
+            M_Text::face->glyph->bitmap.width,
+            M_Text::face->glyph->bitmap.rows,
             0,
             GL_RED,
             GL_UNSIGNED_BYTE,
-            face->glyph->bitmap.buffer);
+            M_Text::face->glyph->bitmap.buffer);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -93,9 +90,9 @@ void M_Text::buildText()
         checkGLError("0.4");
         Character character = {
             texture,
-            glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows),
-            glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top),
-            face->glyph->advance.x
+            glm::ivec2(M_Text::face->glyph->bitmap.width, M_Text::face->glyph->bitmap.rows),
+            glm::ivec2(M_Text::face->glyph->bitmap_left, M_Text::face->glyph->bitmap_top),
+            M_Text::face->glyph->advance.x
         };
         Characters.insert(std::pair<char, Character>(c, character));
     }
@@ -123,12 +120,13 @@ void M_Text::buildText()
     glBindVertexArray(0);
     setProjectionMatrix(glm::ortho(0.0f, 720.f, 0.0f, 720.f));
     checkGLError("0.8");
+    this->reloadFace = false;
 }
 
 M_Text::~M_Text()
 {
-    FT_Done_Face(face);
-    FT_Done_FreeType(ft);
+    FT_Done_Face(M_Text::face);
+    FT_Done_FreeType(M_Text::ft);
     // delete all the openGl stuff
     glDeleteVertexArrays(1, &this->VAO);
     glDeleteBuffers(1, &this->VBO);
@@ -140,7 +138,7 @@ M_Text::~M_Text()
 
 void M_Text::draw()
 {
-    if(reloadFace){
+    if(this->reloadFace){
         reloadFont();
         this->reloadFace = false;
     }
@@ -279,12 +277,14 @@ void M_Text::capturePosition(){
     this->capturedModelMatrix = this->modelMatrix;
     this->capturedViewMatrix = this->viewMatrix;
     this->capturedProjectionMatrix = this->projectionMatrix;
+    this->capturedPosition = this->position;
 }
 
 void M_Text::restorePosition(){
     this->modelMatrix = this->capturedModelMatrix;
     this->viewMatrix = this->capturedViewMatrix;
     this->projectionMatrix = this->capturedProjectionMatrix;
+    this->position = this->capturedPosition;
 }
 
 void M_Text::setVisibility(bool visible)

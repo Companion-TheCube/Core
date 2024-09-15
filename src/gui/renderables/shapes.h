@@ -31,10 +31,11 @@ private:
     static FT_Library ft;
     static FT_Face face;
     static bool faceInitialized;
-    bool reloadFace;
+    bool reloadFace = false;
     glm::mat4 capturedProjectionMatrix;
     glm::mat4 capturedViewMatrix;
     glm::mat4 capturedModelMatrix;
+    glm::vec2 capturedPosition;
     bool visible = true;
     std::mutex mutex;
 public:

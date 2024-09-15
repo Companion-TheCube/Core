@@ -38,7 +38,7 @@ bool EventHandler::triggerEvent(void* data)
         CubeLog::error("No action set for event: " + this->name);
         return false;
     }
-    CubeLog::info("Event triggered: " + this->name);
+    // CubeLog::debug("Event triggered: " + this->name);
     this->action(data);
     return true;
 }
@@ -147,6 +147,7 @@ EventManager::~EventManager()
 int EventManager::createEvent(std::string eventName)
 {
     EventHandler* event = new EventHandler();
+    event->setName(eventName);
     this->events.push_back(event);
     return this->events.size() - 1;
 }
@@ -261,6 +262,10 @@ bool EventManager::triggerEvent(int index, void* data)
 {
     if (checkClickableAreas(*((sf::Event*)data))) {
         return true;
+    }
+    if(index >= this->events.size()){
+        CubeLog::error("Index out of range");
+        return false;
     }
     this->events[index]->triggerEvent(data);
     return true;

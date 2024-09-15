@@ -59,6 +59,7 @@ private:
     long scrollVertPosition = 0;
     bool onClickEnabled = true;
     std::latch* latch;
+    int maxScrollY = 0;
 public:
     Menu(Shader* shader, std::latch& latch);
     ~Menu();
@@ -80,6 +81,8 @@ public:
     ClickableArea* getClickableArea();
     void setVisibleWidth(float width){}
     void setClickAreaSize(unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax){}
+    void capturePosition(){}
+    void restorePosition(){}
 };
 
 class MenuBox:public M_Box{
@@ -125,6 +128,8 @@ public:
     ClickableArea* getClickableArea();
     void setVisibleWidth(float width){}
     void setClickAreaSize(unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax){}
+    void capturePosition();
+    void restorePosition();
 };
 
 class MenuStencil: public Object{
@@ -167,6 +172,7 @@ private:
     float visibleWidth = 0;
     float scrollPosition = 0;
     float scrollWait = 0;
+    glm::vec4 originalPosition;
 public:
     MenuEntry(std::string text, Shader* shader, glm::vec2 position, float size);
     ~MenuEntry();
@@ -182,4 +188,6 @@ public:
     void setVisibleWidth(float width);
     ClickableArea* getClickableArea();
     void setClickAreaSize(unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax);
+    void capturePosition();
+    void restorePosition();
 };

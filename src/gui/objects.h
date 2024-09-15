@@ -89,6 +89,8 @@ public:
     virtual ClickableArea* getClickableArea() = 0;
     virtual void setVisibleWidth(float width) = 0;
     virtual void setClickAreaSize(unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax) = 0;
+    virtual void capturePosition() = 0;
+    virtual void restorePosition() = 0;
 };
 
 
