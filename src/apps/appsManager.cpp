@@ -124,6 +124,7 @@ void AppsManager::appsManagerThreadFn()
         AppsManager::consoleLoggingEnabled = false;
         if(counter % 25 == 0){
             for (auto appID : this->appIDs) {
+                // TODO: check is app is enabled before starting. each app has an "enabled" flag in the database.
                 if(!this->isAppRunning(appID)) {
                     CubeLog::error("App is not running: " + appID + ". Restarting app.");
                     this->startApp(appID);
@@ -134,7 +135,6 @@ void AppsManager::appsManagerThreadFn()
                 }
             }
         }
-        
 
         // Check for stdout from running native apps
         for(auto appID: this->appIDs){
@@ -281,6 +281,7 @@ void AppsManager::addWorkerTask(std::function<void()> task)
  */
 bool AppsManager::startApp(std::string appID)
 {
+    // TODO: check that app is enabled before starting
     CubeLog::info("Starting app: " + appID);
     std::string execPath = this->getAppExecPath(appID);
     std::string execArgs = this->getAppExecArgs(appID);

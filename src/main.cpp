@@ -149,6 +149,7 @@ int main(int argc, char* argv[])
     auto logger = std::make_shared<CubeLog>();
     auto settingsLoader = new SettingsLoader(&settings);
     settingsLoader->loadSettings();
+    delete settingsLoader;
     if (argumentParser["--print"] == true) {
         std::cout << "\n\n" + settings.toString() << std::endl;
         exit(0);
@@ -232,25 +233,30 @@ int main(int argc, char* argv[])
         auto db_cube = std::make_shared<CubeDatabaseManager>();
         auto blobs = std::make_shared<BlobsManager>(db_cube, "data/blobs.db");
         auto cubeDB = std::make_shared<CubeDB>(db_cube, blobs);
-        CubeDB::getBlobsManager()->addBlob("client_blobs", "test blob", "1");
+        long blobID = CubeDB::getBlobsManager()->addBlob("client_blobs", "test blob", "1");
+        CubeLog::info("Blob ID: " + std::to_string(blobID));
         bool allInsertionsSuccess = true;
         // TODO: All the base apps should be inserted into the database and /r verified in the database here.
         // allInsertionsSuccess &=  (-1 < CubeDB::getDBManager()->getDatabase("apps")->insertData("apps", { "app_id", "app_name", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason" }, { "1", "CMD", "native", "apps\\customcmd", "", "test source", "test update path", "test last check", "test last update", "test last fail", "test last fail reason" })); // test insert
+        #ifdef __linux__
         allInsertionsSuccess &= (-1 < CubeDB::getDBManager()->getDatabase("apps")->insertData("apps", { "app_id", "app_name", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason" }, { "2", "ConsoleApp1", "native", "apps\\consoleApp1\\consoleApp1", "arg1 arg2 arg3 arg4", "test source", "test update path", "test last check", "test last update", "test last fail", "test last fail reason" })); // test insert
         allInsertionsSuccess &= (-1 < CubeDB::getDBManager()->getDatabase("apps")->insertData("apps", { "app_id", "app_name", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason" }, { "3", "ConsoleApp2", "native", "apps\\consoleApp1\\consoleApp1", "arg5 arg6 arg7 arg8", "test source", "test update path", "test last check", "test last update", "test last fail", "test last fail reason" })); // test insert
+        #endif
+        #ifdef _WIN32
+        allInsertionsSuccess &= (-1 < CubeDB::getDBManager()->getDatabase("apps")->insertData("apps", { "app_id", "app_name", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason" }, { "2", "ConsoleApp1", "native", "apps/consoleApp1.exe", "arg1 arg2 arg3 arg4", "test source", "test update path", "test last check", "test last update", "test last fail", "test last fail reason" })); // test insert
+        allInsertionsSuccess &= (-1 < CubeDB::getDBManager()->getDatabase("apps")->insertData("apps", { "app_id", "app_name", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason" }, { "3", "ConsoleApp2", "native", "apps/consoleApp1.exe", "arg5 arg6 arg7 arg8", "test source", "test update path", "test last check", "test last update", "test last fail", "test last fail reason" })); // test insert
+        #endif
         if (!allInsertionsSuccess)
             CubeLog::warning("Failed to insert data into database. Last error: " + CubeDB::getDBManager()->getDatabase("apps")->getLastError());
         AppsManager appsManager;
-        // db_cube->openAll();
         auto api = std::make_shared<API>();
         API_Builder api_builder(api);
         api_builder.addInterface(gui);
         api_builder.addInterface(cubeDB);
         api_builder.addInterface(logger);
         api_builder.start();
-        bool running = true;
         CubeLog::info("Entering main loop...");
-        while (running) {
+        while (true) {
             genericSleep(100);
             // get cin and check if it's "exit", "quit", "q", or "e", then break, or if it's "sound" toggle the sound
             std::string input;
@@ -258,23 +264,17 @@ int main(int argc, char* argv[])
             if (input == "exit" || input == "quit" || input == "q" || input == "e") {
                 break;
             } else if (input == "sound") {
-                if (data[2] == 0)
-                    data[2] = 1;
-                else
-                    data[2] = 0;
+                if (data[2] == 0) data[2] = 1;
+                else data[2] = 0;
             }
         }
         CubeLog::info("Exited main loop...");
         std::cout << "Exiting..." << std::endl;
         // sineWaveSound.stop();
     }
-    delete settingsLoader;
-    // CubeLog::writeOutLogs();
+    
     dac.stopStream();
     if (dac.isStreamOpen())
         dac.closeStream();
-    // api->stop();
-    // delete api;
-    // delete logger;
     return 0;
 }
