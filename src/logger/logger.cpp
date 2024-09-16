@@ -147,6 +147,9 @@ void CubeLog::log(std::string message, bool print, LogLevel level, std::source_l
     Color::Modifier colorDefault(Color::FG_LIGHT_BLUE);
     if (print && level >= CubeLog::staticPrintLevel && CubeLog::consoleLoggingEnabled && message.length() < 1000) {
         switch (level) {
+        case LogLevel::LOGGER_DEBUG_SILLY:
+            std::cout << colorDebug << entry.getMessageFull() << std::endl;
+            break;
         case LogLevel::LOGGER_DEBUG:
             std::cout << colorDebug << entry.getMessageFull() << std::endl;
             break;
@@ -197,6 +200,18 @@ std::string CubeLog::getScreenMessage()
 {
     std::unique_lock<std::mutex> lock(CubeLog::logMutex);
     return CubeLog::screenMessage;
+}
+
+/**
+ * @brief Log a debug message
+ *
+ * @param message The message to log
+ * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
+ */
+void CubeLog::debugSilly(std::string message, std::source_location location)
+{
+    std::lock_guard<std::mutex> lock(CubeLog::logMutex);
+    CubeLog::log(message, true, LogLevel::LOGGER_DEBUG_SILLY, location);
 }
 
 /**

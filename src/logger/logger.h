@@ -27,6 +27,7 @@ enum LogVerbosity {
 };
 
 enum LogLevel {
+    LOGGER_DEBUG_SILLY,
     LOGGER_DEBUG,
     LOGGER_INFO,
     LOGGER_WARNING,
@@ -87,6 +88,7 @@ private:
     static std::chrono::system_clock::time_point lastScreenMessageTime;
 public:
     static void screen(std::string message, LogLevel level = LogLevel::LOGGER_INFO, std::source_location location = std::source_location::current());
+    static void debugSilly(std::string message, std::source_location location = std::source_location::current());
     static void debug(std::string message, std::source_location location = std::source_location::current());
     static void error(std::string message, std::source_location location = std::source_location::current());
     static void info(std::string message, std::source_location location = std::source_location::current());
@@ -204,13 +206,5 @@ public:
     }
 };
 }
-
-/**
-int main() {
-    Color::Modifier red(Color::FG_RED);
-    Color::Modifier def(Color::FG_DEFAULT);
-    std::cout << "This ->" << red << "word" << def << "<- is red." << std::endl;
-}
- */
 
 #endif

@@ -155,18 +155,18 @@ void API::httpApiThreadFn()
             // Public endpoints are those that provide information about the Cube such as human presence, temperature, etc.
             // Certain public endpoints should have the option to be secured as well. For example, the endpoint that provides the current state of human
             // presence may be set to private if the user does not want to share that information with others on the network.
-            CubeLog::debug("Endpoint type: " + std::to_string(this->endpoints.at(i)->endpointType));
+            CubeLog::debugSilly("Endpoint type: " + std::to_string(this->endpoints.at(i)->endpointType));
             std::function<void(const httplib::Request&, httplib::Response&)> publicAction = [&, i](const httplib::Request& req, httplib::Response& res) {
                 std::string returned = this->endpoints.at(i)->doAction(req, res);
                 if (returned != "")
                     res.set_content(returned, "text/plain");
-                CubeLog::info("Endpoint action returned: " + (returned == "" ? "empty string" : returned));
+                CubeLog::debug("Endpoint action returned: " + (returned == "" ? "empty string" : returned));
             };
             if (this->endpoints.at(i)->isPublic()) {
-                CubeLog::info("Adding public endpoint: " + this->endpoints.at(i)->getName() + " at " + this->endpoints.at(i)->getPath());  
+                CubeLog::debugSilly("Adding public endpoint: " + this->endpoints.at(i)->getName() + " at " + this->endpoints.at(i)->getPath());  
                 this->server->addEndpoint(this->endpoints.at(i)->isGetType(), this->endpoints[i]->getPath(), publicAction);
             } else {
-                CubeLog::info("Adding non public endpoint: " + this->endpoints.at(i)->getName() + " at " + this->endpoints.at(i)->getPath());
+                CubeLog::debugSilly("Adding non public endpoint: " + this->endpoints.at(i)->getName() + " at " + this->endpoints.at(i)->getPath());
                 std::function<void(const httplib::Request&, httplib::Response&)> action = [&, i](const httplib::Request& req, httplib::Response& res) {
                     // first we get the authorization header
                     if (!req.has_header("Authorization")) {
@@ -191,7 +191,7 @@ void API::httpApiThreadFn()
                     std::string returned = this->endpoints.at(i)->doAction(req, res);
                     if (returned != "")
                         res.set_content(returned, "text/plain");
-                    CubeLog::info("Endpoint action returned: " + (returned == "" ? "empty string" : returned));
+                    CubeLog::debug("Endpoint action returned: " + (returned == "" ? "empty string" : returned));
                 };
                 this->server->addEndpoint(this->endpoints.at(i)->isGetType(), this->endpoints.at(i)->getPath(), action);
             }
@@ -345,15 +345,15 @@ void CubeHttpServer::start()
         CubeLog::error("Failed to bind HTTP server to " + this->address + ":" + std::to_string(this->port));
         return;
     }
-    CubeLog::debug("HTTP server bound to " + this->address + ":" + std::to_string(this->port));
+    CubeLog::debugSilly("HTTP server bound to " + this->address + ":" + std::to_string(this->port));
     this->server->set_logger([&](const httplib::Request& req, const httplib::Response& res) {
         CubeLog::info("HTTP server: " + req.method + " " + req.path + " " + std::to_string(res.status));
     });
-    CubeLog::debug("HTTP server set logger");
+    CubeLog::debugSilly("HTTP server set logger");
     this->server->set_error_handler([&](const httplib::Request& req, httplib::Response& res) {
         CubeLog::error("HTTP server: " + req.method + " " + req.path + " " + std::to_string(res.status));
     });
-    CubeLog::debug("HTTP server set error handler");
+    CubeLog::debugSilly("HTTP server set error handler");
     serverThread = new std::jthread([&] {
         this->server->listen_after_bind();
     });
@@ -393,10 +393,10 @@ void CubeHttpServer::addEndpoint(bool isGetType, std::string path, std::function
     // add an endpoint
     if (isGetType) {
         this->server->Get(path.c_str(), action);
-        CubeLog::info("Added GET endpoint: " + path);
+        CubeLog::debug("Added GET endpoint: " + path);
     } else {
         this->server->Post(path.c_str(), action);
-        CubeLog::info("Added POST endpoint: " + path);
+        CubeLog::debug("Added POST endpoint: " + path);
     }
 }
 
