@@ -49,6 +49,7 @@ private:
     httplib::Server* server;
     std::string address;
     int port;
+    std::jthread* serverThread;
 public:
     CubeHttpServer(std::string address, int port);
     ~CubeHttpServer();
@@ -67,6 +68,7 @@ private:
     std::vector<Endpoint*> endpoints;
     std::jthread listenerThread;
     CubeHttpServer *server;
+    CubeHttpServer *serverIPC;
     std::vector<std::pair<std::string, bool>> endpointTriggers;
     CubeAuth *auth;
     void httpApiThreadFn();

@@ -57,6 +57,7 @@ void API::stop()
     CubeLog::info("API stopping...");
     this->listenerThread.request_stop();
     this->server->stop();
+    this->serverIPC->stop();
     this->listenerThread.join();
     delete this->server;
     this->server = nullptr;
@@ -149,6 +150,8 @@ void API::httpApiThreadFn()
     CubeLog::info("API listener thread starting...");
     try {
         this->server = new CubeHttpServer("0.0.0.0", 55280);
+        // TODO: IPC unix socket needs to be tested on linux
+        this->serverIPC = new CubeHttpServer("/var/run/cube.sock", 0);
         // TODO: set up authentication
         for (size_t i = 0; i < this->endpoints.size(); i++) {
             // TODO: need to document the difference between public and non public endpoints. Public endpoints are accessible by any device on the
@@ -160,17 +163,17 @@ void API::httpApiThreadFn()
             CubeLog::debug("Endpoint type: " + std::to_string(this->endpoints.at(i)->endpointType));
             if (this->endpoints.at(i)->isPublic()) {
                 CubeLog::info("Adding public endpoint: " + this->endpoints.at(i)->getName() + " at " + this->endpoints.at(i)->getPath());
-                this->server->addEndpoint(this->endpoints.at(i)->isGetType(), this->endpoints[i]->getPath(), [&, i](const httplib::Request& req, httplib::Response& res) {
+                std::function<void(const httplib::Request&, httplib::Response&)> action = [&, i](const httplib::Request& req, httplib::Response& res) {
                     std::string returned = this->endpoints.at(i)->doAction(req, res);
                     if (returned != "")
                         res.set_content(returned, "text/plain");
                     CubeLog::info("Endpoint action returned: " + (returned == "" ? "empty string" : returned));
-                });
+                };
+                this->server->addEndpoint(this->endpoints.at(i)->isGetType(), this->endpoints[i]->getPath(), action);
+                this->serverIPC->addEndpoint(this->endpoints.at(i)->isGetType(), this->endpoints[i]->getPath(), action);
             } else {
                 CubeLog::info("Adding non public endpoint: " + this->endpoints.at(i)->getName() + " at " + this->endpoints.at(i)->getPath());
-                this->server->addEndpoint(this->endpoints.at(i)->isGetType(), this->endpoints.at(i)->getPath(), [&, i](const httplib::Request& req, httplib::Response& res) {
-                    // res.set_content("Endpoint not public", "text/plain");
-                    // res.status = httplib::StatusCode::Forbidden_403;
+                std::function<void(const httplib::Request&, httplib::Response&)> action = [&, i](const httplib::Request& req, httplib::Response& res) {
                     // first we get the authorization header
                     if (!req.has_header("Authorization")) {
                         res.set_content("Authorization header not present", "text/plain");
@@ -195,10 +198,13 @@ void API::httpApiThreadFn()
                     if (returned != "")
                         res.set_content(returned, "text/plain");
                     CubeLog::info("Endpoint action returned: " + (returned == "" ? "empty string" : returned));
-                });
+                };
+                this->server->addEndpoint(this->endpoints.at(i)->isGetType(), this->endpoints.at(i)->getPath(), action);
+                this->serverIPC->addEndpoint(this->endpoints.at(i)->isGetType(), this->endpoints.at(i)->getPath(), action);
             }
         }
         this->server->start();
+        this->serverIPC->start();
         // wait for the stop signal. once this->server goes out of scope, the server will stop.
         while (true) {
             if (this->listenerThread.get_stop_token().stop_requested()) {
@@ -314,7 +320,7 @@ std::function<std::string(const httplib::Request& req, httplib::Response& res)> 
  * @brief Construct a new CubeHttpServer::CubeHttpServer object
  *
  * @param address the address to bind the server to
- * @param port the port to bind the server to
+ * @param port the port to bind the server to. 0 for unix sockets.
  */
 // TODO: add support for unix sockets
 CubeHttpServer::CubeHttpServer(std::string address, int port)
@@ -322,6 +328,9 @@ CubeHttpServer::CubeHttpServer(std::string address, int port)
     this->address = address;
     this->port = port;
     this->server = new httplib::Server();
+    if(port == 0){
+        this->server->set_address_family(AF_UNIX);
+    }
 }
 
 /**
@@ -341,14 +350,29 @@ void CubeHttpServer::start()
 {
     // start the server
     CubeLog::info("HTTP server starting...");
-    this->server->bind_to_port(this->address.c_str(), this->port);
+    if(this->port > 0){
+        if(!this->server->bind_to_port(this->address.c_str(), this->port)){
+            CubeLog::error("Failed to bind HTTP server to " + this->address + ":" + std::to_string(this->port));
+            return;
+        }
+    }else{
+        if(!this->server->bind_to_any_port(this->address.c_str())){
+            CubeLog::error("Failed to bind HTTP server to " + this->address);
+            return;
+        }
+    }
+    CubeLog::debug("HTTP server bound to " + this->address + ":" + std::to_string(this->port));
     this->server->set_logger([&](const httplib::Request& req, const httplib::Response& res) {
         CubeLog::info("HTTP server: " + req.method + " " + req.path + " " + std::to_string(res.status));
     });
+    CubeLog::debug("HTTP server set logger");
     this->server->set_error_handler([&](const httplib::Request& req, httplib::Response& res) {
         CubeLog::error("HTTP server: " + req.method + " " + req.path + " " + std::to_string(res.status));
     });
-    this->server->listen_after_bind();
+    CubeLog::debug("HTTP server set error handler");
+    serverThread = new std::jthread([&] {
+        this->server->listen_after_bind();
+    });
 }
 
 /**
