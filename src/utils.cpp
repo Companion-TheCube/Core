@@ -124,19 +124,20 @@ std::string getCpuUsage()
             while (std::getline(ss, token, ' ')) {
                 tokens.push_back(token);
             }
-            long user = std::stol(tokens[1]);
-            long nice = std::stol(tokens[2]);
-            long system = std::stol(tokens[3]);
-            long idle = std::stol(tokens[4]);
-            long iowait = std::stol(tokens[5]);
-            long irq = std::stol(tokens[6]);
-            long softirq = std::stol(tokens[7]);
-            long steal = std::stol(tokens[8]);
-            long guest = std::stol(tokens[9]);
-            long guest_nice = std::stol(tokens[10]);
-            long total = user + nice + system + idle + iowait + irq + softirq + steal + guest + guest_nice;
-            long idleTotal = idle + iowait;
-            return std::to_string((total - idleTotal) * 100 / total);
+            // long user = std::stol(tokens[1]);
+            // long nice = std::stol(tokens[2]);
+            // long system = std::stol(tokens[3]);
+            // long idle = std::stol(tokens[4]);
+            // long iowait = std::stol(tokens[5]);
+            // long irq = std::stol(tokens[6]);
+            // long softirq = std::stol(tokens[7]);
+            // long steal = std::stol(tokens[8]);
+            // long guest = std::stol(tokens[9]);
+            // long guest_nice = std::stol(tokens[10]);
+            // long total = user + nice + system + idle + iowait + irq + softirq + steal + guest + guest_nice;
+            // long idleTotal = idle + iowait;
+            // return std::to_string((total - idleTotal) * 100 / total);
+            return "";
         }
     }
     return "0";
