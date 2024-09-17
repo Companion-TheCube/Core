@@ -145,6 +145,7 @@ HttpEndPointData_t GUI::getHttpEndpointData()
                 if (param.first == "text") {
                     this->messageBox->setText(param.second);
                     p = param.second;
+                    p.length()>0?this->messageBox->setVisible(true):this->messageBox->setVisible(false);
                 }
             }
             CubeLog::info("Endpoint stop called and message set to: " + p);

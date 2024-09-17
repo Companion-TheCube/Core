@@ -218,6 +218,14 @@ int main(int argc, char* argv[])
         CubeLog::error(dac.getErrorText());
     }
     CubeLog::info("Audio stream started.");
+
+    std::jthread cpuAndMemoryThread([](std::stop_token st) {
+        unsigned long loopCount = 0;
+        while (!st.stop_requested()) {
+            if (loopCount++ % 100 == 0) monitorMemoryAndCPU();
+            genericSleep(100);
+        }
+    });
     /////////////////////////////////////////////////////////////////
     // Logger test
     /////////////////////////////////////////////////////////////////

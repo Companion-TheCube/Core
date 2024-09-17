@@ -38,11 +38,14 @@ enum LogLevel {
 };
 
 const std::string logLevelStrings[] = {
+    "DEBUG_SILLY",
     "DEBUG",
     "INFO",
     "WARNING",
     "ERROR",
-    "CRITICAL"
+    "CRITICAL",
+    "OFF",
+    "LOGLEVELCOUNT"
 };
 
 class CUBE_LOG_ENTRY {

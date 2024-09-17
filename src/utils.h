@@ -15,6 +15,7 @@
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
+#include "psapi.h"
 #include <windows.h>
 #endif
 #endif
@@ -58,5 +59,8 @@ private:
 #define _UTILS_H_
 
 void genericSleep(int ms);
+void monitorMemoryAndCPU();
+std::string getMemoryFootprint();
+std::string getCpuUsage();
 
 #endif

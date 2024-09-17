@@ -1,3 +1,4 @@
+#include "../src/utils.cpp"
 #include "../src/logger/logger.cpp"
 #include <benchmark/benchmark.h>
 

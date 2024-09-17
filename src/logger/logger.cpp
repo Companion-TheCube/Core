@@ -1,16 +1,10 @@
 #include "logger.h"
-#ifdef _WIN32
-#include "psapi.h"
-#include "windows.h"
-#endif
 
 #define COUNTER_MOD 100
 #define CUBE_LOG_ENTRY_MAX 50000 // maximum number of log entries in log file
 #define LOG_WRITE_OUT_INTERVAL 300 // write out logs every 5 minutes
 #define LOG_WRITE_OUT_COUNT 500 // write out logs every 500 logs
 #define CUBE_LOG_MEMORY_LIMIT 1000 // maximum number of log entries in memory
-
-std::string getMemoryFootprint();
 
 unsigned int CUBE_LOG_ENTRY::logEntryCount = 0;
 
@@ -25,8 +19,7 @@ unsigned int CUBE_LOG_ENTRY::logEntryCount = 0;
 CUBE_LOG_ENTRY::CUBE_LOG_ENTRY(std::string message, std::source_location* location, LogVerbosity verbosity, LogLevel level)
 {
     this->timestamp = std::chrono::system_clock::now();
-    this->logEntryNumber = this->logEntryCount;
-    this->logEntryCount++;
+    this->logEntryNumber = ++CUBE_LOG_ENTRY::logEntryCount;
     this->message = message;
     this->level = level;
     std::string fileName = getFileNameFromPath(location->file_name());
@@ -758,24 +751,3 @@ std::string CubeLog::getSizeOfCubeLog()
     return std::to_string(num_entries) + " entries, " + std::to_string(total_size) + " bytes";
 }
 
-std::string getMemoryFootprint()
-// TODO: move this into a separate file for status functions. this file should provide api endpoints for status functions.
-{
-#ifdef _WIN32
-    PROCESS_MEMORY_COUNTERS pmc;
-    GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc));
-    return std::to_string(pmc.WorkingSetSize / 1024) + " KB";
-#endif
-#ifdef __linux__
-    std::ifstream file("/proc/self/status");
-    std::string line;
-    while (std::getline(file, line)) {
-        if (line.find("VmRSS") != std::string::npos) {
-            std::string rss = line.substr(line.find(":") + 1);
-            rss.erase(std::remove_if(rss.begin(), rss.end(), isspace), rss.end());
-            return rss;
-        }
-    }
-    return "0";
-#endif
-}
