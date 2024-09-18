@@ -150,51 +150,9 @@ int main(int argc, char* argv[])
     /////////////////////////////////////////////////////////////////
     CubeLog::info("Loading GUI...");
     auto gui = std::make_shared<GUI>();
-
     /////////////////////////////////////////////////////////////////
-    // RtAudio setup
+    // CPU and memory monitor thread
     /////////////////////////////////////////////////////////////////
-#ifdef __linux__
-    RtAudio::Api api = RtAudio::RtAudio::LINUX_ALSA;
-#elif _WIN32
-    RtAudio::Api api = RtAudio::RtAudio::WINDOWS_DS;
-#endif
-    RtAudio dac(api);
-    std::vector<unsigned int> deviceIds = dac.getDeviceIds();
-    std::vector<std::string> deviceNames = dac.getDeviceNames();
-    if (deviceIds.size() < 1) {
-        std::cout << "\nNo audio devices found! Exiting.\n";
-        exit(0);
-    }
-    CubeLog::info("Audio devices found: " + std::to_string(deviceIds.size()));
-    for (auto device : deviceNames) {
-        CubeLog::info("Device: " + device);
-    }
-
-    RtAudio::StreamParameters parameters;
-    CubeLog::info("Setting up audio stream with default audio device.");
-    parameters.deviceId = dac.getDefaultOutputDevice();
-    // find the device name for the audio device id
-    std::string deviceName = dac.getDeviceInfo(parameters.deviceId).name;
-    CubeLog::info("Using audio device: " + deviceName);
-    parameters.nChannels = 2;
-    parameters.firstChannel = 0;
-    unsigned int sampleRate = 44100;
-    unsigned int bufferFrames = 256; // 256 sample frames
-    double data[3] = { 0, 0, 0 };
-
-    if (dac.openStream(&parameters, NULL, RTAUDIO_FLOAT64, sampleRate, &bufferFrames, &saw, (void*)&data)) {
-        CubeLog::error(dac.getErrorText() + " Exiting.");
-        exit(0); // problem with device settings
-    }
-
-    // Stream is open ... now start it.
-    if (dac.startStream()) {
-        std::cout << dac.getErrorText() << std::endl;
-        CubeLog::error(dac.getErrorText());
-    }
-    CubeLog::info("Audio stream started.");
-
     std::jthread cpuAndMemoryThread([](std::stop_token st) {
         unsigned long loopCount = 0;
         while (!st.stop_requested()) {
@@ -217,6 +175,7 @@ int main(int argc, char* argv[])
     // Main loop
     /////////////////////////////////////////////////////////////////
     {
+        auto audioManager = std::make_shared<AudioManager>();
         auto db_cube = std::make_shared<CubeDatabaseManager>();
         auto blobs = std::make_shared<BlobsManager>(db_cube, "data/blobs.db");
         auto cubeDB = std::make_shared<CubeDB>(db_cube, blobs);
@@ -241,6 +200,7 @@ int main(int argc, char* argv[])
         api_builder.addInterface(gui);
         api_builder.addInterface(cubeDB);
         api_builder.addInterface(logger);
+        api_builder.addInterface(audioManager);
         api_builder.start();
         CubeLog::info("Entering main loop...");
         while (true) {
@@ -250,42 +210,10 @@ int main(int argc, char* argv[])
             if (input == "exit" || input == "quit" || input == "q" || input == "e" || input == "x") {
                 break;
             } else if (input == "sound") {
-                if (data[2] == 0) data[2] = 1;
-                else data[2] = 0;
+                audioManager->toggleSound();
             }
         }
         CubeLog::info("Exited main loop...");
-    }
-    
-    dac.stopStream();
-    if (dac.isStreamOpen())
-        dac.closeStream();
-    return 0;
-}
-
-
-// Two-channel sawtooth wave generator.
-int saw(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData)
-{
-    unsigned int i, j;
-    double* buffer = (double*)outputBuffer;
-    double* lastValues = (double*)userData;
-
-    if (status)
-        std::cout << "Stream underflow detected!" << std::endl;
-
-    // Write interleaved audio data.
-    for (i = 0; i < nBufferFrames; i++) {
-        for (j = 0; j < 2; j++) {
-            if (lastValues[2] == 0)
-                *buffer++ = 0.0;
-            else
-                *buffer++ = lastValues[j];
-
-            lastValues[j] += 0.005 * (j + 1 + (j * 0.1));
-            if (lastValues[j] >= 1.0)
-                lastValues[j] -= 2.0;
-        }
     }
     return 0;
 }

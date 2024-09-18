@@ -20,7 +20,7 @@
 #include "gui/gui.h"
 #include "logger/logger.h"
 #include "settings/loader.h"
-#include <RtAudio.h>
+#include "audio/audioManager.h"
 #include <cmath>
 #include <functional>
 #include <iostream>

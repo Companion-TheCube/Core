@@ -1,0 +1,122 @@
+#include "audioOutput.h"
+
+/*
+NOTES:
+Because of how the HDMI output works, we will have to have a constant output and modulate the code to change the sound.
+*/
+
+UserData AudioOutput::userData = { 0.0, 0.0, false };
+bool AudioOutput::audioStarted = false;
+RtAudio* AudioOutput::dac = nullptr;
+
+AudioOutput::AudioOutput()
+{
+    CubeLog::info("Initializing audio output.");
+#ifdef __linux__
+    RtAudio::Api api = RtAudio::RtAudio::LINUX_ALSA;
+#elif _WIN32
+    RtAudio::Api api = RtAudio::RtAudio::WINDOWS_DS;
+#endif
+    dac = new RtAudio(api);
+    std::vector<unsigned int> deviceIds = dac->getDeviceIds();
+    std::vector<std::string> deviceNames = dac->getDeviceNames();
+    if (deviceIds.size() < 1) {
+        CubeLog::fatal("No audio devices found. Exiting.");
+        exit(0);
+    }
+    CubeLog::info("Audio devices found: " + std::to_string(deviceIds.size()));
+    for (auto device : deviceNames) {
+        CubeLog::moreInfo("Device: " + device);
+    }
+
+    parameters = new RtAudio::StreamParameters();
+    CubeLog::info("Setting up audio stream with default audio device.");
+    parameters->deviceId = dac->getDefaultOutputDevice();
+    // find the device name for the audio device id
+    std::string deviceName = dac->getDeviceInfo(parameters->deviceId).name;
+    CubeLog::info("Using audio device: " + deviceName);
+    parameters->nChannels = 2;
+    parameters->firstChannel = 0;
+    userData.data[0] = 0;
+    userData.data[1] = 0;
+    userData.soundOn = false;
+
+    if (dac->openStream(parameters, NULL, RTAUDIO_FLOAT64, 48000, &bufferFrames, &saw, (void*)&userData)) {
+        CubeLog::fatal(dac->getErrorText() + " Exiting.");
+        exit(0); // problem with device settings
+    }
+}
+
+AudioOutput::~AudioOutput()
+{
+    stop();
+    // delete dac;
+}
+
+void AudioOutput::start()
+{
+    if (dac->startStream()) {
+        std::cout << dac->getErrorText() << std::endl;
+        CubeLog::error(dac->getErrorText());
+        return;
+    }
+    audioStarted = true;
+    CubeLog::info("Audio stream started.");
+}
+
+void AudioOutput::stop()
+{
+    if (dac->isStreamRunning()) {
+        dac->stopStream();
+        CubeLog::info("Audio stream stopped.");
+    }
+    audioStarted = false;
+}
+
+void AudioOutput::toggleSound()
+{
+    userData.soundOn = !userData.soundOn;
+    if (userData.soundOn) {
+        if(!audioStarted)
+            AudioOutput::start();
+        CubeLog::info("Sound on.");
+    } else {
+        CubeLog::info("Sound off.");
+    }
+}
+
+void AudioOutput::setSound(bool soundOn)
+{
+    userData.soundOn = soundOn;
+    if (userData.soundOn) {
+        CubeLog::info("Sound on.");
+    } else {
+        CubeLog::info("Sound off.");
+    }
+}
+
+// Two-channel sawtooth wave generator.
+int saw(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData)
+{
+    unsigned int i, j;
+    double* buffer = (double*)outputBuffer;
+    UserData* data = (UserData*)userData;
+
+    if (status)
+        CubeLog::error("Stream underflow detected!");
+
+    // Write interleaved audio data.
+    for (i = 0; i < nBufferFrames; i++) {
+        for (j = 0; j < 2; j++) {
+            if (!data->soundOn)
+                *buffer++ = 0.0;
+            else
+                *buffer++ = data->data[j];
+
+            data->data[j] += 0.005 * (j + 1 + (j * 0.1));
+            if (data->data[j] >= 1.0)
+                data->data[j] -= 2.0;
+        }
+    }
+    return 0;
+}

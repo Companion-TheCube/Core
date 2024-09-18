@@ -1,3 +1,5 @@
+// TODO: implement a way to check if a message is identical to the previous one and if so, print "repeated x times" on the previous message instead of th message
+
 #include "logger.h"
 
 #define COUNTER_MOD 1000 // determines how many dots we print while saving the logs
