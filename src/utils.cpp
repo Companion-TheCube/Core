@@ -124,6 +124,7 @@ std::string getCpuUsage()
             while (std::getline(ss, token, ' ')) {
                 tokens.push_back(token);
             }
+            // TODO: fix this
             // long user = std::stol(tokens[1]);
             // long nice = std::stol(tokens[2]);
             // long system = std::stol(tokens[3]);
