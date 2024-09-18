@@ -419,7 +419,7 @@ std::vector<CUBE_LOG_ENTRY> CubeLog::getLogEntries(Logger::LogLevel level)
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     std::vector<CUBE_LOG_ENTRY> logEntries;
     for (int i = 0; i < this->logEntries.size(); i++) {
-        if (this->logEntries[i].level == level)
+        if (this->logEntries[i].level >= level)
             logEntries.push_back(this->logEntries[i]);
     }
     return logEntries;
@@ -786,7 +786,7 @@ HttpEndPointData_t CubeLog::getHttpEndpointData()
     data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
             CUBELOG_TRACE("Getting logs for endpoint");
-            std::vector<CUBE_LOG_ENTRY> entries = CubeLog::getLogEntries(Logger::LogLevel(0));
+            std::vector<CUBE_LOG_ENTRY> entries = CubeLog::getLogEntries();
             nlohmann::json j;
             j["entries"] = nlohmann::json::array();
             for(auto entry : entries) {
