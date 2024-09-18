@@ -4,11 +4,11 @@
 #include <filesystem>
 
 struct GlobalSettings {
-    static LogVerbosity logVerbosity;
+    static Logger::LogVerbosity logVerbosity;
     static std::vector<std::string> fontPaths;
     static std::string selectedFontPath;
-    static LogLevel logLevelPrint;
-    static LogLevel logLevelFile;
+    static Logger::LogLevel logLevelPrint;
+    static Logger::LogLevel logLevelFile;
     static std::vector<std::pair<std::string, std::function<void()>>> settingChangeCallbacks;
     static std::mutex settingChangeMutex;
 
@@ -46,7 +46,7 @@ struct GlobalSettings {
         std::unique_lock<std::mutex> lock(settingChangeMutex);
         if(key == "logVerbosity"){
             int tempVal = value.get<int>();
-            GlobalSettings::logVerbosity = static_cast<LogVerbosity>(tempVal);
+            GlobalSettings::logVerbosity = static_cast<Logger::LogVerbosity>(tempVal);
             GlobalSettings::callSettingCB(key);
             return true;
         }
@@ -58,13 +58,13 @@ struct GlobalSettings {
         }
         if(key == "logLevelP"){
             int tempVal = value.get<int>();
-            GlobalSettings::logLevelPrint = static_cast<LogLevel>(tempVal);
+            GlobalSettings::logLevelPrint = static_cast<Logger::LogLevel>(tempVal);
             GlobalSettings::callSettingCB(key);
             return true;
         }
         if(key == "logLevelF"){
             int tempVal = value.get<int>();
-            GlobalSettings::logLevelFile = static_cast<LogLevel>(tempVal);
+            GlobalSettings::logLevelFile = static_cast<Logger::LogLevel>(tempVal);
             GlobalSettings::callSettingCB(key);
             return true;
         }
@@ -97,70 +97,88 @@ struct GlobalSettings {
     static std::string toString(){
         std::string output = "";
         switch(GlobalSettings::logVerbosity){
-            case LogVerbosity::MINIMUM:
+            case Logger::LogVerbosity::MINIMUM:
                 output += "Log Verbosity: Message only\n";
                 break;
-            case LogVerbosity::TIMESTAMP:
+            case Logger::LogVerbosity::TIMESTAMP:
                 output += "Log Verbosity: Timestamp and message\n";
                 break;
-            case LogVerbosity::TIMESTAMP_AND_LEVEL:
+            case Logger::LogVerbosity::TIMESTAMP_AND_LEVEL:
                 output += "Log Verbosity: Timestamp, log level, and message\n";
                 break;
-            case LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE:
+            case Logger::LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE:
                 output += "Log Verbosity: Timestamp, log level, source file, and message\n";
                 break;
-            case LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE:
+            case Logger::LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE:
                 output += "Log Verbosity: Timestamp, log level, source file, line number, and message\n";
                 break;
-            case LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE_AND_FUNCTION:
+            case Logger::LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE_AND_FUNCTION:
                 output += "Log Verbosity: Timestamp, log level, source file, line number, function name, and message\n";
                 break;
-            case LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE_AND_FUNCTION_AND_NUMBEROFLOGS:
+            case Logger::LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE_AND_FUNCTION_AND_NUMBEROFLOGS:
                 output += "Log Verbosity: Timestamp, log level, source file, line number, function name, number of logs, and message\n";
                 break;
             default:
                 output += "Log Verbosity: UNKNOWN\n";
         }
         switch(GlobalSettings::logLevelPrint){
-            case LogLevel::LOGGER_INFO:
+            case Logger::LogLevel::LOGGER_MORE_INFO:
+                output += "Log Level for printing: MORE INFO\n";
+                break;
+            case Logger::LogLevel::LOGGER_INFO:
                 output += "Log Level for printing: INFO\n";
                 break;
-            case LogLevel::LOGGER_WARNING:
+            case Logger::LogLevel::LOGGER_WARNING:
                 output += "Log Level for printing: WARNING\n";
                 break;
-            case LogLevel::LOGGER_ERROR:
+            case Logger::LogLevel::LOGGER_ERROR:
                 output += "Log Level for printing: ERROR\n";
                 break;
-            case LogLevel::LOGGER_CRITICAL:
+            case Logger::LogLevel::LOGGER_CRITICAL:
                 output += "Log Level for printing: CRITICAL\n";
                 break;
-            case LogLevel::LOGGER_OFF:
+            case Logger::LogLevel::LOGGER_FATAL:
+                output += "Log Level for printing: FATAL\n";
+                break;
+            case Logger::LogLevel::LOGGER_OFF:
                 output += "Log Level for printing: OFF\n";
                 break;
-            case LogLevel::LOGGER_DEBUG:
+            case Logger::LogLevel::LOGGER_DEBUG:
                 output += "Log Level for printing: DEBUG\n";
+                break;
+            case Logger::LogLevel::LOGGER_DEBUG_SILLY:
+                output += "Log Level for printing: DEBUG SILLY\n";
                 break;
             default:
                 output += "Log Level for printing: UNKNOWN\n";
         }
         switch(GlobalSettings::logLevelFile){
-            case LogLevel::LOGGER_INFO:
+            case Logger::LogLevel::LOGGER_MORE_INFO:
+                output += "Log Level for log file: MORE INFO\n";
+                break;
+            case Logger::LogLevel::LOGGER_INFO:
                 output += "Log Level for log file: INFO\n";
                 break;
-            case LogLevel::LOGGER_WARNING:
+            case Logger::LogLevel::LOGGER_WARNING:
                 output += "Log Level for log file: WARNING\n";
                 break;
-            case LogLevel::LOGGER_ERROR:
+            case Logger::LogLevel::LOGGER_ERROR:
                 output += "Log Level for log file: ERROR\n";
                 break;
-            case LogLevel::LOGGER_CRITICAL:
+            case Logger::LogLevel::LOGGER_CRITICAL:
                 output += "Log Level for log file: CRITICAL\n";
                 break;
-            case LogLevel::LOGGER_OFF:
+            case Logger::LogLevel::LOGGER_FATAL:
+                output += "Log Level for log file: FATAL\n";
+                break;
+            case Logger::LogLevel::LOGGER_OFF:
                 output += "Log Level for log file: OFF\n";
                 break;
-            case LogLevel::LOGGER_DEBUG:
+            case Logger::LogLevel::LOGGER_DEBUG:
                 output += "Log Level for log file: DEBUG\n";
+                break;
+            case Logger::LogLevel::LOGGER_DEBUG_SILLY:
+                output += "Log Level for log file: DEBUG SILLY\n";
                 break;
             default:
                 output += "Log Level for log file: UNKNOWN\n";

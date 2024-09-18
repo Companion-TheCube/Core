@@ -157,6 +157,7 @@ void API::httpApiThreadFn()
             // presence may be set to private if the user does not want to share that information with others on the network.
             CubeLog::debugSilly("Endpoint type: " + std::to_string(this->endpoints.at(i)->endpointType));
             std::function<void(const httplib::Request&, httplib::Response&)> publicAction = [&, i](const httplib::Request& req, httplib::Response& res) {
+                // TODO: endpoints should return a bool (or possibly a std::expected) that indicates whether or not the action was successful. If the action was not successful, the response should be set to a 500 error.
                 std::string returned = this->endpoints.at(i)->doAction(req, res);
                 if (returned != "")
                     res.set_content(returned, "text/plain");

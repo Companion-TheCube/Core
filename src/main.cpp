@@ -80,7 +80,7 @@ int main(int argc, char* argv[])
         .help("Set log verbosity (0-6)")
         .default_value(3)
         .action([&](const std::string& value) {
-            if (LogVerbosity(std::stoi(value)) >= LogVerbosity::LOGVERBOSITYCOUNT)
+            if (Logger::LogVerbosity(std::stoi(value)) >= Logger::LogVerbosity::LOGVERBOSITYCOUNT)
                 throw std::runtime_error("Invalid log level.");
             customLogVerbosity = true;
             return std::stoi(value);
@@ -89,7 +89,7 @@ int main(int argc, char* argv[])
         .help("Set log level for printing to console (0-6)")
         .default_value(3)
         .action([&](const std::string& value) {
-            if (LogLevel(std::stoi(value)) >= LogLevel::LOGGER_LOGLEVELCOUNT)
+            if (Logger::LogLevel(std::stoi(value)) >= Logger::LogLevel::LOGGER_LOGLEVELCOUNT)
                 throw std::runtime_error("Invalid log level.");
             customLogLevelP = true;
             return std::stoi(value);
@@ -98,7 +98,7 @@ int main(int argc, char* argv[])
         .help("Set log level for writing to file (0-6)")
         .default_value(3)
         .action([&](const std::string& value) {
-            if (LogLevel(std::stoi(value)) >= LogLevel::LOGGER_LOGLEVELCOUNT)
+            if (Logger::LogLevel(std::stoi(value)) >= Logger::LogLevel::LOGGER_LOGLEVELCOUNT)
                 throw std::runtime_error("Invalid log level.");
             customLogLevelF = true;
             return std::stoi(value);
@@ -131,7 +131,7 @@ int main(int argc, char* argv[])
         exit(0);
     }
     if (customLogVerbosity)
-        settings.logVerbosity = LogVerbosity(logVerbosity);
+        settings.logVerbosity = Logger::LogVerbosity(logVerbosity);
     logger->setVerbosity(settings.logVerbosity);
     if (customLogLevelP)
         settings.setSetting("LogLevelP", logLevelPrint);
@@ -147,7 +147,6 @@ int main(int argc, char* argv[])
     }
     CubeLog::info("Logger initialized.");
     CubeLog::info("Settings loaded.");
-    /////////////////////////////////////////////////////////////////
     CubeLog::info("Loading GUI...");
     auto gui = std::make_shared<GUI>();
     /////////////////////////////////////////////////////////////////

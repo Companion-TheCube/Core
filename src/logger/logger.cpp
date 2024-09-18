@@ -18,34 +18,34 @@ unsigned int CUBE_LOG_ENTRY::logEntryCount = 0;
  * @param verbosity
  * @param level The log level of the message
  */
-CUBE_LOG_ENTRY::CUBE_LOG_ENTRY(std::string message, std::source_location* location, LogVerbosity verbosity, LogLevel level)
+CUBE_LOG_ENTRY::CUBE_LOG_ENTRY(std::string message, CustomSourceLocation* location, Logger::LogVerbosity verbosity, Logger::LogLevel level)
 {
     this->timestamp = std::chrono::system_clock::now();
     this->logEntryNumber = ++CUBE_LOG_ENTRY::logEntryCount;
     this->message = message;
     this->level = level;
-    std::string fileName = getFileNameFromPath(location->file_name());
+    std::string fileName = getFileNameFromPath(location->file_name);
     switch (verbosity) {
-    case LogVerbosity::MINIMUM:
+    case Logger::LogVerbosity::MINIMUM:
         this->messageFull = message;
         break;
-    case LogVerbosity::TIMESTAMP:
+    case Logger::LogVerbosity::TIMESTAMP:
         this->messageFull = this->getTimestamp() + ": " + message;
         break;
-    case LogVerbosity::TIMESTAMP_AND_LEVEL:
-        this->messageFull = this->getTimestamp() + ": " + message + " (" + logLevelStrings[level] + ")";
+    case Logger::LogVerbosity::TIMESTAMP_AND_LEVEL:
+        this->messageFull = this->getTimestamp() + ": " + message + " (" + Logger::logLevelStrings[level] + ")";
         break;
-    case LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE:
-        this->messageFull = this->getTimestamp() + ": " + fileName + ": " + message + " (" + logLevelStrings[level] + ")";
+    case Logger::LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE:
+        this->messageFull = this->getTimestamp() + ": " + fileName + ": " + message + " (" + Logger::logLevelStrings[level] + ")";
         break;
-    case LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE:
-        this->messageFull = this->getTimestamp() + ": " + fileName + "(" + std::to_string(location->line()) + "): " + message + " (" + logLevelStrings[level] + ")";
+    case Logger::LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE:
+        this->messageFull = this->getTimestamp() + ": " + fileName + "(" + std::to_string(location->line) + "): " + message + " (" + Logger::logLevelStrings[level] + ")";
         break;
-    case LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE_AND_FUNCTION:
-        this->messageFull = this->getTimestamp() + ": " + fileName + "(" + std::to_string(location->line()) + "): " + location->function_name() + ": " + message + " (" + logLevelStrings[level] + ")";
+    case Logger::LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE_AND_FUNCTION:
+        this->messageFull = this->getTimestamp() + ": " + fileName + "(" + std::to_string(location->line) + "): " + location->function_name + ": " + message + " (" + Logger::logLevelStrings[level] + ")";
         break;
     default:
-        this->messageFull = this->getTimestamp() + ": " + fileName + "(" + std::to_string(location->line()) + "): " + location->function_name() + ": " + message + " (" + std::to_string(CUBE_LOG_ENTRY::logEntryCount) + ")" + " (" + logLevelStrings[level] + ")";
+        this->messageFull = this->getTimestamp() + ": " + fileName + "(" + std::to_string(location->line) + "): " + location->function_name + ": " + message + " (" + std::to_string(CUBE_LOG_ENTRY::logEntryCount) + ")" + " (" + Logger::logLevelStrings[level] + ")";
         break;
     }
 }
@@ -111,8 +111,8 @@ std::string CUBE_LOG_ENTRY::getMessageFull()
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-LogVerbosity CubeLog::staticVerbosity = LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE_AND_FUNCTION_AND_NUMBEROFLOGS;
-LogLevel CubeLog::staticPrintLevel = LogLevel::LOGGER_INFO;
+Logger::LogVerbosity CubeLog::staticVerbosity = Logger::LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE_AND_FUNCTION_AND_NUMBEROFLOGS;
+Logger::LogLevel CubeLog::staticPrintLevel = Logger::LogLevel::LOGGER_INFO;
 std::vector<CUBE_LOG_ENTRY> CubeLog::logEntries;
 std::mutex CubeLog::logMutex;
 bool CubeLog::consoleLoggingEnabled = true;
@@ -131,7 +131,7 @@ int CubeLog::advancedColorsEnabled = 0;
  * @param level The log level of the message
  * @param location The source location of the log message. If not provided, the location will be automatically determined.
  */
-void CubeLog::log(std::string message, bool print, LogLevel level, std::source_location location)
+void CubeLog::log(std::string message, bool print, Logger::LogLevel level, CustomSourceLocation location)
 {
     CUBE_LOG_ENTRY entry = CUBE_LOG_ENTRY(message, &location, CubeLog::staticVerbosity, level);
     CubeLog::logEntries.push_back(entry);
@@ -146,37 +146,42 @@ void CubeLog::log(std::string message, bool print, LogLevel level, std::source_l
     Color::AdvancedModifier colorDebugSilly(0, 255, 25); // brighter green
     if (CubeLog::advancedColorsEnabled == 2 && print && level >= CubeLog::staticPrintLevel && CubeLog::consoleLoggingEnabled && message.length() < 1000) {
         switch (level) {
-        case LogLevel::LOGGER_DEBUG_SILLY:
+#ifdef LOGGER_TRACE_ENABLED
+        case Logger::LogLevel::LOGGER_TRACE:
             std::cout << colorDebugSilly << entry.getMessageFull() << std::endl;
             break;
-        case LogLevel::LOGGER_DEBUG:
+#endif
+        case Logger::LogLevel::LOGGER_DEBUG_SILLY:
+            std::cout << colorDebugSilly << entry.getMessageFull() << std::endl;
+            break;
+        case Logger::LogLevel::LOGGER_DEBUG:
             std::cout << colorDebug << entry.getMessageFull() << std::endl;
             break;
-        case LogLevel::LOGGER_INFO:
+        case Logger::LogLevel::LOGGER_INFO:
             std::cout << colorInfo << entry.getMessageFull() << std::endl;
             break;
-        case LogLevel::LOGGER_WARNING:
+        case Logger::LogLevel::LOGGER_WARNING:
             std::cout << colorWarning << entry.getMessageFull() << std::endl;
             break;
-        case LogLevel::LOGGER_ERROR:
+        case Logger::LogLevel::LOGGER_ERROR:
             std::cout << colorError << entry.getMessageFull() << std::endl;
             break;
-        case LogLevel::LOGGER_CRITICAL:
+        case Logger::LogLevel::LOGGER_CRITICAL:
             std::cout << colorCritical << entry.getMessageFull() << std::endl;
             break;
-        case LogLevel::LOGGER_FATAL:
+        case Logger::LogLevel::LOGGER_FATAL:
             std::cout << colorFatal << entry.getMessageFull() << std::endl;
             break;
-        case LogLevel::LOGGER_MORE_INFO:
+        case Logger::LogLevel::LOGGER_MORE_INFO:
             std::cout << colorMoreInfo << entry.getMessageFull() << std::endl;
             break;
-        case LogLevel::LOGGER_OFF:
+        case Logger::LogLevel::LOGGER_OFF:
             break;
         default:
             std::cout << colorDefault << entry.getMessageFull() << std::endl;
             break;
         }
-    } else if (level != LogLevel::LOGGER_OFF && print && level >= CubeLog::staticPrintLevel && CubeLog::consoleLoggingEnabled && message.length() < 1000) {
+    } else if (level != Logger::LogLevel::LOGGER_OFF && print && level >= CubeLog::staticPrintLevel && CubeLog::consoleLoggingEnabled && message.length() < 1000) {
         std::cout << entry.getMessageFull() << std::endl;
     }
 }
@@ -190,7 +195,7 @@ std::chrono::system_clock::time_point CubeLog::lastScreenMessageTime = std::chro
  * @param level The log level of the message
  * @param location The source location of the log message. If not provided, the location will be automatically determined.
  */
-void CubeLog::screen(std::string message, LogLevel level, std::source_location location)
+void CubeLog::screen(std::string message, Logger::LogLevel level, CustomSourceLocation location)
 {
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     CubeLog::log("Screen Message: " + message, true, level, location);
@@ -215,10 +220,10 @@ std::string CubeLog::getScreenMessage()
  * @param message The message to log
  * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
  */
-void CubeLog::debugSilly(std::string message, std::source_location location)
+void CubeLog::debugSilly(std::string message, CustomSourceLocation location)
 {
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
-    CubeLog::log(message, true, LogLevel::LOGGER_DEBUG_SILLY, location);
+    CubeLog::log(message, true, Logger::LogLevel::LOGGER_DEBUG_SILLY, location);
 }
 
 /**
@@ -227,10 +232,10 @@ void CubeLog::debugSilly(std::string message, std::source_location location)
  * @param message The message to log
  * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
  */
-void CubeLog::debug(std::string message, std::source_location location)
+void CubeLog::debug(std::string message, CustomSourceLocation location)
 {
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
-    CubeLog::log(message, true, LogLevel::LOGGER_DEBUG, location);
+    CubeLog::log(message, true, Logger::LogLevel::LOGGER_DEBUG, location);
 }
 
 /**
@@ -239,10 +244,10 @@ void CubeLog::debug(std::string message, std::source_location location)
  * @param message The message to log
  * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
  */
-void CubeLog::error(std::string message, std::source_location location)
+void CubeLog::error(std::string message, CustomSourceLocation location)
 {
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
-    CubeLog::log(message, true, LogLevel::LOGGER_ERROR, location);
+    CubeLog::log(message, true, Logger::LogLevel::LOGGER_ERROR, location);
 }
 
 /**
@@ -251,10 +256,10 @@ void CubeLog::error(std::string message, std::source_location location)
  * @param message The message to log
  * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
  */
-void CubeLog::info(std::string message, std::source_location location)
+void CubeLog::info(std::string message, CustomSourceLocation location)
 {
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
-    CubeLog::log(message, true, LogLevel::LOGGER_INFO, location);
+    CubeLog::log(message, true, Logger::LogLevel::LOGGER_INFO, location);
 }
 
 /**
@@ -263,10 +268,10 @@ void CubeLog::info(std::string message, std::source_location location)
  * @param message The message to log
  * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
  */
-void CubeLog::warning(std::string message, std::source_location location)
+void CubeLog::warning(std::string message, CustomSourceLocation location)
 {
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
-    CubeLog::log(message, true, LogLevel::LOGGER_WARNING, location);
+    CubeLog::log(message, true, Logger::LogLevel::LOGGER_WARNING, location);
 }
 
 /**
@@ -275,10 +280,10 @@ void CubeLog::warning(std::string message, std::source_location location)
  * @param message The message to log
  * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
  */
-void CubeLog::critical(std::string message, std::source_location location)
+void CubeLog::critical(std::string message, CustomSourceLocation location)
 {
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
-    CubeLog::log(message, true, LogLevel::LOGGER_CRITICAL, location);
+    CubeLog::log(message, true, Logger::LogLevel::LOGGER_CRITICAL, location);
 }
 
 /**
@@ -287,10 +292,10 @@ void CubeLog::critical(std::string message, std::source_location location)
  * @param message The message to log
  * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
  */
-void CubeLog::moreInfo(std::string message, std::source_location location)
+void CubeLog::moreInfo(std::string message, CustomSourceLocation location)
 {
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
-    CubeLog::log(message, true, LogLevel::LOGGER_MORE_INFO, location);
+    CubeLog::log(message, true, Logger::LogLevel::LOGGER_MORE_INFO, location);
 }
 
 /**
@@ -299,10 +304,10 @@ void CubeLog::moreInfo(std::string message, std::source_location location)
  * @param message The message to log
  * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
  */
-void CubeLog::fatal(std::string message, std::source_location location)
+void CubeLog::fatal(std::string message, CustomSourceLocation location)
 {
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
-    CubeLog::log(message, true, LogLevel::LOGGER_FATAL, location);
+    CubeLog::log(message, true, Logger::LogLevel::LOGGER_FATAL, location);
 }
 
 /**
@@ -312,7 +317,7 @@ void CubeLog::fatal(std::string message, std::source_location location)
  * @param printLevel Determines the level of log messages that will be printed to the console.
  * @param fileLevel Determines the level of log messages that will be written to the log file.
  */
-CubeLog::CubeLog(int advancedColorsEnabled, LogVerbosity verbosity, LogLevel printLevel, LogLevel fileLevel)
+CubeLog::CubeLog(int advancedColorsEnabled, Logger::LogVerbosity verbosity, Logger::LogLevel printLevel, Logger::LogLevel fileLevel)
 {
     CubeLog::advancedColorsEnabled = advancedColorsEnabled;
     this->savingInProgress = false;
@@ -409,7 +414,7 @@ CubeLog::~CubeLog()
  * @param level The log level to get. If not provided, all log entries will be returned.
  * @return std::vector<CUBE_LOG_ENTRY> The log entries
  */
-std::vector<CUBE_LOG_ENTRY> CubeLog::getLogEntries(LogLevel level)
+std::vector<CUBE_LOG_ENTRY> CubeLog::getLogEntries(Logger::LogLevel level)
 {
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     std::vector<CUBE_LOG_ENTRY> logEntries;
@@ -417,7 +422,7 @@ std::vector<CUBE_LOG_ENTRY> CubeLog::getLogEntries(LogLevel level)
         if (this->logEntries[i].level == level)
             logEntries.push_back(this->logEntries[i]);
     }
-    return this->logEntries;
+    return logEntries;
 }
 
 /**
@@ -472,7 +477,7 @@ std::vector<std::string> CubeLog::getLogsAndErrorsAsStrings(bool fullMessages)
 void CubeLog::writeOutLogs()
 {
     // TODO: theres a bug here where the logs are being written to the file and existing logs are being overwritten. FIXME
-    if (this->fileLevel == LogLevel::LOGGER_OFF)
+    if (this->fileLevel == Logger::LogLevel::LOGGER_OFF)
         return;
     std::cout << "Size of CubeLog: " << CubeLog::getSizeOfCubeLog() << std::endl;
     std::cout << "Memory footprint: " << getMemoryFootprint() << std::endl;
@@ -547,7 +552,7 @@ void CubeLog::writeOutLogs()
  *
  * @param verbosity The verbosity of the log messages
  */
-void CubeLog::setVerbosity(LogVerbosity verbosity)
+void CubeLog::setVerbosity(Logger::LogVerbosity verbosity)
 {
     this->log("Setting verbosity to " + std::to_string(verbosity), true);
     CubeLog::staticVerbosity = verbosity;
@@ -587,7 +592,7 @@ std::string getFileNameFromPath(std::string path)
  * @param printLevel The log level for printing to the console
  * @param fileLevel The log level for writing to the log file
  */
-void CubeLog::setLogLevel(LogLevel printLevel, LogLevel fileLevel)
+void CubeLog::setLogLevel(Logger::LogLevel printLevel, Logger::LogLevel fileLevel)
 {
     CubeLog::staticPrintLevel = printLevel;
     this->fileLevel = fileLevel;
@@ -613,12 +618,12 @@ CUBE_LOG_ENTRY CubeLog::getLatestError()
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     // find the latest error entry that is not in the readErrorIDs vector
     for (int i = CubeLog::logEntries.size() - 1; i >= 0; i--) {
-        if (CubeLog::logEntries[i].level == LogLevel::LOGGER_ERROR && std::find(CubeLog::readErrorIDs.begin(), CubeLog::readErrorIDs.end(), CubeLog::logEntries[i].logEntryNumber) == CubeLog::readErrorIDs.end()) {
+        if (CubeLog::logEntries[i].level == Logger::LogLevel::LOGGER_ERROR && std::find(CubeLog::readErrorIDs.begin(), CubeLog::readErrorIDs.end(), CubeLog::logEntries[i].logEntryNumber) == CubeLog::readErrorIDs.end()) {
             CubeLog::readErrorIDs.push_back(CubeLog::logEntries[i].logEntryNumber);
             return CubeLog::logEntries[i];
         }
     }
-    return CUBE_LOG_ENTRY("No errors found", nullptr, LogVerbosity::MINIMUM, LogLevel::LOGGER_INFO);
+    return CUBE_LOG_ENTRY("No errors found", nullptr, Logger::LogVerbosity::MINIMUM, Logger::LogLevel::LOGGER_INFO);
 }
 
 /**
@@ -631,12 +636,12 @@ CUBE_LOG_ENTRY CubeLog::getLatestLog()
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     // find the latest log entry that is not an error and is not in the readLogIDs vector
     for (int i = CubeLog::logEntries.size() - 1; i >= 0; i--) {
-        if (CubeLog::logEntries[i].level != LogLevel::LOGGER_ERROR && std::find(CubeLog::readLogIDs.begin(), CubeLog::readLogIDs.end(), CubeLog::logEntries[i].logEntryNumber) == CubeLog::readLogIDs.end()) {
+        if (CubeLog::logEntries[i].level != Logger::LogLevel::LOGGER_ERROR && std::find(CubeLog::readLogIDs.begin(), CubeLog::readLogIDs.end(), CubeLog::logEntries[i].logEntryNumber) == CubeLog::readLogIDs.end()) {
             CubeLog::readLogIDs.push_back(CubeLog::logEntries[i].logEntryNumber);
             return CubeLog::logEntries[i];
         }
     }
-    return CUBE_LOG_ENTRY("No logs found", nullptr, LogVerbosity::MINIMUM, LogLevel::LOGGER_INFO);
+    return CUBE_LOG_ENTRY("No logs found", nullptr, Logger::LogVerbosity::MINIMUM, Logger::LogLevel::LOGGER_INFO);
 }
 
 /**
@@ -648,22 +653,22 @@ CUBE_LOG_ENTRY CubeLog::getLatestEntry()
     if (CubeLog::logEntries.size() > 0) {
         return CubeLog::logEntries[CubeLog::logEntries.size() - 1];
         // add to readLogIDs or readErrorIDs depending on the level
-        if (CubeLog::logEntries[CubeLog::logEntries.size() - 1].level == LogLevel::LOGGER_ERROR) {
+        if (CubeLog::logEntries[CubeLog::logEntries.size() - 1].level == Logger::LogLevel::LOGGER_ERROR) {
             CubeLog::readErrorIDs.push_back(CubeLog::logEntries[CubeLog::logEntries.size() - 1].logEntryNumber);
         } else {
             CubeLog::readLogIDs.push_back(CubeLog::logEntries[CubeLog::logEntries.size() - 1].logEntryNumber);
         }
     }
-    return CUBE_LOG_ENTRY("No logs found", nullptr, LogVerbosity::MINIMUM, LogLevel::LOGGER_INFO);
+    return CUBE_LOG_ENTRY("No logs found", nullptr, Logger::LogVerbosity::MINIMUM, Logger::LogLevel::LOGGER_INFO);
 }
 
 bool CubeLog::hasUnreadErrors()
 {
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     bool hasUnreadErrors = false;
-    // determine if any of the errors in the logEntries vector that are LogLevel::LOGGER_ERROR are not in the readErrorIDs vector
+    // determine if any of the errors in the logEntries vector that are Logger::LogLevel::LOGGER_ERROR are not in the readErrorIDs vector
     for (int i = CubeLog::logEntries.size() - 1; i >= 0; i--) {
-        if (CubeLog::logEntries[i].level == LogLevel::LOGGER_ERROR && std::find(CubeLog::readErrorIDs.begin(), CubeLog::readErrorIDs.end(), CubeLog::logEntries[i].logEntryNumber) == CubeLog::readErrorIDs.end()) {
+        if (CubeLog::logEntries[i].level == Logger::LogLevel::LOGGER_ERROR && std::find(CubeLog::readErrorIDs.begin(), CubeLog::readErrorIDs.end(), CubeLog::logEntries[i].logEntryNumber) == CubeLog::readErrorIDs.end()) {
             hasUnreadErrors = true;
             break;
         }
@@ -675,9 +680,9 @@ bool CubeLog::hasUnreadLogs()
 {
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     bool hasUnreadLogs = false;
-    // determine if any of the logs in the logEntries vector that are not LogLevel::LOGGER_ERROR are not in the readLogIDs vector
+    // determine if any of the logs in the logEntries vector that are not Logger::LogLevel::LOGGER_ERROR are not in the readLogIDs vector
     for (int i = CubeLog::logEntries.size() - 1; i >= 0; i--) {
-        if (CubeLog::logEntries[i].level != LogLevel::LOGGER_ERROR && std::find(CubeLog::readLogIDs.begin(), CubeLog::readLogIDs.end(), CubeLog::logEntries[i].logEntryNumber) == CubeLog::readLogIDs.end()) {
+        if (CubeLog::logEntries[i].level != Logger::LogLevel::LOGGER_ERROR && std::find(CubeLog::readLogIDs.begin(), CubeLog::readLogIDs.end(), CubeLog::logEntries[i].logEntryNumber) == CubeLog::readLogIDs.end()) {
             hasUnreadLogs = true;
             break;
         }
@@ -700,67 +705,100 @@ std::string CubeLog::getIntefaceName() const
     return "Logger";
 }
 
+const std::string sanitizeString(std::string str) {
+    // iterate through the string and ensure utf-8 compliance
+    for (int i = 0; i < str.length(); i++) {
+        if (str[i] < 0) {
+            str[i] = '?';
+        }
+    }
+    return str;
+}
+
 /**
  * @brief Get the endpoint data
  *
  * @return HttpEndPointData_t The endpoint data
  */
+// TODO: add endpoint(s) to get logs. perhaps have the ability to get logs by level, by date, etc. and/or logs from memory or from file
 HttpEndPointData_t CubeLog::getHttpEndpointData()
 {
     HttpEndPointData_t data;
-    data.push_back({ PUBLIC_ENDPOINT | POST_ENDPOINT, [](const httplib::Request& req, httplib::Response& res) {
-                        // log info
-                        CubeLog::info("Logging message from endpoint", std::source_location::current());
-                        if ((req.has_header("Content-Type") && req.get_header_value("Content-Type") == "application/json")) {
-                            std::string message;
-                            std::string level;
-                            try {
-                                nlohmann::json received = nlohmann::json::parse(req.body);
-                                message = received["message"];
-                                level = received["level"];
-                            } catch (nlohmann::json::exception e) {
-                                CubeLog::error(e.what(), std::source_location::current());
-                                // create json object with error message and return success = false
-                                nlohmann::json j;
-                                j["success"] = false;
-                                j["message"] = e.what();
-                                res.set_content(j.dump(), "application/json");
-                                return j.dump();
-                            }
-                            // convert level to int
-                            int level_int;
-                            try {
-                                level_int = std::stoi(level);
-                                if (level_int < 0 || level_int > 4)
-                                    throw std::invalid_argument("Log level out of range. Must be between 0 and 4, inclusive.");
-                            } catch (std::invalid_argument e) {
-                                CubeLog::error(e.what(), std::source_location::current());
-                                // create json object with error message and return success = false
-                                nlohmann::json j;
-                                j["success"] = false;
-                                j["message"] = e.what();
-                                res.set_content(j.dump(), "application/json");
-                                return j.dump();
-                            }
-                            // log message
-                            CubeLog::log(message, true, LogLevel(level_int), std::source_location::current());
-                            // create json object with success message and return success = true
-                            nlohmann::json j;
-                            j["success"] = true;
-                            j["message"] = "Logged message";
-                            res.set_content(j.dump(), "application/json");
-                            return j.dump();
-                        } else {
-                            // error
-                            CubeLog::error("Request is not a properly formatted json POST request.", std::source_location::current());
-                            // create json object with error message and return success = false
-                            nlohmann::json j;
-                            j["success"] = false;
-                            j["message"] = "Request is not a properly formatted json POST request.";
-                            res.set_content(j.dump(), "application/json");
-                            return j.dump();
-                        }
-                    } });
+    data.push_back({ PUBLIC_ENDPOINT | POST_ENDPOINT,
+        [](const httplib::Request& req, httplib::Response& res) {
+            // log info
+            CubeLog::info("Logging message from endpoint");
+            if ((req.has_header("Content-Type") && req.get_header_value("Content-Type") == "application/json")) {
+                std::string message;
+                std::string level;
+                std::string source;
+                std::string line;
+                std::string function;
+                try {
+                    nlohmann::json received = nlohmann::json::parse(req.body);
+                    message = received["message"];
+                    level = received["level"];
+                    source = received["source"];
+                    line = received["line"];
+                    function = received["function"];
+                } catch (nlohmann::json::exception e) {
+                    CubeLog::error(e.what());
+                    // create json object with error message and return success = false
+                    nlohmann::json j;
+                    j["success"] = false;
+                    j["message"] = e.what();
+                    res.set_content(j.dump(), "application/json");
+                    return "";
+                }
+                // convert level to int
+                int level_int;
+                try {
+                    level_int = std::stoi(level);
+                    if (level_int < 0 || level_int > Logger::LogLevel::LOGGER_LOGLEVELCOUNT - 1)
+                        throw std::invalid_argument("Log level out of range. Must be between 0 and " + std::to_string(Logger::LogLevel::LOGGER_LOGLEVELCOUNT - 1) + ", inclusive.");
+                } catch (std::invalid_argument e) {
+                    CubeLog::error(e.what());
+                    // create json object with error message and return success = false
+                    nlohmann::json j;
+                    j["success"] = false;
+                    j["message"] = e.what();
+                    res.set_content(j.dump(), "application/json");
+                    return "";
+                }
+                // TODO: source string should be prepended with the name of the source app or it's IP or something. That way, we know
+                // for sure where the log message is coming from. Without this, an app can log stuff while pretending to be another app.
+                auto location = CustomSourceLocation(source.c_str(), std::stoi(line),0, function.c_str());
+                CubeLog::log(message, true, Logger::LogLevel(level_int), location); // We use CubeLog::log here so we can set the level
+                nlohmann::json j;
+                j["success"] = true;
+                j["message"] = "Logged message";
+                res.set_content(j.dump(), "application/json");
+                return "";
+            } else {
+                CubeLog::error("Content-Type header must be set to \"application/json\".");
+                nlohmann::json j;
+                j["success"] = false;
+                j["message"] = "Content-Type header must be set to \"application/json\".";
+                res.set_content(j.dump(), "application/json");
+                return "";
+            }
+        } });
+    data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
+        [&](const httplib::Request& req, httplib::Response& res) {
+            CUBELOG_TRACE("Getting logs for endpoint");
+            std::vector<CUBE_LOG_ENTRY> entries = CubeLog::getLogEntries(Logger::LogLevel(0));
+            nlohmann::json j;
+            j["entries"] = nlohmann::json::array();
+            for(auto entry : entries) {
+                nlohmann::json entryJson;
+                entryJson["timestamp"] = sanitizeString(entry.getTimestamp());
+                entryJson["message"] = sanitizeString(entry.getMessageFull());
+                entryJson["level"] = sanitizeString(Logger::logLevelStrings[entry.level]);
+                j["entries"].push_back(entryJson);
+            }
+            res.set_content(j.dump(), "application/json");
+            return "";
+        } });
     return data;
 }
 
@@ -772,10 +810,8 @@ HttpEndPointData_t CubeLog::getHttpEndpointData()
 std::vector<std::pair<std::string, std::vector<std::string>>> CubeLog::getHttpEndpointNamesAndParams()
 {
     std::vector<std::pair<std::string, std::vector<std::string>>> names;
-    std::vector<std::string> logParams;
-    logParams.push_back("message");
-    logParams.push_back("level");
-    names.push_back({ "log", logParams });
+    names.push_back({ "log", {"message", "level", "source", "line", "function"} });
+    names.push_back({ "getLogs", {} });
     return names;
 }
 

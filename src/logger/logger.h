@@ -15,6 +15,14 @@
 #include <utils.h>
 #include <vector>
 
+#define LOGGER_TRACE_ENABLED
+#ifdef LOGGER_TRACE_ENABLED
+#define CUBELOG_TRACE(x) CubeLog::log(x, true, Logger::LogLevel::LOGGER_TRACE, CustomSourceLocation::current())
+#else
+#define CUBELOG_TRACE(x)
+#endif
+
+namespace Logger{
 enum LogVerbosity {
     MINIMUM,
     TIMESTAMP,
@@ -27,6 +35,9 @@ enum LogVerbosity {
 };
 
 enum LogLevel {
+#ifdef LOGGER_TRACE_ENABLED
+    LOGGER_TRACE,
+#endif
     LOGGER_DEBUG_SILLY,
     LOGGER_DEBUG,
     LOGGER_INFO,
@@ -40,6 +51,9 @@ enum LogLevel {
 };
 
 const std::string logLevelStrings[] = {
+#ifdef LOGGER_TRACE_ENABLED
+    "TRACE",
+#endif
     "DEBUG_SILLY",
     "DEBUG",
     "INFO",
@@ -52,6 +66,22 @@ const std::string logLevelStrings[] = {
     "LOGLEVELCOUNT"
 };
 
+} // namespace Logger
+
+struct CustomSourceLocation {
+    const char* file_name;
+    std::uint_least32_t line;
+    std::uint_least32_t column;
+    const char* function_name;
+
+    CustomSourceLocation(const char* file, std::uint_least32_t line_num, std::uint_least32_t col_num, const char* func)
+        : file_name(file), line(line_num), column(col_num), function_name(func) {}
+
+    static CustomSourceLocation current(const std::source_location& loc = std::source_location::current()) {
+        return CustomSourceLocation(loc.file_name(), loc.line(), loc.column(), loc.function_name());
+    }
+};
+
 class CUBE_LOG_ENTRY {
 private:
     std::string message;
@@ -60,9 +90,9 @@ private:
 
 public:
     unsigned int logEntryNumber;
-    LogLevel level;
+    Logger::LogLevel level;
     static unsigned int logEntryCount;
-    CUBE_LOG_ENTRY(std::string message, std::source_location* location, LogVerbosity verbosity, LogLevel level = LogLevel::LOGGER_INFO);
+    CUBE_LOG_ENTRY(std::string message, CustomSourceLocation* location, Logger::LogVerbosity verbosity, Logger::LogLevel level = Logger::LogLevel::LOGGER_INFO);
     ~CUBE_LOG_ENTRY();
     std::string getMessage();
     std::string getTimestamp();
@@ -75,10 +105,10 @@ class CubeLog : public I_API_Interface {
 private:
     static std::vector<CUBE_LOG_ENTRY> logEntries;
     static std::mutex logMutex;
-    static LogVerbosity staticVerbosity;
-    static LogLevel staticPrintLevel;
+    static Logger::LogVerbosity staticVerbosity;
+    static Logger::LogLevel staticPrintLevel;
     static bool consoleLoggingEnabled;
-    LogLevel fileLevel;
+    Logger::LogLevel fileLevel;
     bool savingInProgress;
     void saveLogsInterval();
     std::jthread saveLogsThread;
@@ -90,30 +120,30 @@ private:
     static bool hasUnreadErrors_b, hasUnreadLogs_b;
     static std::string screenMessage;
     static std::vector<unsigned int> readErrorIDs, readLogIDs;
-    static void log(std::string message, bool print, LogLevel level = LogLevel::LOGGER_INFO, std::source_location location = std::source_location::current());
+    static void log(std::string message, bool print, Logger::LogLevel level = Logger::LogLevel::LOGGER_INFO, CustomSourceLocation location = CustomSourceLocation::current());
     std::jthread* resetThread;
     static std::chrono::system_clock::time_point lastScreenMessageTime;
     static int advancedColorsEnabled;
 
 public:
-    static void screen(std::string message, LogLevel level = LogLevel::LOGGER_INFO, std::source_location location = std::source_location::current());
-    static void debugSilly(std::string message, std::source_location location = std::source_location::current());
-    static void debug(std::string message, std::source_location location = std::source_location::current());
-    static void error(std::string message, std::source_location location = std::source_location::current());
-    static void info(std::string message, std::source_location location = std::source_location::current());
-    static void warning(std::string message, std::source_location location = std::source_location::current());
-    static void critical(std::string message, std::source_location location = std::source_location::current());
-    static void moreInfo(std::string message, std::source_location location = std::source_location::current());
-    static void fatal(std::string message, std::source_location location = std::source_location::current());
-    std::vector<CUBE_LOG_ENTRY> getLogEntries(LogLevel level = LogLevel::LOGGER_INFO);
+    static void screen(std::string message, Logger::LogLevel level = Logger::LogLevel::LOGGER_INFO, CustomSourceLocation location = CustomSourceLocation::current());
+    static void debugSilly(std::string message, CustomSourceLocation location = CustomSourceLocation::current());
+    static void debug(std::string message, CustomSourceLocation location = CustomSourceLocation::current());
+    static void error(std::string message, CustomSourceLocation location = CustomSourceLocation::current());
+    static void info(std::string message, CustomSourceLocation location = CustomSourceLocation::current());
+    static void warning(std::string message, CustomSourceLocation location = CustomSourceLocation::current());
+    static void critical(std::string message, CustomSourceLocation location = CustomSourceLocation::current());
+    static void moreInfo(std::string message, CustomSourceLocation location = CustomSourceLocation::current());
+    static void fatal(std::string message, CustomSourceLocation location = CustomSourceLocation::current());
+    std::vector<CUBE_LOG_ENTRY> getLogEntries(Logger::LogLevel level = Logger::LogLevel(0));
     std::vector<std::string> getLogEntriesAsStrings(bool fullMessages = true);
     std::vector<std::string> getErrorsAsStrings(bool fullMessages = true);
     std::vector<std::string> getLogsAndErrorsAsStrings(bool fullMessages = true);
-    CubeLog(int advancedColorsEnabled = 2, LogVerbosity verbosity = LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE_AND_FUNCTION, LogLevel printLevel = LogLevel::LOGGER_INFO, LogLevel fileLevel = LogLevel::LOGGER_INFO);
+    CubeLog(int advancedColorsEnabled = 2, Logger::LogVerbosity verbosity = Logger::LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE_AND_FUNCTION, Logger::LogLevel printLevel = Logger::LogLevel::LOGGER_INFO, Logger::LogLevel fileLevel = Logger::LogLevel::LOGGER_INFO);
     ~CubeLog();
     void writeOutLogs();
-    void setVerbosity(LogVerbosity verbosity);
-    void setLogLevel(LogLevel printLevel, LogLevel fileLevel);
+    void setVerbosity(Logger::LogVerbosity verbosity);
+    void setLogLevel(Logger::LogLevel printLevel, Logger::LogLevel fileLevel);
     static void setConsoleLoggingEnabled(bool enabled);
     static CUBE_LOG_ENTRY getLatestError();
     static CUBE_LOG_ENTRY getLatestLog();
