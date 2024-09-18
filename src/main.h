@@ -2,6 +2,8 @@
 #ifdef __linux__
 #include <sys/wait.h>
 #include <unistd.h>
+#include <cstdlib>
+#include <string>
 #endif
 #ifndef WIN32_INCLUDED
 #define WIN32_INCLUDED
@@ -29,87 +31,6 @@
 #include <utils.h>
 #include <functional>
 
-#ifdef _WIN32
-
-bool supportsBasicColors()
-{
-    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-    if (hOut == INVALID_HANDLE_VALUE) {
-        return false;
-    }
-
-    DWORD dwMode = 0;
-    if (!GetConsoleMode(hOut, &dwMode)) {
-        return false;
-    }
-
-    return (dwMode & ENABLE_PROCESSED_OUTPUT) && (dwMode & ENABLE_WRAP_AT_EOL_OUTPUT);
-}
-
-bool supportsExtendedColors()
-{
-    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-    if (hOut == INVALID_HANDLE_VALUE) {
-        return false;
-    }
-
-    DWORD dwMode = 0;
-    if (!GetConsoleMode(hOut, &dwMode)) {
-        return false;
-    }
-
-    if (dwMode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) {
-        return true;
-    }
-
-    // Try to enable the flag
-    dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-    if (!SetConsoleMode(hOut, dwMode)) {
-        return false;
-    }
-
-    return true;
-}
-
-#else
-#include <cstdlib>
-#include <string>
-
-int getTermColors()
-{
-    const char* term = std::getenv("TERM");
-    if (!term) {
-        return false;
-    }
-
-    std::string termStr(term);
-    if (termStr == "dumb") {
-        return false;
-    }
-
-    FILE* pipe = popen("tput colors", "r");
-    if (!pipe) {
-        return false;
-    }
-
-    char buffer[128];
-    std::string result = "";
-    while (fgets(buffer, sizeof(buffer), pipe) != NULL) {
-        result += buffer;
-    }
-    pclose(pipe);
-
-    return std::stoi(result);
-}
-
-bool supportsBasicColors()
-{
-    return getTermColors() >= 8;
-}
-
-bool supportsExtendedColors()
-{
-    return getTermColors() >= 256;
-}
-
-#endif
+int saw(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData);
+bool supportsBasicColors();
+bool supportsExtendedColors();

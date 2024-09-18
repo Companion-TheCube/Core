@@ -1,10 +1,10 @@
 #include "logger.h"
 
-#define COUNTER_MOD 100
-#define CUBE_LOG_ENTRY_MAX 50000 // maximum number of log entries in log file
+#define COUNTER_MOD 1000 // determines how many dots we print while saving the logs
+#define CUBE_LOG_ENTRY_MAX 100000 // maximum number of log entries in log file
 #define LOG_WRITE_OUT_INTERVAL 300 // write out logs every 5 minutes
-#define LOG_WRITE_OUT_COUNT 500 // write out logs every 500 logs
-#define CUBE_LOG_MEMORY_LIMIT 1000 // maximum number of log entries in memory
+#define LOG_WRITE_OUT_COUNT 1500 // write out logs every 500 logs
+#define CUBE_LOG_MEMORY_LIMIT 5000 // maximum number of log entries in memory
 
 unsigned int CUBE_LOG_ENTRY::logEntryCount = 0;
 
@@ -119,6 +119,7 @@ bool CubeLog::hasUnreadLogs_b = false;
 std::vector<unsigned int> CubeLog::readErrorIDs;
 std::vector<unsigned int> CubeLog::readLogIDs;
 std::string CubeLog::screenMessage = "";
+int CubeLog::advancedColorsEnabled = 0;
 
 /**
  * @brief Log a message
@@ -134,14 +135,17 @@ void CubeLog::log(std::string message, bool print, LogLevel level, std::source_l
     CubeLog::logEntries.push_back(entry);
     Color::Modifier colorDebug(Color::FG_GREEN);
     Color::Modifier colorInfo(Color::FG_WHITE);
-    Color::Modifier colorWarning(Color::FG_MAGENTA);
+    Color::AdvancedModifier colorMoreInfo(200, 200, 200); // grey
+    Color::AdvancedModifier colorWarning(50, 50, 255); // blue
     Color::Modifier colorError(Color::FG_LIGHT_YELLOW);
     Color::Modifier colorCritical(Color::FG_RED);
+    Color::AdvancedModifier colorFatal(255, 50, 50); // bright red
     Color::Modifier colorDefault(Color::FG_LIGHT_BLUE);
-    if (print && level >= CubeLog::staticPrintLevel && CubeLog::consoleLoggingEnabled && message.length() < 1000) {
+    Color::AdvancedModifier colorDebugSilly(0, 255, 25); // brighter green
+    if (CubeLog::advancedColorsEnabled == 2 && print && level >= CubeLog::staticPrintLevel && CubeLog::consoleLoggingEnabled && message.length() < 1000) {
         switch (level) {
         case LogLevel::LOGGER_DEBUG_SILLY:
-            std::cout << colorDebug << entry.getMessageFull() << std::endl;
+            std::cout << colorDebugSilly << entry.getMessageFull() << std::endl;
             break;
         case LogLevel::LOGGER_DEBUG:
             std::cout << colorDebug << entry.getMessageFull() << std::endl;
@@ -158,12 +162,20 @@ void CubeLog::log(std::string message, bool print, LogLevel level, std::source_l
         case LogLevel::LOGGER_CRITICAL:
             std::cout << colorCritical << entry.getMessageFull() << std::endl;
             break;
+        case LogLevel::LOGGER_FATAL:
+            std::cout << colorFatal << entry.getMessageFull() << std::endl;
+            break;
+        case LogLevel::LOGGER_MORE_INFO:
+            std::cout << colorMoreInfo << entry.getMessageFull() << std::endl;
+            break;
         case LogLevel::LOGGER_OFF:
             break;
         default:
             std::cout << colorDefault << entry.getMessageFull() << std::endl;
             break;
         }
+    } else if (level != LogLevel::LOGGER_OFF && print && level >= CubeLog::staticPrintLevel && CubeLog::consoleLoggingEnabled && message.length() < 1000) {
+        std::cout << entry.getMessageFull() << std::endl;
     }
 }
 
@@ -268,14 +280,39 @@ void CubeLog::critical(std::string message, std::source_location location)
 }
 
 /**
+ * @brief Log a "more info" message
+ *
+ * @param message The message to log
+ * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
+ */
+void CubeLog::moreInfo(std::string message, std::source_location location)
+{
+    std::lock_guard<std::mutex> lock(CubeLog::logMutex);
+    CubeLog::log(message, true, LogLevel::LOGGER_MORE_INFO, location);
+}
+
+/**
+ * @brief Log a fatal message
+ *
+ * @param message The message to log
+ * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
+ */
+void CubeLog::fatal(std::string message, std::source_location location)
+{
+    std::lock_guard<std::mutex> lock(CubeLog::logMutex);
+    CubeLog::log(message, true, LogLevel::LOGGER_FATAL, location);
+}
+
+/**
  * @brief Construct a new CubeLog object
  *
  * @param verbosity Determines the verbosity of the log messages.
  * @param printLevel Determines the level of log messages that will be printed to the console.
  * @param fileLevel Determines the level of log messages that will be written to the log file.
  */
-CubeLog::CubeLog(LogVerbosity verbosity, LogLevel printLevel, LogLevel fileLevel)
+CubeLog::CubeLog(int advancedColorsEnabled, LogVerbosity verbosity, LogLevel printLevel, LogLevel fileLevel)
 {
+    CubeLog::advancedColorsEnabled = advancedColorsEnabled;
     this->savingInProgress = false;
     CubeLog::staticVerbosity = verbosity;
     CubeLog::staticPrintLevel = printLevel;
@@ -299,7 +336,8 @@ CubeLog::CubeLog(LogVerbosity verbosity, LogLevel printLevel, LogLevel fileLevel
             }
             lock.unlock();
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-            if(st.stop_requested()) break;
+            if (st.stop_requested())
+                break;
         }
     });
 }
@@ -340,9 +378,9 @@ void CubeLog::purgeOldLogs()
 {
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     if (this->logEntries.size() > CUBE_LOG_MEMORY_LIMIT) {
-        this->logEntries.erase(this->logEntries.begin(), this->logEntries.begin() + this->logEntries.size() - CUBE_LOG_MEMORY_LIMIT);
+        this->logEntries.erase(this->logEntries.begin(), this->logEntries.end() - CUBE_LOG_MEMORY_LIMIT);
     }
-    this->logEntries.shrink_to_fit();
+    this->logEntries.shrink_to_fit(); // TODO: this may not be needed since the log is just going to grow again
 }
 
 /**
@@ -356,8 +394,10 @@ CubeLog::~CubeLog()
     resetThread->join();
     std::lock_guard<std::mutex> lock(this->saveLogsThreadRunMutex);
     this->saveLogsThreadRun = false;
-    Color::Modifier colorReset(Color::FG_DEFAULT);
-    if(this->consoleLoggingEnabled) std::cout << colorReset;
+    Color::Modifier fgColorReset(Color::FG_DEFAULT);
+    Color::Modifier bgColorReset(Color::BG_DEFAULT);
+    if (this->consoleLoggingEnabled)
+        std::cout << fgColorReset << bgColorReset << std::endl;
     this->writeOutLogs();
 }
 
@@ -430,7 +470,8 @@ std::vector<std::string> CubeLog::getLogsAndErrorsAsStrings(bool fullMessages)
 void CubeLog::writeOutLogs()
 {
     // TODO: theres a bug here where the logs are being written to the file and existing logs are being overwritten. FIXME
-    if(this->fileLevel == LogLevel::LOGGER_OFF) return;
+    if (this->fileLevel == LogLevel::LOGGER_OFF)
+        return;
     std::cout << "Size of CubeLog: " << CubeLog::getSizeOfCubeLog() << std::endl;
     std::cout << "Memory footprint: " << getMemoryFootprint() << std::endl;
     std::lock_guard<std::mutex> lock(this->saveLogsMutex);
@@ -750,4 +791,3 @@ std::string CubeLog::getSizeOfCubeLog()
     }
     return std::to_string(num_entries) + " entries, " + std::to_string(total_size) + " bytes";
 }
-

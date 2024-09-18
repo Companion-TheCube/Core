@@ -12,8 +12,8 @@
 #include <mutex>
 #include <source_location>
 #include <sstream>
-#include <vector>
 #include <utils.h>
+#include <vector>
 
 enum LogVerbosity {
     MINIMUM,
@@ -30,9 +30,11 @@ enum LogLevel {
     LOGGER_DEBUG_SILLY,
     LOGGER_DEBUG,
     LOGGER_INFO,
+    LOGGER_MORE_INFO,
     LOGGER_WARNING,
     LOGGER_ERROR,
     LOGGER_CRITICAL,
+    LOGGER_FATAL,
     LOGGER_OFF,
     LOGGER_LOGLEVELCOUNT
 };
@@ -41,9 +43,11 @@ const std::string logLevelStrings[] = {
     "DEBUG_SILLY",
     "DEBUG",
     "INFO",
+    "MORE_INFO",
     "WARNING",
     "ERROR",
     "CRITICAL",
+    "FATAL",
     "OFF",
     "LOGLEVELCOUNT"
 };
@@ -87,8 +91,10 @@ private:
     static std::string screenMessage;
     static std::vector<unsigned int> readErrorIDs, readLogIDs;
     static void log(std::string message, bool print, LogLevel level = LogLevel::LOGGER_INFO, std::source_location location = std::source_location::current());
-    std::jthread *resetThread;
+    std::jthread* resetThread;
     static std::chrono::system_clock::time_point lastScreenMessageTime;
+    static int advancedColorsEnabled;
+
 public:
     static void screen(std::string message, LogLevel level = LogLevel::LOGGER_INFO, std::source_location location = std::source_location::current());
     static void debugSilly(std::string message, std::source_location location = std::source_location::current());
@@ -97,11 +103,13 @@ public:
     static void info(std::string message, std::source_location location = std::source_location::current());
     static void warning(std::string message, std::source_location location = std::source_location::current());
     static void critical(std::string message, std::source_location location = std::source_location::current());
+    static void moreInfo(std::string message, std::source_location location = std::source_location::current());
+    static void fatal(std::string message, std::source_location location = std::source_location::current());
     std::vector<CUBE_LOG_ENTRY> getLogEntries(LogLevel level = LogLevel::LOGGER_INFO);
     std::vector<std::string> getLogEntriesAsStrings(bool fullMessages = true);
     std::vector<std::string> getErrorsAsStrings(bool fullMessages = true);
     std::vector<std::string> getLogsAndErrorsAsStrings(bool fullMessages = true);
-    CubeLog(LogVerbosity verbosity = LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE_AND_FUNCTION, LogLevel printLevel = LogLevel::LOGGER_INFO, LogLevel fileLevel = LogLevel::LOGGER_INFO);
+    CubeLog(int advancedColorsEnabled = 2, LogVerbosity verbosity = LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE_AND_FUNCTION, LogLevel printLevel = LogLevel::LOGGER_INFO, LogLevel fileLevel = LogLevel::LOGGER_INFO);
     ~CubeLog();
     void writeOutLogs();
     void setVerbosity(LogVerbosity verbosity);
@@ -208,6 +216,30 @@ public:
             return os << "\033[48;5;" << mod.value << "m";
     }
 };
-}
+
+class AdvancedModifier {
+    unsigned int r, g, b;
+    bool foreground;
+
+public:
+    AdvancedModifier(unsigned int pR, unsigned int pG, unsigned int pB, bool pForeground = true)
+        : r(pR)
+        , g(pG)
+        , b(pB)
+        , foreground(pForeground)
+    {
+    }
+    friend std::ostream&
+    operator<<(std::ostream& os, const AdvancedModifier& mod)
+    {
+        if (mod.r > 255 || mod.g > 255 || mod.b > 255)
+            return os;
+        if (mod.foreground)
+            return os << "\033[38;2;" << mod.r << ";" << mod.g << ";" << mod.b << "m";
+        else
+            return os << "\033[48;2;" << mod.r << ";" << mod.g << ";" << mod.b << "m";
+    }
+};
+} // namespace Color
 
 #endif

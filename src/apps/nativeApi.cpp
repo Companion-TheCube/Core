@@ -389,12 +389,10 @@ bool NativeAPI::isExecutableInstalled(std::string execPath)
 #endif
     // CubeLog::debugSilly("Checking if app is installed: " + execPath);
     std::filesystem::path p = std::filesystem::path(execPath);
-    // CubeLog::debugSilly("Path string: " + p.string());
     if (!std::filesystem::exists(p)) {
-        // CubeLog::error("App not found: " + execPath);
+        CubeLog::error("App not found: " + execPath);
         return false;
     } else {
-        // CubeLog::debugSilly("App found: " + execPath);
         return true;
     }
 }

@@ -9,7 +9,7 @@
 // TODO: The apps manager will use the docker/dockerApi.cpp class(es) to manage the docker containers
 // TODO: The apps manager should expose an API to start, stop, and update apps
 // TODO: Any app that is not found at the location specified in the database should be marked as "not installed" or removed from the database
-
+// TODO: isAppInstalled() should check once and then keep track of the installed status so that repeated calls to this method are faster and don't require filesystem accesses. Any changes to apps installed status will need to noted.
 
 bool AppsManager::consoleLoggingEnabled = true;
 

@@ -2,31 +2,6 @@
 
 #include "main.h"
 
-// Two-channel sawtooth wave generator.
-int saw(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData)
-{
-    unsigned int i, j;
-    double* buffer = (double*)outputBuffer;
-    double* lastValues = (double*)userData;
-
-    if (status)
-        std::cout << "Stream underflow detected!" << std::endl;
-
-    // Write interleaved audio data.
-    for (i = 0; i < nBufferFrames; i++) {
-        for (j = 0; j < 2; j++) {
-            if (lastValues[2] == 0)
-                *buffer++ = 0.0;
-            else
-                *buffer++ = lastValues[j];
-
-            lastValues[j] += 0.005 * (j + 1 + (j * 0.1));
-            if (lastValues[j] >= 1.0)
-                lastValues[j] -= 2.0;
-        }
-    }
-    return 0;
-}
 
 int main(int argc, char* argv[])
 {
@@ -232,9 +207,12 @@ int main(int argc, char* argv[])
     /////////////////////////////////////////////////////////////////
     CubeLog::info("Test info message.");
     CubeLog::debug("Test debug message.");
+    CubeLog::debugSilly("Test debug silly message.");
     CubeLog::error("Test error message.");
     CubeLog::warning("Test warning message.");
     CubeLog::critical("Test critical message.");
+    CubeLog::moreInfo("Test more info message.");
+    CubeLog::fatal("Test fatal message.");
     /////////////////////////////////////////////////////////////////
     // Main loop
     /////////////////////////////////////////////////////////////////
@@ -245,7 +223,7 @@ int main(int argc, char* argv[])
         long blobID = CubeDB::getBlobsManager()->addBlob("client_blobs", "test blob", "1");
         CubeLog::info("Blob ID: " + std::to_string(blobID));
         bool allInsertionsSuccess = true;
-        // TODO: All the base apps should be inserted into the database and /r verified in the database here.
+        // TODO: All the base apps should be inserted into the database and/or verified in the database here.
         // allInsertionsSuccess &=  (-1 < CubeDB::getDBManager()->getDatabase("apps")->insertData("apps", { "app_id", "app_name", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason" }, { "1", "CMD", "native", "apps\\customcmd", "", "test source", "test update path", "test last check", "test last update", "test last fail", "test last fail reason" })); // test insert
         #ifdef __linux__
         allInsertionsSuccess &= (-1 < CubeDB::getDBManager()->getDatabase("apps")->insertData("apps", { "app_id", "app_name", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason" }, { "2", "ConsoleApp1", "native", "apps\\consoleApp1\\consoleApp1", "arg1 arg2 arg3 arg4", "test source", "test update path", "test last check", "test last update", "test last fail", "test last fail reason" })); // test insert
@@ -267,10 +245,9 @@ int main(int argc, char* argv[])
         CubeLog::info("Entering main loop...");
         while (true) {
             genericSleep(100);
-            // get cin and check if it's "exit", "quit", "q", or "e", then break, or if it's "sound" toggle the sound
             std::string input;
             std::cin >> input;
-            if (input == "exit" || input == "quit" || input == "q" || input == "e") {
+            if (input == "exit" || input == "quit" || input == "q" || input == "e" || input == "x") {
                 break;
             } else if (input == "sound") {
                 if (data[2] == 0) data[2] = 1;
@@ -278,8 +255,6 @@ int main(int argc, char* argv[])
             }
         }
         CubeLog::info("Exited main loop...");
-        std::cout << "Exiting..." << std::endl;
-        // sineWaveSound.stop();
     }
     
     dac.stopStream();
@@ -287,3 +262,114 @@ int main(int argc, char* argv[])
         dac.closeStream();
     return 0;
 }
+
+
+// Two-channel sawtooth wave generator.
+int saw(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData)
+{
+    unsigned int i, j;
+    double* buffer = (double*)outputBuffer;
+    double* lastValues = (double*)userData;
+
+    if (status)
+        std::cout << "Stream underflow detected!" << std::endl;
+
+    // Write interleaved audio data.
+    for (i = 0; i < nBufferFrames; i++) {
+        for (j = 0; j < 2; j++) {
+            if (lastValues[2] == 0)
+                *buffer++ = 0.0;
+            else
+                *buffer++ = lastValues[j];
+
+            lastValues[j] += 0.005 * (j + 1 + (j * 0.1));
+            if (lastValues[j] >= 1.0)
+                lastValues[j] -= 2.0;
+        }
+    }
+    return 0;
+}
+
+#ifdef _WIN32
+
+bool supportsBasicColors()
+{
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (hOut == INVALID_HANDLE_VALUE) {
+        return false;
+    }
+
+    DWORD dwMode = 0;
+    if (!GetConsoleMode(hOut, &dwMode)) {
+        return false;
+    }
+
+    return (dwMode & ENABLE_PROCESSED_OUTPUT) && (dwMode & ENABLE_WRAP_AT_EOL_OUTPUT);
+}
+
+bool supportsExtendedColors()
+{
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (hOut == INVALID_HANDLE_VALUE) {
+        return false;
+    }
+
+    DWORD dwMode = 0;
+    if (!GetConsoleMode(hOut, &dwMode)) {
+        return false;
+    }
+
+    if (dwMode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) {
+        return true;
+    }
+
+    // Try to enable the flag
+    dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    if (!SetConsoleMode(hOut, dwMode)) {
+        return false;
+    }
+
+    return true;
+}
+
+#elif __linux__
+
+
+int getTermColors()
+{
+    const char* term = std::getenv("TERM");
+    if (!term) {
+        return false;
+    }
+
+    std::string termStr(term);
+    if (termStr == "dumb") {
+        return false;
+    }
+
+    FILE* pipe = popen("tput colors", "r");
+    if (!pipe) {
+        return false;
+    }
+
+    char buffer[128];
+    std::string result = "";
+    while (fgets(buffer, sizeof(buffer), pipe) != NULL) {
+        result += buffer;
+    }
+    pclose(pipe);
+
+    return std::stoi(result);
+}
+
+bool supportsBasicColors()
+{
+    return getTermColors() >= 8;
+}
+
+bool supportsExtendedColors()
+{
+    return getTermColors() >= 256;
+}
+
+#endif
