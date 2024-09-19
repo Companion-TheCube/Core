@@ -1,3 +1,6 @@
+# TODO: add build targets for debug and release. release target needs to set a build define for PRODUCTION_BUILD.
+# Release build should have optimizations enabled and debug symbols stripped.
+
 # Minimum version of CMake required
 cmake_minimum_required(VERSION 3.28)
 
@@ -305,6 +308,7 @@ target_link_libraries(CubeCoreTests PRIVATE
 enable_testing()
 add_test(NAME CubeCoreTests COMMAND CubeCoreTests)
 
+# Add benchmarks if Google Benchmark is found
 find_package(benchmark QUIET)
 
 if(benchmark_FOUND)

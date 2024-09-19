@@ -152,6 +152,7 @@ int main(int argc, char* argv[])
     /////////////////////////////////////////////////////////////////
     // CPU and memory monitor thread
     /////////////////////////////////////////////////////////////////
+#ifndef PRODUCTION_BUILD
     std::jthread cpuAndMemoryThread([](std::stop_token st) {
         unsigned long loopCount = 0;
         while (!st.stop_requested()) {
@@ -159,6 +160,7 @@ int main(int argc, char* argv[])
             genericSleep(100);
         }
     });
+#endif
     /////////////////////////////////////////////////////////////////
     // Logger test
     /////////////////////////////////////////////////////////////////
