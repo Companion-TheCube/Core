@@ -345,8 +345,162 @@ std::string CubeAuth::getLastError()
  */
 bool CubeAuth::isAuthorized_authHeader(std::string authHeader)
 {
-    // TODO: implement this function
-    if (authHeader == "")
+    // check the db for the auth code
+    Database* db = CubeDB::getDBManager()->getDatabase("auth");
+    if (!db->isOpen()) {
+        CubeLog::error("Database not open.");
+        this->lastError = "Database not open.";
         return false;
+    }
+    // get the auth code from the db
+    std::vector<std::vector<std::string>> auth_code = db->selectData(DB_NS::TableNames::CLIENTS, { "auth_code" }, "auth_code = '" + authHeader + "'");
+    if (auth_code.size() == 0) {
+        CubeLog::error("Auth code not found.");
+        this->lastError = "Auth code not found.";
+        return false;
+    }
     return true;
 }
+
+/**
+ * @brief Get the name of the interface
+ *
+ * @return std::string
+ */
+std::string CubeAuth::getIntefaceName() const
+{
+    return "CubeAuth";
+}
+
+/**
+ * @brief Get the HTTP endpoint data
+ *
+ * @return HttpEndPointData_t
+ */
+HttpEndPointData_t CubeAuth::getHttpEndpointData()
+{
+    HttpEndPointData_t data;
+    data.push_back({PUBLIC_ENDPOINT | GET_ENDPOINT,
+        [&](const httplib::Request& req, httplib::Response& res) {
+            // get the appID from the query string
+            const std::string clientID = req.get_param_value("client_id");
+            const std::string initialCode = req.get_param_value("initial_code");
+            CubeLog::debug("GET authHeader called with client_id: " + clientID);
+            // first we generate a random string of random length between 30 and 50 characters
+            std::string randomString = KeyGenerator(30 + (rand() % 21));
+            CubeLog::debug("Generated random string: " + randomString);
+            // then we encrypt the random string using the public key
+            std::string encryptedString = CubeAuth::encryptData(randomString, CubeAuth::publicKey);
+            CubeLog::debug("Encrypted random string: " + encryptedString);
+            // then we store this in the db
+            Database* db = CubeDB::getDBManager()->getDatabase("auth");
+            if (!db->isOpen()) {
+                CubeLog::error("Database not open.");
+                nlohmann::json j;
+                j["success"] = false;
+                j["message"] = "Database not open.";
+                res.set_content(j.dump(), "application/json");
+                return "";
+            }
+            // check to see if the client_id exists
+            if (!db->rowExists(DB_NS::TableNames::CLIENTS, "client_id = '" + clientID + "'")) {
+                CubeLog::error("Client id not found.");
+                nlohmann::json j;
+                j["success"] = false;
+                j["message"] = "Client id not found.";
+                res.set_content(j.dump(), "application/json");
+                return "";
+            }
+            // check to see if the initial code matches
+            if (!db->rowExists(DB_NS::TableNames::CLIENTS, "client_id = '" + clientID + "' AND initial_code = '" + initialCode + "'")) {
+                CubeLog::error("Initial code mismatch.");
+                nlohmann::json j;
+                j["success"] = false;
+                j["message"] = "Initial code mismatch.";
+                res.set_content(j.dump(), "application/json");
+                return "";
+            }
+            // set the auth code in the db
+            if (!db->updateData(DB_NS::TableNames::CLIENTS, { "auth_code" }, { randomString }, "client_id = '" + clientID + "'")) {
+                CubeLog::error("Failed to set auth code.");
+                nlohmann::json j;
+                j["success"] = false;
+                j["message"] = "Failed to set auth code.";
+                res.set_content(j.dump(), "application/json");
+                return "";
+            }
+            nlohmann::json j;
+            j["success"] = true;
+            j["message"] = "Authorized";
+            j["auth_code"] = encryptedString;
+            res.set_content(j.dump(), "application/json");
+            return "";
+        }
+    });
+    data.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
+        [&](const httplib::Request& req, httplib::Response& res) {
+            // get the appID from the query string
+            std::string clientID = req.get_param_value("client_id");
+            CubeLog::debug("GET initCode called with client_id: " + clientID);
+            // Get an initial code
+            std::string initialCode = Code6Generator();
+            CubeLog::debug("Generated initial code: " + initialCode);
+            // then we store this in the db
+            Database* db = CubeDB::getDBManager()->getDatabase("auth");
+            if (!db->isOpen()) {
+                CubeLog::error("Database not open.");
+                nlohmann::json j;
+                j["success"] = false;
+                j["message"] = "Database not open.";
+                res.set_content(j.dump(), "application/json");
+                return "";
+            }
+            // check to see if the client_id exists
+            if (!db->rowExists(DB_NS::TableNames::CLIENTS, "client_id = '" + clientID + "'")) {
+                CubeLog::error("Client id not found. Adding client id.");
+                if (!db->insertData(DB_NS::TableNames::CLIENTS, { "client_id", "initial_code", "auth_code", "role" }, { clientID, initialCode, "", "1" })) {
+                    CubeLog::error("Failed to add client id.");
+                    nlohmann::json j;
+                    j["success"] = false;
+                    j["message"] = "Failed to add client id.";
+                    res.set_content(j.dump(), "application/json");
+                    return "";
+                }
+            }else{
+                // set the initial code in the db
+                if (!db->updateData(DB_NS::TableNames::CLIENTS, { "initial_code" }, { initialCode }, "client_id = '" + clientID + "'")) {
+                    CubeLog::error("Failed to set initial code.");
+                    nlohmann::json j;
+                    j["success"] = false;
+                    j["message"] = "Failed to set initial code.";
+                    res.set_content(j.dump(), "application/json");
+                    return "";
+                }
+            }
+            nlohmann::json j;
+            j["success"] = true;
+            j["message"] = "Initial code generated";
+            // We don't send the initial code back to the client since the user has to read it form the screen and enter it into the client
+            res.set_content(j.dump(), "application/json");
+            // we need to display the initial code to the user
+            GUI::showMessageBox("Authorization Code", "Your authorization code is:\n" + initialCode); // TODO: verify/test that this is thread safe
+            return "";
+        }
+    });
+    return data;
+}
+
+/**
+ * @brief Get the HTTP endpoint names and parameters
+ *
+ * @return std::vector<std::pair<std::string, std::vector<std::string>>>
+ */
+std::vector<std::pair<std::string, std::vector<std::string>>> CubeAuth::getHttpEndpointNamesAndParams()
+{
+    std::vector<std::pair<std::string, std::vector<std::string>>> namesAndParams;
+    namesAndParams.push_back({ "authHeader", { "client_id", "initial_code" } });
+    namesAndParams.push_back({ "initCode", { "client_id" } });
+    return namesAndParams;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////

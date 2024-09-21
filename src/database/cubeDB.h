@@ -4,6 +4,7 @@
 #include <functional>
 #include <mutex>
 #include <condition_variable>
+#include "../gui/gui.h"
 
 class CubeDB : public I_API_Interface{
     static std::shared_ptr<CubeDatabaseManager> dbManager;
@@ -21,6 +22,7 @@ public:
     static void setBlobsManager(std::shared_ptr<BlobsManager> blobsManager);
     static std::shared_ptr<CubeDatabaseManager> getDBManager();
     static std::shared_ptr<BlobsManager> getBlobsManager();
+    // API Interface
     HttpEndPointData_t getHttpEndpointData() override;
     std::vector<std::pair<std::string,std::vector<std::string>>> getHttpEndpointNamesAndParams() override;
     std::string getIntefaceName() const override;

@@ -17,12 +17,15 @@
 #include <utils.h>
 
 
+
 class GUI : public I_API_Interface{
 public:
     GUI();
     ~GUI();
     void eventLoop();
     void stop();
+    static void showMessageBox(std::string title, std::string message);
+    // API Interface
     HttpEndPointData_t getHttpEndpointData();
     std::vector<std::pair<std::string,std::vector<std::string>>> getHttpEndpointNamesAndParams();
     std::string getIntefaceName() const;
@@ -30,5 +33,5 @@ private:
     Renderer *renderer;
     std::jthread eventLoopThread;
     EventManager *eventManager;
-    CubeMessageBox* messageBox;
+    static CubeMessageBox* messageBox;
 };

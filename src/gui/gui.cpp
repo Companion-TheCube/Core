@@ -129,6 +129,13 @@ void GUI::stop()
     this->renderer->stop();
 }
 
+void GUI::showMessageBox(std::string title, std::string message)
+{
+    CubeLog::info("Showing message box with title: " + title + " and message: " + message);
+    messageBox->setText(message);
+    messageBox->setVisible(true);
+}
+
 /**
  * @brief Get the Http Endpoint Data object
  *

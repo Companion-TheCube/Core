@@ -237,7 +237,10 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
     // retrieveBlobBinary - private, get - get a binary blob from the database, returns base64 encoded string
     // retrieveBlobString - private, get - get a string blob from the database, returns string
     // retrieveData - private, get - get data from the database, returns json
-    //
+    // clientIDExists - private, get - check if a client_id exists in the database, returns bool
+    // appIDExists - private, get - check if an app_id exists in the database, returns bool
+    // clientIDCreate - private, get - create a client_id in the database, returns bool
+    // appIDCreate - private, get - create an app_id in the database, returns bool
     HttpEndPointData_t data;
     data.push_back(saveBlob);
     data.push_back(insertDataTest);

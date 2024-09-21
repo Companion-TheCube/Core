@@ -7,10 +7,11 @@
 #include "./../database/cubeDB.h"
 #include <sodium.h>
 #include <random>
+#include "api_i.h"
 
 #define CUBE_APPS_ID_LENGTH 64
 
-class CubeAuth{
+class CubeAuth : public I_API_Interface{
     static bool available;
     static std::string privateKey;
     static std::string publicKey;
@@ -28,6 +29,11 @@ public:
     std::string encryptData(std::string data, std::string public_key);
     std::string decryptData(std::string data, std::string private_key, size_t length);
     std::string getLastError();
+
+    // API Interface
+    std::string getIntefaceName() const;
+    HttpEndPointData_t getHttpEndpointData();
+    std::vector<std::pair<std::string, std::vector<std::string>>> getHttpEndpointNamesAndParams();
 
     enum AUTH_CODES{
         AUTH_FAIL_UNKNOWN = -1,
