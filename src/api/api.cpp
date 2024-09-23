@@ -147,7 +147,7 @@ void API::httpApiThreadFn()
     try {
         this->server = new CubeHttpServer("0.0.0.0", 55280);
         this->serverIPC = new CubeHttpServer("127.0.0.1", 55281);
-        // TODO: set up authentication
+        // TODO: set up authentication // Done?
         for (size_t i = 0; i < this->endpoints.size(); i++) {
             // Public endpoints are accessible by any device on the
             // network. Non public endpoints are only available to devices that have been authenticated. The authentication process is not yet implemented.
@@ -157,7 +157,7 @@ void API::httpApiThreadFn()
             // presence may be set to private if the user does not want to share that information with others on the network.
             CubeLog::debugSilly("Endpoint type: " + std::to_string(this->endpoints.at(i)->endpointType));
             std::function<void(const httplib::Request&, httplib::Response&)> publicAction = [&, i](const httplib::Request& req, httplib::Response& res) {
-                // TODO: endpoints should return a bool (or possibly a std::expected) that indicates whether or not the action was successful. If the action was not successful, the response should be set to a 500 error.
+                // TODO: endpoints should return a bool (or possibly a std::expected) that indicates whether or not the action was successful.
                 std::string returned = this->endpoints.at(i)->doAction(req, res);
                 if (returned != "")
                     res.set_content(returned, "text/plain");
