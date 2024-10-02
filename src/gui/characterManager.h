@@ -1,4 +1,6 @@
-#pragma once
+#ifndef CHARACTERMANAGER_H
+#define CHARACTERMANAGER_H
+
 #include "objects.h"
 #include <vector>
 // #include "renderables/theCube.h"
@@ -86,3 +88,6 @@ public:
     std::vector<std::string> getCharacterNames();
     void triggerAnimationAndExpressionThreads();
 };
+
+
+#endif// CHARACTERMANAGER_H

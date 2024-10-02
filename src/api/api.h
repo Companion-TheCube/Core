@@ -1,4 +1,6 @@
-#pragma once
+//#pragma once
+#ifndef API_H
+#define API_H
 #include <string>
 #include <vector>
 #include <functional>
@@ -20,9 +22,15 @@
 #include <iostream>
 #include <memory>
 #include <latch>
+#ifndef AUTHENTICATION_H
 #include "authentication.h"
+#endif
 #include <utils.h>
-// #include "api_i.h"
+#ifndef API_I_H
+#include "api_i.h"
+#endif
+
+#define CUBE_SOCKET_PATH "cube.sock"
 
 class Endpoint {
 private:
@@ -70,7 +78,7 @@ private:
     CubeHttpServer *server;
     CubeHttpServer *serverIPC;
     std::vector<std::pair<std::string, bool>> endpointTriggers;
-    CubeAuth *auth;
+    // CubeAuth *auth;
     void httpApiThreadFn();
 public:
     API();
@@ -84,3 +92,4 @@ public:
     bool removeEndpoint(std::string name);
 };
 
+#endif// API_H

@@ -7,17 +7,17 @@
 API::API()
 {
     this->endpoints = std::vector<Endpoint*>();
-    this->auth = new CubeAuth();
+    // this->auth = new CubeAuth();
     // TODO: // TESTING AUTHENTICATION ////
-    std::pair<std::string, std::string> keys = auth->generateKeyPair();
+    std::pair<std::string, std::string> keys = CubeAuth::generateKeyPair();
     CubeLog::info("Public key: " + keys.first);
     CubeLog::info("Private key: " + keys.second);
     std::string myData = "To generate true random integers in C++, you can use the facilities provided by the <random> header, which offers a wide range of random number generation utilities. Here's an example of how you can generate true random integers:";
-    std::string encrypted = auth->encryptData(myData, keys.first);
+    std::string encrypted = CubeAuth::encryptData(myData, keys.first);
     CubeLog::info("Encrypted data: " + encrypted);
-    std::string decrypted = auth->decryptData(encrypted, keys.second, myData.length());
+    std::string decrypted = CubeAuth::decryptData(encrypted, keys.second, myData.length());
     CubeLog::info("Decrypted data: " + decrypted);
-    //// END TESTING AUTHENTICATION ////
+    // END TESTING AUTHENTICATION ////
 }
 
 /**
@@ -145,8 +145,8 @@ void API::httpApiThreadFn()
 {
     CubeLog::info("API listener thread starting...");
     try {
-        this->server = new CubeHttpServer("0.0.0.0", 55280);
-        this->serverIPC = new CubeHttpServer("cube.sock", 0);
+        this->server = new CubeHttpServer("0.0.0.0", 55280); // listen on all interfaces
+        this->serverIPC = new CubeHttpServer(CUBE_SOCKET_PATH, 0);
 
         // TODO: set up authentication // Done?
         for (size_t i = 0; i < this->endpoints.size(); i++) {
@@ -185,7 +185,8 @@ void API::httpApiThreadFn()
                         return;
                     }
                     // if the authorization header is present, we check if it is valid
-                    if (!this->auth->isAuthorized_authHeader(authHeader)) {
+                    
+                    if (CubeAuth::isAuthorized_authHeader(authHeader)) {
                         res.set_content("Authorization header not valid", "text/plain");
                         res.status = httplib::StatusCode::Forbidden_403;
                         return;

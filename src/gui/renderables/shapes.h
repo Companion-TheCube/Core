@@ -1,5 +1,8 @@
-#pragma once
+#ifndef SHAPES_H
+#define SHAPES_H
+#ifndef MESHOBJECT_H
 #include "meshObject.h"
+#endif
 #include <ft2build.h>
 #include <globalSettings.h>
 #include FT_FREETYPE_H
@@ -380,3 +383,6 @@ public:
     void setVisibility(bool visible);
     void getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix);
 };
+
+
+#endif// SHAPES_H

@@ -1,10 +1,18 @@
 #pragma once
+#ifndef CUBEDB_H
+#define CUBEDB_H
+#ifndef DB_H
 #include "db.h"
+#endif
+#ifndef API_I_H
 #include "../api/api_i.h"
+#endif
 #include <functional>
 #include <mutex>
 #include <condition_variable>
-#include "../gui/gui.h"
+// #ifndef GUI_H
+// #include "../gui/gui.h"
+// #endif
 
 class CubeDB : public I_API_Interface{
     static std::shared_ptr<CubeDatabaseManager> dbManager;
@@ -38,3 +46,5 @@ static inline bool is_base64(unsigned char c) {
   return (isalnum(c) || (c == '+') || (c == '/'));
 }
 std::vector<unsigned char> base64_decode(std::string const& encoded_string);
+
+#endif// CUBEDB_H

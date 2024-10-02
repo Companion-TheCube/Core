@@ -1,10 +1,14 @@
-#pragma once
+#ifndef BUILDER_H
+#define BUILDER_H
+#ifndef API_H
 #include "api.h"
+#endif
 #include <any>
 #include <logger.h>
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <unordered_map>
+#include <filesystem>
 
 class API_Builder {
 private:
@@ -28,3 +32,6 @@ public:
         return std::any_cast<std::shared_ptr<T>>(interface_objs.at(name));
     }
 };
+
+
+#endif// BUILDER_H

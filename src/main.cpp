@@ -197,11 +197,13 @@ int main(int argc, char* argv[])
             CubeLog::warning("Failed to insert data into database. Last error: " + CubeDB::getDBManager()->getDatabase("apps")->getLastError());
         AppsManager appsManager;
         auto api = std::make_shared<API>();
+        auto auth = std::make_shared<CubeAuth>();
         API_Builder api_builder(api);
         api_builder.addInterface(gui);
         api_builder.addInterface(cubeDB);
         api_builder.addInterface(logger);
         api_builder.addInterface(audioManager);
+        api_builder.addInterface(auth);
         api_builder.start();
         CubeLog::info("Entering main loop...");
         while (true) {

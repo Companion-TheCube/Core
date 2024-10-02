@@ -63,7 +63,16 @@ void API_Builder::start()
         return j.dump();
     });
 
-    // TODO: add endpoints to authorize clients. this may be built into authentication.cpp file.
+    // add endpoint that will return the cube.socket path
+    CubeLog::info("Adding endpoint: getCubeSocketPath at /getCubeSocketPath");
+    this->api->addEndpoint("getCubeSocketPath", "/getCubeSocketPath", PUBLIC_ENDPOINT | GET_ENDPOINT, [&](const httplib::Request& req, httplib::Response& res) {
+        std::filesystem::path path = std::filesystem::current_path();
+        // make a json object that contains the cube.socket path
+        nlohmann::json j;
+        j["cube_socket_path"] = path.string() + "/" + "cube.sock";
+        res.set_content(j.dump(), "application/json");
+        return "";
+    });
 
     // recursively search http folder for static files and add them to the server
     std::vector<std::filesystem::path> staticFiles;

@@ -1,5 +1,5 @@
-#ifndef CHARACTER_H
-#define CHARACTER_H
+#ifndef OBJECTS_H
+#define OBJECTS_H
 #include <vector>
 #include <SFML/Graphics.hpp>
 #include <logger.h>
@@ -100,4 +100,5 @@ T mapRange(T value, T fromLow, T fromHigh, T toLow, T toHigh) {
     return toLow + (value - fromLow) * (toHigh - toLow) / (fromHigh - fromLow);
 }
 
-#endif
+
+#endif// OBJECTS_H

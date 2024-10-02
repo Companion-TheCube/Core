@@ -1,19 +1,26 @@
 #pragma once
+#ifndef RENDERER_H
+#define RENDERER_H
 #ifndef __GLEW_H__
 #include "GL/glew.h"
 #endif
 #include <thread>
 #include "SFML/Graphics.hpp"
 #include <iostream>
-#include "../logger/logger.h"
 #include <cmath>
 #include <vector>
+#ifndef OBJECTS_H
 #include "objects.h"
+#endif
 #include <mutex>
 #include <SFML/OpenGL.hpp>
 #include <SFML/Window.hpp>
+#ifndef SHADER_H
 #include "shader.h"
+#endif
+#ifndef CHARACTERMANAGER_H
 #include "characterManager.h"
+#endif
 #include <atomic>
 #include <queue>
 #include <functional>
@@ -51,3 +58,5 @@ class Renderer{
         void loopTasksRun();
         bool isReady();
 };
+
+#endif

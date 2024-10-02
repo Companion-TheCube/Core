@@ -1,5 +1,8 @@
-#pragma once
+#ifndef MENU_H
+#define MENU_H
+#ifndef GUI_H
 #include "./../gui.h"
+#endif
 #include <functional>
 #include <vector>
 #include <string>
@@ -7,9 +10,15 @@
 #include <fstream>
 #include <sstream>
 #include <filesystem>
+#ifndef MESHOBJECT_H
 #include "./../renderables/meshObject.h"
+#endif
+#ifndef SHAPES_H
 #include "./../renderables/shapes.h"
+#endif
+#ifndef OBJECTS_H
 #include "./../objects.h"
+#endif
 #include <typeinfo>
 
 #define Z_DISTANCE 3.57
@@ -191,3 +200,6 @@ public:
     void capturePosition();
     void restorePosition();
 };
+
+
+#endif// MENU_H

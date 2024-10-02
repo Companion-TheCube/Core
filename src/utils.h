@@ -1,4 +1,5 @@
-#pragma once
+#ifndef UTILS_H
+#define UTILS_H
 #include <atomic>
 #include <cmath>
 #include <condition_variable>
@@ -64,3 +65,6 @@ std::string getMemoryFootprint();
 std::string getCpuUsage();
 
 #endif
+
+
+#endif// UTILS_H

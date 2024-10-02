@@ -1,4 +1,6 @@
-#pragma once
+#ifndef DB_H
+#define DB_H
+
 #include <SQLiteCpp/SQLiteCpp.h>
 #include <exception>
 #include <filesystem>
@@ -163,3 +165,6 @@ public:
     bool updateBlob(std::string tableName, char* blob, int size, std::string ownerID, int id);
     bool isBlobsManagerReady();
 };
+
+
+#endif// DB_H

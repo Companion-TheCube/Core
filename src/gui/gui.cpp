@@ -3,6 +3,9 @@
 
 #include "./gui.h"
 
+CubeMessageBox* GUI::messageBox = nullptr;
+
+
 /**
  * @brief Construct a new GUI::GUI object
  *
@@ -131,6 +134,11 @@ void GUI::stop()
 
 void GUI::showMessageBox(std::string title, std::string message)
 {
+    // check that messageBox is not null pointer
+    if (messageBox == nullptr) {
+        CubeLog::error("Message box is null. Cannot show message.");
+        return;
+    }
     CubeLog::info("Showing message box with title: " + title + " and message: " + message);
     messageBox->setText(message);
     messageBox->setVisible(true);

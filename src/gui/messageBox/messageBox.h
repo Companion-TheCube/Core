@@ -1,4 +1,6 @@
 #pragma once
+#ifndef MESSAGEBOX_H
+#define MESSAGEBOX_H
 #include <functional>
 #include <vector>
 #include <string>
@@ -8,11 +10,18 @@
 #include <filesystem>
 #include <latch>
 #include <typeinfo>
-#include "./../renderables/meshObject.h"
+#ifndef SHAPES_H
 #include "./../renderables/shapes.h"
+#endif
+#ifndef OBJECTS_H
 #include "./../objects.h"
+#endif
+#ifndef SHADER_H
 #include "./../shader.h"
+#endif
+#ifndef RENDERER_H
 #include "./../renderer.h"
+#endif
 
 #define Z_DISTANCE 3.57
 #define BOX_RADIUS 0.05
@@ -44,3 +53,5 @@ public:
     std::vector<MeshObject*> getObjects();
     void setText(std::string text);
 };
+
+#endif// MESSAGEBOX_H
