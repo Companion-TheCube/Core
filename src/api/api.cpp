@@ -146,7 +146,8 @@ void API::httpApiThreadFn()
     CubeLog::info("API listener thread starting...");
     try {
         this->server = new CubeHttpServer("0.0.0.0", 55280);
-        this->serverIPC = new CubeHttpServer("127.0.0.1", 55281);
+        this->serverIPC = new CubeHttpServer("cube.sock", 0);
+
         // TODO: set up authentication // Done?
         for (size_t i = 0; i < this->endpoints.size(); i++) {
             // Public endpoints are accessible by any device on the
@@ -155,6 +156,7 @@ void API::httpApiThreadFn()
             // Public endpoints are those that provide information about the Cube such as human presence, temperature, etc.
             // Certain public endpoints should have the option to be secured as well. For example, the endpoint that provides the current state of human
             // presence may be set to private if the user does not want to share that information with others on the network.
+            // Local apps have access to the IPC server, which is only available as a unix socket.
             CubeLog::debugSilly("Endpoint type: " + std::to_string(this->endpoints.at(i)->endpointType));
             std::function<void(const httplib::Request&, httplib::Response&)> publicAction = [&, i](const httplib::Request& req, httplib::Response& res) {
                 // TODO: endpoints should return a bool (or possibly a std::expected) that indicates whether or not the action was successful.
@@ -164,7 +166,7 @@ void API::httpApiThreadFn()
                 CubeLog::debug("Endpoint action returned: " + (returned == "" ? "empty string" : returned));
             };
             if (this->endpoints.at(i)->isPublic()) {
-                CubeLog::debugSilly("Adding public endpoint: " + this->endpoints.at(i)->getName() + " at " + this->endpoints.at(i)->getPath());  
+                CubeLog::debugSilly("Adding public endpoint: " + this->endpoints.at(i)->getName() + " at " + this->endpoints.at(i)->getPath());
                 this->server->addEndpoint(this->endpoints.at(i)->isGetType(), this->endpoints[i]->getPath(), publicAction);
             } else {
                 CubeLog::debugSilly("Adding non public endpoint: " + this->endpoints.at(i)->getName() + " at " + this->endpoints.at(i)->getPath());
@@ -342,9 +344,11 @@ void CubeHttpServer::start()
 {
     // start the server
     CubeLog::info("HTTP server starting...");
-    if(!this->server->bind_to_port(this->address.c_str(), this->port)){
-        CubeLog::error("Failed to bind HTTP server to " + this->address + ":" + std::to_string(this->port));
-        return;
+    if (this->port > 0) {
+        if (!this->server->bind_to_port(this->address.c_str(), this->port)) {
+            CubeLog::error("Failed to bind HTTP server to " + this->address + ":" + std::to_string(this->port));
+            return;
+        }
     }
     CubeLog::debugSilly("HTTP server bound to " + this->address + ":" + std::to_string(this->port));
     this->server->set_logger([&](const httplib::Request& req, const httplib::Response& res) {
@@ -356,8 +360,11 @@ void CubeHttpServer::start()
     });
     CubeLog::debugSilly("HTTP server set error handler");
     serverThread = new std::jthread([&] {
-        this->server->listen_after_bind();
+        if(this->port > 0) this->server->listen_after_bind();
+        else this->server->set_address_family(AF_UNIX).listen(this->address, 80);
     });
+    this->server->wait_until_ready();
+    CubeLog::debugSilly(this->server->is_running() ? "HTTP server is running" : "HTTP server is not running");
 }
 
 /**
