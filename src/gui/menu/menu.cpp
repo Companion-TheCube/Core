@@ -8,6 +8,7 @@
  */
 Menu::Menu(Shader* shader, std::latch& latch)
 {
+    // TODO: need a version of this constructor that takes in click area size and position
     CubeLog::info("Creating Menu class object");
     this->latch = &latch;
     this->shader = shader;
