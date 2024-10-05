@@ -1,17 +1,31 @@
 #pragma once
 #ifndef API_I_H
 #define API_I_H
-#include <string>
-#include <vector>
+#include <expected>
 #include <functional>
 #include <logger.h>
+#include <string>
 #include <thread>
+#include <vector>
 #define WIN32_LEAN_AND_MEAN
 #include <httplib.h>
 #include <nlohmann/json.hpp>
 
-typedef std::pair<unsigned int,std::function<std::string(const httplib::Request &req, httplib::Response &res)>> HttpEndPointDataSinglet_t;
-typedef std::vector<std::pair<unsigned int,std::function<std::string(const httplib::Request &req, httplib::Response &res)>>> HttpEndPointData_t;
+struct EndpointError {
+    enum ERROR_TYPES{
+    INVALID_REQUEST,
+    INVALID_PARAMS,
+    INTERNAL_ERROR,
+    NOT_IMPLEMENTED,
+    NOT_AUTHORIZED
+    };
+    ERROR_TYPES errorType;
+    std::string errorString;
+};
+
+typedef std::function<std::expected<std::string, EndpointError>(const httplib::Request& req, httplib::Response& res)> EndpointAction_t;
+typedef std::pair<unsigned int, std::function<std::string(const httplib::Request& req, httplib::Response& res)>> HttpEndPointDataSinglet_t;
+typedef std::vector<std::pair<unsigned int, EndpointAction_t>> HttpEndPointData_t;
 
 #define PUBLIC_ENDPOINT (int)1
 #define PRIVATE_ENDPOINT (int)2
@@ -24,7 +38,7 @@ public:
     virtual std::string getIntefaceName() const = 0;
     /**
      * @brief Get the Endpoint Data object
-     * 
+     *
      * @return std::vector<std::pair<bool,std::function<std::string(std::string, std::vector<std::pair<std::string, std::string>>)>>>
      * The function element of the pair is the action to be executed when the endpoint is hit and
      * should return as soon as possible. This function will be executed on the API thread and should
@@ -34,8 +48,7 @@ public:
      * authenticated clients.
      **/
     virtual HttpEndPointData_t getHttpEndpointData() = 0;
-    virtual std::vector<std::pair<std::string,std::vector<std::string>>> getHttpEndpointNamesAndParams() = 0;
+    virtual std::vector<std::pair<std::string, std::vector<std::string>>> getHttpEndpointNamesAndParams() = 0;
 };
-
 
 #endif

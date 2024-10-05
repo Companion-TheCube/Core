@@ -37,7 +37,7 @@ private:
     std::string name;
     std::string path;
     
-    std::function<std::string(const httplib::Request &req, httplib::Response &res)> action;
+    EndpointAction_t action;
 public:
 
 int endpointType;
@@ -47,9 +47,9 @@ int endpointType;
     std::string getPath();
     bool isPublic() const;
     bool isGetType() const;
-    void setAction(std::function<std::string(const httplib::Request &req, httplib::Response &res)> action);
-    std::string doAction(const httplib::Request &req, httplib::Response &res);
-    std::function<std::string(const httplib::Request &req, httplib::Response &res)> getAction();
+    void setAction(EndpointAction_t action);
+    std::expected<std::string, EndpointError> doAction(const httplib::Request &req, httplib::Response &res);
+    EndpointAction_t getAction();
 };
 
 class CubeHttpServer {
@@ -86,7 +86,7 @@ public:
     void start();
     void stop();
     void restart();
-    void addEndpoint(std::string name, std::string path, int endpointType, std::function<std::string(const httplib::Request &req, httplib::Response &res)> action);
+    void addEndpoint(std::string name, std::string path, int endpointType, EndpointAction_t action);
     std::vector<Endpoint*> getEndpoints();
     Endpoint* getEndpointByName(std::string name);
     bool removeEndpoint(std::string name);

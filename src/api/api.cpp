@@ -7,7 +7,6 @@
 API::API()
 {
     this->endpoints = std::vector<Endpoint*>();
-    // this->auth = new CubeAuth();
     // TODO: // TESTING AUTHENTICATION ////
     std::pair<std::string, std::string> keys = CubeAuth::generateKeyPair();
     CubeLog::info("Public key: " + keys.first);
@@ -80,7 +79,7 @@ void API::restart()
  * @param publicEndpoint whether the endpoint is public or not
  * @param action the action to take when the endpoint is called
  */
-void API::addEndpoint(std::string name, std::string path, int endpointType, std::function<std::string(const httplib::Request& req, httplib::Response& res)> action)
+void API::addEndpoint(std::string name, std::string path, int endpointType, EndpointAction_t action)
 {
     // add an endpoint
     CubeLog::info("Adding endpoint: " + name + " at " + path);
@@ -147,7 +146,6 @@ void API::httpApiThreadFn()
     try {
         this->server = new CubeHttpServer("0.0.0.0", 55280); // listen on all interfaces
         this->serverIPC = new CubeHttpServer(CUBE_SOCKET_PATH, 0);
-
         // TODO: set up authentication // Done?
         for (size_t i = 0; i < this->endpoints.size(); i++) {
             // Public endpoints are accessible by any device on the
@@ -160,10 +158,34 @@ void API::httpApiThreadFn()
             CubeLog::debugSilly("Endpoint type: " + std::to_string(this->endpoints.at(i)->endpointType));
             std::function<void(const httplib::Request&, httplib::Response&)> publicAction = [&, i](const httplib::Request& req, httplib::Response& res) {
                 // TODO: endpoints should return a bool (or possibly a std::expected) that indicates whether or not the action was successful.
-                std::string returned = this->endpoints.at(i)->doAction(req, res);
-                if (returned != "")
-                    res.set_content(returned, "text/plain");
-                CubeLog::debug("Endpoint action returned: " + (returned == "" ? "empty string" : returned));
+                auto returned = this->endpoints.at(i)->doAction(req, res);
+                if(returned.has_value()){
+                    CubeLog::debug("Endpoint action returned: " + returned.value());    
+                } else {
+                    res.set_content("An error occurred: " + returned.error().errorString, "text/plain");
+                    switch(returned.error().errorType){
+                        case EndpointError::ERROR_TYPES::INVALID_REQUEST:
+                            res.status = httplib::StatusCode::BadRequest_400;
+                            CubeLog::error("Invalid request: " + returned.error().errorString);
+                            break;
+                        case EndpointError::ERROR_TYPES::INVALID_PARAMS:
+                            res.status = httplib::StatusCode::BadRequest_400;
+                            CubeLog::error("Invalid parameters: " + returned.error().errorString);
+                            break;
+                        case EndpointError::ERROR_TYPES::INTERNAL_ERROR:
+                            res.status = httplib::StatusCode::InternalServerError_500;
+                            CubeLog::error("Internal error: " + returned.error().errorString);
+                            break;
+                        case EndpointError::ERROR_TYPES::NOT_IMPLEMENTED:
+                            res.status = httplib::StatusCode::NotImplemented_501;
+                            CubeLog::error("Not implemented: " + returned.error().errorString);
+                            break;
+                        case EndpointError::ERROR_TYPES::NOT_AUTHORIZED:
+                            res.status = httplib::StatusCode::Forbidden_403;
+                            CubeLog::error("Not authorized: " + returned.error().errorString);
+                            break;
+                    }
+                }                
             };
             if (this->endpoints.at(i)->isPublic()) {
                 CubeLog::debugSilly("Adding public endpoint: " + this->endpoints.at(i)->getName() + " at " + this->endpoints.at(i)->getPath());
@@ -185,17 +207,41 @@ void API::httpApiThreadFn()
                         return;
                     }
                     // if the authorization header is present, we check if it is valid
-                    
                     if (CubeAuth::isAuthorized_authHeader(authHeader)) {
                         res.set_content("Authorization header not valid", "text/plain");
                         res.status = httplib::StatusCode::Forbidden_403;
                         return;
                     }
                     // if the authorization header is valid, client is authorized
-                    std::string returned = this->endpoints.at(i)->doAction(req, res);
-                    if (returned != "")
-                        res.set_content(returned, "text/plain");
-                    CubeLog::debug("Endpoint action returned: " + (returned == "" ? "empty string" : returned));
+                    auto returned = this->endpoints.at(i)->doAction(req, res);
+                    if(returned){
+                        res.set_content(returned.value(), "text/plain");
+                        CubeLog::debug("Endpoint action returned: " + returned.value());
+                    } else {
+                        res.set_content("An error occurred: " + returned.error().errorString, "text/plain");
+                        switch(returned.error().errorType){
+                            case EndpointError::ERROR_TYPES::INVALID_REQUEST:
+                                res.status = httplib::StatusCode::BadRequest_400;
+                                CubeLog::error("Invalid request: " + returned.error().errorString);
+                                break;
+                            case EndpointError::ERROR_TYPES::INVALID_PARAMS:
+                                res.status = httplib::StatusCode::BadRequest_400;
+                                CubeLog::error("Invalid parameters: " + returned.error().errorString);
+                                break;
+                            case EndpointError::ERROR_TYPES::INTERNAL_ERROR:
+                                res.status = httplib::StatusCode::InternalServerError_500;
+                                CubeLog::error("Internal error: " + returned.error().errorString);
+                                break;
+                            case EndpointError::ERROR_TYPES::NOT_IMPLEMENTED:
+                                res.status = httplib::StatusCode::NotImplemented_501;
+                                CubeLog::error("Not implemented: " + returned.error().errorString);
+                                break;
+                            case EndpointError::ERROR_TYPES::NOT_AUTHORIZED:
+                                res.status = httplib::StatusCode::Forbidden_403;
+                                CubeLog::error("Not authorized: " + returned.error().errorString);
+                                break;
+                        }
+                    }
                 };
                 this->server->addEndpoint(this->endpoints.at(i)->isGetType(), this->endpoints.at(i)->getPath(), action);
             }
@@ -286,7 +332,7 @@ bool Endpoint::isGetType() const
  *
  * @param action the action to take
  */
-void Endpoint::setAction(std::function<std::string(const httplib::Request& req, httplib::Response& res)> action)
+void Endpoint::setAction(EndpointAction_t action)
 {
     this->action = action;
 }
@@ -298,7 +344,7 @@ void Endpoint::setAction(std::function<std::string(const httplib::Request& req, 
  * @param res the response object
  * @return std::string the response to send back to the client
  */
-std::string Endpoint::doAction(const httplib::Request& req, httplib::Response& res)
+std::expected<std::string, EndpointError> Endpoint::doAction(const httplib::Request& req, httplib::Response& res)
 {
     return this->action(req, res);
 }
@@ -308,7 +354,7 @@ std::string Endpoint::doAction(const httplib::Request& req, httplib::Response& r
  *
  * @return std::function<std::string(std::string, EndPointParams_t)> the action to take
  */
-std::function<std::string(const httplib::Request& req, httplib::Response& res)> Endpoint::getAction()
+EndpointAction_t Endpoint::getAction()
 {
     return this->action;
 }
