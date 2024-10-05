@@ -1120,3 +1120,49 @@ bool BlobsManager::isBlobsManagerReady()
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
+
+bool sanitizeString(std::string& str)
+{
+    if(
+        str.find("'") != std::string::npos  ||
+        str.find("\"") != std::string::npos ||
+        str.find("\\") != std::string::npos ||
+        str.find(";") != std::string::npos  ||
+        str.find("--") != std::string::npos ||
+        str.find("/*") != std::string::npos ||
+        str.find("*/") != std::string::npos ||
+        str.find("DROP") != std::string::npos ||
+        str.find("CREATE") != std::string::npos ||
+        str.find("ALTER") != std::string::npos ||
+        str.find("INSERT") != std::string::npos ||
+        str.find("UPDATE") != std::string::npos ||
+        str.find("DELETE") != std::string::npos ||
+        str.find("SELECT") != std::string::npos ||
+        str.find("FROM") != std::string::npos ||
+        str.find("WHERE") != std::string::npos ||
+        str.find("AND") != std::string::npos ||
+        str.find("OR") != std::string::npos ||
+        str.find("LIKE") != std::string::npos ||
+        str.find("IN") != std::string::npos ||
+        str.find("BETWEEN") != std::string::npos ||
+        str.find("IS") != std::string::npos ||
+        str.find("NULL") != std::string::npos ||
+        str.find("ORDER") != std::string::npos ||
+        str.find("BY") != std::string::npos ||
+        str.find("GROUP") != std::string::npos ||
+        str.find("HAVING") != std::string::npos ||
+        str.find("LIMIT") != std::string::npos ||
+        str.find("OFFSET") != std::string::npos ||
+        str.find("JOIN") != std::string::npos ||
+        str.find("INNER") != std::string::npos ||
+        str.find("LEFT") != std::string::npos ||
+        str.find("RIGHT") != std::string::npos ||
+        str.find("OUTER") != std::string::npos ||
+        str.find("FULL") != std::string::npos ||
+        str.find("UNION") != std::string::npos ||
+        str.find("INTERSECT") != std::string::npos ||
+        str.find("EXCEPT") != std::string::npos
+    )
+        return false;
+    return true;
+}

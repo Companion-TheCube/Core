@@ -8,6 +8,7 @@
 #include <logger.h>
 #include <sodium.h>
 #include <random>
+#include <expected>
 #ifndef CUBE_DB_H
 #include "./../database/cubeDB.h"
 #endif

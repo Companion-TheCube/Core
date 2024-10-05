@@ -38,19 +38,19 @@ HttpEndPointData_t AudioManager::getHttpEndpointData()
         [&](const httplib::Request& req, httplib::Response& res) {
             this->start();
             CubeLog::info("Endpoint start called.");
-            return "Start audio called";
+            return EndpointError(EndpointError::NO_ERROR, "Start audio called");
         } });
     data.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
             this->stop();
             CubeLog::info("Endpoint stop called");
-            return "Stop audio called";
+            return EndpointError(EndpointError::NO_ERROR, "Stop audio called");
         } });
     data.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
             this->toggleSound();
             CubeLog::info("Endpoint toggle sound called");
-            return "Toggle sound called";
+            return EndpointError(EndpointError::NO_ERROR, "Toggle sound called");
         } });
     data.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
@@ -62,7 +62,7 @@ HttpEndPointData_t AudioManager::getHttpEndpointData()
                 }
             }
             CubeLog::info("Endpoint set sound called with param: " + p);
-            return "Set sound called";
+            return EndpointError(EndpointError::NO_ERROR, "Set sound called with param: " + p);
         } });
     return data;
 }

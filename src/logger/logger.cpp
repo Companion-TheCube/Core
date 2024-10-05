@@ -748,7 +748,7 @@ HttpEndPointData_t CubeLog::getHttpEndpointData()
                     j["success"] = false;
                     j["message"] = e.what();
                     res.set_content(j.dump(), "application/json");
-                    return "";
+                    return EndpointError(EndpointError::INVALID_PARAMS, e.what());
                 }
                 // convert level to int
                 int level_int;
@@ -763,7 +763,7 @@ HttpEndPointData_t CubeLog::getHttpEndpointData()
                     j["success"] = false;
                     j["message"] = e.what();
                     res.set_content(j.dump(), "application/json");
-                    return "";
+                    return EndpointError(EndpointError::INVALID_PARAMS, e.what());
                 }
                 // TODO: source string should be prepended with the name of the source app or it's IP or something. That way, we know
                 // for sure where the log message is coming from. Without this, an app can log stuff while pretending to be another app.
@@ -773,14 +773,14 @@ HttpEndPointData_t CubeLog::getHttpEndpointData()
                 j["success"] = true;
                 j["message"] = "Logged message";
                 res.set_content(j.dump(), "application/json");
-                return "";
+                return EndpointError(EndpointError::NO_ERROR, "Logged message");
             } else {
                 CubeLog::error("Content-Type header must be set to \"application/json\".");
                 nlohmann::json j;
                 j["success"] = false;
                 j["message"] = "Content-Type header must be set to \"application/json\".";
                 res.set_content(j.dump(), "application/json");
-                return "";
+                return EndpointError(EndpointError::INVALID_PARAMS, "Content-Type header must be set to \"application/json\".");
             }
         } });
     data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
@@ -797,7 +797,7 @@ HttpEndPointData_t CubeLog::getHttpEndpointData()
                 j["entries"].push_back(entryJson);
             }
             res.set_content(j.dump(), "application/json");
-            return "";
+            return EndpointError(EndpointError::NO_ERROR, "Got logs");
         } });
     return data;
 }

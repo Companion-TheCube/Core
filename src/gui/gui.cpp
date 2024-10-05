@@ -164,7 +164,7 @@ HttpEndPointData_t GUI::getHttpEndpointData()
                 }
             }
             CubeLog::info("Endpoint stop called and message set to: " + p);
-            return "Stop called";
+            return EndpointError(EndpointError::NO_ERROR, "Message set to: " + p);
         } });
     actions.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
@@ -174,7 +174,7 @@ HttpEndPointData_t GUI::getHttpEndpointData()
             }
             CubeLog::info("Endpoint action 2: \n");
             CubeLog::info(paramsString);
-            return "\"Endpoint action 2\" logged";
+            return EndpointError(EndpointError::NO_ERROR, "Endpoint action 2 called");
         } });
     return actions;
 }

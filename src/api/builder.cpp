@@ -1,7 +1,7 @@
 #include "builder.h"
 /**
  * @brief Construct a new api builder::api builder object
- * 
+ *
  * @param api - An instance of the API object as a shared pointer
  */
 API_Builder::API_Builder(std::shared_ptr<API> api)
@@ -11,7 +11,7 @@ API_Builder::API_Builder(std::shared_ptr<API> api)
 
 /**
  * @brief Destroy the API Builder::API Builder object
- * 
+ *
  */
 API_Builder::~API_Builder()
 {
@@ -20,7 +20,7 @@ API_Builder::~API_Builder()
 
 /**
  * @brief Start the API builder process. This will build all the endpoints and start the API.
- * 
+ *
  */
 void API_Builder::start()
 {
@@ -60,7 +60,8 @@ void API_Builder::start()
                 j[name].push_back(endpoint_json);
             }
         }
-        return j.dump();
+        res.set_content(j.dump(), "application/json");
+        return EndpointError(EndpointError::NO_ERROR, j.dump());
     });
 
     // add endpoint that will return the cube.socket path
@@ -71,7 +72,7 @@ void API_Builder::start()
         nlohmann::json j;
         j["cube_socket_path"] = path.string() + "/" + "cube.sock";
         res.set_content(j.dump(), "application/json");
-        return "";
+        return EndpointError(EndpointError::NO_ERROR, j.dump());
     });
 
     // recursively search http folder for static files and add them to the server
@@ -93,27 +94,32 @@ void API_Builder::start()
         this->api->addEndpoint(filePath, "/" + endpointPath, PUBLIC_ENDPOINT | GET_ENDPOINT, [&, filePath](const httplib::Request& req, httplib::Response& res) {
             if (!std::filesystem::exists(filePath)) {
                 CubeLog::error("File not found: " + filePath);
-                return std::string("File not found: " + filePath);
+                // return std::string("File not found: " + filePath);
+                return EndpointError(EndpointError::NOT_FOUND, "File not found: " + filePath);
             } else if (std::filesystem::is_directory(filePath)) {
                 CubeLog::error("File is a directory: " + filePath);
-                return std::string("File is a directory: " + filePath);
+                // return std::string("File is a directory: " + filePath);
+                EndpointError(EndpointError::INVALID_PARAMS, "File is a directory: " + filePath);
             } else
                 CubeLog::info("Sending file: " + filePath);
             std::ifstream fileStream(filePath, std::ios::binary | std::ios::ate);
             if (!fileStream.is_open()) {
                 CubeLog::error("Error opening file: " + filePath);
-                return std::string("Error opening file: " + filePath);
+                // return std::string("Error opening file: " + filePath);
+                return EndpointError(EndpointError::INTERNAL_ERROR, "Error opening file: " + filePath);
             }
             std::streamsize fileSize = fileStream.tellg();
             fileStream.seekg(0, std::ios::beg);
             std::vector<char> buffer(fileSize);
             if (!fileStream.read(buffer.data(), fileSize)) {
                 CubeLog::error("Error reading file: " + filePath);
-                return std::string("Error reading file: " + filePath);
+                // return std::string("Error reading file: " + filePath);
+                return EndpointError(EndpointError::INTERNAL_ERROR, "Error reading file: " + filePath);
             }
             if (fileStream.fail() || fileStream.bad()) {
                 CubeLog::error("Error reading file: " + filePath);
-                return std::string("Error reading file: " + filePath);
+                // return std::string("Error reading file: " + filePath);
+                return EndpointError(EndpointError::INTERNAL_ERROR, "Error reading file: " + filePath);
             }
             fileStream.close();
             // set the content type based on the file extension
@@ -207,7 +213,8 @@ void API_Builder::start()
             res.set_content(fileData, fileSize, contentType);
             delete[] fileData;
             CubeLog::debug("File sent: " + filePath + " (" + std::to_string(fileSize) + " bytes)");
-            return std::string("");
+            // return std::string("");
+            return EndpointError(EndpointError::NO_ERROR, "");
         });
     }
 

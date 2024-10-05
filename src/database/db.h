@@ -166,5 +166,6 @@ public:
     bool isBlobsManagerReady();
 };
 
+bool sanitizeString(std::string& str);
 
 #endif// DB_H

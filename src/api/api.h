@@ -48,7 +48,7 @@ int endpointType;
     bool isPublic() const;
     bool isGetType() const;
     void setAction(EndpointAction_t action);
-    std::expected<std::string, EndpointError> doAction(const httplib::Request &req, httplib::Response &res);
+    EndpointError doAction(const httplib::Request &req, httplib::Response &res);
     EndpointAction_t getAction();
 };
 

@@ -12,19 +12,26 @@
 #include <nlohmann/json.hpp>
 
 struct EndpointError {
-    enum ERROR_TYPES{
-    INVALID_REQUEST,
-    INVALID_PARAMS,
-    INTERNAL_ERROR,
-    NOT_IMPLEMENTED,
-    NOT_AUTHORIZED
+    enum ERROR_TYPES {
+        NO_ERROR,
+        INVALID_REQUEST,
+        INVALID_PARAMS,
+        INTERNAL_ERROR,
+        NOT_IMPLEMENTED,
+        NOT_AUTHORIZED,
+        NOT_FOUND,
     };
+    EndpointError(ERROR_TYPES errorType, std::string errorString)
+        : errorType(errorType)
+        , errorString(errorString)
+    {
+    }
     ERROR_TYPES errorType;
     std::string errorString;
 };
 
-typedef std::function<std::expected<std::string, EndpointError>(const httplib::Request& req, httplib::Response& res)> EndpointAction_t;
-typedef std::pair<unsigned int, std::function<std::string(const httplib::Request& req, httplib::Response& res)>> HttpEndPointDataSinglet_t;
+typedef std::function<EndpointError(const httplib::Request& req, httplib::Response& res)> EndpointAction_t;
+typedef std::pair<unsigned int, EndpointAction_t> HttpEndPointDataSinglet_t;
 typedef std::vector<std::pair<unsigned int, EndpointAction_t>> HttpEndPointData_t;
 
 #define PUBLIC_ENDPOINT (int)1
