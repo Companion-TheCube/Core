@@ -91,6 +91,7 @@ public:
     virtual void setClickAreaSize(unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax) = 0;
     virtual void capturePosition() = 0;
     virtual void restorePosition() = 0;
+    virtual void resetScroll() = 0;
 };
 
 

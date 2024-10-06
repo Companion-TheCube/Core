@@ -25,6 +25,24 @@ Menu::Menu(Shader* shader, std::latch& latch)
     CubeLog::info("Menu created");
 }
 
+Menu::Menu(Shader* shader, std::latch& latch, unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax)
+{
+    CubeLog::info("Creating Menu object with click area size and position of " + std::to_string(xMin) + "x" + std::to_string(yMin) + " to " + std::to_string(xMax) + "x" + std::to_string(yMax));
+    this->latch = &latch;
+    this->shader = shader;
+    this->visible = false;
+    this->clickArea = ClickableArea();
+    this->clickArea.clickableObject = this;
+    this->clickArea.xMin = xMin;
+    this->clickArea.xMax = xMax;
+    this->clickArea.yMin = yMin;
+    this->clickArea.yMax = yMax;
+    this->setOnClick([&](void* data) {
+        this->setVisible(!this->getVisible());
+    });
+    CubeLog::info("Menu created");
+}
+
 /**
  * @brief Destroy the Menu:: Menu object
  *
@@ -54,7 +72,7 @@ void Menu::addMenuEntry(std::string text, std::function<void(void*)> action)
     float textY = mapRange(MENU_POSITION_SCREEN_RELATIVE_Y_TOP, SCREEN_RELATIVE_MIN_Y, SCREEN_RELATIVE_MAX_Y, SCREEN_PX_MIN_Y, SCREEN_PX_MAX_Y) - startY - (STENCIL_INSET_PX * 2) - this->menuItemTextSize;
     this->childrenClickables.push_back(new MenuEntry(text, textShader, { textX, textY }, menuItemTextSize));
     float menuWidthPx = mapRange(MENU_WIDTH_SCREEN_RELATIVE, SCREEN_RELATIVE_MIN_WIDTH, SCREEN_RELATIVE_MAX_WIDTH, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X);
-    this->childrenClickables.at(this->childrenClickables.size() - 1)->setVisibleWidth(menuWidthPx - (STENCIL_INSET_PX * 2));
+    this->childrenClickables.at(this->childrenClickables.size() - 1)->setVisibleWidth(menuWidthPx - (STENCIL_INSET_PX * 2) - (MENU_ITEM_PADDING_PX * 2));
     auto yMinTemp = this->childrenClickables.at(this->childrenClickables.size() - 1)->getClickableArea()->yMin;
     auto yMaxTemp = this->childrenClickables.at(this->childrenClickables.size() - 1)->getClickableArea()->yMax;
     yMinTemp -= (MENU_ITEM_PADDING_PX);
@@ -99,29 +117,33 @@ void Menu::addHorizontalRule()
  */
 void Menu::scrollVert(int y)
 {
-    if(this->visible == false) return;
-    if(this->scrollVertPosition + y > this->maxScrollY - SCREEN_PX_MAX_Y){
+    if (this->visible == false)
+        return;
+    if (this->scrollVertPosition + y > this->maxScrollY - SCREEN_PX_MAX_Y) {
         int maxY = this->maxScrollY - SCREEN_PX_MAX_Y;
         y = maxY - this->scrollVertPosition;
     }
-    
+
     this->scrollVertPosition += y;
     if (this->scrollVertPosition < 0) {
         this->scrollVertPosition = 0;
-        for(auto clickable : this->childrenClickables){
+        for (auto clickable : this->childrenClickables) {
             clickable->restorePosition();
+            clickable->resetScroll();
         }
         return;
     }
-    
-    for(auto clickable : this->childrenClickables){
+
+    for (auto clickable : this->childrenClickables) {
         float new_y_min, new_y_max;
         new_y_min = clickable->getClickableArea()->yMin - y;
         new_y_max = clickable->getClickableArea()->yMax - y;
         clickable->setClickAreaSize(clickable->getClickableArea()->xMin, clickable->getClickableArea()->xMax, new_y_min, new_y_max);
-        for(auto object : clickable->getObjects()){
-            if(object->type == "MenuHorizontalRule") object->translate({0, mapRange(float(y), SCREEN_PX_MAX_Y, SCREEN_PX_MIN_Y, SCREEN_RELATIVE_MAX_HEIGHT, 0.f), 0});
-            else object->translate({0, y, 0});
+        for (auto object : clickable->getObjects()) {
+            if (object->type == "MenuHorizontalRule")
+                object->translate({ 0, mapRange(float(y), SCREEN_PX_MAX_Y, SCREEN_PX_MIN_Y, SCREEN_RELATIVE_MAX_HEIGHT, 0.f), 0 });
+            else
+                object->translate({ 0, y, 0 });
         }
     }
 }
@@ -195,13 +217,14 @@ void Menu::setup()
     }
     ////////// END TESTING //////////
 
-    for(auto clickable : this->childrenClickables){
-        for(auto object : clickable->getObjects()){
+    for (auto clickable : this->childrenClickables) {
+        for (auto object : clickable->getObjects()) {
             object->capturePosition();
         }
     }
-    for(auto clickArea : this->getClickableAreas()){
-        if(clickArea->yMax > this->maxScrollY) this->maxScrollY = clickArea->yMax;
+    for (auto clickArea : this->getClickableAreas()) {
+        if (clickArea->yMax > this->maxScrollY)
+            this->maxScrollY = clickArea->yMax;
     }
     std::lock_guard<std::mutex> lock(this->mutex);
     this->ready = true;
@@ -498,6 +521,7 @@ MenuEntry::MenuEntry(std::string text, Shader* shader, glm::vec2 position, float
     this->shader = shader;
 
     this->objects.push_back(new M_Text(shader, text, size, {1.f,1.f,1.f,},position));
+    this->objects.at(0)->capturePosition();
 
     this->size.x = this->objects.at(0)->getWidth();
     this->size.y = size;
@@ -509,7 +533,7 @@ MenuEntry::MenuEntry(std::string text, Shader* shader, glm::vec2 position, float
     this->clickArea.xMax = position.x + text.size() * this->size.x;
     this->clickArea.yMin = clickY - this->size.y;
     this->clickArea.yMax = clickY;
-    this->originalPosition = {this->clickArea.xMin, this->clickArea.yMin, this->clickArea.xMax, this->clickArea.yMax};
+    this->originalPosition = { this->clickArea.xMin, this->clickArea.yMin, this->clickArea.xMax, this->clickArea.yMax };
     CubeLog::info("MenuEntry created with text: " + text + " with click area: " + std::to_string(this->clickArea.xMin) + "x" + std::to_string(this->clickArea.yMin) + " to " + std::to_string(this->clickArea.xMax) + "x" + std::to_string(this->clickArea.yMax));
 }
 
@@ -580,31 +604,43 @@ void MenuEntry::draw()
     if (!this->visible) {
         return;
     }
-    if(this->size.x != this->objects.at(0)->getWidth()){
+    if (this->size.x != this->objects.at(0)->getWidth()) {
         this->size.x = this->objects.at(0)->getWidth();
         this->clickArea.xMax = this->clickArea.xMin + this->size.x;
-        if (this->scrollPosition > this->size.x) {
+        if (this->scrollPositionLeft > this->size.x) {
             for (auto object : this->objects) {
-                object->translate({ this->scrollPosition, 0.f, 0.f });
+                object->restorePosition();
             }
-            this->scrollPosition = 0;
+            this->scrollPositionLeft = 0;
             this->scrollWait = 0;
         }
         this->setVisibleWidth(this->visibleWidth);
     }
-    if (this->scrolling) {
-        if (this->scrollWait++ > 60) {
-            this->scrollPosition += 1;
+    if (this->scrolling == SCROLL_LEFT && this->scrollWait++ > 60) {
+        this->scrollPositionLeft += MENU_ITEM_SCROLL_LEFT_SPEED;
+        for (auto object : this->objects) {
+            object->translate({ -MENU_ITEM_SCROLL_LEFT_SPEED, 0.f, 0.f });
+        }
+        if (this->scrollPositionLeft >= this->size.x - this->visibleWidth) {
             for (auto object : this->objects) {
-                object->translate({ -1.f, 0.f, 0.f });
+                this->scrolling = SCROLL_RIGHT;
             }
-            if (this->scrollPosition > this->size.x) {
-                for (auto object : this->objects) {
-                    object->translate({ this->scrollPosition, 0.f, 0.f });
-                }
-                this->scrollPosition = 0;
-                this->scrollWait = 0;
+            this->scrollWait = 0;
+        }
+    }
+    if (this->scrolling == SCROLL_RIGHT && this->scrollWait++ > 60) {
+        this->scrollPositionRight += MENU_ITEM_SCROLL_RIGHT_SPEED;
+        const float amount = this->scrollPositionRight < this->scrollPositionLeft ? MENU_ITEM_SCROLL_RIGHT_SPEED : MENU_ITEM_SCROLL_RIGHT_SPEED - this->scrollPositionRight + this->scrollPositionLeft;
+        for (auto object : this->objects) {
+            object->translate({ amount, 0.f, 0.f });
+        }
+        if (this->scrollPositionRight > this->scrollPositionLeft) {
+            for (auto object : this->objects) {
+                this->scrolling = SCROLL_LEFT;
             }
+            this->scrollPositionRight = 0;
+            this->scrollPositionLeft = 0;
+            this->scrollWait = 0;
         }
     }
     for (auto object : this->objects) {
@@ -625,8 +661,18 @@ void MenuEntry::setVisibleWidth(float width)
 {
     this->visibleWidth = width;
     if (width < this->size.x) {
-        this->scrolling = true;
+        this->scrolling = SCROLL_LEFT;
     }
+}
+
+void MenuEntry::resetScroll()
+{
+    if(this->scrolling == NOT_SCROLLING)
+        return;
+    this->scrolling = SCROLL_LEFT;
+    this->scrollPositionLeft = 0;
+    this->scrollPositionRight = 0;
+    this->scrollWait = 0;
 }
 
 ClickableArea* MenuEntry::getClickableArea()
@@ -647,7 +693,7 @@ void MenuEntry::capturePosition()
     for (auto object : this->objects) {
         object->capturePosition();
     }
-    this->originalPosition = {this->clickArea.xMin, this->clickArea.yMin, this->clickArea.xMax, this->clickArea.yMax};
+    this->originalPosition = { this->clickArea.xMin, this->clickArea.yMin, this->clickArea.xMax, this->clickArea.yMax };
 }
 
 void MenuEntry::restorePosition()

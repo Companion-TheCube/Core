@@ -3,13 +3,13 @@
 #ifndef GUI_H
 #include "./../gui.h"
 #endif
-#include <functional>
-#include <vector>
-#include <string>
-#include <iostream>
-#include <fstream>
-#include <sstream>
 #include <filesystem>
+#include <fstream>
+#include <functional>
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <vector>
 #ifndef MESHOBJECT_H
 #include "./../renderables/meshObject.h"
 #endif
@@ -18,8 +18,11 @@
 #endif
 #ifndef OBJECTS_H
 #include "./../objects.h"
-#endif
+#endif// MENU_H
 #include <typeinfo>
+
+#define MENU_ITEM_SCROLL_LEFT_SPEED 1.5f
+#define MENU_ITEM_SCROLL_RIGHT_SPEED 4.2f
 
 #define Z_DISTANCE 3.57
 #define BOX_RADIUS 0.05
@@ -50,7 +53,7 @@
 
 class MenuStencil;
 
-class Menu: public Clickable{
+class Menu : public Clickable {
 private:
     bool visible;
     std::function<void(void*)> action;
@@ -69,8 +72,10 @@ private:
     bool onClickEnabled = true;
     std::latch* latch;
     int maxScrollY = 0;
+
 public:
     Menu(Shader* shader, std::latch& latch);
+    Menu(Shader* shader, std::latch& latch, unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax);
     ~Menu();
     void setup();
     void onClick(void*);
@@ -88,19 +93,21 @@ public:
     void addHorizontalRule();
     void scrollVert(int y);
     ClickableArea* getClickableArea();
-    void setVisibleWidth(float width){}
-    void setClickAreaSize(unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax){}
-    void capturePosition(){}
-    void restorePosition(){}
+    void setVisibleWidth(float width) { }
+    void resetScroll() { }
+    void setClickAreaSize(unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax) { }
+    void capturePosition() { }
+    void restorePosition() { }
 };
 
-class MenuBox:public M_Box{
+class MenuBox : public M_Box {
 private:
     glm::vec2 position;
     glm::vec2 size;
     std::vector<MeshObject*> objects;
     bool visible;
     static float index;
+
 public:
     // TODO: add bool: border to constructor
     MenuBox(glm::vec2 position, glm::vec2 size, Shader* shader);
@@ -112,7 +119,7 @@ public:
     bool getVisible();
 };
 
-class MenuHorizontalRule:public Clickable{
+class MenuHorizontalRule : public Clickable {
 private:
     glm::vec2 position;
     float size;
@@ -120,6 +127,7 @@ private:
     bool visible;
     Shader* shader;
     ClickableArea clickArea;
+
 public:
     MenuHorizontalRule(glm::vec2 position, float size, Shader* shader);
     ~MenuHorizontalRule();
@@ -135,13 +143,14 @@ public:
     void setOnClick(std::function<void(void*)> action);
     void setOnRightClick(std::function<void(void*)> action);
     ClickableArea* getClickableArea();
-    void setVisibleWidth(float width){}
-    void setClickAreaSize(unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax){}
+    void setVisibleWidth(float width) { }
+    void resetScroll() { }
+    void setClickAreaSize(unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax) { }
     void capturePosition();
     void restorePosition();
 };
 
-class MenuStencil: public Object{
+class MenuStencil : public Object {
 private:
     glm::vec2 position;
     glm::vec2 size;
@@ -154,6 +163,7 @@ private:
         2, 1, 0
     };
     glm::mat4 projectionMatrix;
+
 public:
     MenuStencil(glm::vec2 position, glm::vec2 size, Shader* shader);
     ~MenuStencil();
@@ -166,8 +176,13 @@ public:
     void disable();
 };
 
-class MenuEntry:public Clickable{
+class MenuEntry : public Clickable {
 private:
+enum ScrollingDirection{
+    NOT_SCROLLING,
+    SCROLL_LEFT,
+    SCROLL_RIGHT
+};
     std::string text;
     std::function<void(void*)> action;
     std::function<void(void*)> rightAction;
@@ -177,11 +192,13 @@ private:
     glm::vec2 position;
     ClickableArea clickArea;
     glm::vec2 size;
-    bool scrolling = false;
+    ScrollingDirection scrolling = NOT_SCROLLING;
     float visibleWidth = 0;
-    float scrollPosition = 0;
+    float scrollPositionLeft = 0;
+    float scrollPositionRight = 0;
     float scrollWait = 0;
     glm::vec4 originalPosition;
+
 public:
     MenuEntry(std::string text, Shader* shader, glm::vec2 position, float size);
     ~MenuEntry();
@@ -195,11 +212,11 @@ public:
     void draw();
     void setPosition(glm::vec2 position);
     void setVisibleWidth(float width);
+    void resetScroll();
     ClickableArea* getClickableArea();
     void setClickAreaSize(unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax);
     void capturePosition();
     void restorePosition();
 };
-
 
 #endif// MENU_H
