@@ -6,12 +6,12 @@
  * @param filename the file to load the menu objects from
  * @param shader the shader to use for the menu objects
  */
-Menu::Menu(Shader* shader, std::latch& latch)
+Menu::Menu(Renderer* renderer, std::latch& latch)
 {
     // TODO: need a version of this constructor that takes in click area size and position
     CubeLog::info("Creating Menu class object");
     this->latch = &latch;
-    this->shader = shader;
+    this->renderer = renderer;
     this->visible = false;
     this->clickArea = ClickableArea();
     this->clickArea.clickableObject = this;
@@ -20,16 +20,17 @@ Menu::Menu(Shader* shader, std::latch& latch)
     this->clickArea.yMin = 0;
     this->clickArea.yMax = 720;
     this->setOnClick([&](void* data) {
+        this->setIsClickable(!this->getIsClickable());
         this->setVisible(!this->getVisible());
     });
     CubeLog::info("Menu created");
 }
 
-Menu::Menu(Shader* shader, std::latch& latch, unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax)
+Menu::Menu(Renderer* renderer, std::latch& latch, unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax)
 {
     CubeLog::info("Creating Menu object with click area size and position of " + std::to_string(xMin) + "x" + std::to_string(yMin) + " to " + std::to_string(xMax) + "x" + std::to_string(yMax));
     this->latch = &latch;
-    this->shader = shader;
+    this->renderer = renderer;
     this->visible = false;
     this->clickArea = ClickableArea();
     this->clickArea.clickableObject = this;
@@ -38,6 +39,7 @@ Menu::Menu(Shader* shader, std::latch& latch, unsigned int xMin, unsigned int xM
     this->clickArea.yMin = yMin;
     this->clickArea.yMax = yMax;
     this->setOnClick([&](void* data) {
+        this->setIsClickable(!this->getIsClickable());
         this->setVisible(!this->getVisible());
     });
     CubeLog::info("Menu created");
@@ -70,7 +72,7 @@ void Menu::addMenuEntry(std::string text, std::function<void(void*)> action)
     float startY = (((menuItemTextSize * 1.2) + MENU_ITEM_PADDING_PX) * this->childrenClickables.size()) + MENU_TOP_PADDING_PX;
     float textX = mapRange(MENU_POSITION_SCREEN_RELATIVE_X_LEFT, SCREEN_RELATIVE_MIN_X, SCREEN_RELATIVE_MAX_X, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X) + (STENCIL_INSET_PX * 2);
     float textY = mapRange(MENU_POSITION_SCREEN_RELATIVE_Y_TOP, SCREEN_RELATIVE_MIN_Y, SCREEN_RELATIVE_MAX_Y, SCREEN_PX_MIN_Y, SCREEN_PX_MAX_Y) - startY - (STENCIL_INSET_PX * 2) - this->menuItemTextSize;
-    this->childrenClickables.push_back(new MenuEntry(text, textShader, { textX, textY }, menuItemTextSize));
+    this->childrenClickables.push_back(new MenuEntry(text, new Shader("shaders/text.vs", "shaders/text.fs"), { textX, textY }, menuItemTextSize));
     float menuWidthPx = mapRange(MENU_WIDTH_SCREEN_RELATIVE, SCREEN_RELATIVE_MIN_WIDTH, SCREEN_RELATIVE_MAX_WIDTH, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X);
     this->childrenClickables.at(this->childrenClickables.size() - 1)->setVisibleWidth(menuWidthPx - (STENCIL_INSET_PX * 2) - (MENU_ITEM_PADDING_PX * 2));
     auto yMinTemp = this->childrenClickables.at(this->childrenClickables.size() - 1)->getClickableArea()->yMin;
@@ -80,6 +82,11 @@ void Menu::addMenuEntry(std::string text, std::function<void(void*)> action)
     this->childrenClickables.at(this->childrenClickables.size() - 1)->setClickAreaSize(textX, textX + (menuWidthPx - (STENCIL_INSET_PX * 2)), yMinTemp, yMaxTemp);
     this->childrenClickables.at(this->childrenClickables.size() - 1)->setVisible(true);
     this->childrenClickables.at(this->childrenClickables.size() - 1)->setOnClick(action);
+    for (auto object : this->childrenClickables.at(this->childrenClickables.size() - 1)->getObjects()) {
+        object->capturePosition();
+    }
+    if (this->getClickableAreas().at(this->getClickableAreas().size() - 1)->yMax > this->maxScrollY)
+        this->maxScrollY = this->getClickableAreas().at(this->getClickableAreas().size() - 1)->yMax;
     CubeLog::debug("MenuEntry added with text: " + text + " and clickable area: " + std::to_string(this->childrenClickables.at(this->childrenClickables.size() - 1)->getClickableArea()->xMin) + "x" + std::to_string(this->childrenClickables.at(this->childrenClickables.size() - 1)->getClickableArea()->yMin) + " to " + std::to_string(this->childrenClickables.at(this->childrenClickables.size() - 1)->getClickableArea()->xMax) + "x" + std::to_string(this->childrenClickables.at(this->childrenClickables.size() - 1)->getClickableArea()->yMax));
 }
 
@@ -106,8 +113,13 @@ void Menu::addHorizontalRule()
     float startY = (((menuItemTextSize * 1.2) + MENU_ITEM_PADDING_PX) * this->childrenClickables.size()) + MENU_TOP_PADDING_PX + ((menuItemTextSize + (MENU_ITEM_PADDING_PX * 2)) / 2);
     // get start x from screen relative position of menu
     float startX = mapRange(MENU_POSITION_SCREEN_RELATIVE_X_LEFT, SCREEN_RELATIVE_MIN_X, SCREEN_RELATIVE_MAX_X, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X) + (STENCIL_INSET_PX * 2) + 30;
-    this->childrenClickables.push_back(new MenuHorizontalRule({ startX, startY }, 350, shader));
+    this->childrenClickables.push_back(new MenuHorizontalRule({ startX, startY }, 350, this->renderer->getShader()));
     this->childrenClickables.at(this->childrenClickables.size() - 1)->setVisible(true);
+    for (auto object : this->childrenClickables.at(this->childrenClickables.size() - 1)->getObjects()) {
+        object->capturePosition();
+    }
+    if (this->getClickableAreas().at(this->getClickableAreas().size() - 1)->yMax > this->maxScrollY)
+        this->maxScrollY = this->getClickableAreas().at(this->getClickableAreas().size() - 1)->yMax;
 }
 
 /**
@@ -117,7 +129,7 @@ void Menu::addHorizontalRule()
  */
 void Menu::scrollVert(int y)
 {
-    if (this->visible == false)
+    if (this->getVisible() == false)
         return;
     if (this->scrollVertPosition + y > this->maxScrollY - SCREEN_PX_MAX_Y) {
         int maxY = this->maxScrollY - SCREEN_PX_MAX_Y;
@@ -148,15 +160,38 @@ void Menu::scrollVert(int y)
     }
 }
 
+void Menu::setParentMenu(Menu* parentMenu)
+{
+    std::unique_lock<std::mutex> lock(this->menuMutex);
+    this->parentMenu = parentMenu;
+}
+
+Menu* Menu::getParentMenu()
+{
+    std::unique_lock<std::mutex> lock(this->menuMutex);
+    return this->parentMenu;
+}
+
+void Menu::setMenuName(std::string name)
+{
+    this->menuName = name;
+}
+
+void Menu::setAsMainMenu()
+{
+    this->isMainMenu = true;
+}
+
 /**
  * @brief Setup the menu
  *
  */
 void Menu::setup()
 {
-    this->objects.push_back(new MenuBox({ MENU_POSITION_SCREEN_RELATIVE_X_CENTER, MENU_POSITION_SCREEN_RELATIVE_Y_CENTER }, { MENU_WIDTH_SCREEN_RELATIVE, MENU_HEIGHT_SCREEN_RELATIVE }, shader));
+    this->objects.push_back(new MenuBox({ MENU_POSITION_SCREEN_RELATIVE_X_CENTER, MENU_POSITION_SCREEN_RELATIVE_Y_CENTER }, { MENU_WIDTH_SCREEN_RELATIVE, MENU_HEIGHT_SCREEN_RELATIVE }, this->renderer->getShader()));
     this->objects.at(0)->setVisible(true);
-    this->textShader = new Shader("shaders/text.vs", "shaders/text.fs");
+    // create a copy of the shader for the text
+    // this->textShader = new Shader("shaders/text.vs", "shaders/text.fs");
     Shader* stencilShader = new Shader("shaders/menuStencil.vs", "shaders/menuStencil.fs");
     float stencilX_start_temp = MENU_POSITION_SCREEN_RELATIVE_X_CENTER - MENU_WIDTH_SCREEN_RELATIVE / 2;
     float stencilY_start_temp = MENU_POSITION_SCREEN_RELATIVE_Y_CENTER - MENU_HEIGHT_SCREEN_RELATIVE / 2;
@@ -166,66 +201,62 @@ void Menu::setup()
     float stencilHeight = mapRange(MENU_HEIGHT_SCREEN_RELATIVE, SCREEN_RELATIVE_MIN_HEIGHT, SCREEN_RELATIVE_MAX_HEIGHT, SCREEN_PX_MIN_Y, SCREEN_PX_MAX_Y) - (STENCIL_INSET_PX * 2);
     this->stencil = new MenuStencil({ stencilX_start, stencilY_start }, { stencilWidth, stencilHeight }, stencilShader);
 
-    this->addMenuEntry("< Settings", [&](void* data) {
-        CubeLog::info("Settings clicked");
-        this->setVisible(false);
-    });
+    // this->addMenuEntry("< Settings", [&](void* data) {
+    //     CubeLog::info("Settings clicked");
+    //     this->setVisible(false);
+    // });
 
-    this->addHorizontalRule();
+    // this->addHorizontalRule();
     /////// TESTING //////////// TODO:
-    this->addMenuEntry("Test addMenuEntry() 1 very long test text that is very long", [&](void* data) {
-        CubeLog::info("Test clicked");
-        // find the font "lobster"
-        for (auto font : GlobalSettings::fontPaths) {
-            if (font.find("Lobster") != std::string::npos) {
-                if (GlobalSettings::setSetting("selectedFontPath", font)) {
-                    CubeLog::info("SelectedFontPath: " + GlobalSettings::selectedFontPath);
-                }
-            }
-        }
-    });
+    // this->addMenuEntry("Test addMenuEntry() 1 very long test text that is very long", [&](void* data) {
+    //     CubeLog::info("Test clicked");
+    //     // find the font "lobster"
+    //     for (auto font : GlobalSettings::fontPaths) {
+    //         if (font.find("Lobster") != std::string::npos) {
+    //             if (GlobalSettings::setSetting("selectedFontPath", font)) {
+    //                 CubeLog::info("SelectedFontPath: " + GlobalSettings::selectedFontPath);
+    //             }
+    //         }
+    //     }
+    // });
 
-    this->addMenuEntry("Scroll by 10", [&](void* data) {
-        CubeLog::info("Scroll by 10");
-        this->scrollVert(10);
-    });
+    // this->addMenuEntry("Scroll by 10", [&](void* data) {
+    //     CubeLog::info("Scroll by 10");
+    //     this->scrollVert(10);
+    // });
 
-    this->addHorizontalRule();
+    // this->addHorizontalRule();
+    // for(int i = 0; i < 25; i++){
+    //     this->addMenuEntry("MenuEntry " + std::to_string(i), [&](void* data) {
+    //         CubeLog::info("Test clicked: " + std::to_string(i));
+    //     });
+    // }
 
-    this->addMenuEntry("addMenuEntry() 3", [&](void* data) {
-        CubeLog::info("Test clicked");
-    });
-
-    for (auto font : GlobalSettings::fontPaths) {
-        FT_Library ft;
-        FT_Face face;
-        FT_Init_FreeType(&ft);
-        if (FT_New_Face(ft, font.c_str(), 0, &face)) {
-            CubeLog::error("Could not load font: " + font);
-        } else {
-            CubeLog::info("Loaded font: " + std::string(face->family_name) + ":" + std::string(face->style_name));
-            std::string fontName = std::string(face->family_name) + ":" + std::string(face->style_name);
-            this->addMenuEntry(fontName, [&, fontName, font](void* data) { // copy fontName and font
-                CubeLog::info("Changing to font: " + fontName);
-                if (GlobalSettings::setSetting("selectedFontPath", font)) {
-                    CubeLog::info("SelectedFontPath: " + GlobalSettings::selectedFontPath);
-                }
-            });
-        }
-        FT_Done_Face(face);
-        FT_Done_FreeType(ft);
-    }
+    // for (auto font : GlobalSettings::fontPaths) {
+    //     FT_Library ft;
+    //     FT_Face face;
+    //     FT_Init_FreeType(&ft);
+    //     if (FT_New_Face(ft, font.c_str(), 0, &face)) {
+    //         CubeLog::error("Could not load font: " + font);
+    //     } else {
+    //         CubeLog::info("Loaded font: " + std::string(face->family_name) + ":" + std::string(face->style_name));
+    //         std::string fontName = std::string(face->family_name) + ":" + std::string(face->style_name);
+    //         this->addMenuEntry(fontName, [&, fontName, font](void* data) { // copy fontName and font
+    //             CubeLog::info("Changing to font: " + fontName);
+    //             if (GlobalSettings::setSetting("selectedFontPath", font)) {
+    //                 CubeLog::info("SelectedFontPath: " + GlobalSettings::selectedFontPath);
+    //             }
+    //         });
+    //     }
+    //     FT_Done_Face(face);
+    //     FT_Done_FreeType(ft);
+    // }
     ////////// END TESTING //////////
 
-    for (auto clickable : this->childrenClickables) {
-        for (auto object : clickable->getObjects()) {
-            object->capturePosition();
-        }
-    }
-    for (auto clickArea : this->getClickableAreas()) {
-        if (clickArea->yMax > this->maxScrollY)
-            this->maxScrollY = clickArea->yMax;
-    }
+    // for (auto clickArea : this->getClickableAreas()) {
+    //     if (clickArea->yMax > this->maxScrollY)
+    //         this->maxScrollY = clickArea->yMax;
+    // }
     std::lock_guard<std::mutex> lock(this->mutex);
     this->ready = true;
     this->latch->count_down();
@@ -253,7 +284,7 @@ void Menu::onClick(void* data)
 void Menu::onRightClick(void* data)
 {
     CubeLog::info("Menu right clicked");
-    if (this->rightAction != nullptr && this->visible) {
+    if (this->rightAction != nullptr && this->getVisible()) {
         this->rightAction(data);
     }
 }
@@ -266,24 +297,22 @@ void Menu::onRightClick(void* data)
  */
 bool Menu::setVisible(bool visible)
 {
+    std::unique_lock<std::mutex> lock(this->menuMutex);
     bool temp = this->visible;
     this->visible = visible;
-    if (this->visible) {
-        this->clickArea.xMin = 0;
-        this->clickArea.xMax = 0;
-        this->clickArea.yMin = 0;
-        this->clickArea.yMax = 0;
-    } else {
-        this->clickArea.xMin = 0;
-        this->clickArea.xMax = 720;
-        this->clickArea.yMin = 0;
-        this->clickArea.yMax = 720;
+    for(auto clickable : this->childrenClickables){
+        clickable->setVisible(visible);
     }
     if (this->visible) {
         // TODO: create a timeout that will hide the menu after a certain amount of time. will need to adjust clickable area so that it catches clicks
         // for the entire menu area to reset the timer. Will also need to fix the issue where clicks don't propagate to all areas that are possible,
     }
     return temp;
+}
+
+void Menu::setIsClickable(bool isClickable)
+{
+    this->isClickable = isClickable;
 }
 
 /**
@@ -293,6 +322,7 @@ bool Menu::setVisible(bool visible)
  */
 bool Menu::getVisible()
 {
+    std::unique_lock<std::mutex> lock(this->menuMutex);
     return this->visible;
 }
 
@@ -349,9 +379,7 @@ bool Menu::isReady()
  */
 void Menu::draw()
 {
-    if (!this->visible) {
-        return;
-    }
+    if (!this->visible) return;
 
     for (auto object : this->objects) {
         object->draw();
@@ -386,6 +414,11 @@ std::vector<ClickableArea*> Menu::getClickableAreas()
 ClickableArea* Menu::getClickableArea()
 {
     return &this->clickArea;
+}
+
+bool Menu::getIsClickable()
+{
+    return this->isClickable;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -528,11 +561,11 @@ MenuEntry::MenuEntry(std::string text, Shader* shader, glm::vec2 position, float
     this->position = position;
     // this->clickArea = ClickableArea();
     this->clickArea.clickableObject = this;
-    float clickY = mapRange(float(position.y), 0.f, 720.f, 720.f, 0.f);
+    float clickY = mapRange(float(position.y), SCREEN_PX_MIN_Y, SCREEN_PX_MAX_Y, SCREEN_PX_MAX_Y, SCREEN_PX_MIN_Y);
     this->clickArea.xMin = position.x;
     this->clickArea.xMax = position.x + text.size() * this->size.x;
-    this->clickArea.yMin = clickY - this->size.y;
-    this->clickArea.yMax = clickY;
+    this->clickArea.yMin = clickY - this->size.y - 3;
+    this->clickArea.yMax = clickY + 7;
     this->originalPosition = { this->clickArea.xMin, this->clickArea.yMin, this->clickArea.xMax, this->clickArea.yMax };
     CubeLog::info("MenuEntry created with text: " + text + " with click area: " + std::to_string(this->clickArea.xMin) + "x" + std::to_string(this->clickArea.yMin) + " to " + std::to_string(this->clickArea.xMax) + "x" + std::to_string(this->clickArea.yMax));
 }
@@ -705,6 +738,11 @@ void MenuEntry::restorePosition()
     this->clickArea.yMin = this->originalPosition.y;
     this->clickArea.xMax = this->originalPosition.z;
     this->clickArea.yMax = this->originalPosition.w;
+}
+
+bool MenuEntry::getIsClickable()
+{
+    return this->getVisible();
 }
 
 //////////////////////////////////////////////////////////////////////////

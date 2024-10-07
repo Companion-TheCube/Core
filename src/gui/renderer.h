@@ -59,4 +59,4 @@ class Renderer{
         bool isReady();
 };
 
-#endif
+#endif// RENDERER_H

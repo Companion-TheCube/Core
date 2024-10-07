@@ -27,7 +27,7 @@ class Shader{
         std::string vertexShader;
         std::string fragmentShader;
         std::string readShader(std::string path);
-        std::mutex mutex;
+        std::mutex mutex = {};
     public:
         unsigned int ID;
         Shader(std::string vertexShaderPath, std::string fragmentShaderPath);

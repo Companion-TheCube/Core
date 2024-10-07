@@ -29,7 +29,7 @@ public:
     {
         {
             std::lock_guard<std::mutex> lock(mutex_);
-            tasks_.push(std::move(task));
+            tasks_.push_back(std::move(task));
         }
         condition_.notify_one();
     }
@@ -37,9 +37,17 @@ public:
     {
         std::unique_lock<std::mutex> lock(mutex_);
         condition_.wait(lock, [this] { return !tasks_.empty(); });
-        auto task = std::move(tasks_.front());
-        tasks_.pop();
+        auto task = std::move(tasks_.back());
+        tasks_.pop_back();
         return task;
+    }
+    std::function<void()> peek(){
+        std::lock_guard<std::mutex> lock(mutex_);
+        return tasks_.front();
+    }
+    std::function<void()> peek(int index){
+        std::lock_guard<std::mutex> lock(mutex_);
+        return tasks_.at(index);
     }
     size_t size()
     {
@@ -48,7 +56,7 @@ public:
     }
 
 private:
-    std::queue<std::function<void()>> tasks_;
+    std::vector<std::function<void()>> tasks_;
     std::mutex mutex_;
     std::condition_variable condition_;
 };

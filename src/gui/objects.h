@@ -92,6 +92,7 @@ public:
     virtual void capturePosition() = 0;
     virtual void restorePosition() = 0;
     virtual void resetScroll() = 0;
+    virtual bool getIsClickable() = 0;
 };
 
 
