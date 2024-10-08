@@ -61,7 +61,7 @@ void API_Builder::start()
             }
         }
         res.set_content(j.dump(), "application/json");
-        return EndpointError(EndpointError::NO_ERROR, j.dump());
+        return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, j.dump());
     });
 
     // add endpoint that will return the cube.socket path
@@ -72,7 +72,7 @@ void API_Builder::start()
         nlohmann::json j;
         j["cube_socket_path"] = path.string() + "/" + "cube.sock";
         res.set_content(j.dump(), "application/json");
-        return EndpointError(EndpointError::NO_ERROR, j.dump());
+        return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, j.dump());
     });
 
     // recursively search http folder for static files and add them to the server
@@ -95,18 +95,18 @@ void API_Builder::start()
             if (!std::filesystem::exists(filePath)) {
                 CubeLog::error("File not found: " + filePath);
                 // return std::string("File not found: " + filePath);
-                return EndpointError(EndpointError::NOT_FOUND, "File not found: " + filePath);
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NOT_FOUND, "File not found: " + filePath);
             } else if (std::filesystem::is_directory(filePath)) {
                 CubeLog::error("File is a directory: " + filePath);
                 // return std::string("File is a directory: " + filePath);
-                EndpointError(EndpointError::INVALID_PARAMS, "File is a directory: " + filePath);
+                EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, "File is a directory: " + filePath);
             } else
                 CubeLog::info("Sending file: " + filePath);
             std::ifstream fileStream(filePath, std::ios::binary | std::ios::ate);
             if (!fileStream.is_open()) {
                 CubeLog::error("Error opening file: " + filePath);
                 // return std::string("Error opening file: " + filePath);
-                return EndpointError(EndpointError::INTERNAL_ERROR, "Error opening file: " + filePath);
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Error opening file: " + filePath);
             }
             std::streamsize fileSize = fileStream.tellg();
             fileStream.seekg(0, std::ios::beg);
@@ -114,12 +114,12 @@ void API_Builder::start()
             if (!fileStream.read(buffer.data(), fileSize)) {
                 CubeLog::error("Error reading file: " + filePath);
                 // return std::string("Error reading file: " + filePath);
-                return EndpointError(EndpointError::INTERNAL_ERROR, "Error reading file: " + filePath);
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Error reading file: " + filePath);
             }
             if (fileStream.fail() || fileStream.bad()) {
                 CubeLog::error("Error reading file: " + filePath);
                 // return std::string("Error reading file: " + filePath);
-                return EndpointError(EndpointError::INTERNAL_ERROR, "Error reading file: " + filePath);
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Error reading file: " + filePath);
             }
             fileStream.close();
             // set the content type based on the file extension
@@ -214,7 +214,7 @@ void API_Builder::start()
             delete[] fileData;
             CubeLog::debug("File sent: " + filePath + " (" + std::to_string(fileSize) + " bytes)");
             // return std::string("");
-            return EndpointError(EndpointError::NO_ERROR, "");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         });
     }
 

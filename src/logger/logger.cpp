@@ -705,7 +705,8 @@ std::string CubeLog::getIntefaceName() const
     return "Logger";
 }
 
-const std::string sanitizeString(std::string str) {
+const std::string sanitizeString(std::string str)
+{
     // iterate through the string and ensure utf-8 compliance
     for (int i = 0; i < str.length(); i++) {
         if (str[i] < 0) {
@@ -748,7 +749,7 @@ HttpEndPointData_t CubeLog::getHttpEndpointData()
                     j["success"] = false;
                     j["message"] = e.what();
                     res.set_content(j.dump(), "application/json");
-                    return EndpointError(EndpointError::INVALID_PARAMS, e.what());
+                    return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, e.what());
                 }
                 // convert level to int
                 int level_int;
@@ -763,24 +764,24 @@ HttpEndPointData_t CubeLog::getHttpEndpointData()
                     j["success"] = false;
                     j["message"] = e.what();
                     res.set_content(j.dump(), "application/json");
-                    return EndpointError(EndpointError::INVALID_PARAMS, e.what());
+                    return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, e.what());
                 }
                 // TODO: source string should be prepended with the name of the source app or it's IP or something. That way, we know
                 // for sure where the log message is coming from. Without this, an app can log stuff while pretending to be another app.
-                auto location = CustomSourceLocation(source.c_str(), std::stoi(line),0, function.c_str());
+                auto location = CustomSourceLocation(source.c_str(), std::stoi(line), 0, function.c_str());
                 CubeLog::log(message, true, Logger::LogLevel(level_int), location); // We use CubeLog::log here so we can set the level
                 nlohmann::json j;
                 j["success"] = true;
                 j["message"] = "Logged message";
                 res.set_content(j.dump(), "application/json");
-                return EndpointError(EndpointError::NO_ERROR, "Logged message");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Logged message");
             } else {
                 CubeLog::error("Content-Type header must be set to \"application/json\".");
                 nlohmann::json j;
                 j["success"] = false;
                 j["message"] = "Content-Type header must be set to \"application/json\".";
                 res.set_content(j.dump(), "application/json");
-                return EndpointError(EndpointError::INVALID_PARAMS, "Content-Type header must be set to \"application/json\".");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, "Content-Type header must be set to \"application/json\".");
             }
         } });
     data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
@@ -789,7 +790,7 @@ HttpEndPointData_t CubeLog::getHttpEndpointData()
             std::vector<CUBE_LOG_ENTRY> entries = CubeLog::getLogEntries();
             nlohmann::json j;
             j["entries"] = nlohmann::json::array();
-            for(auto entry : entries) {
+            for (auto entry : entries) {
                 nlohmann::json entryJson;
                 entryJson["timestamp"] = sanitizeString(entry.getTimestamp());
                 entryJson["message"] = sanitizeString(entry.getMessageFull());
@@ -797,7 +798,7 @@ HttpEndPointData_t CubeLog::getHttpEndpointData()
                 j["entries"].push_back(entryJson);
             }
             res.set_content(j.dump(), "application/json");
-            return EndpointError(EndpointError::NO_ERROR, "Got logs");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Got logs");
         } });
     return data;
 }
@@ -810,7 +811,7 @@ HttpEndPointData_t CubeLog::getHttpEndpointData()
 std::vector<std::pair<std::string, std::vector<std::string>>> CubeLog::getHttpEndpointNamesAndParams()
 {
     std::vector<std::pair<std::string, std::vector<std::string>>> names;
-    names.push_back({ "log", {"message", "level", "source", "line", "function"} });
+    names.push_back({ "log", { "message", "level", "source", "line", "function" } });
     names.push_back({ "getLogs", {} });
     return names;
 }

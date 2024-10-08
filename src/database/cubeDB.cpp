@@ -85,7 +85,7 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
                 j["success"] = false;
                 j["message"] = "saveBlob called: failed to save blob, invalid Content-Type header.";
                 res.set_content(j.dump(), "application/json");
-                return EndpointError(EndpointError::ERROR_TYPES::INVALID_REQUEST, "Invalid Content-Type header.");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_REQUEST, "Invalid Content-Type header.");
             }
             // char* buffer = new char[65535];
             std::string stringBlob = "none";
@@ -113,7 +113,7 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
                         j["message"] = "saveBlob called: failed to save blob, base64 decoding failed.";
                         res.set_content(j.dump(), "application/json");
                         delete[] blob;
-                        return EndpointError(EndpointError::ERROR_TYPES::INVALID_PARAMS, "Base64 decoding failed.");
+                        return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, "Base64 decoding failed.");
                     }
                     blobSize = decoded.size();
                     if (blobSize > 1024 * 1024) {
@@ -123,7 +123,7 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
                         j["message"] = "saveBlob called: failed to save blob, blob size exceeds 1MB limit.";
                         res.set_content(j.dump(), "application/json");
                         delete[] blob;
-                        return EndpointError(EndpointError::ERROR_TYPES::INVALID_PARAMS, "Blob size exceeds 1MB limit.");
+                        return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, "Blob size exceeds 1MB limit.");
                     }
                     size_t decodedSize = 0;
                     for (auto c : decoded) {
@@ -143,7 +143,7 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
                 j["message"] = "saveBlob called: failed to save blob, " + std::string(e.what());
                 res.set_content(j.dump(), "application/json");
                 delete[] blob;
-                return EndpointError(EndpointError::INTERNAL_ERROR, e.what());
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, e.what());
             }
             nlohmann::json j;
             long blob_id = -2;
@@ -173,7 +173,7 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
                 j["message"] = "saveBlob called: failed to save blob, no client_id or app_id provided.";
                 res.set_content(j.dump(), "application/json");
                 delete[] blob;
-                return EndpointError(EndpointError::INVALID_PARAMS, "No client_id or app_id provided");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, "No client_id or app_id provided");
             }
             CubeDB::getDBManager()->addDbTask(fn); // ensures that the database operation is performed on the database thread.
             // these next two lines are necessary to ensure that the response is not sent until the database operation is complete and the blob_id is set.
@@ -188,7 +188,7 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
             j["blob_id"] = blob_id;
             res.set_content(j.dump(), "application/json");
             delete[] blob;
-            return EndpointError(EndpointError::NO_ERROR, "Blob saved");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Blob saved");
         } });
 
     // TODO: fix this endpoint. It has testing data in it.
@@ -229,7 +229,7 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
             delete[] ret;
             // We return the response string
             res.set_content(retStr, "text/plain");
-            return EndpointError(EndpointError::NO_ERROR, "Data inserted");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Data inserted");
         } });
 
     // retrieveBlobBinary - private, get - get a binary blob from the database, returns base64 encoded data
@@ -256,7 +256,7 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
                 j["message"] = "retrieveBlobBinary called: failed to retrieve blob, " + std::string(e.what());
                 res.set_content(j.dump(), "application/json");
                 delete[] ret;
-                return EndpointError(EndpointError::INTERNAL_ERROR, e.what());
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, e.what());
             }
             // then we create a lambda function to be executed on the database thread
             auto fn = [&]() {
@@ -294,7 +294,7 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
                 j["message"] = "retrieveBlobBinary called: failed to retrieve blob, blob not found.";
                 res.set_content(j.dump(), "application/json");
                 delete[] ret;
-                return EndpointError(EndpointError::NOT_FOUND, "Blob not found");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NOT_FOUND, "Blob not found");
             }
             // We copy the response buffer to a string and delete the buffer
             std::string retStr(ret, size);
@@ -303,7 +303,7 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
             std::string base64Blob = base64_encode_cube(std::vector<unsigned char>(retStr.begin(), retStr.end()));
             // We return the response string
             res.set_content(base64Blob, "text/plain");
-            return EndpointError(EndpointError::NO_ERROR, "Blob retrieved");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Blob retrieved");
         } });
     // retrieveBlobString - private, get - get a string blob from the database, returns string
     data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
@@ -327,7 +327,7 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
                 j["message"] = "retrieveBlobString called: failed to retrieve blob, " + std::string(e.what());
                 res.set_content(j.dump(), "application/json");
                 delete[] ret;
-                return EndpointError(EndpointError::INTERNAL_ERROR, e.what());
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, e.what());
             }
             // then we create a lambda function to be executed on the database thread
             auto fn = [&]() {
@@ -365,14 +365,14 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
                 j["message"] = "retrieveBlobString called: failed to retrieve blob, blob not found.";
                 res.set_content(j.dump(), "application/json");
                 delete[] ret;
-                return EndpointError(EndpointError::NOT_FOUND, "Blob not found");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NOT_FOUND, "Blob not found");
             }
             // We copy the response buffer to a string and delete the buffer
             std::string retStr(ret, size);
             delete[] ret;
             // We return the response string
             res.set_content(retStr, "text/plain");
-            return EndpointError(EndpointError::NO_ERROR, "Blob retrieved");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Blob retrieved");
         } });
     // TODO: endpoints to write:
     // retrieveData - private, get - get data from the database, returns json

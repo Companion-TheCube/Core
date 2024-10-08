@@ -381,7 +381,7 @@ std::string CubeAuth::getIntefaceName() const
 HttpEndPointData_t CubeAuth::getHttpEndpointData()
 {
     HttpEndPointData_t data;
-    data.push_back({PUBLIC_ENDPOINT | GET_ENDPOINT,
+    data.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
             // get the appID from the query string
             const std::string clientID = req.get_param_value("client_id");
@@ -401,7 +401,7 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
                 j["success"] = false;
                 j["message"] = "Database not open.";
                 res.set_content(j.dump(), "application/json");
-                return EndpointError(EndpointError::ERROR_TYPES::INTERNAL_ERROR, "Database not open.");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Database not open.");
             }
             // check to see if the client_id exists
             if (!db->rowExists(DB_NS::TableNames::CLIENTS, "client_id = '" + clientID + "'")) {
@@ -410,7 +410,7 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
                 j["success"] = false;
                 j["message"] = "Client id not found.";
                 res.set_content(j.dump(), "application/json");
-                return EndpointError(EndpointError::ERROR_TYPES::INTERNAL_ERROR, "Client id not found.");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Client id not found.");
             }
             // check to see if the initial code matches
             if (!db->rowExists(DB_NS::TableNames::CLIENTS, "client_id = '" + clientID + "' AND initial_code = '" + initialCode + "'")) {
@@ -419,7 +419,7 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
                 j["success"] = false;
                 j["message"] = "Initial code mismatch.";
                 res.set_content(j.dump(), "application/json");
-                return EndpointError(EndpointError::ERROR_TYPES::INTERNAL_ERROR, "Initial code mismatch.");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Initial code mismatch.");
             }
             // set the auth code in the db
             if (!db->updateData(DB_NS::TableNames::CLIENTS, { "auth_code" }, { randomString }, "client_id = '" + clientID + "'")) {
@@ -428,16 +428,15 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
                 j["success"] = false;
                 j["message"] = "Failed to set auth code.";
                 res.set_content(j.dump(), "application/json");
-                return EndpointError(EndpointError::ERROR_TYPES::INTERNAL_ERROR, "Failed to set auth code.");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Failed to set auth code.");
             }
             nlohmann::json j;
             j["success"] = true;
             j["message"] = "Authorized";
             j["auth_code"] = encryptedString;
             res.set_content(j.dump(), "application/json");
-            return EndpointError(EndpointError::ERROR_TYPES::NO_ERROR, "");
-        }
-    });
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_ERROR_TYPES::ENDPOINT_NO_ERROR, "");
+        } });
     data.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
             // get the appID from the query string
@@ -454,7 +453,7 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
                 j["success"] = false;
                 j["message"] = "Database not open.";
                 res.set_content(j.dump(), "application/json");
-                return EndpointError(EndpointError::ERROR_TYPES::INTERNAL_ERROR, "Database not open.");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Database not open.");
             }
             // check to see if the client_id exists
             if (!db->rowExists(DB_NS::TableNames::CLIENTS, "client_id = '" + clientID + "'")) {
@@ -465,9 +464,9 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
                     j["success"] = false;
                     j["message"] = "Failed to add client id.";
                     res.set_content(j.dump(), "application/json");
-                    return EndpointError(EndpointError::ERROR_TYPES::INTERNAL_ERROR, "Failed to add client id.");
+                    return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Failed to add client id.");
                 }
-            }else{
+            } else {
                 // set the initial code in the db
                 if (!db->updateData(DB_NS::TableNames::CLIENTS, { "initial_code" }, { initialCode }, "client_id = '" + clientID + "'")) {
                     CubeLog::error("Failed to set initial code.");
@@ -475,7 +474,7 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
                     j["success"] = false;
                     j["message"] = "Failed to set initial code.";
                     res.set_content(j.dump(), "application/json");
-                    return EndpointError(EndpointError::ERROR_TYPES::INTERNAL_ERROR, "Failed to set initial code.");
+                    return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Failed to set initial code.");
                 }
             }
             nlohmann::json j;
@@ -485,9 +484,8 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
             res.set_content(j.dump(), "application/json");
             // we need to display the initial code to the user
             GUI::showMessageBox("Authorization Code", "Your authorization code is:\n" + initialCode); // TODO: verify/test that this is thread safe
-            return EndpointError(EndpointError::ERROR_TYPES::NO_ERROR, "");
-        }
-    });
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_ERROR_TYPES::ENDPOINT_NO_ERROR, "");
+        } });
     return data;
 }
 

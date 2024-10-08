@@ -159,33 +159,33 @@ void API::httpApiThreadFn()
             CubeLog::debugSilly("Endpoint type: " + std::to_string(this->endpoints.at(i)->endpointType));
             std::function<void(const httplib::Request&, httplib::Response&)> publicAction = [&, i](const httplib::Request& req, httplib::Response& res) {
                 auto returned = this->endpoints.at(i)->doAction(req, res);
-                if(returned.errorType == EndpointError::ERROR_TYPES::NO_ERROR){
-                    CubeLog::debug("Endpoint action returned: " + returned.errorString);    
+                if (returned.errorType == EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR) {
+                    CubeLog::debug("Endpoint action returned: " + returned.errorString);
                 } else {
                     res.set_content("An error occurred: " + returned.errorString, "text/plain");
-                    switch(returned.errorType){
-                        case EndpointError::ERROR_TYPES::INVALID_REQUEST:
-                            res.status = httplib::StatusCode::BadRequest_400;
-                            CubeLog::error("Invalid request: " + returned.errorString);
-                            break;
-                        case EndpointError::ERROR_TYPES::INVALID_PARAMS:
-                            res.status = httplib::StatusCode::BadRequest_400;
-                            CubeLog::error("Invalid parameters: " + returned.errorString);
-                            break;
-                        case EndpointError::ERROR_TYPES::INTERNAL_ERROR:
-                            res.status = httplib::StatusCode::InternalServerError_500;
-                            CubeLog::error("Internal error: " + returned.errorString);
-                            break;
-                        case EndpointError::ERROR_TYPES::NOT_IMPLEMENTED:
-                            res.status = httplib::StatusCode::NotImplemented_501;
-                            CubeLog::error("Not implemented: " + returned.errorString);
-                            break;
-                        case EndpointError::ERROR_TYPES::NOT_AUTHORIZED:
-                            res.status = httplib::StatusCode::Forbidden_403;
-                            CubeLog::error("Not authorized: " + returned.errorString);
-                            break;
+                    switch (returned.errorType) {
+                    case EndpointError::ERROR_TYPES::ENDPOINT_INVALID_REQUEST:
+                        res.status = httplib::StatusCode::BadRequest_400;
+                        CubeLog::error("Invalid request: " + returned.errorString);
+                        break;
+                    case EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS:
+                        res.status = httplib::StatusCode::BadRequest_400;
+                        CubeLog::error("Invalid parameters: " + returned.errorString);
+                        break;
+                    case EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR:
+                        res.status = httplib::StatusCode::InternalServerError_500;
+                        CubeLog::error("Internal error: " + returned.errorString);
+                        break;
+                    case EndpointError::ERROR_TYPES::ENDPOINT_NOT_IMPLEMENTED:
+                        res.status = httplib::StatusCode::NotImplemented_501;
+                        CubeLog::error("Not implemented: " + returned.errorString);
+                        break;
+                    case EndpointError::ERROR_TYPES::ENDPOINT_NOT_AUTHORIZED:
+                        res.status = httplib::StatusCode::Forbidden_403;
+                        CubeLog::error("Not authorized: " + returned.errorString);
+                        break;
                     }
-                }                
+                }
             };
             if (this->endpoints.at(i)->isPublic()) {
                 CubeLog::debugSilly("Adding public endpoint: " + this->endpoints.at(i)->getName() + " at " + this->endpoints.at(i)->getPath());
@@ -214,32 +214,32 @@ void API::httpApiThreadFn()
                     }
                     // if the authorization header is valid, client is authorized
                     auto returned = this->endpoints.at(i)->doAction(req, res);
-                    if(returned.errorType == EndpointError::ERROR_TYPES::NO_ERROR){
+                    if (returned.errorType == EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR) {
                         res.set_content(returned.errorString, "text/plain");
                         CubeLog::debug("Endpoint action returned: " + returned.errorString);
                     } else {
                         res.set_content("An error occurred: " + returned.errorString, "text/plain");
-                        switch(returned.errorType){
-                            case EndpointError::ERROR_TYPES::INVALID_REQUEST:
-                                res.status = httplib::StatusCode::BadRequest_400;
-                                CubeLog::error("Invalid request: " + returned.errorString);
-                                break;
-                            case EndpointError::ERROR_TYPES::INVALID_PARAMS:
-                                res.status = httplib::StatusCode::BadRequest_400;
-                                CubeLog::error("Invalid parameters: " + returned.errorString);
-                                break;
-                            case EndpointError::ERROR_TYPES::INTERNAL_ERROR:
-                                res.status = httplib::StatusCode::InternalServerError_500;
-                                CubeLog::error("Internal error: " + returned.errorString);
-                                break;
-                            case EndpointError::ERROR_TYPES::NOT_IMPLEMENTED:
-                                res.status = httplib::StatusCode::NotImplemented_501;
-                                CubeLog::error("Not implemented: " + returned.errorString);
-                                break;
-                            case EndpointError::ERROR_TYPES::NOT_AUTHORIZED:
-                                res.status = httplib::StatusCode::Forbidden_403;
-                                CubeLog::error("Not authorized: " + returned.errorString);
-                                break;
+                        switch (returned.errorType) {
+                        case EndpointError::ERROR_TYPES::ENDPOINT_INVALID_REQUEST:
+                            res.status = httplib::StatusCode::BadRequest_400;
+                            CubeLog::error("Invalid request: " + returned.errorString);
+                            break;
+                        case EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS:
+                            res.status = httplib::StatusCode::BadRequest_400;
+                            CubeLog::error("Invalid parameters: " + returned.errorString);
+                            break;
+                        case EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR:
+                            res.status = httplib::StatusCode::InternalServerError_500;
+                            CubeLog::error("Internal error: " + returned.errorString);
+                            break;
+                        case EndpointError::ERROR_TYPES::ENDPOINT_NOT_IMPLEMENTED:
+                            res.status = httplib::StatusCode::NotImplemented_501;
+                            CubeLog::error("Not implemented: " + returned.errorString);
+                            break;
+                        case EndpointError::ERROR_TYPES::ENDPOINT_NOT_AUTHORIZED:
+                            res.status = httplib::StatusCode::Forbidden_403;
+                            CubeLog::error("Not authorized: " + returned.errorString);
+                            break;
                         }
                     }
                 };
@@ -407,8 +407,10 @@ void CubeHttpServer::start()
     });
     CubeLog::debugSilly("HTTP server set error handler");
     serverThread = new std::jthread([&] {
-        if(this->port > 0) this->server->listen_after_bind();
-        else this->server->set_address_family(AF_UNIX).listen(this->address, 80);
+        if (this->port > 0)
+            this->server->listen_after_bind();
+        else
+            this->server->set_address_family(AF_UNIX).listen(this->address, 80);
     });
     this->server->wait_until_ready();
     CubeLog::debugSilly(this->server->is_running() ? "HTTP server is running" : "HTTP server is not running");

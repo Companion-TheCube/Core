@@ -13,13 +13,13 @@
 
 struct EndpointError {
     enum ERROR_TYPES {
-        NO_ERROR,
-        INVALID_REQUEST,
-        INVALID_PARAMS,
-        INTERNAL_ERROR,
-        NOT_IMPLEMENTED,
-        NOT_AUTHORIZED,
-        NOT_FOUND,
+        ENDPOINT_NO_ERROR,
+        ENDPOINT_INVALID_REQUEST,
+        ENDPOINT_INVALID_PARAMS,
+        ENDPOINT_INTERNAL_ERROR,
+        ENDPOINT_NOT_IMPLEMENTED,
+        ENDPOINT_NOT_AUTHORIZED,
+        ENDPOINT_NOT_FOUND,
     };
     EndpointError(ERROR_TYPES errorType, std::string errorString)
         : errorType(errorType)
@@ -32,7 +32,7 @@ struct EndpointError {
 
 typedef std::function<EndpointError(const httplib::Request& req, httplib::Response& res)> EndpointAction_t;
 typedef std::pair<unsigned int, EndpointAction_t> HttpEndPointDataSinglet_t;
-typedef std::vector<std::pair<unsigned int, EndpointAction_t>> HttpEndPointData_t;
+typedef std::vector<std::pair<unsigned int, EndpointAction_t>> HttpEndPointData_t; // TODO: change this to a tuple with the endpoint name/path and params
 
 #define PUBLIC_ENDPOINT (int)1
 #define PRIVATE_ENDPOINT (int)2
