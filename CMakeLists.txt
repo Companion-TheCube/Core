@@ -2,7 +2,7 @@
 # Release build should have optimizations enabled and debug symbols stripped.
 
 # Minimum version of CMake required
-cmake_minimum_required(VERSION 3.28)
+cmake_minimum_required(VERSION 3.25)
 
 # Project name and the language used
 project(CubeCore VERSION 1.0 LANGUAGES CXX)
