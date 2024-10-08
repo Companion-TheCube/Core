@@ -1,8 +1,8 @@
 #ifndef MENU_H
 #define MENU_H
-#ifndef GUI_H
-#include "./../gui.h"
-#endif
+// #ifndef GUI_H
+// #include "./../gui.h"
+// #endif
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -73,7 +73,7 @@ private:
     float menuItemTextSize = MENU_ITEM_TEXT_SIZE;
     long scrollVertPosition = 0;
     bool onClickEnabled = true;
-    std::latch* latch;
+    CountingLatch* latch;
     int maxScrollY = 0;
     std::string menuName;
     Shader* textShader;
@@ -82,8 +82,8 @@ private:
     bool isMainMenu = false;
     bool isClickable = false;
 public:
-    Menu(Renderer* renderer, std::latch& latch);
-    Menu(Renderer* renderer, std::latch& latch, unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax);
+    Menu(Renderer* renderer, CountingLatch& latch);
+    Menu(Renderer* renderer, CountingLatch& latch, unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax);
     ~Menu();
     void setup();
     void onClick(void*);

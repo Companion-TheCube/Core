@@ -13,7 +13,7 @@
  * @param renderer - reference to the renderer
  * @param latch - a latch to synchronize the setup of the message box
  */
-CubeMessageBox::CubeMessageBox(Shader* shader, Shader* textShader, Renderer* renderer, std::latch& latch)
+CubeMessageBox::CubeMessageBox(Shader* shader, Shader* textShader, Renderer* renderer, CountingLatch& latch)
 {
     this->shader = shader;
     this->textShader = textShader;

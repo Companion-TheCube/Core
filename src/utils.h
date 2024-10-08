@@ -74,5 +74,37 @@ std::string getCpuUsage();
 
 #endif
 
+#ifndef _COUNTDOWN_LATCH_H_
+#define _COUNTDOWN_LATCH_H_
+#include <mutex>
+#include <condition_variable>
 
+class CountingLatch {
+public:
+    explicit CountingLatch(int count) : count_(count) {}
+
+    void count_up(int n = 1) {
+        std::unique_lock<std::mutex> lock(mutex_);
+        count_ += n;
+    }
+
+    void count_down() {
+        std::unique_lock<std::mutex> lock(mutex_);
+        if (--count_ == 0) {
+            cv_.notify_all();
+        }
+    }
+
+    void wait() {
+        std::unique_lock<std::mutex> lock(mutex_);
+        cv_.wait(lock, [this] { return count_ == 0; });
+    }
+
+private:
+    int count_;
+    std::mutex mutex_;
+    std::condition_variable cv_;
+};
+
+#endif
 #endif// UTILS_H

@@ -43,10 +43,13 @@ public:
     std::string getIntefaceName() const;
 
 private:
+    void addMenu(std::string menuName, std::string parentName, std::vector<std::string> entryTexts, std::vector<std::string> endpoints, CountingLatch &latch);
     Renderer* renderer;
     std::jthread eventLoopThread;
     EventManager* eventManager;
     static CubeMessageBox* messageBox;
+    std::vector<Menu*> menus;
+    std::vector<std::pair<std::function<bool()>,std::function<void(int)>>> drag_y_actions; // bool is visibility. if the item is not visible, do not call the action.
 };
 
 #endif

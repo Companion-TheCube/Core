@@ -6,7 +6,7 @@
  * @param filename the file to load the menu objects from
  * @param shader the shader to use for the menu objects
  */
-Menu::Menu(Renderer* renderer, std::latch& latch)
+Menu::Menu(Renderer* renderer, CountingLatch& latch)
 {
     // TODO: need a version of this constructor that takes in click area size and position
     CubeLog::info("Creating Menu class object");
@@ -26,7 +26,7 @@ Menu::Menu(Renderer* renderer, std::latch& latch)
     CubeLog::info("Menu created");
 }
 
-Menu::Menu(Renderer* renderer, std::latch& latch, unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax)
+Menu::Menu(Renderer* renderer, CountingLatch& latch, unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax)
 {
     CubeLog::info("Creating Menu object with click area size and position of " + std::to_string(xMin) + "x" + std::to_string(yMin) + " to " + std::to_string(xMax) + "x" + std::to_string(yMax));
     this->latch = &latch;
@@ -175,6 +175,11 @@ Menu* Menu::getParentMenu()
 void Menu::setMenuName(std::string name)
 {
     this->menuName = name;
+}
+
+std::string Menu::getMenuName()
+{
+    return this->menuName;
 }
 
 void Menu::setAsMainMenu()
