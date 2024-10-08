@@ -37,12 +37,12 @@ private:
     float messageTextSize = MESSAGEBOX_ITEM_TEXT_SIZE;
     long scrollVertPosition = 0;
     float index = 0.001;
-    std::latch* latch;
+    CountingLatch* latch;
     std::mutex mutex;
     std::vector<size_t> textMeshIndices;
     Renderer* renderer;
 public:
-    CubeMessageBox(Shader* shader, Shader* textShader, Renderer* renderer, std::latch& latch);
+    CubeMessageBox(Shader* shader, Shader* textShader, Renderer* renderer, CountingLatch& latch);
     ~CubeMessageBox();
     void setup();
     bool setVisible(bool visible);

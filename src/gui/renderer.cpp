@@ -74,13 +74,9 @@ int Renderer::thread()
 #ifdef __linux__
     this->window.setMouseCursorVisible(true); // TODO: change this to false for production
 #endif
-
     Shader edgesShader("./shaders/edges.vs", "./shaders/edges.fs");
     this->shader = &edgesShader;
-
-    Shader textShader("shaders/text.vs", "shaders/text.fs");
-    this->textShader = &textShader;
-
+    this->textShader = new Shader("shaders/text.vs", "shaders/text.fs");
     auto characterManager = new CharacterManager(&edgesShader);
     Character_generic* character = characterManager->getCharacterByName("TheCube"); // TODO: this call should return a nullptr if the character is not found. Then we should throw an error.
     characterManager->setCharacter(character);
@@ -88,33 +84,24 @@ int Renderer::thread()
     CubeLog::info("Renderer initialized. Starting Loop...");
     this->ready = true;
     this->latch->count_down(); // Send a signal to the GUI that the renderer is ready
-    auto screenMessage = new M_Text(this->textShader, "", 12, {0,1,0}, {2, 2});
-    // this->window.setActive();
+    auto screenMessage = new M_Text(this->textShader, "", 12, {0,1,0}, {2, 2}); // Logger output for CubeLog::screen()
     while (running) {
-        for (auto event = sf::Event {}; this->window.pollEvent(event);) {
-            this->events.push_back(event);
-        }
+        for (auto event = sf::Event {}; this->window.pollEvent(event);) this->events.push_back(event);
         this->setupTasksRun();
         this->window.setActive();
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // Set clear color to black
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); // Clear the color buffer, the depth buffer and the stencil buffer
-        if (this->running)
-            this->loopTasksRun();
+        if (this->running) this->loopTasksRun();
         if (characterManager->getCharacter() != nullptr) {
             // hold here until the animation and expression threads are ready
             std::unique_lock<std::mutex> lock2(characterManager->animationMutex);
             std::unique_lock<std::mutex> lock3(characterManager->expressionMutex);
             lock2.unlock();
             lock3.unlock();
-
             characterManager->getCharacter()->draw();
-
             characterManager->triggerAnimationAndExpressionThreads();
         }
-        for (auto object : this->objects) {
-            object->draw();
-        }
-
+        for (auto object : this->objects) object->draw();
         if(CubeLog::getScreenMessage() != ""){
             screenMessage->setText(CubeLog::getScreenMessage());
             screenMessage->draw();
@@ -201,19 +188,13 @@ void Renderer::addSetupTask(std::function<void()> task)
     this->setupQueue.push(task);
 }
 
-// TODO: add one-shot tasks that run once inside the loop similar to the setup tasks and loop tasks. Will also need to remove
-//  the setupTasks from the loop.
-
 /**
  * @brief Run all the setup tasks in the queue
  * 
  */
 void Renderer::setupTasksRun()
 {
-    while (this->setupQueue.size() > 0) {
-        auto task = this->setupQueue.pop();
-        task();
-    }
+    while (this->setupQueue.size() > 0) this->setupQueue.pop()();
 }
 
 /**
@@ -222,18 +203,8 @@ void Renderer::setupTasksRun()
  */
 void Renderer::loopTasksRun()
 {
-    if (this->loopQueue.size() == 0)
-        return;
-    TaskQueue queue;
-    while (this->loopQueue.size() > 0) {
-        auto task = this->loopQueue.pop();
-        queue.push(task);
-    }
-    while (queue.size() > 0) {
-        auto task = queue.pop();
-        task();
-        this->addLoopTask(task);
-    }
+    if (this->loopQueue.size() == 0) return;
+    for(int i = 0; i < this->loopQueue.size(); i++) this->loopQueue.peek(i)(); // Run the task
 }
 
 /**

@@ -378,6 +378,7 @@ bool EventManager::checkClickableAreas(sf::Event event)
     if (distance < 5) {
         CubeLog::info("Distance is less than 5");
         for (ClickableArea* area : this->clickableAreas) {
+            if(!area->clickableObject->getIsClickable()) continue;
             // get the x and y from the event
             int x = event.mouseButton.x;
             int y = event.mouseButton.y;

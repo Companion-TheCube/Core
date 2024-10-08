@@ -1,8 +1,8 @@
 #ifndef MENU_H
 #define MENU_H
-#ifndef GUI_H
-#include "./../gui.h"
-#endif
+// #ifndef GUI_H
+// #include "./../gui.h"
+// #endif
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -10,6 +10,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <typeinfo>
 #ifndef MESHOBJECT_H
 #include "./../renderables/meshObject.h"
 #endif
@@ -18,8 +19,11 @@
 #endif
 #ifndef OBJECTS_H
 #include "./../objects.h"
-#endif// MENU_H
+#endif
 #include <typeinfo>
+#ifndef RENDERER_H
+#include "./../renderer.h"
+#endif// MENU_H
 
 #define MENU_ITEM_SCROLL_LEFT_SPEED 1.5f
 #define MENU_ITEM_SCROLL_RIGHT_SPEED 4.2f
@@ -55,27 +59,31 @@ class MenuStencil;
 
 class Menu : public Clickable {
 private:
-    bool visible;
+    bool visible = false;
     std::function<void(void*)> action;
     std::function<void(void*)> rightAction;
     std::string name;
     std::vector<Object*> objects;
-    Shader* shader;
+    Renderer* renderer;
     bool ready = false;
     std::mutex mutex;
     std::vector<Clickable*> childrenClickables;
     ClickableArea clickArea;
     MenuStencil* stencil;
-    Shader* textShader;
     float menuItemTextSize = MENU_ITEM_TEXT_SIZE;
     long scrollVertPosition = 0;
     bool onClickEnabled = true;
-    std::latch* latch;
+    CountingLatch* latch;
     int maxScrollY = 0;
-
+    std::string menuName;
+    Shader* textShader;
+    std::mutex menuMutex;
+    Menu* parentMenu = nullptr;
+    bool isMainMenu = false;
+    bool isClickable = false;
 public:
-    Menu(Shader* shader, std::latch& latch);
-    Menu(Shader* shader, std::latch& latch, unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax);
+    Menu(Renderer* renderer, CountingLatch& latch);
+    Menu(Renderer* renderer, CountingLatch& latch, unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax);
     ~Menu();
     void setup();
     void onClick(void*);
@@ -90,6 +98,12 @@ public:
     std::vector<ClickableArea*> getClickableAreas();
     void addMenuEntry(std::string text, std::function<void(void*)> action);
     void addMenuEntry(std::string text, std::function<void(void*)> action, std::function<void(void*)> rightAction);
+    void setParentMenu(Menu* parentMenu);
+    Menu* getParentMenu();
+    void setMenuName(std::string name);
+    void setAsMainMenu();
+    void setIsClickable(bool isClickable);
+    std::string getMenuName();
     void addHorizontalRule();
     void scrollVert(int y);
     ClickableArea* getClickableArea();
@@ -98,6 +112,7 @@ public:
     void setClickAreaSize(unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax) { }
     void capturePosition() { }
     void restorePosition() { }
+    bool getIsClickable();
 };
 
 class MenuBox : public M_Box {
@@ -148,6 +163,7 @@ public:
     void setClickAreaSize(unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax) { }
     void capturePosition();
     void restorePosition();
+    bool getIsClickable(){return false;}
 };
 
 class MenuStencil : public Object {
@@ -217,6 +233,7 @@ public:
     void setClickAreaSize(unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax);
     void capturePosition();
     void restorePosition();
+    bool getIsClickable();
 };
 
 #endif// MENU_H

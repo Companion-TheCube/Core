@@ -64,47 +64,140 @@ void GUI::eventLoop()
     keyAPressedHandler->setEventType(sf::Event::KeyPressed);
     keyAPressedHandler->setSpecificEventType(SpecificEventTypes::KEYPRESS_A);
 
-    std::latch latch(2); // make sure this accounts for all of the setup tasks
-    auto menu = new Menu(this->renderer->getShader(), latch);
+
+
+    ////////////////////////////////////////
+    /// TESTING FUNCTION
+    ////////////////////////////////////////
+    auto repeatChar = [](std::string& inOut, int n, std::string repeatChars) {
+        for (int i = 0; i < n; i++) {
+            inOut += repeatChars;
+        }
+        return inOut;
+    };
+
+    ////////////////////////////////////////
+    /// Here we build the menus
+    ////////////////////////////////////////
+    // std::vector<Menu*> menus;
+    // std::latch latch(3); // make sure this accounts for all of the setup tasks
+    CountingLatch countingLatch(1);
+
+    ///////// Submenu /////////
+    countingLatch.count_up();
+    auto testSubMenu = new Menu(this->renderer, countingLatch, 0, 0, 0, 0);
+    testSubMenu->setMenuName("Test Sub Menu");
+    testSubMenu->setVisible(false);
+    menus.push_back(testSubMenu);
+    drag_y_actions.push_back({[&](){return testSubMenu->getVisible();},[&](int y){testSubMenu->scrollVert(y);}});
+    this->renderer->addSetupTask([&]() {
+        testSubMenu->addMenuEntry("< Back", [&](void* data) {
+            CubeLog::info("Back clicked");
+            testSubMenu->setVisible(false);
+            if(testSubMenu->getParentMenu() != nullptr){
+                testSubMenu->getParentMenu()->setVisible(true);
+            }
+        });
+        testSubMenu->addHorizontalRule();
+        testSubMenu->addMenuEntry("Test Sub Menu Entry 1", [&](void*){CubeLog::info("Test Sub Menu Entry 1 clicked");});
+        testSubMenu->addMenuEntry("Test Sub Menu Entry 2", [&](void*){CubeLog::info("Test Sub Menu Entry 2 clicked");});
+        testSubMenu->setup();
+        testSubMenu->setVisible(false);
+    });
+    this->renderer->addLoopTask([&]() {
+        testSubMenu->draw();
+    });
+
+    // addMenu("Test Menu 2", "Main Menu", {"Test Menu 2 Entry 1", "Test Menu 2 Entry 2", "Test Menu 2 Entry 3"}, {"Test Menu 2 Entry 1", "Test Menu 2 Entry 2", "Test Menu 2 Entry 3"});
+    // addMenu("Test Menu 3", "Test Menu 1", {"Test Menu 3 Entry 1", "Test Menu 3 Entry 2", "Test Menu 3 Entry 3"}, {"Test Menu 3 Entry 1", "Test Menu 3 Entry 2", "Test Menu 3 Entry 3"});
+
+    ///////// Main Menu /////////
+    auto mainMenu = new Menu(this->renderer, countingLatch);
+    testSubMenu->setParentMenu(mainMenu);
+    mainMenu->setMenuName("Main Menu");
+    
+    menus.push_back(mainMenu);
+    drag_y_actions.push_back({[&](){return mainMenu->getVisible();},[&](int y){mainMenu->scrollVert(y);}});
+    this->renderer->addSetupTask([&]() {
+        mainMenu->addMenuEntry("< Settings", [&](void* data) {
+            CubeLog::info("Settings clicked");
+            mainMenu->setVisible(false);
+            mainMenu->setIsClickable(true);
+        });
+        mainMenu->addHorizontalRule();
+        mainMenu->addMenuEntry("Test Sub Menu", [&](void* data) {
+            CubeLog::info("Test Sub Menu clicked");
+            testSubMenu->setVisible(true);
+            mainMenu->setVisible(false);
+            mainMenu->setIsClickable(false);
+        });
+        mainMenu->addMenuEntry("Test Menu Entry 1", [&](void*){CubeLog::info("Test Menu Entry 1 clicked");});
+        for(int i = 0; i < 25; i++){
+            std::string s = " - repeats: ";
+            repeatChar(s, i, "a ");
+            mainMenu->addMenuEntry("Test Menu Entry " + std::to_string(i) + s, [&,i](void*){CubeLog::info("Test Menu Entry " + std::to_string(i) + " clicked");});
+        }
+        mainMenu->setup();
+        mainMenu->setVisible(false);
+        mainMenu->setAsMainMenu(); // No other menus should call this method
+        mainMenu->setIsClickable(true);
+    });
+    this->renderer->addLoopTask([&]() {
+        mainMenu->draw();
+    });
+
+    addMenu("Test Menu 1", "Main Menu", {"Test Menu 1 Entry 1", "Test Menu 1 Entry 2", "Test Menu 1 Entry 3"}, {"Test Menu 1 Entry 1", "Test Menu 1 Entry 2", "Test Menu 1 Entry 3"}, countingLatch);
+
+
+    ////////////////////////////////////////
+    /// Set up the event handlers
+    ////////////////////////////////////////
 
     int drag_y_HandlerIndex = this->eventManager->createEvent("DRAG_Y");
     EventHandler* drag_y_Handler = this->eventManager->getEvent(drag_y_HandlerIndex);
+    
     int lastMouseY = INT_MIN;
     drag_y_Handler->setAction([&](void* data) {
         sf::Event* event = (sf::Event*)data;
-        if (event != nullptr){
-            if(sf::Mouse::isButtonPressed(sf::Mouse::Button::Left) || sf::Touch::isDown(0)){
-                if(lastMouseY>INT_MIN) menu->scrollVert(-(event->mouseMove.y - lastMouseY));
+        if (event == nullptr) {
+            CubeLog::error("Drag Y: nullptr");
+            return;
+        }
+        if(sf::Mouse::isButtonPressed(sf::Mouse::Button::Left) || sf::Touch::isDown(0) && lastMouseY > INT_MIN){
+            for(auto action : drag_y_actions){
+                if(action.first()){
+                    action.second(-(event->mouseMove.y - lastMouseY));
+                }
             }
-            lastMouseY = event->mouseMove.y;
-        } else CubeLog::error("Drag Y: nullptr");
+        }
+        lastMouseY = event->mouseMove.y;
+        
     });
     drag_y_Handler->setEventType(sf::Event::MouseMoved);
 
-    messageBox = new CubeMessageBox(this->renderer->getShader(), this->renderer->getTextShader(), this->renderer, latch);
+    messageBox = new CubeMessageBox(this->renderer->getShader(), this->renderer->getTextShader(), this->renderer, countingLatch);
+    countingLatch.count_up();
     // menu->setVisible(false);
     this->renderer->addSetupTask([&]() {
-        menu->setup();
         // TODO: remove the testing menu entries from the menu class and build the menu here.
         messageBox->setup();
+    });
+    this->renderer->addLoopTask([&]() {
+        messageBox->draw();
     });
 
     // TODO: make this not visible by default. Add a method for showing message box messages that checks if the menu is visible so
     // that we don't draw on top of the menu. Then, in the loop, if the messagebox is pending, and the menu gets closed, show the messagebox.
     messageBox->setVisible(false);
 
-    latch.wait();
-    if (this->renderer->isReady() && this->renderer->getIsRunning()) {
-        this->renderer->addLoopTask([&]() {
-            menu->draw();
-            messageBox->draw();
-        });
-    } else {
-        CubeLog::error("Renderer is not ready or is not running");
-    }
-
-    for (auto area : menu->getClickableAreas()) {
-        this->eventManager->addClickableArea(area);
+    countingLatch.wait();
+    
+    if (!this->renderer->isReady() || !this->renderer->getIsRunning()) CubeLog::error("Renderer is not ready or is not running");
+    
+    for(auto menu : menus){
+        for (auto area : menu->getClickableAreas()) {
+            this->eventManager->addClickableArea(area);
+        }
     }
 
     CubeLog::info("Starting event handler loop...");
@@ -119,9 +212,45 @@ void GUI::eventLoop()
         genericSleep(5);
     }
     CubeLog::info("Event handler loop stopped");
-    delete menu;
+    delete mainMenu;
     delete messageBox;
 }
+
+
+// TODO: This is not working. Need to add a menuentry to the parentmenu with action to show this new menu.
+void GUI::addMenu(std::string menuName, std::string parentName, std::vector<std::string> entryTexts, std::vector<std::string> endpoints, CountingLatch &latch){
+    latch.count_up();
+    auto menu = new Menu(this->renderer, latch);
+    menu->setMenuName(menuName);
+    menu->setVisible(false);
+    menus.push_back(menu);
+    drag_y_actions.push_back({[&,menu](){return menu->getVisible();},[&,menu](int y){menu->scrollVert(y);}});
+    this->renderer->addSetupTask([&, menu, entryTexts, parentName]() {
+        menu->addMenuEntry("< Back", [&](void* data) {
+            CubeLog::info("Back clicked");
+            menu->setVisible(false);
+            if(menu->getParentMenu() != nullptr){
+                menu->getParentMenu()->setVisible(true);
+            }
+        });
+        menu->addHorizontalRule();
+        for(int i = 0; i < entryTexts.size(); i++){
+            std::string temp = entryTexts[i];
+            menu->addMenuEntry(entryTexts[i], [&, temp](void*){CubeLog::info("Test Sub Menu Entry " + std::to_string(i) + " clicked. " + temp);});
+        }
+        menu->setup();
+        menu->setVisible(false);
+        for(auto menu : menus){
+            CubeLog::info("Comparing: " + menu->getMenuName() + " to " + parentName);
+            if(menu->getMenuName() == parentName){
+                menu->setParentMenu(menu);
+            }
+        }
+    });
+    this->renderer->addLoopTask([&, menu]() {
+        menu->draw();
+    });
+};
 
 /**
  * @brief Stop the event loop
@@ -132,6 +261,12 @@ void GUI::stop()
     this->renderer->stop();
 }
 
+/**
+ * @brief Show a message box with a title and message
+ * 
+ * @param title 
+ * @param message 
+ */
 void GUI::showMessageBox(std::string title, std::string message)
 {
     // check that messageBox is not null pointer
