@@ -160,7 +160,7 @@ void GUI::eventLoop()
             return;
         }
         
-        if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left) || event->type == sf::Event::EventType::TouchMoved && lastMouseY > INT_MIN) {
+        if ((sf::Mouse::isButtonPressed(sf::Mouse::Button::Left) && event->type != sf::Event::EventType::TouchBegan) || event->type == sf::Event::EventType::TouchMoved && lastMouseY > INT_MIN) {
             for (auto action : drag_y_actions) {
                 if (action.first()) {
                     action.second(-(event->mouseMove.y - lastMouseY));
