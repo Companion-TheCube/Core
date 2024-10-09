@@ -41,6 +41,13 @@ public:
         tasks_.pop_back();
         return task;
     }
+    std::function<void()> shift(){
+        std::unique_lock<std::mutex> lock(mutex_);
+        condition_.wait(lock, [this] { return !tasks_.empty(); });
+        auto task = std::move(tasks_.front());
+        tasks_.erase(tasks_.begin());
+        return task;
+    }
     std::function<void()> peek(){
         std::lock_guard<std::mutex> lock(mutex_);
         return tasks_.front();

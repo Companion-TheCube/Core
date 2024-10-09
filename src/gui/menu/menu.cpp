@@ -1,5 +1,8 @@
 #include "menu.h"
 
+bool Menu::mainMenuSet = false;
+
+
 /**
  * @brief Construct a new Menu:: Menu object
  * @param logger a CubeLog object
@@ -160,43 +163,65 @@ void Menu::scrollVert(int y)
     }
 }
 
+/**
+ * @brief Set the reference to this menu's parent menu
+ * 
+ * @param parentMenu the parent menu
+ * @return void
+ */
 void Menu::setParentMenu(Menu* parentMenu)
 {
     std::unique_lock<std::mutex> lock(this->menuMutex);
     this->parentMenu = parentMenu;
 }
 
+/**
+ * @brief Get the parent menu
+ */
 Menu* Menu::getParentMenu()
 {
     std::unique_lock<std::mutex> lock(this->menuMutex);
     return this->parentMenu;
 }
 
+/**
+ * @brief Set the name of the menu. This is used to identify the menu in JSON menu configuration files and API calls
+ */
 void Menu::setMenuName(std::string name)
 {
     this->menuName = name;
 }
 
+/**
+ * @brief Get the name of the menu
+ */
 std::string Menu::getMenuName()
 {
     return this->menuName;
 }
 
+/**
+ * @brief Set this menu as the main menu. Only one menu can be the main menu. Throws an error if a menu is already set as the main menu.
+ */
 void Menu::setAsMainMenu()
 {
+    if (Menu::mainMenuSet) {
+        CubeLog::error("Main menu already set. Only one menu can be set as the main menu.");
+        throw std::runtime_error("Main menu already set. Only one menu can be set as the main menu.");
+        return;
+    }
     this->isMainMenu = true;
+    Menu::mainMenuSet = true;
 }
 
 /**
- * @brief Setup the menu
+ * @brief Setup the menu. This must be called by the renderer thread. 
  *
  */
 void Menu::setup()
 {
     this->objects.push_back(new MenuBox({ MENU_POSITION_SCREEN_RELATIVE_X_CENTER, MENU_POSITION_SCREEN_RELATIVE_Y_CENTER }, { MENU_WIDTH_SCREEN_RELATIVE, MENU_HEIGHT_SCREEN_RELATIVE }, this->renderer->getShader()));
     this->objects.at(0)->setVisible(true);
-    // create a copy of the shader for the text
-    // this->textShader = new Shader("shaders/text.vs", "shaders/text.fs");
     Shader* stencilShader = new Shader("shaders/menuStencil.vs", "shaders/menuStencil.fs");
     float stencilX_start_temp = MENU_POSITION_SCREEN_RELATIVE_X_CENTER - MENU_WIDTH_SCREEN_RELATIVE / 2;
     float stencilY_start_temp = MENU_POSITION_SCREEN_RELATIVE_Y_CENTER - MENU_HEIGHT_SCREEN_RELATIVE / 2;
@@ -205,38 +230,7 @@ void Menu::setup()
     float stencilWidth = mapRange(MENU_WIDTH_SCREEN_RELATIVE, SCREEN_RELATIVE_MIN_WIDTH, SCREEN_RELATIVE_MAX_WIDTH, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X) - (STENCIL_INSET_PX * 2);
     float stencilHeight = mapRange(MENU_HEIGHT_SCREEN_RELATIVE, SCREEN_RELATIVE_MIN_HEIGHT, SCREEN_RELATIVE_MAX_HEIGHT, SCREEN_PX_MIN_Y, SCREEN_PX_MAX_Y) - (STENCIL_INSET_PX * 2);
     this->stencil = new MenuStencil({ stencilX_start, stencilY_start }, { stencilWidth, stencilHeight }, stencilShader);
-
-    // this->addMenuEntry("< Settings", [&](void* data) {
-    //     CubeLog::info("Settings clicked");
-    //     this->setVisible(false);
-    // });
-
-    // this->addHorizontalRule();
-    /////// TESTING //////////// TODO:
-    // this->addMenuEntry("Test addMenuEntry() 1 very long test text that is very long", [&](void* data) {
-    //     CubeLog::info("Test clicked");
-    //     // find the font "lobster"
-    //     for (auto font : GlobalSettings::fontPaths) {
-    //         if (font.find("Lobster") != std::string::npos) {
-    //             if (GlobalSettings::setSetting("selectedFontPath", font)) {
-    //                 CubeLog::info("SelectedFontPath: " + GlobalSettings::selectedFontPath);
-    //             }
-    //         }
-    //     }
-    // });
-
-    // this->addMenuEntry("Scroll by 10", [&](void* data) {
-    //     CubeLog::info("Scroll by 10");
-    //     this->scrollVert(10);
-    // });
-
-    // this->addHorizontalRule();
-    // for(int i = 0; i < 25; i++){
-    //     this->addMenuEntry("MenuEntry " + std::to_string(i), [&](void* data) {
-    //         CubeLog::info("Test clicked: " + std::to_string(i));
-    //     });
-    // }
-
+    /////// TESTING //////////// 
     // for (auto font : GlobalSettings::fontPaths) {
     //     FT_Library ft;
     //     FT_Face face;
@@ -275,7 +269,6 @@ void Menu::setup()
  */
 void Menu::onClick(void* data)
 {
-    // CubeLog::info("Menu clicked");
     if (this->action != nullptr && this->onClickEnabled) {
         this->action(data);
     }

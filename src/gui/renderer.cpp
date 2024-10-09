@@ -194,7 +194,7 @@ void Renderer::addSetupTask(std::function<void()> task)
  */
 void Renderer::setupTasksRun()
 {
-    while (this->setupQueue.size() > 0) this->setupQueue.pop()();
+    while (this->setupQueue.size() > 0) this->setupQueue.shift()();
 }
 
 /**

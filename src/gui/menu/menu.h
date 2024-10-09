@@ -81,6 +81,7 @@ private:
     Menu* parentMenu = nullptr;
     bool isMainMenu = false;
     bool isClickable = false;
+    static bool mainMenuSet;
 public:
     Menu(Renderer* renderer, CountingLatch& latch);
     Menu(Renderer* renderer, CountingLatch& latch, unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax);
