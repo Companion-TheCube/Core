@@ -87,13 +87,14 @@ int Renderer::thread()
     auto screenMessage = new M_Text(this->textShader, "", 12, {0,1,0}, {2, 2}); // Logger output for CubeLog::screen()
     while (running) {
         for (auto event = sf::Event {}; this->window.pollEvent(event);) this->events.push_back(event);
-        this->setupTasksRun();
+        if (this->running) this->setupTasksRun();
         this->window.setActive();
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // Set clear color to black
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); // Clear the color buffer, the depth buffer and the stencil buffer
         if (this->running) this->loopTasksRun();
         if (characterManager->getCharacter() != nullptr) {
             // hold here until the animation and expression threads are ready
+            // TODO: replace this with a CountingLatch. This will be cleaner.
             std::unique_lock<std::mutex> lock2(characterManager->animationMutex);
             std::unique_lock<std::mutex> lock3(characterManager->expressionMutex);
             lock2.unlock();

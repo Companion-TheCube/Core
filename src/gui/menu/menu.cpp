@@ -71,6 +71,8 @@ void Menu::addMenuEntry(std::string text, std::function<void(void*)> action)
     // TODO: add the ability to have an entry be fixed to the top of the menu. This will need a stencil so that other entries can be scrolled under it.
     // TODO: add icon support
     // TODO: add checkbox support
+    // TODO: add radio button support
+    // TODO: add slider support
     CubeLog::debug("Adding MenuEntry with text: " + text);
     float startY = (((menuItemTextSize * 1.2) + MENU_ITEM_PADDING_PX) * this->childrenClickables.size()) + MENU_TOP_PADDING_PX;
     float textX = mapRange(MENU_POSITION_SCREEN_RELATIVE_X_LEFT, SCREEN_RELATIVE_MIN_X, SCREEN_RELATIVE_MAX_X, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X) + (STENCIL_INSET_PX * 2);

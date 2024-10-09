@@ -227,6 +227,15 @@ void GUI::eventLoop()
 }
 
 // TODO: This is working, but we need to execute the endpoint in the entry action
+/**
+ * @brief Add a menu to the GUI
+ * 
+ * @param menuName the name of the menu
+ * @param parentName the name of the parent menu
+ * @param entryTexts the text for the menu entries
+ * @param endpoints the endpoints for the menu entries. This can be simple HTTP GET endpoints or JSON objects that describe the endpoint.
+ * @param latch a CountingLatch object that will be used to wait for the menu to be ready
+ */
 void GUI::addMenu(std::string menuName, std::string parentName, std::vector<std::string> entryTexts, std::vector<std::string> endpoints, CountingLatch& latch)
 {
     latch.count_up();
@@ -302,6 +311,14 @@ void GUI::showMessageBox(std::string title, std::string message)
  */
 HttpEndPointData_t GUI::getHttpEndpointData()
 {
+    /* 
+    TODO: Add the following endpoints:
+    - addMenu
+    - showMessageBoxMessage
+    - addCharacter
+    - removeCharacter
+    - animateCharacter
+    */
     HttpEndPointData_t actions;
     actions.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
