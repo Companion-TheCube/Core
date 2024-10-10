@@ -253,7 +253,7 @@ private:
     int stencilIndex = 0;
 
 public:
-    MenuStencil(glm::vec2 position, glm::vec2 size, Shader* shader);
+    MenuStencil(glm::vec2 position, glm::vec2 size, Shader* shader, uint8_t index);
     ~MenuStencil();
     void setPosition(glm::vec2 position);
     void setSize(glm::vec2 size);
