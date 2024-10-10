@@ -7,6 +7,8 @@
 #include <globalSettings.h>
 #include FT_FREETYPE_H
 
+#define STENCIL_INSET_PX 10
+
 struct Character {
     unsigned int TextureID; // ID handle of the glyph texture
     glm::ivec2 Size; // Size of glyph
@@ -89,7 +91,7 @@ private:
     bool visible = true;
     std::mutex mutex;
 public:
-    M_PartCircle(Shader* sh, unsigned int numSegments, float radius, glm::vec3 centerPoint, float startAngle, float endAngle, float fillColor);
+    M_PartCircle(Shader* sh, unsigned int numSegments, float radius, glm::vec3 centerPoint, float startAngle, float endAngle, glm::vec3 fillColor);
     ~M_PartCircle();
     void draw();
     void setProjectionMatrix(glm::mat4 projectionMatrix);
@@ -213,7 +215,9 @@ private:
     glm::mat4 capturedModelMatrix;
     bool visible = true;
     std::mutex mutex;
+    glm::vec3 fillColor = {1.f,1.f,1.f};
 public:
+    M_Arc(Shader* sh, unsigned int numSegments, float radius, float startAngle, float endAngle, glm::vec3 centerPoint, glm::vec3 fillColor);
     M_Arc(Shader* sh, unsigned int numSegments, float radius, float startAngle, float endAngle, glm::vec3 centerPoint);
     ~M_Arc();
     void draw();
@@ -233,6 +237,57 @@ public:
     glm::vec3 getCenterPoint();
     std::vector<Vertex> getVertices();
     float getWidth();
+    void capturePosition();
+    void restorePosition();
+    void setVisibility(bool visible);
+    void getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix);
+};
+
+class M_RadioButton : public MeshObject {
+private:
+    Shader* shader;
+    std::vector<Vertex> vertexData;
+    GLuint VAO[1], VBO[1];
+    glm::mat4 projectionMatrix;
+    glm::mat4 viewMatrix;
+    glm::mat4 modelMatrix;
+    glm::vec3 centerPoint;
+    float radius;
+    float radiusPx;
+    glm::vec3 bgColor;
+    glm::vec3 fgColor;
+    bool selected;
+    glm::mat4 capturedProjectionMatrix;
+    glm::mat4 capturedViewMatrix;
+    glm::mat4 capturedModelMatrix;
+    bool visible = true;
+    std::mutex mutex;
+    M_Arc* outline;
+    M_PartCircle* bg_fill;
+    M_PartCircle* center_fill;
+
+public:
+    M_RadioButton(Shader* sh, glm::vec3 position, float radius, float radiusPx, glm::vec3 bgColor, glm::vec3 fgColor);
+    ~M_RadioButton();
+    void draw();
+    void setProjectionMatrix(glm::mat4 projectionMatrix);
+    void setViewMatrix(glm::vec3 viewMatrix);
+    void setViewMatrix(glm::mat4 viewMatrix);
+    void setModelMatrix(glm::mat4 modelMatrix);
+    glm::mat4 getModelMatrix();
+    glm::mat4 getViewMatrix();
+    glm::mat4 getProjectionMatrix();
+    void translate(glm::vec3 translation);
+    void rotate(float angle, glm::vec3 axis);
+    void scale(glm::vec3 scale);
+    void uniformScale(float scale);
+    void rotateAbout(float angle, glm::vec3 axis, glm::vec3 point);
+    void rotateAbout(float angle, glm::vec3 point);
+    glm::vec3 getCenterPoint();
+    std::vector<Vertex> getVertices();
+    float getWidth();
+    bool setSelected(bool selected);
+    bool getSelected();
     void capturePosition();
     void restorePosition();
     void setVisibility(bool visible);
@@ -383,6 +438,5 @@ public:
     void setVisibility(bool visible);
     void getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix);
 };
-
 
 #endif// SHAPES_H

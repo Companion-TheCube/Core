@@ -7,8 +7,10 @@ layout(location = 0) in vec3 aPos;   // Correct use: specifies the location of v
 out vec3 vertexColor; // Pass color to fragment shader
 float aColor = 1.0; // Hardcoded color
 uniform mat4 projection;
+uniform mat4 model;
+uniform mat4 view;
 
 void main() {
-    gl_Position = projection * vec4(aPos, 1.0);
+    gl_Position = projection * model * view * vec4(aPos, 1.0);
     vertexColor = vec3(aColor, aColor, aColor);
 }

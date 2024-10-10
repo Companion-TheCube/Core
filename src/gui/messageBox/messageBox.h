@@ -25,7 +25,6 @@
 
 #define Z_DISTANCE 3.57
 #define BOX_RADIUS 0.05
-#define STENCIL_INSET_PX 6
 #define MESSAGEBOX_ITEM_TEXT_SIZE 32.f
 
 class CubeMessageBox: public M_Box{

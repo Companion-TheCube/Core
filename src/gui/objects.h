@@ -1,27 +1,32 @@
 #ifndef OBJECTS_H
 #define OBJECTS_H
-#include <vector>
+#include "GL/glew.h"
 #include <SFML/Graphics.hpp>
-#include <logger.h>
-#include <glm/glm.hpp>
+#include <SFML/OpenGL.hpp>
+#include <SFML/Window.hpp>
 #include <functional>
+#include <glm/glm.hpp>
+#include <logger.h>
+#include <vector>
 
 class Clickable;
 
-struct Vertex{
+struct Vertex {
     float x, y, z;
     float r, g, b;
 };
 
-struct ClickableArea{
-    ClickableArea(){
+struct ClickableArea {
+    ClickableArea()
+    {
         this->xMin = 0;
         this->xMax = 0;
         this->yMin = 0;
         this->yMax = 0;
         this->clickableObject = nullptr;
     };
-    ClickableArea(unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax, Clickable* clickableObject){
+    ClickableArea(long xMin, long xMax, long yMin, long yMax, Clickable* clickableObject)
+    {
         this->xMin = xMin;
         this->xMax = xMax;
         this->yMin = yMin;
@@ -29,7 +34,7 @@ struct ClickableArea{
         this->clickableObject = clickableObject;
     }
     Clickable* clickableObject;
-    unsigned int xMin, xMax, yMin, yMax;
+    long xMin, xMax, yMin, yMax;
 };
 
 class MeshObject {
@@ -52,40 +57,38 @@ public:
     virtual glm::vec3 getCenterPoint() = 0;
     virtual std::vector<Vertex> getVertices() = 0;
     virtual float getWidth() = 0;
-    virtual ~MeshObject(){};
+    virtual ~MeshObject() {};
     virtual void capturePosition() = 0;
     virtual void restorePosition() = 0;
     virtual void setVisibility(bool visible) = 0;
     virtual void getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix) = 0;
 };
 
-
-
-class Object{
-    public:
-        virtual ~Object(){};
-        virtual void draw() = 0;
-        virtual bool setVisible(bool visible) = 0;
-        virtual bool getVisible() = 0;
+class Object {
+public:
+    virtual ~Object() {};
+    virtual void draw() = 0;
+    virtual bool setVisible(bool visible) = 0;
+    virtual bool getVisible() = 0;
 };
 
-class M_Box: public Object{
+class M_Box : public Object {
 public:
     virtual void setPosition(glm::vec2 position) = 0;
     virtual void setSize(glm::vec2 size) = 0;
     virtual bool setVisible(bool visible) = 0;
-    virtual ~M_Box(){};
+    virtual ~M_Box() {};
 };
 
-class Clickable: public Object{
+class Clickable : public Object {
 public:
-    virtual ~Clickable(){};
+    virtual ~Clickable() {};
     ClickableArea clickArea;
     virtual void onClick(void*) = 0;
     virtual void onRightClick(void*) = 0;
     virtual std::vector<MeshObject*> getObjects() = 0;
-    virtual void setOnClick(std::function<void(void*)> action) = 0;
-    virtual void setOnRightClick(std::function<void(void*)> action) = 0;
+    virtual void setOnClick(std::function<unsigned int(void*)> action) = 0;
+    virtual void setOnRightClick(std::function<unsigned int(void*)> action) = 0;
     virtual ClickableArea* getClickableArea() = 0;
     virtual void setVisibleWidth(float width) = 0;
     virtual void setClickAreaSize(unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax) = 0;
@@ -95,12 +98,12 @@ public:
     virtual bool getIsClickable() = 0;
 };
 
-
-
-template<typename T>
-T mapRange(T value, T fromLow, T fromHigh, T toLow, T toHigh) {
+template <typename T>
+T mapRange(T value, T fromLow, T fromHigh, T toLow, T toHigh)
+{
     return toLow + (value - fromLow) * (toHigh - toLow) / (fromHigh - fromLow);
 }
 
+void checkGLError(const std::string& location);
 
-#endif// OBJECTS_H
+#endif // OBJECTS_H

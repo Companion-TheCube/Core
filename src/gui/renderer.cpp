@@ -45,7 +45,7 @@ int Renderer::thread()
     settings.antialiasingLevel = 4.0;
     settings.depthBits = 24;
     settings.stencilBits = 8;
-    settings.antialiasingLevel = 32;
+    settings.antialiasingLevel = 4;
     this->window.create(sf::VideoMode(720, 720), "TheCube", sf::Style::None, settings);
     this->window.setVerticalSyncEnabled(true);
     this->window.setFramerateLimit(30);

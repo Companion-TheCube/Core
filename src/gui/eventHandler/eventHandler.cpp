@@ -1,6 +1,9 @@
 #include "eventHandler.h"
 
-// TODO: add click-drag functionality
+// TODO: Need to refactor so that the functions that take in "void* data" also take 
+// in "sf::Event eventData". As it is, "void* data" is being used to pass sf::Event
+// to the triggerEvent function and there is not a good way to pass any actual data
+// to the final action.
 
 /**
  * @brief Construct a new Event Handler:: Event Handler object

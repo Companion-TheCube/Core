@@ -105,8 +105,6 @@ void M_Text::buildText()
 
     glBindTexture(GL_TEXTURE_2D, 0);
     checkGLError("0.5");
-    // FT_Done_Face(face);
-    // FT_Done_FreeType(ft);
     glGenVertexArrays(1, &this->VAO);
     glGenBuffers(1, &this->VBO);
     glBindVertexArray(this->VAO);
@@ -312,7 +310,7 @@ glm::mat4 M_Text::getProjectionMatrix(){
 
 //////////////////////////////////////////////////////////////////////////////////////////
 
-M_PartCircle::M_PartCircle(Shader* sh, unsigned int numSegments, float radius, glm::vec3 centerPoint, float startAngle, float endAngle, float fillColor)
+M_PartCircle::M_PartCircle(Shader* sh, unsigned int numSegments, float radius, glm::vec3 centerPoint, float startAngle, float endAngle, glm::vec3 fillColor)
 {
     this->shader = sh;
     this->numSegments = numSegments;
@@ -327,13 +325,13 @@ M_PartCircle::M_PartCircle(Shader* sh, unsigned int numSegments, float radius, g
         this->endAngle = temp;
     }
     // push the center point as the first vertex
-    this->vertexData.push_back({ centerPoint.x, centerPoint.y, centerPoint.z, fillColor });
+    this->vertexData.push_back({ centerPoint.x, centerPoint.y, centerPoint.z, fillColor.r, fillColor.g, fillColor.b });
     for (unsigned int i = 0; i <= this->numSegments; i++) {
         float theta = glm::radians(this->startAngle) + i * (glm::radians(this->endAngle) - glm::radians(this->startAngle)) / this->numSegments;
         float x = this->centerPoint.x + this->radius * cos(theta);
         float y = this->centerPoint.y + this->radius * sin(theta);
         float z = this->centerPoint.z;
-        this->vertexData.push_back({ x, y, z, fillColor });
+        this->vertexData.push_back({ x, y, z, fillColor.r , fillColor.g, fillColor.b });
     }
     glGenVertexArrays(1, VAO);
     glGenBuffers(1, VBO);
@@ -396,11 +394,7 @@ void M_PartCircle::setModelMatrix(glm::mat4 modelMatrix)
 
 void M_PartCircle::translate(glm::vec3 translation)
 {
-    for (int i = 0; i < this->vertexData.size(); i++) {
-        this->vertexData[i].x += translation.x;
-        this->vertexData[i].y += translation.y;
-        this->vertexData[i].z += translation.z;
-    }
+    this->modelMatrix = glm::translate(this->modelMatrix, translation);
 }
 
 void M_PartCircle::rotate(float angle, glm::vec3 axis)
@@ -511,6 +505,159 @@ glm::mat4 M_PartCircle::getViewMatrix(){
 glm::mat4 M_PartCircle::getProjectionMatrix(){
     return this->projectionMatrix;
 }
+
+//////////////////////////////////////////////////////////////////////////////////////////
+
+M_RadioButton::M_RadioButton(Shader* sh, glm::vec3 position, float radius, float radiusPx, glm::vec3 bgColor, glm::vec3 fgColor){
+    CubeLog::debugSilly("Creating RadioButton with position: " + std::to_string(position.x) + ", " + std::to_string(position.y) + ", " + std::to_string(position.z));
+    this->shader = sh;
+    this->centerPoint = position;
+    this->radius = radius;
+    this->radiusPx = radiusPx;
+    this->bgColor = bgColor;
+    this->fgColor = fgColor;
+    this->selected = true;
+    this->outline = new M_Arc(sh, 72, this->radius, 0, 360, position, fgColor);
+    this->bg_fill = new M_PartCircle(sh, 72, this->radius * 1.05, position, 0, 300, bgColor);
+    this->center_fill = new M_PartCircle(sh, 72, this->radius * 0.5, position, 0, 270, fgColor);
+    CubeLog::info("Created RadioButton");
+}
+
+M_RadioButton::~M_RadioButton(){
+    CubeLog::info("Destroyed RadioButton");
+    delete this->outline;
+    delete this->bg_fill;
+    delete this->center_fill;
+}
+
+void M_RadioButton::draw(){
+    this->outline->draw();
+    this->bg_fill->draw();
+    if(this->selected){
+        this->center_fill->draw();
+    }
+}
+
+void M_RadioButton::setProjectionMatrix(glm::mat4 projectionMatrix){
+    this->outline->setProjectionMatrix(projectionMatrix);
+    this->bg_fill->setProjectionMatrix(projectionMatrix);
+    this->center_fill->setProjectionMatrix(projectionMatrix);
+}
+
+void M_RadioButton::setViewMatrix(glm::vec3 viewMatrix){
+    this->outline->setViewMatrix(viewMatrix);
+    this->bg_fill->setViewMatrix(viewMatrix);
+    this->center_fill->setViewMatrix(viewMatrix);
+}
+
+void M_RadioButton::setViewMatrix(glm::mat4 viewMatrix){
+    this->outline->setViewMatrix(viewMatrix);
+    this->bg_fill->setViewMatrix(viewMatrix);
+    this->center_fill->setViewMatrix(viewMatrix);
+}
+
+void M_RadioButton::setModelMatrix(glm::mat4 modelMatrix){
+    this->outline->setModelMatrix(modelMatrix);
+    this->bg_fill->setModelMatrix(modelMatrix);
+    this->center_fill->setModelMatrix(modelMatrix);
+}
+
+void M_RadioButton::translate(glm::vec3 translation){
+    this->centerPoint += translation;
+    this->outline->translate(translation);
+    this->bg_fill->translate(translation);
+    this->center_fill->translate(translation);
+}
+
+void M_RadioButton::rotate(float angle, glm::vec3 axis){
+    this->outline->rotate(angle, axis);
+    this->bg_fill->rotate(angle, axis);
+    this->center_fill->rotate(angle, axis);
+}
+
+void M_RadioButton::scale(glm::vec3 scale){
+    this->outline->scale(scale);
+    this->bg_fill->scale(scale);
+    this->center_fill->scale(scale);
+}
+
+void M_RadioButton::uniformScale(float scale){
+    this->outline->uniformScale(scale);
+    this->bg_fill->uniformScale(scale);
+    this->center_fill->uniformScale(scale);
+}
+
+void M_RadioButton::rotateAbout(float angle, glm::vec3 point){
+    this->outline->rotateAbout(angle, point);
+    this->bg_fill->rotateAbout(angle, point);
+    this->center_fill->rotateAbout(angle, point);
+}
+
+void M_RadioButton::rotateAbout(float angle, glm::vec3 axis, glm::vec3 point){
+    this->outline->rotateAbout(angle, axis, point);
+    this->bg_fill->rotateAbout(angle, axis, point);
+    this->center_fill->rotateAbout(angle, axis, point);
+}
+
+glm::vec3 M_RadioButton::getCenterPoint(){
+    return this->centerPoint;
+}
+
+std::vector<Vertex> M_RadioButton::getVertices(){
+    return this->vertexData;
+}
+
+float M_RadioButton::getWidth(){
+    return this->radiusPx * 1.05 * 2;
+}
+
+void M_RadioButton::capturePosition(){
+    this->outline->capturePosition();
+    this->bg_fill->capturePosition();
+    this->center_fill->capturePosition();
+}
+
+void M_RadioButton::restorePosition(){
+    this->outline->restorePosition();
+    this->bg_fill->restorePosition();
+    this->center_fill->restorePosition();
+}
+
+void M_RadioButton::setVisibility(bool visible){
+    this->visible = visible;
+    this->outline->setVisibility(visible);
+    this->bg_fill->setVisibility(visible);
+    this->center_fill->setVisibility(visible);
+}
+
+void M_RadioButton::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix){
+    this->outline->getRestorePositionDiff(modelMatrix, viewMatrix, projectionMatrix);
+    this->bg_fill->getRestorePositionDiff(modelMatrix, viewMatrix, projectionMatrix);
+    this->center_fill->getRestorePositionDiff(modelMatrix, viewMatrix, projectionMatrix);
+}
+
+glm::mat4 M_RadioButton::getModelMatrix(){
+    return this->outline->getModelMatrix();
+}
+
+glm::mat4 M_RadioButton::getViewMatrix(){
+    return this->outline->getViewMatrix();
+}
+
+glm::mat4 M_RadioButton::getProjectionMatrix(){
+    return this->outline->getProjectionMatrix();
+}
+
+bool M_RadioButton::setSelected(bool selected){
+    bool temp = this->selected;
+    this->selected = selected;
+    return temp;
+}
+
+bool M_RadioButton::getSelected(){
+    return this->selected;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////
 
 M_Rect::M_Rect(Shader* sh, glm::vec3 position, glm::vec2 size, float fillColor, float borderColor)
@@ -594,14 +741,15 @@ void M_Rect::setModelMatrix(glm::mat4 modelMatrix)
 
 void M_Rect::translate(glm::vec3 translation)
 {
-    for (int i = 0; i < 4; i++) {
-        this->vertexDataFill[i].x += translation.x;
-        this->vertexDataFill[i].y += translation.y;
-        this->vertexDataFill[i].z += translation.z;
-        this->vertexDataBorder[i].x += translation.x;
-        this->vertexDataBorder[i].y += translation.y;
-        this->vertexDataBorder[i].z += translation.z;
-    }
+    // for (int i = 0; i < 4; i++) {
+    //     this->vertexDataFill[i].x += translation.x;
+    //     this->vertexDataFill[i].y += translation.y;
+    //     this->vertexDataFill[i].z += translation.z;
+    //     this->vertexDataBorder[i].x += translation.x;
+    //     this->vertexDataBorder[i].y += translation.y;
+    //     this->vertexDataBorder[i].z += translation.z;
+    // }
+    this->modelMatrix = glm::translate(this->modelMatrix, translation);
 }
 
 void M_Rect::rotate(float angle, glm::vec3 axis)
@@ -918,6 +1066,10 @@ glm::mat4 M_Line::getProjectionMatrix(){
 
 //////////////////////////////////////////////////////////////////////////////////////////
 
+M_Arc::M_Arc(Shader* sh, unsigned int numSegments, float radius, float startAngle, float endAngle, glm::vec3 centerPoint, glm::vec3 fillColor):M_Arc(sh, numSegments, radius, startAngle, endAngle, centerPoint){
+    this->fillColor = fillColor;
+}
+
 M_Arc::M_Arc(Shader* sh, unsigned int numSegments, float radius, float startAngle, float endAngle, glm::vec3 centerPoint)
 {
     this->shader = sh;
@@ -931,7 +1083,7 @@ M_Arc::M_Arc(Shader* sh, unsigned int numSegments, float radius, float startAngl
         float x = this->centerPoint.x + this->radius * cos(theta);
         float y = this->centerPoint.y + this->radius * sin(theta);
         float z = this->centerPoint.z;
-        this->vertexData.push_back({ x, y, z, 1.f });
+        this->vertexData.push_back({ x, y, z, this->fillColor.r, this->fillColor.g, this->fillColor.b });
     }
     glGenVertexArrays(1, VAO);
     glGenBuffers(1, VBO);
@@ -994,6 +1146,7 @@ void M_Arc::setModelMatrix(glm::mat4 modelMatrix)
 void M_Arc::translate(glm::vec3 translation)
 {
     this->centerPoint += translation;
+    this->modelMatrix = glm::translate(this->modelMatrix, translation);
 }
 
 void M_Arc::rotate(float angle, glm::vec3 axis)

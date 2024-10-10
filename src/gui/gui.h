@@ -44,6 +44,7 @@ public:
 
 private:
     void addMenu(std::string menuName, std::string parentName, std::vector<std::string> entryTexts, std::vector<std::string> endpoints, CountingLatch &latch);
+    void addMenu(std::string menuName, std::string parentName, std::vector<std::string> entryTexts, std::vector<std::string> endpoints);
     Renderer* renderer;
     std::jthread eventLoopThread;
     EventManager* eventManager;

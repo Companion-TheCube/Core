@@ -13,7 +13,7 @@ AudioOutput::AudioOutput()
 {
     CubeLog::info("Initializing audio output.");
 #ifdef __linux__
-    RtAudio::Api api = RtAudio::RtAudio::LINUX_ALSA;
+    RtAudio::Api api = RtAudio::RtAudio::LINUX_PULSE;
 #elif _WIN32
     RtAudio::Api api = RtAudio::RtAudio::WINDOWS_DS;
 #endif
