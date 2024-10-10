@@ -905,17 +905,23 @@ void MenuStencil::enable()
     glEnable(GL_STENCIL_TEST);
 
     // Clear the stencil buffer and set all to 0
-    glClearStencil(0);
-    glClear(GL_STENCIL_BUFFER_BIT);
+    // glClearStencil(0);
+    // glClear(GL_STENCIL_BUFFER_BIT);
 
     // Configure stencil operations to mark the stencil buffer
     glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
     glDepthMask(GL_FALSE);
     std::bitset<8> bitset;
     bitset.set(this->stencilIndex);
-    glStencilFunc(GL_NOTEQUAL, 0xff,  bitset.to_ulong());
-    checkGLError("glStencilFunc_errorCheck_1");
-    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+    if(this->stencilIndex % 2 == 0){
+        glStencilFunc(GL_ALWAYS, 1,  0xff);
+        checkGLError("glStencilFunc_errorCheck_1");
+        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+    }else{
+        glStencilFunc(GL_EQUAL, 1,  0xff);
+        checkGLError("glStencilFunc_errorCheck_2");
+        glStencilOp(GL_KEEP, GL_KEEP, GL_INCR);
+    }
     glStencilMask(0xFF);
     // Draw the mask
     shader->use();
@@ -929,7 +935,7 @@ void MenuStencil::enable()
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     glDepthMask(GL_TRUE);
     // Configure stencil function to only pass where stencil buffer is set to 1
-    glStencilFunc(GL_LESS, 0, 0xFF);
+    glStencilFunc(GL_EQUAL, 2, 0xFF);
     glStencilMask(0x00);
 }
 
@@ -937,7 +943,6 @@ void MenuStencil::disable()
 {
     glBindVertexBuffer(0, 0, 0, 0);
     glStencilMask(0x00);
-    std::bitset<8> bitset(this->stencilIndex);
     glStencilFunc(GL_ALWAYS, 1, 0xff);
     glDisable(GL_STENCIL_TEST);
     glClear(GL_STENCIL_BUFFER_BIT);
