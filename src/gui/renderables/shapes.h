@@ -2,7 +2,7 @@
 #define SHAPES_H
 #ifndef MESHOBJECT_H
 #include "meshObject.h"
-#endif
+#endif// SHAPES_H
 #include <ft2build.h>
 #include <globalSettings.h>
 #include FT_FREETYPE_H
@@ -30,7 +30,7 @@ private:
     glm::vec3 centerPoint;
     glm::vec2 position;
     float scale_;
-    std::map<char, Character> Characters;
+    static std::map<char, Character> characters;
     float width = 0.f;
     void buildText();
     static FT_Library ft;
@@ -241,6 +241,58 @@ public:
     void restorePosition();
     void setVisibility(bool visible);
     void getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix);
+};
+
+class M_RadioButtonTexture : public MeshObject {
+private:
+    Shader* shader;
+    std::vector<Vertex> vertexData;
+    GLuint VAO, VBO;
+    GLuint textureSelected, textureUnselected;
+    glm::mat4 projectionMatrix;
+    glm::mat4 viewMatrix;
+    glm::mat4 modelMatrix;
+    bool selected;
+    float radioSize;
+    unsigned int padding;
+    glm::vec3 color;
+    glm::vec2 position;
+    float scale_;
+    glm::mat4 capturedProjectionMatrix;
+    glm::mat4 capturedViewMatrix;
+    glm::mat4 capturedModelMatrix;
+    glm::vec2 capturedPosition;
+    bool visible = true;
+    std::mutex mutex;
+    static unsigned char* selectedTextureBitmap;
+    static unsigned char* unselectedTextureBitmap;
+    static bool texturesInitialized;
+public:
+    M_RadioButtonTexture(Shader* sh, float radioSize, unsigned int padding, glm::vec3 color, glm::vec2 position);
+    ~M_RadioButtonTexture();
+    void draw();
+    void setProjectionMatrix(glm::mat4 projectionMatrix);
+    void setViewMatrix(glm::vec3 viewMatrix);
+    void setViewMatrix(glm::mat4 viewMatrix);
+    void setModelMatrix(glm::mat4 modelMatrix);
+    glm::mat4 getModelMatrix();
+    glm::mat4 getViewMatrix();
+    glm::mat4 getProjectionMatrix();
+    void translate(glm::vec3 translation);
+    void rotate(float angle, glm::vec3 axis);
+    void scale(glm::vec3 scale);
+    void uniformScale(float scale);
+    void rotateAbout(float angle, glm::vec3 axis, glm::vec3 point);
+    void rotateAbout(float angle, glm::vec3 point);
+    glm::vec3 getCenterPoint();
+    std::vector<Vertex> getVertices();
+    void setPosition(glm::vec2 position);
+    void setSelected(bool selected);
+    void setVisibility(bool visible);
+    void capturePosition();
+    void restorePosition();
+    void getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix);
+    float getWidth(){return this->radioSize;};
 };
 
 class M_RadioButton : public MeshObject {

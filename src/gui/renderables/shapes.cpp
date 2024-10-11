@@ -9,6 +9,9 @@ void checkGLError(const std::string& location)
         std::cerr << "OpenGL error at " << location << ": " << error << std::endl;
     }
 }
+////////////////////////////////////////////////////////////////
+
+std::map<char, Character> M_Text::characters = std::map<char, Character>();
 
 M_Text::M_Text(Shader* sh, std::string text, float fontSize, glm::vec3 color, glm::vec2 position)
 {
@@ -17,6 +20,7 @@ M_Text::M_Text(Shader* sh, std::string text, float fontSize, glm::vec3 color, gl
     this->fontSize = fontSize;
     this->color = color;
     this->position = position;
+    this->projectionMatrix = glm::ortho(0.0f, 720.0f, 0.0f, 720.0f);
     this->buildText();
     GlobalSettings::setSettingCB("selectedFontPath", [&](){
         this->reloadFace = true;
@@ -28,7 +32,7 @@ void M_Text::reloadFont()
 {
     CubeLog::debug("Reloading font");
     FT_Done_Face(M_Text::face);
-    this->Characters.clear();
+    M_Text::characters.clear();
     this->vertexData.clear();
     this->vertexData.shrink_to_fit();
     this->width = 0;
@@ -94,12 +98,12 @@ void M_Text::buildText()
             glm::ivec2(M_Text::face->glyph->bitmap_left, M_Text::face->glyph->bitmap_top),
             M_Text::face->glyph->advance.x
         };
-        Characters.insert(std::pair<char, Character>(c, character));
+        M_Text::characters.insert(std::pair<char, Character>(c, character));
     }
     // This loop adds up the widths of each character in the text
     std::string::const_iterator c;
     for (c = this->text.begin(); c != this->text.end(); c++) {
-        Character ch = this->Characters[*c]; // Get the character from the map
+        Character ch = M_Text::characters[*c]; // Get the character from the map
         this->width += (ch.Advance >> 6); // Bitshift by 6 to get value in pixels (2^6 = 64)
     }
 
@@ -129,7 +133,7 @@ M_Text::~M_Text()
     glDeleteVertexArrays(1, &this->VAO);
     glDeleteBuffers(1, &this->VBO);
     for (unsigned char c = 0; c < 128; c++) {
-        glDeleteTextures(1, &Characters[c].TextureID);
+        glDeleteTextures(1, &M_Text::characters[c].TextureID);
     }
     CubeLog::info("Destroyed Text");
 }
@@ -151,7 +155,7 @@ void M_Text::draw()
     std::string::const_iterator c;
     float xTemp = this->position.x;
     for (c = this->text.begin(); c != this->text.end(); c++) {
-        Character ch = Characters[*c];
+        Character ch = M_Text::characters[*c];
         float xpos = xTemp + ch.Bearing.x;
         float ypos = this->position.y - (ch.Size.y - ch.Bearing.y);
         float w = ch.Size.x;
@@ -260,7 +264,7 @@ void M_Text::setPosition(glm::vec2 position)
 void M_Text::setText(std::string text)
 {
     for (unsigned char c = 0; c < 128; c++) {
-        glDeleteTextures(1, &Characters[c].TextureID);
+        glDeleteTextures(1, &M_Text::characters[c].TextureID);
     }
     this->text = text;
     this->buildText();
@@ -504,6 +508,269 @@ glm::mat4 M_PartCircle::getViewMatrix(){
 }
 glm::mat4 M_PartCircle::getProjectionMatrix(){
     return this->projectionMatrix;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+
+unsigned char* M_RadioButtonTexture::selectedTextureBitmap = nullptr;
+unsigned char* M_RadioButtonTexture::unselectedTextureBitmap = nullptr;
+bool M_RadioButtonTexture::texturesInitialized = false;
+
+unsigned char* createRadioButtonTexture(unsigned int size, unsigned int padding, bool selected)
+{
+    // Allocate memory for the texture data
+    unsigned char* data = new unsigned char[size * size];
+
+    // Calculate the center of the texture
+    float center_x = size / 2.0f;
+    float center_y = size / 2.0f;
+
+    // Define the outer radius of the circle (adjusted for padding)
+    float outer_radius = (size - 2.0f * padding) / 2.0f;
+    // Define the thickness of the outline
+    float outline_thickness = padding;
+    // Define the inner radius (for the outline)
+    float inner_radius = outer_radius - outline_thickness;
+
+    // Iterate over each pixel in the texture
+    for (unsigned int y = 0; y < size; ++y)
+    {
+        for (unsigned int x = 0; x < size; ++x)
+        {
+            // Calculate the distance from the center of the circle to the current pixel
+            float dx = x + 0.5f - center_x;
+            float dy = y + 0.5f - center_y;
+            float dist = std::sqrt(dx * dx + dy * dy);
+
+            // Initialize the pixel color to black (background)
+            unsigned char pixel_color;
+
+            // Check if the pixel is within the outline of the circle
+            if (dist >= inner_radius && dist <= outer_radius)
+            {
+                pixel_color = 255;
+            }
+            // If selected, fill the inner circle
+            else if (selected && dist < inner_radius)
+            {
+                pixel_color = 255;
+            }
+
+            // Assign the color to the texture data
+            data[y * size + x] = pixel_color;
+        }
+    }
+
+    return data;
+}
+
+M_RadioButtonTexture::M_RadioButtonTexture(Shader* sh, float radioSize, unsigned int padding, glm::vec3 color, glm::vec2 position)
+{
+    this->shader = sh;
+    this->position = position;
+    this->selected = false;
+    this->radioSize = radioSize;
+    this->padding = padding;
+    this->color = color;
+    this->scale_ = 1.0f;
+    if(!M_RadioButtonTexture::texturesInitialized){
+        M_RadioButtonTexture::texturesInitialized = true;
+        M_RadioButtonTexture::selectedTextureBitmap = createRadioButtonTexture(radioSize, padding, true);
+        M_RadioButtonTexture::unselectedTextureBitmap = createRadioButtonTexture(radioSize, padding, false);
+    }
+    
+    glGenTextures(1, &this->textureSelected);
+    glBindTexture(GL_TEXTURE_2D, this->textureSelected);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(
+        GL_TEXTURE_2D, 
+        0, 
+        GL_RED, 
+        radioSize, 
+        radioSize, 
+        0, 
+        GL_RED, 
+        GL_UNSIGNED_BYTE, 
+        M_RadioButtonTexture::selectedTextureBitmap
+    );
+    
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glGenTextures(1, &this->textureUnselected);
+    glBindTexture(GL_TEXTURE_2D, this->textureUnselected);
+    glTexImage2D(
+        GL_TEXTURE_2D, 
+        0, 
+        GL_RED, 
+        radioSize, 
+        radioSize, 
+        0, 
+        GL_RED, 
+        GL_UNSIGNED_BYTE, 
+        M_RadioButtonTexture::unselectedTextureBitmap
+    );
+    setProjectionMatrix(glm::ortho(0.0f, 720.f, 0.0f, 720.f));
+    CubeLog::info("Created RadioButtonTexture");
+}
+
+M_RadioButtonTexture::~M_RadioButtonTexture()
+{
+    CubeLog::info("Destroyed RadioButtonTexture");
+    glDeleteTextures(1, &this->textureSelected);
+    glDeleteTextures(1, &this->textureUnselected);
+}
+
+void M_RadioButtonTexture::draw()
+{
+    this->shader->use();
+    shader->setVec3("textColor", this->color.x, this->color.y, this->color.z);
+    shader->setMat4("projection", projectionMatrix);
+    glGenVertexArrays(1, &this->VAO);
+    glGenBuffers(1, &this->VBO);
+    glBindVertexArray(this->VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
+
+    float xPos = this->position.x - this->radioSize / 2;
+    float yPos = this->position.y - this->radioSize / 2;
+    float vertices[6][4] = {
+        // Positions            // Texture Coords
+        { xPos, yPos + this->radioSize, 0.0f, 0.0f }, // Top-left
+        { xPos + this->radioSize, yPos, 1.0f, 1.0f }, // Bottom-right
+        { xPos, yPos, 0.0f, 1.0f }, // Bottom-left
+
+        { xPos, yPos + this->radioSize, 0.0f, 0.0f }, // Top-left
+        { xPos + this->radioSize, yPos + this->radioSize, 1.0f, 0.0f }, // Top-right
+        { xPos + this->radioSize, yPos, 1.0f, 1.0f } // Bottom-right
+    };
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
+    glActiveTexture(GL_TEXTURE0);
+    if (this->selected) {
+        glBindTexture(GL_TEXTURE_2D, this->textureSelected);
+    }
+    else {
+        glBindTexture(GL_TEXTURE_2D, this->textureUnselected);
+    }
+    glBindVertexArray(this->VAO);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    // glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
+    // glBindTexture(GL_TEXTURE_2D, 0);
+    // glUseProgram(0);
+}
+
+void M_RadioButtonTexture::setProjectionMatrix(glm::mat4 projectionMatrix)
+{
+    this->projectionMatrix = projectionMatrix;
+}
+
+void M_RadioButtonTexture::setViewMatrix(glm::vec3 viewMatrix)
+{
+    return; // do nothing
+}
+
+void M_RadioButtonTexture::setViewMatrix(glm::mat4 viewMatrix){
+    return; // do nothing   
+}
+
+void M_RadioButtonTexture::setModelMatrix(glm::mat4 modelMatrix)
+{
+    return; // do nothing
+}
+
+void M_RadioButtonTexture::translate(glm::vec3 translation)
+{
+    this->position.x += translation.x;
+    this->position.y += translation.y;
+}
+
+void M_RadioButtonTexture::rotate(float angle, glm::vec3 axis)
+{
+    // do nothing
+}
+
+void M_RadioButtonTexture::scale(glm::vec3 scale)
+{
+    this->radioSize = this->radioSize * scale.x;
+}
+
+void M_RadioButtonTexture::uniformScale(float scale)
+{
+    this->scale_ *= scale;
+}
+
+void M_RadioButtonTexture::rotateAbout(float angle, glm::vec3 point)
+{
+    // do nothing
+}
+
+void M_RadioButtonTexture::rotateAbout(float angle, glm::vec3 axis, glm::vec3 point)
+{
+    // do nothing
+}
+
+glm::vec3 M_RadioButtonTexture::getCenterPoint()
+{
+    return { this->position.x, this->position.y, 0.f };
+}
+
+std::vector<Vertex> M_RadioButtonTexture::getVertices()
+{
+    std::vector<Vertex> vertices;
+    return vertices;
+}
+
+void M_RadioButtonTexture::capturePosition(){
+    this->capturedModelMatrix = this->modelMatrix;
+    this->capturedViewMatrix = this->viewMatrix;
+    this->capturedProjectionMatrix = this->projectionMatrix;
+    this->capturedPosition = this->position;
+}
+
+void M_RadioButtonTexture::restorePosition(){
+    this->modelMatrix = this->capturedModelMatrix;
+    this->viewMatrix = this->capturedViewMatrix;
+    this->projectionMatrix = this->capturedProjectionMatrix;
+    this->position = this->capturedPosition;
+}
+
+void M_RadioButtonTexture::setVisibility(bool visible)
+{
+    this->visible = visible;
+}
+
+void M_RadioButtonTexture::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix){
+    this->mutex.lock();
+    *modelMatrix = this->capturedModelMatrix - this->modelMatrix;
+    *viewMatrix = this->capturedViewMatrix - this->viewMatrix;
+    *projectionMatrix = this->capturedProjectionMatrix - this->projectionMatrix;
+    this->mutex.unlock();
+}
+
+glm::mat4 M_RadioButtonTexture::getModelMatrix(){
+    return this->modelMatrix;
+}
+
+glm::mat4 M_RadioButtonTexture::getViewMatrix(){
+    return this->viewMatrix;
+}
+
+glm::mat4 M_RadioButtonTexture::getProjectionMatrix(){
+    return this->projectionMatrix;
+}
+
+void M_RadioButtonTexture::setSelected(bool selected){
+    this->selected = selected;
+}
+
+void M_RadioButtonTexture::setPosition(glm::vec2 position){
+    this->position = position;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////

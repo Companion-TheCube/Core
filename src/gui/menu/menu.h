@@ -97,7 +97,6 @@ private:
     float scrollWait = 0;
     glm::vec4 originalPosition;
     EntryType type = MENUENTRY_TYPE_ACTION;
-    MenuStencil* textStencil;
     void setVisibleWidth(float width);
 
 public:
@@ -211,7 +210,7 @@ private:
     bool visible;
     Shader* shader;
     ClickableArea clickArea;
-    MenuStencil* stencil;
+    // MenuStencil* stencil;
 public:
     MenuHorizontalRule(glm::vec2 position, float size, Shader* shader);
     ~MenuHorizontalRule();
@@ -239,7 +238,8 @@ class MenuStencil : public Object {
 private:
     glm::vec2 position;
     glm::vec2 size;
-    Shader* shader;
+    static Shader* shader;
+    static bool shaderSet;
     GLuint VAO, VBO, EBO;
     std::vector<MeshObject*> objects;
     std::vector<glm::vec2> vertices;
@@ -253,7 +253,7 @@ private:
     int stencilIndex = 0;
 
 public:
-    MenuStencil(glm::vec2 position, glm::vec2 size, Shader* shader, uint8_t index);
+    MenuStencil(glm::vec2 position, glm::vec2 size);
     ~MenuStencil();
     void setPosition(glm::vec2 position);
     void setSize(glm::vec2 size);
