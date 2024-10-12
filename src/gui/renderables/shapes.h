@@ -2,10 +2,10 @@
 #define SHAPES_H
 #ifndef MESHOBJECT_H
 #include "meshObject.h"
-#endif// SHAPES_H
+#endif // SHAPES_H
 #ifndef GLOBAL_SETTINGS_H
 #include "settings/globalSettings.h"
-#endif// GLOBAL_SETTINGS_H
+#endif // GLOBAL_SETTINGS_H
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
@@ -45,6 +45,7 @@ private:
     glm::vec2 capturedPosition;
     bool visible = true;
     std::mutex mutex;
+
 public:
     M_Text(Shader* sh, std::string text, float fontSize, glm::vec3 color, glm::vec2 position);
     ~M_Text();
@@ -92,13 +93,14 @@ private:
     glm::mat4 capturedModelMatrix;
     bool visible = true;
     std::mutex mutex;
+
 public:
     M_PartCircle(Shader* sh, unsigned int numSegments, float radius, glm::vec3 centerPoint, float startAngle, float endAngle, glm::vec3 fillColor);
     ~M_PartCircle();
     void draw();
     void setProjectionMatrix(glm::mat4 projectionMatrix);
     void setViewMatrix(glm::vec3 viewMatrix);
-    void setViewMatrix(glm::mat4 viewMatrix);    
+    void setViewMatrix(glm::mat4 viewMatrix);
     void setModelMatrix(glm::mat4 modelMatrix);
     glm::mat4 getModelMatrix();
     glm::mat4 getViewMatrix();
@@ -134,6 +136,7 @@ private:
     glm::mat4 capturedModelMatrix;
     bool visible = true;
     std::mutex mutex;
+
 public:
     M_Rect(Shader* sh, glm::vec3 position, glm::vec2 size, float fillColor, float borderColor);
     ~M_Rect();
@@ -173,6 +176,7 @@ private:
     glm::mat4 capturedModelMatrix;
     bool visible = true;
     std::mutex mutex;
+
 public:
     M_Line(Shader* sh, glm::vec3 start, glm::vec3 end);
     ~M_Line();
@@ -217,7 +221,8 @@ private:
     glm::mat4 capturedModelMatrix;
     bool visible = true;
     std::mutex mutex;
-    glm::vec3 fillColor = {1.f,1.f,1.f};
+    glm::vec3 fillColor = { 1.f, 1.f, 1.f };
+
 public:
     M_Arc(Shader* sh, unsigned int numSegments, float radius, float startAngle, float endAngle, glm::vec3 centerPoint, glm::vec3 fillColor);
     M_Arc(Shader* sh, unsigned int numSegments, float radius, float startAngle, float endAngle, glm::vec3 centerPoint);
@@ -246,7 +251,7 @@ public:
 };
 
 #define RADIOBUTTON_INNER_OUTER_RATIO 0.8f
-#define RADIOBUTTON_DOT_INNER_RATIO 0.85f
+#define RADIOBUTTON_DOT_INNER_RATIO 0.75f
 
 class M_RadioButtonTexture : public MeshObject {
 private:
@@ -300,57 +305,6 @@ public:
     float getWidth();
 };
 
-class M_RadioButton : public MeshObject {
-private:
-    Shader* shader;
-    std::vector<Vertex> vertexData;
-    GLuint VAO[1], VBO[1];
-    glm::mat4 projectionMatrix;
-    glm::mat4 viewMatrix;
-    glm::mat4 modelMatrix;
-    glm::vec3 centerPoint;
-    float radius;
-    float radiusPx;
-    glm::vec3 bgColor;
-    glm::vec3 fgColor;
-    bool selected;
-    glm::mat4 capturedProjectionMatrix;
-    glm::mat4 capturedViewMatrix;
-    glm::mat4 capturedModelMatrix;
-    bool visible = true;
-    std::mutex mutex;
-    M_Arc* outline;
-    M_PartCircle* bg_fill;
-    M_PartCircle* center_fill;
-
-public:
-    M_RadioButton(Shader* sh, glm::vec3 position, float radius, float radiusPx, glm::vec3 bgColor, glm::vec3 fgColor);
-    ~M_RadioButton();
-    void draw();
-    void setProjectionMatrix(glm::mat4 projectionMatrix);
-    void setViewMatrix(glm::vec3 viewMatrix);
-    void setViewMatrix(glm::mat4 viewMatrix);
-    void setModelMatrix(glm::mat4 modelMatrix);
-    glm::mat4 getModelMatrix();
-    glm::mat4 getViewMatrix();
-    glm::mat4 getProjectionMatrix();
-    void translate(glm::vec3 translation);
-    void rotate(float angle, glm::vec3 axis);
-    void scale(glm::vec3 scale);
-    void uniformScale(float scale);
-    void rotateAbout(float angle, glm::vec3 axis, glm::vec3 point);
-    void rotateAbout(float angle, glm::vec3 point);
-    glm::vec3 getCenterPoint();
-    std::vector<Vertex> getVertices();
-    float getWidth();
-    bool setSelected(bool selected);
-    bool getSelected();
-    void capturePosition();
-    void restorePosition();
-    void setVisibility(bool visible);
-    void getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix);
-};
-
 #define CUBE_VERTICES_CONST 1.0f
 #define EDGE_VERTICES_OFFSET 0.02f
 #define BLACK_FLOATS 0.0f
@@ -363,6 +317,7 @@ private:
     glm::mat4 capturedModelMatrix;
     bool visible = true;
     std::mutex mutex;
+
 public:
     const Vertex cubeVertices[8] = {
         // Front face
@@ -470,6 +425,7 @@ private:
     glm::mat4 capturedModelMatrix;
     bool visible = true;
     std::mutex mutex;
+
 public:
     OBJObject(Shader* sh, std::vector<Vertex> vertices);
     ~OBJObject();
@@ -496,4 +452,4 @@ public:
     void getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix);
 };
 
-#endif// SHAPES_H
+#endif // SHAPES_H

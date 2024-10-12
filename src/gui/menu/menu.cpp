@@ -6,6 +6,7 @@ float screenPxToScreenRelativeWidth(float screenPx);
 float screenRelativeToScreenPxWidth(float screenRelative);
 bool Menu::mainMenuSet = false;
 
+
 /**
  * @brief Construct a new Menu object
  *
@@ -84,7 +85,7 @@ Menu::~Menu()
  * @param text The text to display
  * @param action The action to take when the menu entry is clicked
  */
-void Menu::addMenuEntry(std::string text, MenuEntry::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> statusAction, void* statusActionData)
+unsigned int Menu::addMenuEntry(std::string text, std::string uniqueID, MenuEntry::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> statusAction, void* statusActionData)
 {
     // TODO: add the ability to have an entry be fixed to the top of the menu. This will need a stencil so that other entries can be scrolled under it.
     // TODO: add icon support
@@ -98,7 +99,6 @@ void Menu::addMenuEntry(std::string text, MenuEntry::EntryType type, std::functi
     float menuWidthPx = mapRange(MENU_WIDTH_SCREEN_RELATIVE, SCREEN_RELATIVE_MIN_WIDTH, SCREEN_RELATIVE_MAX_WIDTH, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X);
     float menuWidthAdjusted = menuWidthPx - (STENCIL_INSET_PX * 2) - (MENU_ITEM_PADDING_PX * 2);
     auto entry = new MenuEntry(text, new Shader("shaders/text.vs", "shaders/text.fs"), this->renderer->getShader(), { textX, textY }, menuItemTextSize, menuWidthAdjusted, type, statusAction, statusActionData);
-    entry->setStatusAction(statusAction);
     entry->getClickableArea()->yMin -= (MENU_ITEM_PADDING_PX);
     entry->getClickableArea()->yMax += (MENU_ITEM_PADDING_PX);
     entry->setVisible(true);
@@ -106,11 +106,13 @@ void Menu::addMenuEntry(std::string text, MenuEntry::EntryType type, std::functi
     for (auto object : entry->getObjects()) {
         object->capturePosition();
     }
+    entry->setStatusAction(statusAction);
     this->childrenClickables.push_back(entry);
     if (this->getClickableAreas().at(this->getClickableAreas().size() - 1)->yMax > this->maxScrollY)
         this->maxScrollY = this->getClickableAreas().at(this->getClickableAreas().size() - 1)->yMax;
 
     CubeLog::debug("MenuEntry added with text: " + text + " and clickable area: " + std::to_string(this->childrenClickables.at(this->childrenClickables.size() - 1)->getClickableArea()->xMin) + "x" + std::to_string(this->childrenClickables.at(this->childrenClickables.size() - 1)->getClickableArea()->yMin) + " to " + std::to_string(this->childrenClickables.at(this->childrenClickables.size() - 1)->getClickableArea()->xMax) + "x" + std::to_string(this->childrenClickables.at(this->childrenClickables.size() - 1)->getClickableArea()->yMax));
+    return entry->getMenuEntryIndex();
 }
 
 /**
@@ -120,10 +122,11 @@ void Menu::addMenuEntry(std::string text, MenuEntry::EntryType type, std::functi
  * @param action The action to take when the menu entry is clicked
  * @param rightAction The action to take when the menu entry is right clicked
  */
-void Menu::addMenuEntry(std::string text, MenuEntry::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> rightAction, std::function<unsigned int(void*)> statusAction, void* statusActionData)
+unsigned int Menu::addMenuEntry(std::string text, std::string uniqueID, MenuEntry::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> rightAction, std::function<unsigned int(void*)> statusAction, void* statusActionData)
 {
-    this->addMenuEntry(text, type, action, statusAction, statusActionData);
+    unsigned int t = this->addMenuEntry(text, uniqueID, type, action, statusAction, statusActionData);
     this->childrenClickables.at(this->childrenClickables.size() - 1)->setOnRightClick(rightAction);
+    return t;
 }
 
 /**
@@ -218,6 +221,24 @@ void Menu::setMenuName(std::string name)
 std::string Menu::getMenuName()
 {
     return this->menuName;
+}
+
+/**
+ * @brief Set the unique identifier for this menu. This is used to identify the menu in the menu structure.
+ *
+ * @param uniqueMenuIdentifier the unique identifier for this menu
+ */
+void Menu::setUniqueMenuIdentifier(std::string uniqueMenuIdentifier)
+{
+    this->uniqueMenuIdentifier = uniqueMenuIdentifier;
+}
+
+/**
+ * @brief Get the unique identifier for this menu
+ */
+std::string Menu::getUniqueMenuIdentifier()
+{
+    return this->uniqueMenuIdentifier;
 }
 
 /**
@@ -561,6 +582,8 @@ bool MenuBox::getVisible()
 
 //////////////////////////////////////////////////////////////////////////
 
+unsigned int MenuEntry::menuEntryCount = 0;
+
 /**
  * @brief Construct a new Menu Entry:: Menu Entry object
  *
@@ -569,12 +592,11 @@ bool MenuBox::getVisible()
  */
 MenuEntry::MenuEntry(std::string text, Shader* textShader, Shader* meshShader, glm::vec2 position, float size, float visibleWidth, EntryType type, std::function<unsigned int(void*)> statusAction, void* statusActionArg)
 {
-
+    this->menuEntryIndex = MenuEntry::menuEntryCount++;
     this->type = type;
     this->text = text;
     this->visible = true;
     this->textShader = textShader;
-
     this->statusReturnData = statusAction(statusActionArg);
     this->statusActionArg = statusActionArg;
 
@@ -603,16 +625,12 @@ MenuEntry::MenuEntry(std::string text, Shader* textShader, Shader* meshShader, g
     case EntryType::MENUENTRY_TYPE_SUBMENU: {
         break;
     }
-    case EntryType::MENUENTRY_TYPE_CHECKBOX: {
-        break;
-    }
     case EntryType::MENUENTRY_TYPE_RADIOBUTTON: {
         CubeLog::moreInfo("Creating radio button");
         float posX = this->position.x + (this->visibleWidth - size);
-        float posY = this->position.y + size * 0.9;
-        auto tempRB = new M_RadioButtonTexture(new Shader("shaders/text.vs", "shaders/text.fs"), size + 20, 20, { 1.f, 1.f, 1.f }, { posX, posY });
-        // auto tempRB = new M_RadioButtonTexture(new Shader("shaders/text.vs", "shaders/text.fs"), 200, 50, {1.f,1.f,1.f}, {700, 700});
-        tempRB->setSelected(true);
+        float posY = this->position.y + size;
+        auto tempRB = new M_RadioButtonTexture(new Shader("shaders/text.vs", "shaders/text.fs"), size+10, 20, { 1.f, 1.f, 1.f }, { posX, posY });
+        tempRB->setSelected(this->statusReturnData == 1);
         tempRB->capturePosition();
         tempRB->setVisibility(true);
         CubeLog::moreInfo("Radius button getWidth(): " + std::to_string(tempRB->getWidth()));
@@ -640,15 +658,19 @@ MenuEntry::~MenuEntry()
 }
 
 /**
- * @brief Handle the click event
+ * @brief Handle the click event. Calls the click action then calls the status action if it exists.
  *
  * @param data the data to pass to the action
  */
 void MenuEntry::onClick(void* data)
 {
     CubeLog::info("MenuEntry clicked");
-    if (this->action != nullptr && this->visible) {
-        this->clickReturnData = this->action(data) & 0x00FF;
+    if(this->actions.size() == 0) return;
+    if (this->actions.size() == 1) {
+        this->clickReturnData = this->actions.at(0)(data) & 0x00ff;
+    } else if(this->actions.size() == 2) {
+        this->clickReturnData = this->actions.at(0)(data) & 0x00ff;
+        this->statusReturnData = this->actions.at(1)(this->statusActionArg);
     }
 }
 
@@ -675,7 +697,8 @@ bool MenuEntry::getVisible()
 void MenuEntry::setOnClick(std::function<unsigned int(void*)> action)
 {
     CubeLog::info("Setting onClick action for MenuEntry with text: " + this->text);
-    this->action = action;
+    if(this->actions.size() == 0) this->actions.push_back(action);
+    else this->actions.at(0) = action;
 }
 
 void MenuEntry::setOnRightClick(std::function<unsigned int(void*)> action)
@@ -684,9 +707,16 @@ void MenuEntry::setOnRightClick(std::function<unsigned int(void*)> action)
     this->rightAction = action;
 }
 
+/**
+ * @brief Set the status action. This action is called when the status of the entry is updated. This must be called after the action is set.
+ * 
+ * @param action 
+ */
 void MenuEntry::setStatusAction(std::function<unsigned int(void*)> action)
 {
-    this->statusAction = action;
+    if(this->actions.size() == 0) return;
+    if(this->actions.size() == 1) this->actions.push_back(action);
+    else this->actions.at(1) = action;
 }
 
 std::vector<MeshObject*> MenuEntry::getObjects()
@@ -698,6 +728,23 @@ void MenuEntry::draw()
 {
     if (!this->visible) {
         return;
+    }
+
+    switch(this->type) {
+    case EntryType::MENUENTRY_TYPE_ACTION: {
+        break;
+    }
+    case EntryType::MENUENTRY_TYPE_SUBMENU: {
+        break;
+    }
+    case EntryType::MENUENTRY_TYPE_RADIOBUTTON: {
+        if(this->statusReturnData == 1) {
+            ((M_RadioButtonTexture*)this->xFixedObjects.at(0))->setSelected(true);
+        } else {
+            ((M_RadioButtonTexture*)this->xFixedObjects.at(0))->setSelected(false);
+        }
+        break;
+    }
     }
 
     if (this->size.x != this->scrollObjects.at(0)->getWidth()) {
@@ -738,7 +785,6 @@ void MenuEntry::draw()
     for (auto object : this->scrollObjects) {
         object->draw();
     }
-    
     for (auto object : this->yFixedObjects) {
         object->draw();
     }

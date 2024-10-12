@@ -529,7 +529,7 @@ glm::mat4 M_PartCircle::getProjectionMatrix()
 unsigned char* createRadioButtonTexture(unsigned int size, unsigned int padding, bool selected)
 {
     float overallWidthHeight = size + padding * 2.f;
-    unsigned char* data = new unsigned char[overallWidthHeight * overallWidthHeight];
+    unsigned char* data = new unsigned char[(unsigned int)(overallWidthHeight * overallWidthHeight)];
     float center_x = overallWidthHeight / 2.0f;
     float center_y = overallWidthHeight / 2.0f;
     float circle_outer_radius = size / 2.0f;
@@ -546,9 +546,18 @@ unsigned char* createRadioButtonTexture(unsigned int size, unsigned int padding,
             else if (selected && dist < dot_radius)
                 pixel_color = 255;
             data[(unsigned int)((float)y * overallWidthHeight + x)] = pixel_color;
-            for(int i = -1; i <= 1; i++) {
-                for(int j = -1; j <= 1; j++) {
-                    data[(unsigned int)((float)(y + i) * overallWidthHeight + x + j)] += 63;
+            for (float i = -(size * 0.1f); i <= (size * 0.1f); i++) {
+                for (float j = -(size * 0.1f); j <= (size * 0.1f); j++) {
+                    unsigned int yIdx = y + i;
+                    unsigned int xIdx = x + j;
+                    if (yIdx < 0 || yIdx >= overallWidthHeight || xIdx < 0 || xIdx >= overallWidthHeight) {
+                        continue;
+                    }
+                    if((((unsigned int)data[(unsigned int)((float)yIdx * overallWidthHeight + xIdx)]) + pixel_color / ((size * 0.2f) *(size * 0.2f))) > 255) {
+                        data[(unsigned int)((float)yIdx * overallWidthHeight + xIdx)] = 255;
+                    } else {
+                        data[(unsigned int)((float)yIdx * overallWidthHeight + xIdx)] += pixel_color / ((size * 0.2f) * (size * 0.2f));
+                    }
                 }
             }
         }
@@ -567,21 +576,15 @@ M_RadioButtonTexture::M_RadioButtonTexture(Shader* sh, float radioSize, unsigned
     this->scale_ = 1.0f;
     this->selectedTextureBitmap = createRadioButtonTexture(radioSize, padding, true);
     this->unselectedTextureBitmap = createRadioButtonTexture(radioSize, padding, false);
-
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);   
     glGenTextures(1, &this->textureSelected);
     glBindTexture(GL_TEXTURE_2D, this->textureSelected);
     glTexImage2D(
         GL_TEXTURE_2D,
         0,
         GL_RED,
-        radioSize,
-        radioSize,
+        radioSize + padding * 2,
+        radioSize + padding * 2,
         0,
         GL_RED,
         GL_UNSIGNED_BYTE,
@@ -596,15 +599,17 @@ M_RadioButtonTexture::M_RadioButtonTexture(Shader* sh, float radioSize, unsigned
         GL_TEXTURE_2D,
         0,
         GL_RED,
-        radioSize,
-        radioSize,
+        radioSize + padding * 2,
+        radioSize + padding * 2,
         0,
         GL_RED,
         GL_UNSIGNED_BYTE,
         this->unselectedTextureBitmap);
-
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     setProjectionMatrix(glm::ortho(0.0f, 720.f, 0.0f, 720.f));
-
     glBindTexture(GL_TEXTURE_2D, 0);
     glGenVertexArrays(1, &this->VAO);
     glGenBuffers(1, &this->VBO);
@@ -631,7 +636,6 @@ void M_RadioButtonTexture::draw()
     shader->setVec3("textColor", this->color.x, this->color.y, this->color.z);
     shader->setMat4("projection", projectionMatrix);
     glActiveTexture(GL_TEXTURE0);
-
     float xPos = this->position.x;
     float yPos = this->position.y - this->radioSize;
     float vertices[6][4] = {
@@ -776,183 +780,6 @@ void M_RadioButtonTexture::setPosition(glm::vec2 position)
 }
 
 float M_RadioButtonTexture::getWidth() { return this->radioSize; };
-
-//////////////////////////////////////////////////////////////////////////////////////////
-
-M_RadioButton::M_RadioButton(Shader* sh, glm::vec3 position, float radius, float radiusPx, glm::vec3 bgColor, glm::vec3 fgColor)
-{
-    CubeLog::debugSilly("Creating RadioButton with position: " + std::to_string(position.x) + ", " + std::to_string(position.y) + ", " + std::to_string(position.z));
-    this->shader = sh;
-    this->centerPoint = position;
-    this->radius = radius;
-    this->radiusPx = radiusPx;
-    this->bgColor = bgColor;
-    this->fgColor = fgColor;
-    this->selected = true;
-    this->outline = new M_Arc(sh, 72, this->radius, 0, 360, position, fgColor);
-    this->bg_fill = new M_PartCircle(sh, 72, this->radius * 1.05, position, 0, 300, bgColor);
-    this->center_fill = new M_PartCircle(sh, 72, this->radius * 0.5, position, 0, 270, fgColor);
-    CubeLog::info("Created RadioButton");
-}
-
-M_RadioButton::~M_RadioButton()
-{
-    CubeLog::info("Destroyed RadioButton");
-    delete this->outline;
-    delete this->bg_fill;
-    delete this->center_fill;
-}
-
-void M_RadioButton::draw()
-{
-    this->outline->draw();
-    this->bg_fill->draw();
-    if (this->selected) {
-        this->center_fill->draw();
-    }
-}
-
-void M_RadioButton::setProjectionMatrix(glm::mat4 projectionMatrix)
-{
-    this->outline->setProjectionMatrix(projectionMatrix);
-    this->bg_fill->setProjectionMatrix(projectionMatrix);
-    this->center_fill->setProjectionMatrix(projectionMatrix);
-}
-
-void M_RadioButton::setViewMatrix(glm::vec3 viewMatrix)
-{
-    this->outline->setViewMatrix(viewMatrix);
-    this->bg_fill->setViewMatrix(viewMatrix);
-    this->center_fill->setViewMatrix(viewMatrix);
-}
-
-void M_RadioButton::setViewMatrix(glm::mat4 viewMatrix)
-{
-    this->outline->setViewMatrix(viewMatrix);
-    this->bg_fill->setViewMatrix(viewMatrix);
-    this->center_fill->setViewMatrix(viewMatrix);
-}
-
-void M_RadioButton::setModelMatrix(glm::mat4 modelMatrix)
-{
-    this->outline->setModelMatrix(modelMatrix);
-    this->bg_fill->setModelMatrix(modelMatrix);
-    this->center_fill->setModelMatrix(modelMatrix);
-}
-
-void M_RadioButton::translate(glm::vec3 translation)
-{
-    this->centerPoint += translation;
-    this->outline->translate(translation);
-    this->bg_fill->translate(translation);
-    this->center_fill->translate(translation);
-}
-
-void M_RadioButton::rotate(float angle, glm::vec3 axis)
-{
-    this->outline->rotate(angle, axis);
-    this->bg_fill->rotate(angle, axis);
-    this->center_fill->rotate(angle, axis);
-}
-
-void M_RadioButton::scale(glm::vec3 scale)
-{
-    this->outline->scale(scale);
-    this->bg_fill->scale(scale);
-    this->center_fill->scale(scale);
-}
-
-void M_RadioButton::uniformScale(float scale)
-{
-    this->outline->uniformScale(scale);
-    this->bg_fill->uniformScale(scale);
-    this->center_fill->uniformScale(scale);
-}
-
-void M_RadioButton::rotateAbout(float angle, glm::vec3 point)
-{
-    this->outline->rotateAbout(angle, point);
-    this->bg_fill->rotateAbout(angle, point);
-    this->center_fill->rotateAbout(angle, point);
-}
-
-void M_RadioButton::rotateAbout(float angle, glm::vec3 axis, glm::vec3 point)
-{
-    this->outline->rotateAbout(angle, axis, point);
-    this->bg_fill->rotateAbout(angle, axis, point);
-    this->center_fill->rotateAbout(angle, axis, point);
-}
-
-glm::vec3 M_RadioButton::getCenterPoint()
-{
-    return this->centerPoint;
-}
-
-std::vector<Vertex> M_RadioButton::getVertices()
-{
-    return this->vertexData;
-}
-
-float M_RadioButton::getWidth()
-{
-    return this->radiusPx * 1.05 * 2;
-}
-
-void M_RadioButton::capturePosition()
-{
-    this->outline->capturePosition();
-    this->bg_fill->capturePosition();
-    this->center_fill->capturePosition();
-}
-
-void M_RadioButton::restorePosition()
-{
-    this->outline->restorePosition();
-    this->bg_fill->restorePosition();
-    this->center_fill->restorePosition();
-}
-
-void M_RadioButton::setVisibility(bool visible)
-{
-    this->visible = visible;
-    this->outline->setVisibility(visible);
-    this->bg_fill->setVisibility(visible);
-    this->center_fill->setVisibility(visible);
-}
-
-void M_RadioButton::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix)
-{
-    this->outline->getRestorePositionDiff(modelMatrix, viewMatrix, projectionMatrix);
-    this->bg_fill->getRestorePositionDiff(modelMatrix, viewMatrix, projectionMatrix);
-    this->center_fill->getRestorePositionDiff(modelMatrix, viewMatrix, projectionMatrix);
-}
-
-glm::mat4 M_RadioButton::getModelMatrix()
-{
-    return this->outline->getModelMatrix();
-}
-
-glm::mat4 M_RadioButton::getViewMatrix()
-{
-    return this->outline->getViewMatrix();
-}
-
-glm::mat4 M_RadioButton::getProjectionMatrix()
-{
-    return this->outline->getProjectionMatrix();
-}
-
-bool M_RadioButton::setSelected(bool selected)
-{
-    bool temp = this->selected;
-    this->selected = selected;
-    return temp;
-}
-
-bool M_RadioButton::getSelected()
-{
-    return this->selected;
-}
 
 //////////////////////////////////////////////////////////////////////////////////////////
 

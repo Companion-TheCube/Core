@@ -61,8 +61,7 @@ class MenuEntry : public Clickable {
 public:
     enum EntryType {
         MENUENTRY_TYPE_SUBMENU,
-        MENUENTRY_TYPE_ACTION,
-        MENUENTRY_TYPE_CHECKBOX,
+        MENUENTRY_TYPE_ACTION, // return 0.
         MENUENTRY_TYPE_RADIOBUTTON, // return 1 (selected) or 2 (not selected)
         MENUENTRY_TYPE_TEXT_INFO,
         MENUENTRY_TYPE_TEXT_INPUT,
@@ -76,7 +75,7 @@ private:
         SCROLL_RIGHT
     };
     std::string text;
-    std::function<unsigned int(void*)> action;
+    std::vector<std::function<unsigned int(void*)>> actions;
     std::function<unsigned int(void*)> rightAction;
     std::function<unsigned int(void*)> statusAction;
     void* statusActionArg;
@@ -99,6 +98,8 @@ private:
     glm::vec4 originalPosition;
     EntryType type = MENUENTRY_TYPE_ACTION;
     void setVisibleWidth(float width);
+    static unsigned int menuEntryCount;
+    unsigned int menuEntryIndex;
 
 public:
     MenuEntry(std::string text, Shader* textShader, Shader* meshShader, glm::vec2 position, float size, float visibleWidth, EntryType type, std::function<unsigned int(void*)> statusAction, void* statusActionArg);
@@ -121,6 +122,7 @@ public:
     void translate(glm::vec2 translation);
     unsigned int clickReturnData = 0;
     unsigned int statusReturnData = 0;
+    unsigned int getMenuEntryIndex(){ return this->menuEntryIndex; }
 };
 
 class Menu : public Clickable {
@@ -143,6 +145,7 @@ private:
     bool hasLatch = true;
     int maxScrollY = 0;
     std::string menuName;
+    std::string uniqueMenuIdentifier;
     Shader* textShader;
     std::mutex menuMutex;
     Menu* parentMenu = nullptr;
@@ -166,14 +169,16 @@ public:
     bool isReady();
     void draw();
     std::vector<ClickableArea*> getClickableAreas();
-    void addMenuEntry(std::string text, MenuEntry::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> statusAction, void* statusActionData);
-    void addMenuEntry(std::string text, MenuEntry::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> rightAction, std::function<unsigned int(void*)> statusAction, void* statusActionData);
+    unsigned int addMenuEntry(std::string text, std::string uniqueID, MenuEntry::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> statusAction, void* statusActionData);
+    unsigned int addMenuEntry(std::string text, std::string uniqueID, MenuEntry::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> rightAction, std::function<unsigned int(void*)> statusAction, void* statusActionData);
     void setParentMenu(Menu* parentMenu);
     Menu* getParentMenu();
     void setMenuName(std::string name);
     void setAsMainMenu();
     void setIsClickable(bool isClickable);
     std::string getMenuName();
+    void setUniqueMenuIdentifier(std::string uniqueMenuIdentifier);
+    std::string getUniqueMenuIdentifier();
     void addHorizontalRule();
     void scrollVert(int y);
     ClickableArea* getClickableArea();

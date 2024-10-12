@@ -20,6 +20,7 @@
 #include <thread>
 #include <vector>
 #include <latch>
+#include <expected>
 #ifndef MESSAGEBOX_H
 #include "messageBox/messageBox.h"
 #endif
@@ -29,6 +30,23 @@
 #ifndef UTILS_H
 #include <utils.h>
 #endif
+
+struct GUI_Error{
+    enum ERROR_TYPES{
+        GUI_NO_ERROR,
+        GUI_PARENT_NOT_FOUND,
+        GUI_MENU_NOT_FOUND,
+        GUI_UNIQUE_EXISTS,
+        GUI_CHILD_UNIQUE_EXISTS,
+    };
+    GUI_Error(ERROR_TYPES errorType, std::string errorString)
+        : errorType(errorType)
+        , errorString(errorString)
+    {
+    }
+    ERROR_TYPES errorType;
+    std::string errorString;
+};
 
 class GUI : public I_API_Interface {
 public:
@@ -43,8 +61,8 @@ public:
     std::string getIntefaceName() const;
 
 private:
-    void addMenu(std::string menuName, std::string parentName, std::vector<std::string> entryTexts, std::vector<std::string> endpoints, CountingLatch &latch);
-    void addMenu(std::string menuName, std::string parentName, std::vector<std::string> entryTexts, std::vector<std::string> endpoints);
+    GUI_Error addMenu(std::string menuName, std::string thisUniqueID, std::string parentName, std::vector<std::string> entryTexts, std::vector<std::string> endpoints, std::vector<std::string> uniqueIDs, CountingLatch &latch);
+    GUI_Error addMenu(std::string menuName, std::string thisUniqueID, std::string parentName, std::vector<std::string> entryTexts, std::vector<std::string> endpoints, std::vector<std::string> uniqueIDs);
     Renderer* renderer;
     std::jthread eventLoopThread;
     EventManager* eventManager;
