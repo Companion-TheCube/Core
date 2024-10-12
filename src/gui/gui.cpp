@@ -201,6 +201,7 @@ void GUI::eventLoop()
         mainMenu->draw();
     });
 
+    // TODO: remove this
     addMenu("Test Menu 1", "testMenu1", "Main Menu", { "Test Menu 1 Entry 1", "Test Menu 1 Entry 2", "Test Menu 1 Entry 3" }, { "Test Menu 1 Entry 1", "Test Menu 1 Entry 2", "Test Menu 1 Entry 3" }, { "sub1_1", "sub1_2", "sub1_3" }, countingLatch);
 
     ////////////////////////////////////////
@@ -288,6 +289,7 @@ void GUI::eventLoop()
 // TODO: This is working, but we need to execute the endpoint in the entry action
 // TODO: remove this overload of the addMenu method since any time we add a menu that needs the latch, it should be done above in menu setup.
 // TODO: The endpoints param needs a parsing function that will take the string and return a function that will execute the endpoint.
+// TODO: Part of parsing the endpoint will involve determining if the endpoint is for a boolean value (radiobutton), another menu, etc.
 /**
  * @brief Add a menu to the GUI
  *
