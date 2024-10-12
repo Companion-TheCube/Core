@@ -1,7 +1,14 @@
 #pragma once
+#ifndef GLOBAL_SETTINGS_H
+#define GLOBAL_SETTINGS_H
+#ifndef UTILS_H
+#include "utils.h"
+#endif
 #include <logger.h>
 #include <nlohmann/json.hpp>
 #include <filesystem>
+#include <mutex>
+#include <vector>
 
 struct GlobalSettings {
     static Logger::LogVerbosity logVerbosity;
@@ -188,3 +195,5 @@ struct GlobalSettings {
         return output;
     }
 };
+
+#endif

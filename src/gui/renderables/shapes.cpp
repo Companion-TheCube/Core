@@ -10,8 +10,9 @@ void checkGLError(const std::string& location)
     }
 }
 ////////////////////////////////////////////////////////////////
-
-std::map<char, Character> M_Text::characters = std::map<char, Character>();
+FT_Library M_Text::ft;
+FT_Face M_Text::face;
+bool M_Text::faceInitialized = false;
 
 M_Text::M_Text(Shader* sh, std::string text, float fontSize, glm::vec3 color, glm::vec2 position)
 {
@@ -22,7 +23,7 @@ M_Text::M_Text(Shader* sh, std::string text, float fontSize, glm::vec3 color, gl
     this->position = position;
     this->projectionMatrix = glm::ortho(0.0f, 720.0f, 0.0f, 720.0f);
     this->buildText();
-    GlobalSettings::setSettingCB("selectedFontPath", [&](){
+    GlobalSettings::setSettingCB("selectedFontPath", [&]() {
         this->reloadFace = true;
     });
     CubeLog::debug("Created Text: " + text);
@@ -32,7 +33,7 @@ void M_Text::reloadFont()
 {
     CubeLog::debug("Reloading font");
     FT_Done_Face(M_Text::face);
-    M_Text::characters.clear();
+    this->characters.clear();
     this->vertexData.clear();
     this->vertexData.shrink_to_fit();
     this->width = 0;
@@ -41,10 +42,6 @@ void M_Text::reloadFont()
     this->buildText();
     CubeLog::debug("Reloaded font");
 }
-
-FT_Library M_Text::ft;
-FT_Face M_Text::face;
-bool M_Text::faceInitialized = false;
 
 void M_Text::buildText()
 {
@@ -62,16 +59,18 @@ void M_Text::buildText()
         }
         M_Text::faceInitialized = true;
     }
-    if(FT_Set_Pixel_Sizes(M_Text::face, 0, this->fontSize)){
+    if (FT_Set_Pixel_Sizes(M_Text::face, 0, this->fontSize)) {
         CubeLog::error("ERROR::FREETYPE: Failed to set pixel size");
     }
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     checkGLError("0.1");
+
     for (unsigned char c = 0; c < 128; c++) {
         if (FT_Load_Char(M_Text::face, c, FT_LOAD_RENDER)) {
             CubeLog::error("ERROR::FREETYPE: Failed to load Glyph");
             continue;
         }
+
         GLuint texture;
         glGenTextures(1, &texture);
         checkGLError("0.2");
@@ -87,24 +86,27 @@ void M_Text::buildText()
             GL_RED,
             GL_UNSIGNED_BYTE,
             M_Text::face->glyph->bitmap.buffer);
+        if (M_Text::face->glyph->bitmap.buffer != nullptr) {
+            // std::cout << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX sample glyph buffer value: " + std::to_string(M_Text::face->glyph->bitmap.buffer[0]);
+        }
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         checkGLError("0.4");
-        Character character = {
+        Character newCharacter = {
             texture,
             glm::ivec2(M_Text::face->glyph->bitmap.width, M_Text::face->glyph->bitmap.rows),
             glm::ivec2(M_Text::face->glyph->bitmap_left, M_Text::face->glyph->bitmap_top),
             M_Text::face->glyph->advance.x
         };
-        M_Text::characters.insert(std::pair<char, Character>(c, character));
+        this->characters.insert(std::pair<char, Character>(c, newCharacter));
     }
     // This loop adds up the widths of each character in the text
     std::string::const_iterator c;
     for (c = this->text.begin(); c != this->text.end(); c++) {
-        Character ch = M_Text::characters[*c]; // Get the character from the map
-        this->width += (ch.Advance >> 6); // Bitshift by 6 to get value in pixels (2^6 = 64)
+        Character ch = this->characters[*c]; // Get the character from the map
+        this->width += (ch.advance >> 6); // Bitshift by 6 to get value in pixels (2^6 = 64)
     }
 
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -133,18 +135,18 @@ M_Text::~M_Text()
     glDeleteVertexArrays(1, &this->VAO);
     glDeleteBuffers(1, &this->VBO);
     for (unsigned char c = 0; c < 128; c++) {
-        glDeleteTextures(1, &M_Text::characters[c].TextureID);
+        glDeleteTextures(1, &this->characters[c].textureID);
     }
     CubeLog::info("Destroyed Text");
 }
 
 void M_Text::draw()
 {
-    if(this->reloadFace){
+    if (this->reloadFace) {
         reloadFont();
         this->reloadFace = false;
     }
-    if(!this->faceInitialized){
+    if (!this->faceInitialized) {
         return;
     }
     this->shader->use();
@@ -155,11 +157,11 @@ void M_Text::draw()
     std::string::const_iterator c;
     float xTemp = this->position.x;
     for (c = this->text.begin(); c != this->text.end(); c++) {
-        Character ch = M_Text::characters[*c];
-        float xpos = xTemp + ch.Bearing.x;
-        float ypos = this->position.y - (ch.Size.y - ch.Bearing.y);
-        float w = ch.Size.x;
-        float h = ch.Size.y;
+        Character ch = this->characters[*c];
+        float xpos = xTemp + ch.bearing.x;
+        float ypos = this->position.y - (ch.size.y - ch.bearing.y);
+        float w = ch.size.x;
+        float h = ch.size.y;
         float vertices[6][4] = {
             // Positions            // Texture Coords
             { xpos, ypos + h, 0.0f, 0.0f }, // Top-left
@@ -170,12 +172,12 @@ void M_Text::draw()
             { xpos + w, ypos + h, 1.0f, 0.0f }, // Top-right
             { xpos + w, ypos, 1.0f, 1.0f } // Bottom-right
         };
-        glBindTexture(GL_TEXTURE_2D, ch.TextureID);
+        glBindTexture(GL_TEXTURE_2D, ch.textureID);
         glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
         glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glDrawArrays(GL_TRIANGLES, 0, 6);
-        xTemp += (ch.Advance >> 6);
+        xTemp += (ch.advance >> 6);
     }
     glBindVertexArray(0);
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -191,8 +193,9 @@ void M_Text::setViewMatrix(glm::vec3 viewMatrix)
     return; // do nothing
 }
 
-void M_Text::setViewMatrix(glm::mat4 viewMatrix){
-    return; // do nothing   
+void M_Text::setViewMatrix(glm::mat4 viewMatrix)
+{
+    return; // do nothing
 }
 
 void M_Text::setModelMatrix(glm::mat4 modelMatrix)
@@ -230,7 +233,6 @@ void M_Text::rotateAbout(float angle, glm::vec3 point)
 {
     glm::vec3 axis = point - glm::vec3(this->position.x, this->position.y, 0.f);
     rotateAbout(angle, axis, point);
-    
 }
 
 void M_Text::rotateAbout(float angle, glm::vec3 axis, glm::vec3 point)
@@ -264,7 +266,7 @@ void M_Text::setPosition(glm::vec2 position)
 void M_Text::setText(std::string text)
 {
     for (unsigned char c = 0; c < 128; c++) {
-        glDeleteTextures(1, &M_Text::characters[c].TextureID);
+        glDeleteTextures(1, &this->characters[c].textureID);
     }
     this->text = text;
     this->buildText();
@@ -275,14 +277,16 @@ float M_Text::getWidth()
     return this->width;
 }
 
-void M_Text::capturePosition(){
+void M_Text::capturePosition()
+{
     this->capturedModelMatrix = this->modelMatrix;
     this->capturedViewMatrix = this->viewMatrix;
     this->capturedProjectionMatrix = this->projectionMatrix;
     this->capturedPosition = this->position;
 }
 
-void M_Text::restorePosition(){
+void M_Text::restorePosition()
+{
     this->modelMatrix = this->capturedModelMatrix;
     this->viewMatrix = this->capturedViewMatrix;
     this->projectionMatrix = this->capturedProjectionMatrix;
@@ -294,7 +298,8 @@ void M_Text::setVisibility(bool visible)
     this->visible = visible;
 }
 
-void M_Text::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix){
+void M_Text::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix)
+{
     this->mutex.lock();
     *modelMatrix = this->capturedModelMatrix - this->modelMatrix;
     *viewMatrix = this->capturedViewMatrix - this->viewMatrix;
@@ -302,13 +307,16 @@ void M_Text::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatri
     this->mutex.unlock();
 }
 
-glm::mat4 M_Text::getModelMatrix(){
+glm::mat4 M_Text::getModelMatrix()
+{
     return this->modelMatrix;
 }
-glm::mat4 M_Text::getViewMatrix(){
+glm::mat4 M_Text::getViewMatrix()
+{
     return this->viewMatrix;
 }
-glm::mat4 M_Text::getProjectionMatrix(){
+glm::mat4 M_Text::getProjectionMatrix()
+{
     return this->projectionMatrix;
 }
 
@@ -335,7 +343,7 @@ M_PartCircle::M_PartCircle(Shader* sh, unsigned int numSegments, float radius, g
         float x = this->centerPoint.x + this->radius * cos(theta);
         float y = this->centerPoint.y + this->radius * sin(theta);
         float z = this->centerPoint.z;
-        this->vertexData.push_back({ x, y, z, fillColor.r , fillColor.g, fillColor.b });
+        this->vertexData.push_back({ x, y, z, fillColor.r, fillColor.g, fillColor.b });
     }
     glGenVertexArrays(1, VAO);
     glGenBuffers(1, VBO);
@@ -385,7 +393,8 @@ void M_PartCircle::setViewMatrix(glm::vec3 viewMatrix)
     this->viewMatrix = glm::lookAt(viewMatrix, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 }
 
-void M_PartCircle::setViewMatrix(glm::mat4 viewMatrix){
+void M_PartCircle::setViewMatrix(glm::mat4 viewMatrix)
+{
     this->mutex.lock();
     this->viewMatrix = viewMatrix;
     this->mutex.unlock();
@@ -474,13 +483,15 @@ float M_PartCircle::getWidth()
     return this->radius;
 }
 
-void M_PartCircle::capturePosition(){
+void M_PartCircle::capturePosition()
+{
     this->capturedModelMatrix = this->modelMatrix;
     this->capturedViewMatrix = this->viewMatrix;
     this->capturedProjectionMatrix = this->projectionMatrix;
 }
 
-void M_PartCircle::restorePosition(){
+void M_PartCircle::restorePosition()
+{
     this->modelMatrix = this->capturedModelMatrix;
     this->viewMatrix = this->capturedViewMatrix;
     this->projectionMatrix = this->capturedProjectionMatrix;
@@ -491,7 +502,8 @@ void M_PartCircle::setVisibility(bool visible)
     this->visible = visible;
 }
 
-void M_PartCircle::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix){
+void M_PartCircle::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix)
+{
     this->mutex.lock();
     *modelMatrix = this->capturedModelMatrix - this->modelMatrix;
     *viewMatrix = this->capturedViewMatrix - this->viewMatrix;
@@ -499,68 +511,48 @@ void M_PartCircle::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* vie
     this->mutex.unlock();
 }
 
-
-glm::mat4 M_PartCircle::getModelMatrix(){
+glm::mat4 M_PartCircle::getModelMatrix()
+{
     return this->modelMatrix;
 }
-glm::mat4 M_PartCircle::getViewMatrix(){
+glm::mat4 M_PartCircle::getViewMatrix()
+{
     return this->viewMatrix;
 }
-glm::mat4 M_PartCircle::getProjectionMatrix(){
+glm::mat4 M_PartCircle::getProjectionMatrix()
+{
     return this->projectionMatrix;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
 
-unsigned char* M_RadioButtonTexture::selectedTextureBitmap = nullptr;
-unsigned char* M_RadioButtonTexture::unselectedTextureBitmap = nullptr;
-bool M_RadioButtonTexture::texturesInitialized = false;
-
 unsigned char* createRadioButtonTexture(unsigned int size, unsigned int padding, bool selected)
 {
-    // Allocate memory for the texture data
-    unsigned char* data = new unsigned char[size * size];
-
-    // Calculate the center of the texture
-    float center_x = size / 2.0f;
-    float center_y = size / 2.0f;
-
-    // Define the outer radius of the circle (adjusted for padding)
-    float outer_radius = (size - 2.0f * padding) / 2.0f;
-    // Define the thickness of the outline
-    float outline_thickness = padding;
-    // Define the inner radius (for the outline)
-    float inner_radius = outer_radius - outline_thickness;
-
-    // Iterate over each pixel in the texture
-    for (unsigned int y = 0; y < size; ++y)
-    {
-        for (unsigned int x = 0; x < size; ++x)
-        {
-            // Calculate the distance from the center of the circle to the current pixel
-            float dx = x + 0.5f - center_x;
-            float dy = y + 0.5f - center_y;
+    float overallWidthHeight = size + padding * 2.f;
+    unsigned char* data = new unsigned char[overallWidthHeight * overallWidthHeight];
+    float center_x = overallWidthHeight / 2.0f;
+    float center_y = overallWidthHeight / 2.0f;
+    float circle_outer_radius = size / 2.0f;
+    float circle_inner_radius = circle_outer_radius * RADIOBUTTON_INNER_OUTER_RATIO;
+    float dot_radius = circle_inner_radius * RADIOBUTTON_DOT_INNER_RATIO;
+    for (unsigned int y = 0; y < overallWidthHeight; ++y) {
+        for (unsigned int x = 0; x < overallWidthHeight; ++x) {
+            float dx = x - center_x;
+            float dy = y - center_y;
             float dist = std::sqrt(dx * dx + dy * dy);
-
-            // Initialize the pixel color to black (background)
-            unsigned char pixel_color;
-
-            // Check if the pixel is within the outline of the circle
-            if (dist >= inner_radius && dist <= outer_radius)
-            {
+            unsigned char pixel_color = 0;
+            if (dist >= circle_inner_radius && dist <= circle_outer_radius)
                 pixel_color = 255;
-            }
-            // If selected, fill the inner circle
-            else if (selected && dist < inner_radius)
-            {
+            else if (selected && dist < dot_radius)
                 pixel_color = 255;
+            data[(unsigned int)((float)y * overallWidthHeight + x)] = pixel_color;
+            for(int i = -1; i <= 1; i++) {
+                for(int j = -1; j <= 1; j++) {
+                    data[(unsigned int)((float)(y + i) * overallWidthHeight + x + j)] += 63;
+                }
             }
-
-            // Assign the color to the texture data
-            data[y * size + x] = pixel_color;
         }
     }
-
     return data;
 }
 
@@ -573,30 +565,27 @@ M_RadioButtonTexture::M_RadioButtonTexture(Shader* sh, float radioSize, unsigned
     this->padding = padding;
     this->color = color;
     this->scale_ = 1.0f;
-    if(!M_RadioButtonTexture::texturesInitialized){
-        M_RadioButtonTexture::texturesInitialized = true;
-        M_RadioButtonTexture::selectedTextureBitmap = createRadioButtonTexture(radioSize, padding, true);
-        M_RadioButtonTexture::unselectedTextureBitmap = createRadioButtonTexture(radioSize, padding, false);
-    }
-    
-    glGenTextures(1, &this->textureSelected);
-    glBindTexture(GL_TEXTURE_2D, this->textureSelected);
+    this->selectedTextureBitmap = createRadioButtonTexture(radioSize, padding, true);
+    this->unselectedTextureBitmap = createRadioButtonTexture(radioSize, padding, false);
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glGenTextures(1, &this->textureSelected);
+    glBindTexture(GL_TEXTURE_2D, this->textureSelected);
     glTexImage2D(
-        GL_TEXTURE_2D, 
-        0, 
-        GL_RED, 
-        radioSize, 
-        radioSize, 
-        0, 
-        GL_RED, 
-        GL_UNSIGNED_BYTE, 
-        M_RadioButtonTexture::selectedTextureBitmap
-    );
-    
+        GL_TEXTURE_2D,
+        0,
+        GL_RED,
+        radioSize,
+        radioSize,
+        0,
+        GL_RED,
+        GL_UNSIGNED_BYTE,
+        this->selectedTextureBitmap);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -604,17 +593,28 @@ M_RadioButtonTexture::M_RadioButtonTexture(Shader* sh, float radioSize, unsigned
     glGenTextures(1, &this->textureUnselected);
     glBindTexture(GL_TEXTURE_2D, this->textureUnselected);
     glTexImage2D(
-        GL_TEXTURE_2D, 
-        0, 
-        GL_RED, 
-        radioSize, 
-        radioSize, 
-        0, 
-        GL_RED, 
-        GL_UNSIGNED_BYTE, 
-        M_RadioButtonTexture::unselectedTextureBitmap
-    );
+        GL_TEXTURE_2D,
+        0,
+        GL_RED,
+        radioSize,
+        radioSize,
+        0,
+        GL_RED,
+        GL_UNSIGNED_BYTE,
+        this->unselectedTextureBitmap);
+
     setProjectionMatrix(glm::ortho(0.0f, 720.f, 0.0f, 720.f));
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glGenVertexArrays(1, &this->VAO);
+    glGenBuffers(1, &this->VBO);
+    glBindVertexArray(this->VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
     CubeLog::info("Created RadioButtonTexture");
 }
 
@@ -630,13 +630,10 @@ void M_RadioButtonTexture::draw()
     this->shader->use();
     shader->setVec3("textColor", this->color.x, this->color.y, this->color.z);
     shader->setMat4("projection", projectionMatrix);
-    glGenVertexArrays(1, &this->VAO);
-    glGenBuffers(1, &this->VBO);
-    glBindVertexArray(this->VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
+    glActiveTexture(GL_TEXTURE0);
 
-    float xPos = this->position.x - this->radioSize / 2;
-    float yPos = this->position.y - this->radioSize / 2;
+    float xPos = this->position.x;
+    float yPos = this->position.y - this->radioSize;
     float vertices[6][4] = {
         // Positions            // Texture Coords
         { xPos, yPos + this->radioSize, 0.0f, 0.0f }, // Top-left
@@ -647,22 +644,18 @@ void M_RadioButtonTexture::draw()
         { xPos + this->radioSize, yPos + this->radioSize, 1.0f, 0.0f }, // Top-right
         { xPos + this->radioSize, yPos, 1.0f, 1.0f } // Bottom-right
     };
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
-    glActiveTexture(GL_TEXTURE0);
     if (this->selected) {
         glBindTexture(GL_TEXTURE_2D, this->textureSelected);
-    }
-    else {
+    } else {
         glBindTexture(GL_TEXTURE_2D, this->textureUnselected);
     }
     glBindVertexArray(this->VAO);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-    // glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
     glBindVertexArray(0);
-    // glBindTexture(GL_TEXTURE_2D, 0);
-    // glUseProgram(0);
+    glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 void M_RadioButtonTexture::setProjectionMatrix(glm::mat4 projectionMatrix)
@@ -675,8 +668,9 @@ void M_RadioButtonTexture::setViewMatrix(glm::vec3 viewMatrix)
     return; // do nothing
 }
 
-void M_RadioButtonTexture::setViewMatrix(glm::mat4 viewMatrix){
-    return; // do nothing   
+void M_RadioButtonTexture::setViewMatrix(glm::mat4 viewMatrix)
+{
+    return; // do nothing
 }
 
 void M_RadioButtonTexture::setModelMatrix(glm::mat4 modelMatrix)
@@ -726,14 +720,16 @@ std::vector<Vertex> M_RadioButtonTexture::getVertices()
     return vertices;
 }
 
-void M_RadioButtonTexture::capturePosition(){
+void M_RadioButtonTexture::capturePosition()
+{
     this->capturedModelMatrix = this->modelMatrix;
     this->capturedViewMatrix = this->viewMatrix;
     this->capturedProjectionMatrix = this->projectionMatrix;
     this->capturedPosition = this->position;
 }
 
-void M_RadioButtonTexture::restorePosition(){
+void M_RadioButtonTexture::restorePosition()
+{
     this->modelMatrix = this->capturedModelMatrix;
     this->viewMatrix = this->capturedViewMatrix;
     this->projectionMatrix = this->capturedProjectionMatrix;
@@ -745,7 +741,8 @@ void M_RadioButtonTexture::setVisibility(bool visible)
     this->visible = visible;
 }
 
-void M_RadioButtonTexture::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix){
+void M_RadioButtonTexture::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix)
+{
     this->mutex.lock();
     *modelMatrix = this->capturedModelMatrix - this->modelMatrix;
     *viewMatrix = this->capturedViewMatrix - this->viewMatrix;
@@ -753,29 +750,37 @@ void M_RadioButtonTexture::getRestorePositionDiff(glm::mat4* modelMatrix, glm::m
     this->mutex.unlock();
 }
 
-glm::mat4 M_RadioButtonTexture::getModelMatrix(){
+glm::mat4 M_RadioButtonTexture::getModelMatrix()
+{
     return this->modelMatrix;
 }
 
-glm::mat4 M_RadioButtonTexture::getViewMatrix(){
+glm::mat4 M_RadioButtonTexture::getViewMatrix()
+{
     return this->viewMatrix;
 }
 
-glm::mat4 M_RadioButtonTexture::getProjectionMatrix(){
+glm::mat4 M_RadioButtonTexture::getProjectionMatrix()
+{
     return this->projectionMatrix;
 }
 
-void M_RadioButtonTexture::setSelected(bool selected){
+void M_RadioButtonTexture::setSelected(bool selected)
+{
     this->selected = selected;
 }
 
-void M_RadioButtonTexture::setPosition(glm::vec2 position){
+void M_RadioButtonTexture::setPosition(glm::vec2 position)
+{
     this->position = position;
 }
 
+float M_RadioButtonTexture::getWidth() { return this->radioSize; };
+
 //////////////////////////////////////////////////////////////////////////////////////////
 
-M_RadioButton::M_RadioButton(Shader* sh, glm::vec3 position, float radius, float radiusPx, glm::vec3 bgColor, glm::vec3 fgColor){
+M_RadioButton::M_RadioButton(Shader* sh, glm::vec3 position, float radius, float radiusPx, glm::vec3 bgColor, glm::vec3 fgColor)
+{
     CubeLog::debugSilly("Creating RadioButton with position: " + std::to_string(position.x) + ", " + std::to_string(position.y) + ", " + std::to_string(position.z));
     this->shader = sh;
     this->centerPoint = position;
@@ -790,138 +795,162 @@ M_RadioButton::M_RadioButton(Shader* sh, glm::vec3 position, float radius, float
     CubeLog::info("Created RadioButton");
 }
 
-M_RadioButton::~M_RadioButton(){
+M_RadioButton::~M_RadioButton()
+{
     CubeLog::info("Destroyed RadioButton");
     delete this->outline;
     delete this->bg_fill;
     delete this->center_fill;
 }
 
-void M_RadioButton::draw(){
+void M_RadioButton::draw()
+{
     this->outline->draw();
     this->bg_fill->draw();
-    if(this->selected){
+    if (this->selected) {
         this->center_fill->draw();
     }
 }
 
-void M_RadioButton::setProjectionMatrix(glm::mat4 projectionMatrix){
+void M_RadioButton::setProjectionMatrix(glm::mat4 projectionMatrix)
+{
     this->outline->setProjectionMatrix(projectionMatrix);
     this->bg_fill->setProjectionMatrix(projectionMatrix);
     this->center_fill->setProjectionMatrix(projectionMatrix);
 }
 
-void M_RadioButton::setViewMatrix(glm::vec3 viewMatrix){
+void M_RadioButton::setViewMatrix(glm::vec3 viewMatrix)
+{
     this->outline->setViewMatrix(viewMatrix);
     this->bg_fill->setViewMatrix(viewMatrix);
     this->center_fill->setViewMatrix(viewMatrix);
 }
 
-void M_RadioButton::setViewMatrix(glm::mat4 viewMatrix){
+void M_RadioButton::setViewMatrix(glm::mat4 viewMatrix)
+{
     this->outline->setViewMatrix(viewMatrix);
     this->bg_fill->setViewMatrix(viewMatrix);
     this->center_fill->setViewMatrix(viewMatrix);
 }
 
-void M_RadioButton::setModelMatrix(glm::mat4 modelMatrix){
+void M_RadioButton::setModelMatrix(glm::mat4 modelMatrix)
+{
     this->outline->setModelMatrix(modelMatrix);
     this->bg_fill->setModelMatrix(modelMatrix);
     this->center_fill->setModelMatrix(modelMatrix);
 }
 
-void M_RadioButton::translate(glm::vec3 translation){
+void M_RadioButton::translate(glm::vec3 translation)
+{
     this->centerPoint += translation;
     this->outline->translate(translation);
     this->bg_fill->translate(translation);
     this->center_fill->translate(translation);
 }
 
-void M_RadioButton::rotate(float angle, glm::vec3 axis){
+void M_RadioButton::rotate(float angle, glm::vec3 axis)
+{
     this->outline->rotate(angle, axis);
     this->bg_fill->rotate(angle, axis);
     this->center_fill->rotate(angle, axis);
 }
 
-void M_RadioButton::scale(glm::vec3 scale){
+void M_RadioButton::scale(glm::vec3 scale)
+{
     this->outline->scale(scale);
     this->bg_fill->scale(scale);
     this->center_fill->scale(scale);
 }
 
-void M_RadioButton::uniformScale(float scale){
+void M_RadioButton::uniformScale(float scale)
+{
     this->outline->uniformScale(scale);
     this->bg_fill->uniformScale(scale);
     this->center_fill->uniformScale(scale);
 }
 
-void M_RadioButton::rotateAbout(float angle, glm::vec3 point){
+void M_RadioButton::rotateAbout(float angle, glm::vec3 point)
+{
     this->outline->rotateAbout(angle, point);
     this->bg_fill->rotateAbout(angle, point);
     this->center_fill->rotateAbout(angle, point);
 }
 
-void M_RadioButton::rotateAbout(float angle, glm::vec3 axis, glm::vec3 point){
+void M_RadioButton::rotateAbout(float angle, glm::vec3 axis, glm::vec3 point)
+{
     this->outline->rotateAbout(angle, axis, point);
     this->bg_fill->rotateAbout(angle, axis, point);
     this->center_fill->rotateAbout(angle, axis, point);
 }
 
-glm::vec3 M_RadioButton::getCenterPoint(){
+glm::vec3 M_RadioButton::getCenterPoint()
+{
     return this->centerPoint;
 }
 
-std::vector<Vertex> M_RadioButton::getVertices(){
+std::vector<Vertex> M_RadioButton::getVertices()
+{
     return this->vertexData;
 }
 
-float M_RadioButton::getWidth(){
+float M_RadioButton::getWidth()
+{
     return this->radiusPx * 1.05 * 2;
 }
 
-void M_RadioButton::capturePosition(){
+void M_RadioButton::capturePosition()
+{
     this->outline->capturePosition();
     this->bg_fill->capturePosition();
     this->center_fill->capturePosition();
 }
 
-void M_RadioButton::restorePosition(){
+void M_RadioButton::restorePosition()
+{
     this->outline->restorePosition();
     this->bg_fill->restorePosition();
     this->center_fill->restorePosition();
 }
 
-void M_RadioButton::setVisibility(bool visible){
+void M_RadioButton::setVisibility(bool visible)
+{
     this->visible = visible;
     this->outline->setVisibility(visible);
     this->bg_fill->setVisibility(visible);
     this->center_fill->setVisibility(visible);
 }
 
-void M_RadioButton::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix){
+void M_RadioButton::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix)
+{
     this->outline->getRestorePositionDiff(modelMatrix, viewMatrix, projectionMatrix);
     this->bg_fill->getRestorePositionDiff(modelMatrix, viewMatrix, projectionMatrix);
     this->center_fill->getRestorePositionDiff(modelMatrix, viewMatrix, projectionMatrix);
 }
 
-glm::mat4 M_RadioButton::getModelMatrix(){
+glm::mat4 M_RadioButton::getModelMatrix()
+{
     return this->outline->getModelMatrix();
 }
 
-glm::mat4 M_RadioButton::getViewMatrix(){
+glm::mat4 M_RadioButton::getViewMatrix()
+{
     return this->outline->getViewMatrix();
 }
 
-glm::mat4 M_RadioButton::getProjectionMatrix(){
+glm::mat4 M_RadioButton::getProjectionMatrix()
+{
     return this->outline->getProjectionMatrix();
 }
 
-bool M_RadioButton::setSelected(bool selected){
+bool M_RadioButton::setSelected(bool selected)
+{
     bool temp = this->selected;
     this->selected = selected;
     return temp;
 }
 
-bool M_RadioButton::getSelected(){
+bool M_RadioButton::getSelected()
+{
     return this->selected;
 }
 
@@ -995,7 +1024,8 @@ void M_Rect::setViewMatrix(glm::vec3 viewMatrix)
     this->viewMatrix = glm::lookAt(viewMatrix, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 }
 
-void M_Rect::setViewMatrix(glm::mat4 viewMatrix){
+void M_Rect::setViewMatrix(glm::mat4 viewMatrix)
+{
     this->mutex.lock();
     this->viewMatrix = viewMatrix;
     this->mutex.unlock();
@@ -1104,13 +1134,15 @@ float M_Rect::getWidth()
     return this->vertexDataFill[0].x - this->vertexDataFill[1].x;
 }
 
-void M_Rect::capturePosition(){
+void M_Rect::capturePosition()
+{
     this->capturedModelMatrix = this->modelMatrix;
     this->capturedViewMatrix = this->viewMatrix;
     this->capturedProjectionMatrix = this->projectionMatrix;
 }
 
-void M_Rect::restorePosition(){
+void M_Rect::restorePosition()
+{
     this->modelMatrix = this->capturedModelMatrix;
     this->viewMatrix = this->capturedViewMatrix;
     this->projectionMatrix = this->capturedProjectionMatrix;
@@ -1121,7 +1153,8 @@ void M_Rect::setVisibility(bool visible)
     this->visible = visible;
 }
 
-void M_Rect::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix){
+void M_Rect::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix)
+{
     this->mutex.lock();
     *modelMatrix = this->capturedModelMatrix - this->modelMatrix;
     *viewMatrix = this->capturedViewMatrix - this->viewMatrix;
@@ -1129,13 +1162,16 @@ void M_Rect::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatri
     this->mutex.unlock();
 }
 
-glm::mat4 M_Rect::getModelMatrix(){
+glm::mat4 M_Rect::getModelMatrix()
+{
     return this->modelMatrix;
 }
-glm::mat4 M_Rect::getViewMatrix(){
+glm::mat4 M_Rect::getViewMatrix()
+{
     return this->viewMatrix;
 }
-glm::mat4 M_Rect::getProjectionMatrix(){
+glm::mat4 M_Rect::getProjectionMatrix()
+{
     return this->projectionMatrix;
 }
 
@@ -1194,7 +1230,8 @@ void M_Line::setViewMatrix(glm::vec3 viewMatrix)
     this->viewMatrix = glm::lookAt(viewMatrix, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 }
 
-void M_Line::setViewMatrix(glm::mat4 viewMatrix){
+void M_Line::setViewMatrix(glm::mat4 viewMatrix)
+{
     this->mutex.lock();
     this->viewMatrix = viewMatrix;
     this->mutex.unlock();
@@ -1226,7 +1263,6 @@ void M_Line::rotate(float angle, glm::vec3 axis)
     this->vertexData[0] = { start.x, start.y, start.z, 1.f };
     this->vertexData[1] = { end.x, end.y, end.z, 1.f };
     this->modelMatrix = glm::rotate(this->modelMatrix, glm::radians(angle), axis);
-
 }
 
 void M_Line::scale(glm::vec3 scale)
@@ -1296,13 +1332,15 @@ float M_Line::getWidth()
     return this->vertexData[0].x - this->vertexData[1].x;
 }
 
-void M_Line::capturePosition(){
+void M_Line::capturePosition()
+{
     this->capturedModelMatrix = this->modelMatrix;
     this->capturedViewMatrix = this->viewMatrix;
     this->capturedProjectionMatrix = this->projectionMatrix;
 }
 
-void M_Line::restorePosition(){
+void M_Line::restorePosition()
+{
     this->modelMatrix = this->capturedModelMatrix;
     this->viewMatrix = this->capturedViewMatrix;
     this->projectionMatrix = this->capturedProjectionMatrix;
@@ -1313,7 +1351,8 @@ void M_Line::setVisibility(bool visibility)
     this->visible = visibility;
 }
 
-void M_Line::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix){
+void M_Line::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix)
+{
     this->mutex.lock();
     *modelMatrix = this->capturedModelMatrix - this->modelMatrix;
     *viewMatrix = this->capturedViewMatrix - this->viewMatrix;
@@ -1321,19 +1360,24 @@ void M_Line::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatri
     this->mutex.unlock();
 }
 
-glm::mat4 M_Line::getModelMatrix(){
+glm::mat4 M_Line::getModelMatrix()
+{
     return this->modelMatrix;
 }
-glm::mat4 M_Line::getViewMatrix(){
+glm::mat4 M_Line::getViewMatrix()
+{
     return this->viewMatrix;
 }
-glm::mat4 M_Line::getProjectionMatrix(){
+glm::mat4 M_Line::getProjectionMatrix()
+{
     return this->projectionMatrix;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
 
-M_Arc::M_Arc(Shader* sh, unsigned int numSegments, float radius, float startAngle, float endAngle, glm::vec3 centerPoint, glm::vec3 fillColor):M_Arc(sh, numSegments, radius, startAngle, endAngle, centerPoint){
+M_Arc::M_Arc(Shader* sh, unsigned int numSegments, float radius, float startAngle, float endAngle, glm::vec3 centerPoint, glm::vec3 fillColor)
+    : M_Arc(sh, numSegments, radius, startAngle, endAngle, centerPoint)
+{
     this->fillColor = fillColor;
 }
 
@@ -1400,7 +1444,8 @@ void M_Arc::setViewMatrix(glm::vec3 viewMatrix)
     this->viewMatrix = glm::lookAt(viewMatrix, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 }
 
-void M_Arc::setViewMatrix(glm::mat4 viewMatrix){
+void M_Arc::setViewMatrix(glm::mat4 viewMatrix)
+{
     this->mutex.lock();
     this->viewMatrix = viewMatrix;
     this->mutex.unlock();
@@ -1454,13 +1499,15 @@ float M_Arc::getWidth()
     return this->radius;
 }
 
-void M_Arc::capturePosition(){
+void M_Arc::capturePosition()
+{
     this->capturedModelMatrix = this->modelMatrix;
     this->capturedViewMatrix = this->viewMatrix;
     this->capturedProjectionMatrix = this->projectionMatrix;
 }
 
-void M_Arc::restorePosition(){
+void M_Arc::restorePosition()
+{
     this->modelMatrix = this->capturedModelMatrix;
     this->viewMatrix = this->capturedViewMatrix;
     this->projectionMatrix = this->capturedProjectionMatrix;
@@ -1471,7 +1518,8 @@ void M_Arc::setVisibility(bool visibility)
     this->visible = visibility;
 }
 
-void M_Arc::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix){
+void M_Arc::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix)
+{
     this->mutex.lock();
     *modelMatrix = this->capturedModelMatrix - this->modelMatrix;
     *viewMatrix = this->capturedViewMatrix - this->viewMatrix;
@@ -1479,13 +1527,16 @@ void M_Arc::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix
     this->mutex.unlock();
 }
 
-glm::mat4 M_Arc::getModelMatrix(){
+glm::mat4 M_Arc::getModelMatrix()
+{
     return this->modelMatrix;
 }
-glm::mat4 M_Arc::getViewMatrix(){
+glm::mat4 M_Arc::getViewMatrix()
+{
     return this->viewMatrix;
 }
-glm::mat4 M_Arc::getProjectionMatrix(){
+glm::mat4 M_Arc::getProjectionMatrix()
+{
     return this->projectionMatrix;
 }
 
@@ -1561,7 +1612,8 @@ void Cube::setViewMatrix(glm::vec3 view)
     this->viewMatrix = glm::lookAt(view, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 }
 
-void Cube::setViewMatrix(glm::mat4 viewMatrix){
+void Cube::setViewMatrix(glm::mat4 viewMatrix)
+{
     this->mutex.lock();
     this->viewMatrix = viewMatrix;
     this->mutex.unlock();
@@ -1621,7 +1673,6 @@ void Cube::rotateAbout(float angle, glm::vec3 point)
     modelMatrix = tempMat * originalModelMatrix; // Apply the rotation to the original matrix
 }
 
-
 void Cube::rotateAbout(float angle, glm::vec3 axis, glm::vec3 point)
 {
     glm::mat4 originalModelMatrix = modelMatrix; // Save the original model matrix
@@ -1632,10 +1683,9 @@ void Cube::rotateAbout(float angle, glm::vec3 axis, glm::vec3 point)
     tempMat = glm::translate(tempMat, point);
     tempMat = glm::rotate(tempMat, glm::radians(angle), normalizedAxis);
     tempMat = glm::translate(tempMat, -point);
-    
+
     modelMatrix = tempMat * originalModelMatrix; // Apply the rotation to the original matrix
 }
-
 
 glm::vec3 Cube::getCenterPoint()
 {
@@ -1658,13 +1708,15 @@ float Cube::getWidth()
     return cubeVertices[0].x - cubeVertices[1].x;
 }
 
-void Cube::capturePosition(){
+void Cube::capturePosition()
+{
     this->capturedModelMatrix = this->modelMatrix;
     this->capturedViewMatrix = this->viewMatrix;
     this->capturedProjectionMatrix = this->projectionMatrix;
 }
 
-void Cube::restorePosition(){
+void Cube::restorePosition()
+{
     this->modelMatrix = this->capturedModelMatrix;
     this->viewMatrix = this->capturedViewMatrix;
     this->projectionMatrix = this->capturedProjectionMatrix;
@@ -1675,7 +1727,8 @@ void Cube::setVisibility(bool visible)
     this->visible = visible;
 }
 
-void Cube::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix){
+void Cube::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix)
+{
     this->mutex.lock();
     *modelMatrix = this->capturedModelMatrix - this->modelMatrix;
     *viewMatrix = this->capturedViewMatrix - this->viewMatrix;
@@ -1683,13 +1736,16 @@ void Cube::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix,
     this->mutex.unlock();
 }
 
-glm::mat4 Cube::getModelMatrix(){
+glm::mat4 Cube::getModelMatrix()
+{
     return this->modelMatrix;
 }
-glm::mat4 Cube::getViewMatrix(){
+glm::mat4 Cube::getViewMatrix()
+{
     return this->viewMatrix;
 }
-glm::mat4 Cube::getProjectionMatrix(){
+glm::mat4 Cube::getProjectionMatrix()
+{
     return this->projectionMatrix;
 }
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -1721,7 +1777,8 @@ OBJObject::OBJObject(Shader* sh, std::vector<Vertex> vertices)
 
 void OBJObject::draw()
 {
-    if(!visible) return;
+    if (!visible)
+        return;
     this->mutex.lock();
     shader->use();
     shader->setMat4("model", modelMatrix);
@@ -1747,8 +1804,8 @@ void OBJObject::setViewMatrix(glm::vec3 view)
     this->mutex.unlock();
 }
 
-
-void OBJObject::setViewMatrix(glm::mat4 viewMatrix){
+void OBJObject::setViewMatrix(glm::mat4 viewMatrix)
+{
     this->mutex.lock();
     this->viewMatrix = viewMatrix;
     this->mutex.unlock();
@@ -1853,7 +1910,8 @@ float OBJObject::getWidth()
     return this->vertexData[0].x - this->vertexData[1].x;
 }
 
-void OBJObject::capturePosition(){
+void OBJObject::capturePosition()
+{
     this->mutex.lock();
     this->capturedModelMatrix = this->modelMatrix;
     this->capturedViewMatrix = this->viewMatrix;
@@ -1861,7 +1919,8 @@ void OBJObject::capturePosition(){
     this->mutex.unlock();
 }
 
-void OBJObject::restorePosition(){
+void OBJObject::restorePosition()
+{
     this->mutex.lock();
     this->modelMatrix = this->capturedModelMatrix;
     this->viewMatrix = this->capturedViewMatrix;
@@ -1874,7 +1933,8 @@ void OBJObject::setVisibility(bool visible)
     this->visible = visible;
 }
 
-void OBJObject::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix){
+void OBJObject::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix)
+{
     this->mutex.lock();
     *modelMatrix = this->capturedModelMatrix - this->modelMatrix;
     *viewMatrix = this->capturedViewMatrix - this->viewMatrix;
@@ -1882,13 +1942,16 @@ void OBJObject::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMa
     this->mutex.unlock();
 }
 
-glm::mat4 OBJObject::getModelMatrix(){
+glm::mat4 OBJObject::getModelMatrix()
+{
     return this->modelMatrix;
 }
-glm::mat4 OBJObject::getViewMatrix(){
+glm::mat4 OBJObject::getViewMatrix()
+{
     return this->viewMatrix;
 }
-glm::mat4 OBJObject::getProjectionMatrix(){
+glm::mat4 OBJObject::getProjectionMatrix()
+{
     return this->projectionMatrix;
 }
 

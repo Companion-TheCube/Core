@@ -162,7 +162,7 @@ void GUI::eventLoop()
             [](void*) { return 0; },
             nullptr);
         mainMenu->addMenuEntry(
-            "Test Menu Entry 1 but with more text",
+            "Test Menu Entry but with radio button",
             MenuEntry::EntryType::MENUENTRY_TYPE_RADIOBUTTON,
             [&](void* data) {
                 CubeLog::info("Test Menu Entry 1 clicked");

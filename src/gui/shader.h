@@ -1,16 +1,16 @@
 #ifndef SHADER_H
 #define SHADER_H
+#ifndef WIN32_INCLUDED
+#define WIN32_INCLUDED
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
+#include <windows.h>
+#endif
 #endif
 #include <string>
 #include <filesystem>
-// #ifndef __GLEW_H__
 #include "GL/glew.h"
-// #endif
-// #include <GL/gl.h>
-// #include <GL/glu.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>

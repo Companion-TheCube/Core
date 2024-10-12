@@ -3,17 +3,19 @@
 #ifndef MESHOBJECT_H
 #include "meshObject.h"
 #endif// SHAPES_H
+#ifndef GLOBAL_SETTINGS_H
+#include "settings/globalSettings.h"
+#endif// GLOBAL_SETTINGS_H
 #include <ft2build.h>
-#include <globalSettings.h>
 #include FT_FREETYPE_H
 
 #define STENCIL_INSET_PX 10
 
 struct Character {
-    unsigned int TextureID; // ID handle of the glyph texture
-    glm::ivec2 Size; // Size of glyph
-    glm::ivec2 Bearing; // Offset from baseline to left/top of glyph
-    unsigned int Advance; // Offset to advance to next glyph
+    unsigned int textureID; // ID handle of the glyph texture
+    glm::ivec2 size; // Size of glyph
+    glm::ivec2 bearing; // Offset from baseline to left/top of glyph
+    FT_Pos advance; // Offset to advance to next glyph
 };
 
 class M_Text : public MeshObject {
@@ -30,7 +32,7 @@ private:
     glm::vec3 centerPoint;
     glm::vec2 position;
     float scale_;
-    static std::map<char, Character> characters;
+    std::map<char, Character> characters;
     float width = 0.f;
     void buildText();
     static FT_Library ft;
@@ -243,6 +245,9 @@ public:
     void getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix);
 };
 
+#define RADIOBUTTON_INNER_OUTER_RATIO 0.8f
+#define RADIOBUTTON_DOT_INNER_RATIO 0.85f
+
 class M_RadioButtonTexture : public MeshObject {
 private:
     Shader* shader;
@@ -264,9 +269,9 @@ private:
     glm::vec2 capturedPosition;
     bool visible = true;
     std::mutex mutex;
-    static unsigned char* selectedTextureBitmap;
-    static unsigned char* unselectedTextureBitmap;
-    static bool texturesInitialized;
+    unsigned char* selectedTextureBitmap;
+    unsigned char* unselectedTextureBitmap;
+
 public:
     M_RadioButtonTexture(Shader* sh, float radioSize, unsigned int padding, glm::vec3 color, glm::vec2 position);
     ~M_RadioButtonTexture();
@@ -292,7 +297,7 @@ public:
     void capturePosition();
     void restorePosition();
     void getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix);
-    float getWidth(){return this->radioSize;};
+    float getWidth();
 };
 
 class M_RadioButton : public MeshObject {

@@ -1,4 +1,18 @@
+#pragma once
+#ifndef DOCKERAPI_H
+#define DOCKERAPI_H
+#ifndef HTTPLIB_INCLUDED
+#define HTTPLIB_INCLUDED
 #include <httplib.h>
+#endif
+#ifndef WIN32_INCLUDED
+#define WIN32_INCLUDED
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#endif
+#endif
 #include <logger.h>
 #include <utils.h>
 #include <nlohmann/json.hpp>
@@ -93,3 +107,5 @@ public:
     std::expected<std::vector<std::string>, DockerError> getContainers_vec();
     std::expected<std::vector<std::string>, DockerError> getImages_vec();
 };
+
+#endif

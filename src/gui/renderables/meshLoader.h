@@ -1,8 +1,12 @@
 #pragma once
-
-#include "../shader.h"
+#ifndef MESHLOADER_H
+#define MESHLOADER_H
+#ifndef MESHOBJECT_H
 #include "meshObject.h"
+#endif// MESHOBJECT_H
+#ifndef SHAPES_H
 #include "shapes.h"
+#endif// SHAPES_H
 #include <algorithm>
 #include <fstream>
 #include <iostream>
@@ -167,3 +171,5 @@ public:
     ExpressionDefinition getExpressionByEnum(Expressions::ExpressionNames_enum name);
     ExpressionDefinition getExpressionByName(std::string name);
 };
+
+#endif // MESHLOADER_H

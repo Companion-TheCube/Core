@@ -7,8 +7,18 @@
 #include <string>
 #include <thread>
 #include <vector>
-#define WIN32_LEAN_AND_MEAN
+#ifndef HTTPLIB_INCLUDED
+#define HTTPLIB_INCLUDED
 #include <httplib.h>
+#endif
+#ifndef WIN32_INCLUDED
+#define WIN32_INCLUDED
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#endif
+#endif
 #include <nlohmann/json.hpp>
 
 struct EndpointError {

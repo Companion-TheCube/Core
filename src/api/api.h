@@ -6,7 +6,10 @@
 #include <functional>
 #include <logger.h>
 #include <thread>
+#ifndef HTTPLIB_INCLUDED
+#define HTTPLIB_INCLUDED
 #include <httplib.h>
+#endif
 #ifdef __linux__
 #include <sys/wait.h>
 #include <unistd.h>

@@ -10,9 +10,6 @@
 #include <functional>
 #include <mutex>
 #include <condition_variable>
-// #ifndef GUI_H
-// #include "../gui/gui.h"
-// #endif
 
 class CubeDB : public I_API_Interface{
     static std::shared_ptr<CubeDatabaseManager> dbManager;

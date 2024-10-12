@@ -1,17 +1,28 @@
+#pragma once
 #ifndef CHARACTERMANAGER_H
 #define CHARACTERMANAGER_H
-
+#ifndef OBJECTS_H
 #include "objects.h"
-#include <vector>
-// #include "renderables/theCube.h"
+#endif// OBJECTS_H
+#ifndef MESHLOADER_H
 #include "renderables/meshLoader.h"
+#endif// MESHLOADER_H
+#ifndef MESHOBJECT_H
 #include "renderables/meshObject.h"
+#endif// MESHOBJECT_H
+#ifndef SHAPES_H
 #include "renderables/shapes.h"
+#endif// SHAPES_H
+#ifndef SHADER_H
 #include "shader.h"
+#endif// SHADER_H
+#ifndef CUBEDB_H
 #include <../database/cubeDB.h>
+#endif// CUBEDB_H
 #include <iostream>
 #include <logger.h>
 #include <thread>
+#include <vector>
 
 
 struct CharacterPart {

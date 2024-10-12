@@ -18,6 +18,7 @@ bool Menu::mainMenuSet = false;
 Menu::Menu(Renderer* renderer)
     : Menu(renderer, *this->latch)
 {
+    this->hasLatch = false;
 }
 
 /**
@@ -241,7 +242,7 @@ void Menu::setup()
 {
     this->objects.push_back(new MenuBox({ MENU_POSITION_SCREEN_RELATIVE_X_CENTER, MENU_POSITION_SCREEN_RELATIVE_Y_CENTER }, { MENU_WIDTH_SCREEN_RELATIVE, MENU_HEIGHT_SCREEN_RELATIVE }, this->renderer->getShader()));
     this->objects.at(0)->setVisible(true);
-    Shader* stencilShader = new Shader("shaders/menuStencil.vs", "shaders/menuStencil.fs");
+    // Shader* stencilShader = new Shader("shaders/menuStencil.vs", "shaders/menuStencil.fs");
     float stencilX_start_temp = MENU_POSITION_SCREEN_RELATIVE_X_CENTER - MENU_WIDTH_SCREEN_RELATIVE / 2;
     float stencilY_start_temp = MENU_POSITION_SCREEN_RELATIVE_Y_CENTER - MENU_HEIGHT_SCREEN_RELATIVE / 2;
     float stencilX_start = mapRange(stencilX_start_temp, SCREEN_RELATIVE_MIN_X, SCREEN_RELATIVE_MAX_X, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X);
@@ -249,6 +250,7 @@ void Menu::setup()
     float stencilWidth = mapRange(MENU_WIDTH_SCREEN_RELATIVE, SCREEN_RELATIVE_MIN_WIDTH, SCREEN_RELATIVE_MAX_WIDTH, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X) - (STENCIL_INSET_PX * 2);
     float stencilHeight = mapRange(MENU_HEIGHT_SCREEN_RELATIVE, SCREEN_RELATIVE_MIN_HEIGHT, SCREEN_RELATIVE_MAX_HEIGHT, SCREEN_PX_MIN_Y, SCREEN_PX_MAX_Y) - (STENCIL_INSET_PX * 2);
     this->stencil = new MenuStencil({ stencilX_start + STENCIL_INSET_PX, stencilY_start + STENCIL_INSET_PX }, { stencilWidth, stencilHeight });
+
     /////// TESTING ////////////
     // for (auto font : GlobalSettings::fontPaths) {
     //     FT_Library ft;
@@ -277,7 +279,7 @@ void Menu::setup()
     // }
     std::lock_guard<std::mutex> lock(this->mutex);
     this->ready = true;
-    if (this->latch != nullptr)
+    if (this->hasLatch)
         this->latch->count_down();
     CubeLog::info("Menu setup done");
 }
@@ -607,10 +609,10 @@ MenuEntry::MenuEntry(std::string text, Shader* textShader, Shader* meshShader, g
     case EntryType::MENUENTRY_TYPE_RADIOBUTTON: {
         CubeLog::moreInfo("Creating radio button");
         float posX = this->position.x + (this->visibleWidth - size);
-        float posY = this->position.y;
-        auto tempRB = new M_RadioButtonTexture(textShader, size, 3, {1.f,1.f,1.f}, {posX, posY});
-        // float translateX = screenPxToScreenRelativeWidth(this->visibleWidth - (size));
-        // tempRB->translate({ translateX, 0.f, 0.f });
+        float posY = this->position.y + size * 0.9;
+        auto tempRB = new M_RadioButtonTexture(new Shader("shaders/text.vs", "shaders/text.fs"), size + 20, 20, { 1.f, 1.f, 1.f }, { posX, posY });
+        // auto tempRB = new M_RadioButtonTexture(new Shader("shaders/text.vs", "shaders/text.fs"), 200, 50, {1.f,1.f,1.f}, {700, 700});
+        tempRB->setSelected(true);
         tempRB->capturePosition();
         tempRB->setVisibility(true);
         CubeLog::moreInfo("Radius button getWidth(): " + std::to_string(tempRB->getWidth()));
@@ -730,12 +732,13 @@ void MenuEntry::draw()
             this->scrollWait = 0;
         }
     }
-    for (auto object : this->scrollObjects) {
-        object->draw();
-    }
     for (auto object : this->xFixedObjects) {
         object->draw();
     }
+    for (auto object : this->scrollObjects) {
+        object->draw();
+    }
+    
     for (auto object : this->yFixedObjects) {
         object->draw();
     }

@@ -1,3 +1,4 @@
+#pragma once
 #ifndef UTILS_H
 #define UTILS_H
 #include <atomic>
@@ -16,9 +17,11 @@
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
-#include "psapi.h"
 #include <windows.h>
 #endif
+#endif
+#ifdef _WIN32
+#include "psapi.h"
 #endif
 
 #ifndef _TASK_QUEUE_H_
@@ -41,18 +44,21 @@ public:
         tasks_.pop_back();
         return task;
     }
-    std::function<void()> shift(){
+    std::function<void()> shift()
+    {
         std::unique_lock<std::mutex> lock(mutex_);
         condition_.wait(lock, [this] { return !tasks_.empty(); });
         auto task = std::move(tasks_.front());
         tasks_.erase(tasks_.begin());
         return task;
     }
-    std::function<void()> peek(){
+    std::function<void()> peek()
+    {
         std::lock_guard<std::mutex> lock(mutex_);
         return tasks_.front();
     }
-    std::function<void()> peek(int index){
+    std::function<void()> peek(int index)
+    {
         std::lock_guard<std::mutex> lock(mutex_);
         return tasks_.at(index);
     }
@@ -83,26 +89,32 @@ std::string getCpuUsage();
 
 #ifndef _COUNTDOWN_LATCH_H_
 #define _COUNTDOWN_LATCH_H_
-#include <mutex>
 #include <condition_variable>
+#include <mutex>
 
 class CountingLatch {
 public:
-    explicit CountingLatch(int count) : count_(count) {}
+    explicit CountingLatch(int count)
+        : count_(count)
+    {
+    }
 
-    void count_up(int n = 1) {
+    void count_up(int n = 1)
+    {
         std::unique_lock<std::mutex> lock(mutex_);
         count_ += n;
     }
 
-    void count_down() {
+    void count_down()
+    {
         std::unique_lock<std::mutex> lock(mutex_);
         if (--count_ == 0) {
             cv_.notify_all();
         }
     }
 
-    void wait() {
+    void wait()
+    {
         std::unique_lock<std::mutex> lock(mutex_);
         cv_.wait(lock, [this] { return count_ == 0; });
     }
@@ -114,4 +126,4 @@ private:
 };
 
 #endif
-#endif// UTILS_H
+#endif // UTILS_H

@@ -3,6 +3,7 @@
 // #ifndef GUI_H
 // #include "./../gui.h"
 // #endif
+#include <bitset>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -56,7 +57,6 @@
 
 class MenuStencil;
 
-
 class MenuEntry : public Clickable {
 public:
     enum EntryType {
@@ -68,6 +68,7 @@ public:
         MENUENTRY_TYPE_TEXT_INPUT,
         MENUENTRY_TYPE_SLIDER
     };
+
 private:
     enum ScrollingDirection {
         NOT_SCROLLING,
@@ -139,6 +140,7 @@ private:
     long scrollVertPosition = 0;
     bool onClickEnabled = true;
     CountingLatch* latch = nullptr;
+    bool hasLatch = true;
     int maxScrollY = 0;
     std::string menuName;
     Shader* textShader;

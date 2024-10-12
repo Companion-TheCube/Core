@@ -1,4 +1,12 @@
 #pragma once
+#ifndef WIN32_INCLUDED
+#define WIN32_INCLUDED
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#endif
+#endif
 #include <functional>
 #include <vector>
 #include <logger.h>

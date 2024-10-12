@@ -5,14 +5,14 @@
 #include <cstdlib>
 #include <string>
 #endif
-#ifndef WIN32_INCLUDED
-#define WIN32_INCLUDED
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
-#endif
-#endif
+// #ifndef WIN32_INCLUDED
+// #define WIN32_INCLUDED
+// #ifdef _WIN32
+// #define WIN32_LEAN_AND_MEAN
+// #define NOMINMAX
+// #include <windows.h>
+// #endif
+// #endif
 #include "api/builder.h"
 #include "apps/appsManager.h"
 #include "argparse.hpp"
