@@ -1,11 +1,12 @@
 #include "menu.h"
 
+namespace MENUS {
 float screenRelativeToScreenPx(float screenRelative);
 float screenPxToScreenRelative(float screenPx);
 float screenPxToScreenRelativeWidth(float screenPx);
 float screenRelativeToScreenPxWidth(float screenRelative);
 bool Menu::mainMenuSet = false;
-
+Shader* textShader = new Shader("shaders/text.vs", "shaders/text.fs");
 
 /**
  * @brief Construct a new Menu object
@@ -85,7 +86,7 @@ Menu::~Menu()
  * @param text The text to display
  * @param action The action to take when the menu entry is clicked
  */
-unsigned int Menu::addMenuEntry(std::string text, std::string uniqueID, MenuEntry::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> statusAction, void* statusActionData)
+unsigned int Menu::addMenuEntry(std::string text, std::string uniqueID, MENUS::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> statusAction, void* statusActionData)
 {
     // TODO: add the ability to have an entry be fixed to the top of the menu. This will need a stencil so that other entries can be scrolled under it.
     // TODO: add icon support
@@ -98,7 +99,7 @@ unsigned int Menu::addMenuEntry(std::string text, std::string uniqueID, MenuEntr
     float textY = mapRange(MENU_POSITION_SCREEN_RELATIVE_Y_TOP, SCREEN_RELATIVE_MIN_Y, SCREEN_RELATIVE_MAX_Y, SCREEN_PX_MIN_Y, SCREEN_PX_MAX_Y) - startY - (STENCIL_INSET_PX * 2) - this->menuItemTextSize;
     float menuWidthPx = mapRange(MENU_WIDTH_SCREEN_RELATIVE, SCREEN_RELATIVE_MIN_WIDTH, SCREEN_RELATIVE_MAX_WIDTH, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X);
     float menuWidthAdjusted = menuWidthPx - (STENCIL_INSET_PX * 2) - (MENU_ITEM_PADDING_PX * 2);
-    auto entry = new MenuEntry(text, new Shader("shaders/text.vs", "shaders/text.fs"), this->renderer->getShader(), { textX, textY }, menuItemTextSize, menuWidthAdjusted, type, statusAction, statusActionData);
+    auto entry = new MenuEntry(text, textShader, this->renderer->getShader(), { textX, textY }, menuItemTextSize, menuWidthAdjusted, type, statusAction, statusActionData);
     entry->getClickableArea()->yMin -= (MENU_ITEM_PADDING_PX);
     entry->getClickableArea()->yMax += (MENU_ITEM_PADDING_PX);
     entry->setVisible(true);
@@ -122,7 +123,7 @@ unsigned int Menu::addMenuEntry(std::string text, std::string uniqueID, MenuEntr
  * @param action The action to take when the menu entry is clicked
  * @param rightAction The action to take when the menu entry is right clicked
  */
-unsigned int Menu::addMenuEntry(std::string text, std::string uniqueID, MenuEntry::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> rightAction, std::function<unsigned int(void*)> statusAction, void* statusActionData)
+unsigned int Menu::addMenuEntry(std::string text, std::string uniqueID, MENUS::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> rightAction, std::function<unsigned int(void*)> statusAction, void* statusActionData)
 {
     unsigned int t = this->addMenuEntry(text, uniqueID, type, action, statusAction, statusActionData);
     this->childrenClickables.at(this->childrenClickables.size() - 1)->setOnRightClick(rightAction);
@@ -625,7 +626,7 @@ MenuEntry::MenuEntry(std::string text, Shader* textShader, Shader* meshShader, g
     case EntryType::MENUENTRY_TYPE_SUBMENU: {
         break;
     }
-    case EntryType::MENUENTRY_TYPE_RADIOBUTTON: {
+    case EntryType::MENUENTRY_TYPE_RADIOBUTTON_GROUP: {
         CubeLog::moreInfo("Creating radio button");
         float posX = this->position.x + (this->visibleWidth - size);
         float posY = this->position.y + size;
@@ -737,7 +738,7 @@ void MenuEntry::draw()
     case EntryType::MENUENTRY_TYPE_SUBMENU: {
         break;
     }
-    case EntryType::MENUENTRY_TYPE_RADIOBUTTON: {
+    case EntryType::MENUENTRY_TYPE_RADIOBUTTON_GROUP: {
         if(this->statusReturnData == 1) {
             ((M_RadioButtonTexture*)this->xFixedObjects.at(0))->setSelected(true);
         } else {
@@ -1150,3 +1151,4 @@ float screenRelativeToScreenPxWidth(float screenRelative)
 {
     return mapRange(screenRelative, SCREEN_RELATIVE_MIN_WIDTH, SCREEN_RELATIVE_MAX_WIDTH, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X);
 }
+} // namespace MENUS

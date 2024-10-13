@@ -57,17 +57,33 @@
 
 class MenuStencil;
 
-class MenuEntry : public Clickable {
-public:
-    enum EntryType {
-        MENUENTRY_TYPE_SUBMENU,
-        MENUENTRY_TYPE_ACTION, // return 0.
-        MENUENTRY_TYPE_RADIOBUTTON, // return 1 (selected) or 2 (not selected)
-        MENUENTRY_TYPE_TEXT_INFO,
-        MENUENTRY_TYPE_TEXT_INPUT,
-        MENUENTRY_TYPE_SLIDER
-    };
+namespace MENUS {
 
+enum EntryType {
+    MENUENTRY_TYPE_SUBMENU,
+    MENUENTRY_TYPE_ACTION,
+    MENUENTRY_TYPE_RADIOBUTTON_GROUP,
+    MENUENTRY_TYPE_CHECKBOX,
+    MENUENTRY_TYPE_TOGGLE,
+    MENUENTRY_TYPE_TEXT_INFO,
+    MENUENTRY_TYPE_TEXT_INPUT,
+    MENUENTRY_TYPE_SLIDER,
+
+    MENUENTRY_TYPE_COUNT
+};
+
+const std::unordered_map<std::string, EntryType> entryTypeMap = {
+    { "MENUENTRY_TYPE_SUBMENU", MENUENTRY_TYPE_SUBMENU },
+    { "MENUENTRY_TYPE_ACTION", MENUENTRY_TYPE_ACTION },
+    { "MENUENTRY_TYPE_RADIOBUTTON_GROUP", MENUENTRY_TYPE_RADIOBUTTON_GROUP },
+    { "MENUENTRY_TYPE_CHECKBOX", MENUENTRY_TYPE_CHECKBOX },
+    { "MENUENTRY_TYPE_TOGGLE", MENUENTRY_TYPE_TOGGLE },
+    { "MENUENTRY_TYPE_TEXT_INFO", MENUENTRY_TYPE_TEXT_INFO },
+    { "MENUENTRY_TYPE_TEXT_INPUT", MENUENTRY_TYPE_TEXT_INPUT },
+    { "MENUENTRY_TYPE_SLIDER", MENUENTRY_TYPE_SLIDER }
+};
+
+class MenuEntry : public Clickable {
 private:
     enum ScrollingDirection {
         NOT_SCROLLING,
@@ -100,6 +116,7 @@ private:
     void setVisibleWidth(float width);
     static unsigned int menuEntryCount;
     unsigned int menuEntryIndex;
+    int groupID;
 
 public:
     MenuEntry(std::string text, Shader* textShader, Shader* meshShader, glm::vec2 position, float size, float visibleWidth, EntryType type, std::function<unsigned int(void*)> statusAction, void* statusActionArg);
@@ -122,7 +139,11 @@ public:
     void translate(glm::vec2 translation);
     unsigned int clickReturnData = 0;
     unsigned int statusReturnData = 0;
-    unsigned int getMenuEntryIndex(){ return this->menuEntryIndex; }
+    unsigned int getMenuEntryIndex() { return this->menuEntryIndex; }
+    void callStatusAction() { this->statusReturnData = this->statusAction(this->statusActionArg); }
+    void setGroupID(int groupID) { this->groupID = groupID; }
+    int getGroupID() { return this->groupID; }
+    void setStatusReturnData(unsigned int statusReturnData) { this->statusReturnData = statusReturnData; }
 };
 
 class Menu : public Clickable {
@@ -169,8 +190,8 @@ public:
     bool isReady();
     void draw();
     std::vector<ClickableArea*> getClickableAreas();
-    unsigned int addMenuEntry(std::string text, std::string uniqueID, MenuEntry::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> statusAction, void* statusActionData);
-    unsigned int addMenuEntry(std::string text, std::string uniqueID, MenuEntry::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> rightAction, std::function<unsigned int(void*)> statusAction, void* statusActionData);
+    unsigned int addMenuEntry(std::string text, std::string uniqueID, MENUS::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> statusAction, void* statusActionData);
+    unsigned int addMenuEntry(std::string text, std::string uniqueID, MENUS::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> rightAction, std::function<unsigned int(void*)> statusAction, void* statusActionData);
     void setParentMenu(Menu* parentMenu);
     Menu* getParentMenu();
     void setMenuName(std::string name);
@@ -188,6 +209,7 @@ public:
     void capturePosition() { }
     void restorePosition() { }
     bool getIsClickable();
+
 };
 
 class MenuBox : public M_Box {
@@ -271,5 +293,5 @@ public:
     virtual void disable();
     void translate(glm::vec2 translation);
 };
-
+} // namespace MENUS
 #endif // MENU_H

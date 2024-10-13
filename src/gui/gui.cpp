@@ -81,7 +81,7 @@ void GUI::eventLoop()
 
     ///////// Submenu ///////// TODO: fill in all the submenus
     countingLatch.count_up();
-    auto testSubMenu = new Menu(this->renderer, countingLatch, 0, 0, 0, 0);
+    auto testSubMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
     testSubMenu->setMenuName("Test Sub Menu");
     testSubMenu->setUniqueMenuIdentifier("Test Sub Menu");
     testSubMenu->setVisible(false);
@@ -91,7 +91,7 @@ void GUI::eventLoop()
         testSubMenu->addMenuEntry(
             "< Back",
             "Test Sub Menu_back",
-            MenuEntry::EntryType::MENUENTRY_TYPE_ACTION,
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
             [&](void* data) {
                 CubeLog::info("Back clicked");
                 testSubMenu->setVisible(false);
@@ -106,7 +106,7 @@ void GUI::eventLoop()
         testSubMenu->addMenuEntry(
             "Test Sub Menu Entry 1",
             "Test Sub Menu Entry 1",
-            MenuEntry::EntryType::MENUENTRY_TYPE_ACTION,
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
             [](void*) {
                 CubeLog::info("Test Sub Menu Entry 1 clicked");
                 return 0;
@@ -116,7 +116,7 @@ void GUI::eventLoop()
         testSubMenu->addMenuEntry(
             "Test Sub Menu Entry 2",
             "Test Sub Menu Entry 2",
-            MenuEntry::EntryType::MENUENTRY_TYPE_ACTION,
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
             [](void*) {
                 CubeLog::info("Test Sub Menu Entry 2 clicked");
                 return 0;
@@ -135,7 +135,7 @@ void GUI::eventLoop()
 
     ///////// Main Menu /////////
     countingLatch.count_up();
-    auto mainMenu = new Menu(this->renderer, countingLatch);
+    auto mainMenu = new MENUS::Menu(this->renderer, countingLatch);
     testSubMenu->setParentMenu(mainMenu);
     mainMenu->setMenuName("Main Menu");
     mainMenu->setUniqueMenuIdentifier("Main Menu");
@@ -145,7 +145,7 @@ void GUI::eventLoop()
         mainMenu->addMenuEntry(
             "< Settings",
             "Settings_back",
-            MenuEntry::EntryType::MENUENTRY_TYPE_ACTION,
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
             [&](void* data) {
                 CubeLog::info("Settings clicked");
                 mainMenu->setVisible(false);
@@ -158,7 +158,7 @@ void GUI::eventLoop()
         mainMenu->addMenuEntry(
             "Test Sub Menu",
             "Test Sub Menu2",
-            MenuEntry::EntryType::MENUENTRY_TYPE_SUBMENU,
+            MENUS::EntryType::MENUENTRY_TYPE_SUBMENU,
             [&](void* data) {
                 CubeLog::info("Test Sub Menu clicked");
                 testSubMenu->setVisible(true);
@@ -171,7 +171,7 @@ void GUI::eventLoop()
         mainMenu->addMenuEntry(
             "Test Menu Entry but with radio button",
             "Test Menu Entry but with radio button",
-            MenuEntry::EntryType::MENUENTRY_TYPE_RADIOBUTTON,
+            MENUS::EntryType::MENUENTRY_TYPE_RADIOBUTTON_GROUP,
             [&](void* data) {
                 CubeLog::info("Test Menu Entry 1 clicked");
                 return 0;
@@ -187,7 +187,7 @@ void GUI::eventLoop()
             mainMenu->addMenuEntry(
                 "Test Menu Entry " + std::to_string(i) + s,
                 "Test Menu Entry " + std::to_string(i),
-                MenuEntry::EntryType::MENUENTRY_TYPE_ACTION,
+                MENUS::EntryType::MENUENTRY_TYPE_ACTION,
                 [&, i](void*) { CubeLog::info("Test Menu Entry " + std::to_string(i) + " clicked"); return 0; },
                 [](void*) { return 0; },
                 nullptr);
@@ -202,7 +202,7 @@ void GUI::eventLoop()
     });
 
     // TODO: remove this
-    addMenu("Test Menu 1", "testMenu1", "Main Menu", { "Test Menu 1 Entry 1", "Test Menu 1 Entry 2", "Test Menu 1 Entry 3" }, { "Test Menu 1 Entry 1", "Test Menu 1 Entry 2", "Test Menu 1 Entry 3" }, { "sub1_1", "sub1_2", "sub1_3" }, countingLatch);
+    // addMenu("Test Menu 1", "testMenu1", "Main Menu", { "Test Menu 1 Entry 1", "Test Menu 1 Entry 2", "Test Menu 1 Entry 3" }, { "Test Menu 1 Entry 1", "Test Menu 1 Entry 2", "Test Menu 1 Entry 3" }, { "sub1_1", "sub1_2", "sub1_3" }, countingLatch);
 
     ////////////////////////////////////////
     /// Set up the event handlers
@@ -298,7 +298,7 @@ void GUI::eventLoop()
  * @param entryTexts the text for the menu entries
  * @param endpoints the endpoints for the menu entries. This can be simple HTTP GET endpoints or JSON objects that describe the endpoint.
  * @param latch a CountingLatch object that will be used to wait for the menu to be ready
- */
+ *
 GUI_Error GUI::addMenu(std::string menuName, std::string thisUniqueID, std::string parentID, std::vector<std::string> entryTexts, std::vector<std::string> endpoints, std::vector<std::string> uniqueIDs, CountingLatch& latch)
 {
     latch.count_up();
@@ -388,22 +388,25 @@ GUI_Error GUI::addMenu(std::string menuName, std::string thisUniqueID, std::stri
     CubeLog::moreInfo("Menu setup complete: " + menuName);
     return GUI_Error(GUI_Error::ERROR_TYPES::GUI_NO_ERROR, "Menu setup complete: " + menuName);
 };
-
+*/
 /**
  * @brief Add a menu to the GUI
  *
  * @param menuName the name of the menu
  * @param parentName the name of the parent menu
- * @param entryTexts the text for the menu entries
- * @param endpoints the endpoints for the menu entries. This can be simple HTTP GET endpoints or JSON objects that describe the endpoint.
+ * @param data a vector of tuples containing the text, json data, and unique identifier for the menu entries
  */
-GUI_Error GUI::addMenu(std::string menuName, std::string thisUniqueID, std::string parentID, std::vector<std::string> entryTexts, std::vector<std::string> endpoints, std::vector<std::string> uniqueIDs)
+GUI_Error GUI::addMenu(std::string menuName, std::string thisUniqueID, std::string parentID, AddMenu_Data_t data)
 {
-    auto aNewMenu = new Menu(this->renderer);
+    std::vector<std::string> entryTexts;
+    std::vector<std::string> endpoints;
+    std::vector<std::string> uniqueIDs;
+    std::unique_lock<std::mutex> lock(this->addMenuMutex);
+    auto aNewMenu = new MENUS::Menu(this->renderer);
     aNewMenu->setMenuName(menuName);
     aNewMenu->setUniqueMenuIdentifier(thisUniqueID);
     aNewMenu->setVisible(false);
-    Menu* parentMenuPtr = nullptr;
+    MENUS::Menu* parentMenuPtr = nullptr;
     bool unique = true;
     for (auto m : menus) {
         if (m->getUniqueMenuIdentifier() == parentID) {
@@ -414,7 +417,7 @@ GUI_Error GUI::addMenu(std::string menuName, std::string thisUniqueID, std::stri
                 unique = false;
             }
         }
-        if(thisUniqueID == m->getUniqueMenuIdentifier()) {
+        if (thisUniqueID == m->getUniqueMenuIdentifier()) {
             unique = false;
         }
     }
@@ -429,11 +432,11 @@ GUI_Error GUI::addMenu(std::string menuName, std::string thisUniqueID, std::stri
     menus.push_back(aNewMenu);
     EventManager* eventManagerPtr = this->eventManager;
     drag_y_actions.push_back({ [aNewMenu]() { return aNewMenu->getVisible(); }, [aNewMenu](int y) { aNewMenu->scrollVert(y); } });
-    this->renderer->addSetupTask([parentMenuPtr, menuName, aNewMenu, entryTexts, eventManagerPtr, uniqueIDs]() {
+    this->renderer->addSetupTask([parentMenuPtr, menuName, aNewMenu, data, eventManagerPtr, uniqueIDs]() {
         aNewMenu->addMenuEntry(
             "< Back",
             menuName + "_back",
-            MenuEntry::EntryType::MENUENTRY_TYPE_ACTION,
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
             [aNewMenu](void* data) {
                 CubeLog::info("Back clicked");
                 aNewMenu->setVisible(false);
@@ -445,12 +448,14 @@ GUI_Error GUI::addMenu(std::string menuName, std::string thisUniqueID, std::stri
             [](void*) { return 0; },
             nullptr);
         aNewMenu->addHorizontalRule();
-        for (int i = 0; i < entryTexts.size(); i++) {
-            std::string temp = entryTexts[i];
+        ////  TODO: here is where we'll call parseJsonDataAndAddMenuEntries()
+        ////  TODO: remove this for loop and replace it with one that iterates over the data vector
+        for (int i = 0; i < data.size(); i++) {
+            std::string temp = std::get<0>(data[i]);
             aNewMenu->addMenuEntry(
-                entryTexts[i],
+                std::get<0>(data[i]),
                 uniqueIDs[i],
-                MenuEntry::EntryType::MENUENTRY_TYPE_RADIOBUTTON,
+                MENUS::EntryType::MENUENTRY_TYPE_RADIOBUTTON_GROUP,
                 [i, temp](void*) {
                     CubeLog::info("Test Sub Menu Entry " + std::to_string(i) + " clicked. " + temp);
                     return 0;
@@ -469,7 +474,7 @@ GUI_Error GUI::addMenu(std::string menuName, std::string thisUniqueID, std::stri
         aNewMenu->getParentMenu()->addMenuEntry(
             menuName,
             menuName + "_entry",
-            MenuEntry::EntryType::MENUENTRY_TYPE_ACTION,
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
             [aNewMenu](void*) {
                 CubeLog::info("Test Sub Menu clicked");
                 aNewMenu->setVisible(true);
@@ -550,30 +555,43 @@ HttpEndPointData_t GUI::getHttpEndpointData()
             CubeLog::info("Endpoint stop called and message set to: " + p);
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Message set to: " + p);
         } });
-    actions.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
-        [&](const httplib::Request& req, httplib::Response& res) {
-            std::string paramsString;
-            for (auto param : req.params) {
-                paramsString += param.first + ": " + param.second + "\n";
-            }
-            CubeLog::info("Endpoint action 2: \n");
-            CubeLog::info(paramsString);
-            res.set_content("Endpoint action 2 called", "text/plain");
-            GUI_Error temp = addMenu(
-                "Test Menu 34", 
-                "TestMenu34dfgd", 
-                "testMenu1", 
-                { "Test Menu 34 Entry 1 kjhsdfjkhsdfkjhsdfkjhsdf", "Test Menu 34 Entry 2", "Test Menu 34 Entry 3" }, 
-                { "Test Menu 34 Entry 1", "Test Menu 34 Entry 2", "Test Menu 34 Entry 3" }, 
-                { "test34_df1", "test34_2ff", "test34_3ddd" }
-                );
-            if(temp.errorType != GUI_Error::ERROR_TYPES::GUI_NO_ERROR) {
-                CubeLog::error("Failed to add menu. Error: " + temp.errorString);
-                res.set_content("Failed to add menu. Error: " + temp.errorString, "text/plain");
-                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Failed to add menu. Error: " + temp.errorString);
-            }
-            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Endpoint action 2 called");
-        } });
+    actions.push_back(
+        { PRIVATE_ENDPOINT | POST_ENDPOINT,
+            [&](const httplib::Request& req, httplib::Response& res) {
+                // ge the json data from the request
+                nlohmann::json j;
+                nlohmann::json response;
+                try {
+                    j = nlohmann::json::parse(req.body);
+                } catch (nlohmann::json::exception& e) {
+                    CubeLog::error("Error parsing json: " + std::string(e.what()));
+                    response["success"] = false;
+                    response["message"] = "Error parsing json: " + std::string(e.what());
+                    res.set_content(response.dump(), "application/json");
+                    return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Error parsing json: " + std::string(e.what()));
+                }
+                AddMenu_Data_t data;
+                std::string menuName, thisUniqueID, parentID;
+                if (!breakJsonApart(j, data)) {
+                    CubeLog::error("Error breaking json apart");
+                    response["success"] = false;
+                    response["message"] = "Error breaking json apart";
+                    res.set_content(response.dump(), "application/json");
+                    return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Error breaking json apart");
+                }
+                GUI_Error temp = addMenu(menuName, thisUniqueID, parentID, data);
+                if (temp.errorType != GUI_Error::ERROR_TYPES::GUI_NO_ERROR) {
+                    CubeLog::error("Failed to add menu. Error: " + temp.errorString);
+                    response["success"] = false;
+                    response["message"] = "Failed to add menu. Error: " + temp.errorString;
+                    res.set_content(response.dump(), "application/json");
+                    return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Failed to add menu. Error: " + temp.errorString);
+                }
+                response["success"] = true;
+                response["message"] = "Menu added";
+                res.set_content(response.dump(), "application/json");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Menu added");
+            } });
     return actions;
 }
 
@@ -588,7 +606,7 @@ std::vector<std::pair<std::string, std::vector<std::string>>> GUI::getHttpEndpoi
     std::vector<std::string> stopParams;
     stopParams.push_back("text");
     names.push_back({ "stop", stopParams });
-    names.push_back({ "action2", {} });
+    names.push_back({ "addMenu", {} });
     return names;
 }
 
@@ -600,4 +618,588 @@ std::vector<std::pair<std::string, std::vector<std::string>>> GUI::getHttpEndpoi
 std::string GUI::getIntefaceName() const
 {
     return "GUI";
+}
+
+bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry)
+{
+    std::string entryText, uniqueID, entryType;
+    try {
+        entryText = j["entryText"];
+        uniqueID = j["uniqueID"];
+        entryType = j["entryData"]["entryType"];
+    } catch (nlohmann::json::exception& e) {
+        CubeLog::error("Error parsing json: " + std::string(e.what()));
+        return false;
+    }
+
+    auto entry_it = MENUS::entryTypeMap.find(entryType);
+    if (entry_it == MENUS::entryTypeMap.end()) {
+        CubeLog::error("Entry type not found: " + entryType);
+        return false;
+    }
+
+    MENUS::EntryType type = entry_it->second;
+
+    std::vector<std::string> enabledVals;
+    try {
+        for (auto it : j["entryData"].items()) {
+            if (it.key() == "enabledValues") {
+                for (auto v : it.value()) {
+                    if (v.is_string()) {
+                        enabledVals.push_back(v);
+                    } else if (v.is_number()) {
+                        enabledVals.push_back(std::to_string((int)v));
+                    } else if (v.is_boolean()) {
+                        enabledVals.push_back(std::to_string((bool)v));
+                    }
+                }
+            }
+        }
+    } catch (nlohmann::json::exception& e) {
+        CubeLog::error("Error parsing json: " + std::string(e.what()));
+        return false;
+    }
+
+    std::string actionEP_AddrPort, actionEP_Path, actionEP_Method, actionEP_User, actionEP_Pass, actionEP_Token;
+    std::string statusEP_AddrPort, statusEP_Path, statusEP_Method, statusEP_User, statusEP_Pass, statusEP_Token;
+    bool hasActionData = false, hasStatusData = false;
+    try {
+        actionEP_AddrPort = j["entryData"]["actionEndpoint"]["addr_port"];
+        actionEP_Path = j["entryData"]["actionEndpoint"]["path"];
+        actionEP_Method = j["entryData"]["actionEndpoint"]["method"];
+        actionEP_User = j["entryData"]["actionEndpoint"]["user"];
+        actionEP_Pass = j["entryData"]["actionEndpoint"]["pass"];
+        actionEP_Token = j["entryData"]["actionEndpoint"]["token"];
+        hasActionData = true;
+    } catch (nlohmann::json::exception& e) {
+        CubeLog::moreInfo("No action endpoint provided: " + entryText);
+    }
+    try {
+        statusEP_AddrPort = j["entryData"]["statusEndpoint"]["addr_port"];
+        statusEP_Path = j["entryData"]["statusEndpoint"]["path"];
+        statusEP_Method = j["entryData"]["statusEndpoint"]["method"];
+        statusEP_User = j["entryData"]["statusEndpoint"]["user"];
+        statusEP_Pass = j["entryData"]["statusEndpoint"]["pass"];
+        statusEP_Token = j["entryData"]["statusEndpoint"]["token"];
+        hasStatusData = true;
+    } catch (nlohmann::json::exception& e) {
+        CubeLog::moreInfo("No status endpoint provided: " + entryText);
+    }
+    if (type != MENUS::EntryType::MENUENTRY_TYPE_SUBMENU && !hasActionData && !hasStatusData) {
+        CubeLog::error("No action or status endpoint provided: " + entryText);
+        return false;
+    }
+    if (type == MENUS::EntryType::MENUENTRY_TYPE_ACTION && !hasActionData) {
+        CubeLog::error("No action endpoint provided: " + entryText);
+        return false;
+    }
+    if (!hasActionData || !hasStatusData) {
+        CubeLog::error("No status endpoint provided or no action endpoint provided: " + entryText);
+        return false;
+    }
+
+    switch (type) {
+    case MENUS::EntryType::MENUENTRY_TYPE_ACTION: {
+        menuEntry->addMenuEntry(
+            entryText,
+            uniqueID,
+            type,
+            [actionEP_AddrPort, actionEP_Path, actionEP_Method, actionEP_User, actionEP_Pass, actionEP_Token](void*) {
+                if (actionEP_AddrPort.length() == 0) {
+                    CubeLog::info("No action endpoint provided: " + actionEP_AddrPort + actionEP_Path);
+                    return 0;
+                }
+                if (actionEP_Method != "GET" && actionEP_Method != "POST" && actionEP_Method != "PUT" && actionEP_Method != "DELETE") {
+                    CubeLog::error("Invalid method: " + actionEP_Method + "From: " + actionEP_AddrPort + actionEP_Path);
+                    return 1;
+                }
+                httplib::Client client(actionEP_AddrPort);
+                if ((actionEP_User.length() > 0 || actionEP_Pass.length() > 0) && actionEP_Token.length() != 0) {
+                    CubeLog::error("Cannot have both basic auth and bearer token auth " + actionEP_AddrPort + actionEP_Path);
+                    return 1;
+                }
+                if (actionEP_User.length() > 0 && actionEP_Pass.length() > 0) {
+                    client.set_basic_auth(actionEP_User.c_str(), actionEP_Pass.c_str());
+                }
+                if (actionEP_Token.length() > 0) {
+                    client.set_bearer_token_auth(actionEP_Token.c_str());
+                }
+                auto res = client.Get(actionEP_Path.c_str());
+                if (!res) {
+                    CubeLog::error("Error getting response: " + actionEP_AddrPort + actionEP_Path);
+                    return 3;
+                }
+                if (res->status != 200) {
+                    CubeLog::error("Response code: " + std::to_string(res->status));
+                    return 2;
+                }
+                CubeLog::info("Response: " + res->body + "From: " + actionEP_AddrPort + actionEP_Path);
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr);
+        break;
+    }
+    case MENUS::EntryType::MENUENTRY_TYPE_CHECKBOX: {
+        menuEntry->addMenuEntry(
+            entryText,
+            uniqueID,
+            type,
+            [actionEP_AddrPort, actionEP_Path, actionEP_Method, actionEP_User, actionEP_Pass, actionEP_Token](void*) {
+                if (actionEP_AddrPort.length() == 0) {
+                    CubeLog::info("No action endpoint provided: " + actionEP_AddrPort + actionEP_Path);
+                    return (unsigned int)2;
+                }
+                if (actionEP_Method != "GET" && actionEP_Method != "POST" && actionEP_Method != "PUT" && actionEP_Method != "DELETE") {
+                    CubeLog::error("Invalid method: " + actionEP_Method + "From: " + actionEP_AddrPort + actionEP_Path);
+                    return (unsigned int)2;
+                }
+                httplib::Client client(actionEP_AddrPort);
+                if ((actionEP_User.length() > 0 || actionEP_Pass.length() > 0) && actionEP_Token.length() != 0) {
+                    CubeLog::error("Cannot have both basic auth and bearer token auth: " + actionEP_AddrPort + actionEP_Path);
+                    return (unsigned int)2;
+                }
+                if (actionEP_User.length() > 0 && actionEP_Pass.length() > 0) {
+                    client.set_basic_auth(actionEP_User.c_str(), actionEP_Pass.c_str());
+                }
+                if (actionEP_Token.length() > 0) {
+                    client.set_bearer_token_auth(actionEP_Token.c_str());
+                }
+                httplib::Result res;
+                if (actionEP_Method == "GET")
+                    res = client.Get(actionEP_Path.c_str());
+                if (actionEP_Method == "POST")
+                    res = client.Post(actionEP_Path.c_str());
+                if (actionEP_Method == "PUT")
+                    res = client.Put(actionEP_Path.c_str());
+                if (actionEP_Method == "DELETE")
+                    res = client.Delete(actionEP_Path.c_str());
+                if (!res) {
+                    CubeLog::error("Error getting response: " + actionEP_AddrPort + actionEP_Path);
+                    return (unsigned int)2;
+                }
+                if (res->status != 200) {
+                    CubeLog::error("Response code: " + std::to_string(res->status));
+                    return (unsigned int)1;
+                }
+                CubeLog::info("Response: " + res->body + "From: " + actionEP_AddrPort + actionEP_Path);
+                return (unsigned int)0;
+            },
+            [statusEP_AddrPort, statusEP_Path, statusEP_Method, statusEP_User, statusEP_Pass, statusEP_Token, enabledVals](void*) {
+                if (statusEP_AddrPort.length() == 0) {
+                    CubeLog::info("No action endpoint provided: " + statusEP_AddrPort + statusEP_Path);
+                    return (unsigned int)2;
+                }
+                if (statusEP_Method != "GET" && statusEP_Method != "POST" && statusEP_Method != "PUT" && statusEP_Method != "DELETE") {
+                    CubeLog::error("Invalid method: " + statusEP_Method + "From: " + statusEP_AddrPort + statusEP_Path);
+                    return (unsigned int)2;
+                }
+                httplib::Client client(statusEP_AddrPort);
+                if ((statusEP_User.length() > 0 || statusEP_Pass.length() > 0) && statusEP_Token.length() != 0) {
+                    CubeLog::error("Cannot have both basic auth and bearer token auth");
+                    return (unsigned int)2;
+                }
+                if (statusEP_User.length() > 0 && statusEP_Pass.length() > 0) {
+                    client.set_basic_auth(statusEP_User.c_str(), statusEP_Pass.c_str());
+                }
+                if (statusEP_Token.length() > 0) {
+                    client.set_bearer_token_auth(statusEP_Token.c_str());
+                }
+                httplib::Result res;
+                if (statusEP_Method == "GET")
+                    res = client.Get(statusEP_Path.c_str());
+                if (statusEP_Method == "POST")
+                    res = client.Post(statusEP_Path.c_str());
+                if (statusEP_Method == "PUT")
+                    res = client.Put(statusEP_Path.c_str());
+                if (statusEP_Method == "DELETE")
+                    res = client.Delete(statusEP_Path.c_str());
+                if (!res) {
+                    CubeLog::error("Error getting response from status endpoint: " + statusEP_AddrPort + statusEP_Path);
+                    return (unsigned int)2;
+                }
+                if (res->status != 200) {
+                    CubeLog::error("Response code: " + std::to_string(res->status) + "From: " + statusEP_AddrPort + statusEP_Path);
+                    return (unsigned int)2;
+                }
+                std::string response = res->body;
+                CubeLog::moreInfo("Response: " + response + "From: " + statusEP_AddrPort + statusEP_Path);
+                nlohmann::json j;
+                try {
+                    j = nlohmann::json::parse(response);
+                } catch (nlohmann::json::exception& e) {
+                    CubeLog::error("Error parsing json: " + std::string(e.what()));
+                    return (unsigned int)2;
+                }
+                std::string enabled = j["enabled"];
+                for (auto v : enabledVals) {
+                    if (v == enabled) {
+                        return (unsigned int)1;
+                    }
+                }
+                return (unsigned int)0;
+            },
+            nullptr);
+        break;
+    }
+    case MENUS::EntryType::MENUENTRY_TYPE_RADIOBUTTON_GROUP: {
+        int groupID = 0;
+        try {
+            groupID = j["entryData"]["radioGroup"];
+        } catch (nlohmann::json::exception& e) {
+            CubeLog::error("Error parsing json: " + std::string(e.what()));
+            return false;
+        }
+        menuEntry->addMenuEntry(
+            entryText,
+            uniqueID,
+            type,
+            [actionEP_AddrPort, actionEP_Path, actionEP_Method, actionEP_User, actionEP_Pass, actionEP_Token](void*) {
+                if (actionEP_AddrPort.length() == 0) {
+                    CubeLog::info("No action endpoint provided: " + actionEP_AddrPort + actionEP_Path);
+                    return (unsigned int)2;
+                }
+                if (actionEP_Method != "GET" && actionEP_Method != "POST" && actionEP_Method != "PUT" && actionEP_Method != "DELETE") {
+                    CubeLog::error("Invalid method: " + actionEP_Method + "From: " + actionEP_AddrPort + actionEP_Path);
+                    return (unsigned int)2;
+                }
+                httplib::Client client(actionEP_AddrPort);
+                if ((actionEP_User.length() > 0 || actionEP_Pass.length() > 0) && actionEP_Token.length() != 0) {
+                    CubeLog::error("Cannot have both basic auth and bearer token auth: " + actionEP_AddrPort + actionEP_Path);
+                    return (unsigned int)2;
+                }
+                if (actionEP_User.length() > 0 && actionEP_Pass.length() > 0) {
+                    client.set_basic_auth(actionEP_User.c_str(), actionEP_Pass.c_str());
+                }
+                if (actionEP_Token.length() > 0) {
+                    client.set_bearer_token_auth(actionEP_Token.c_str());
+                }
+                httplib::Result res;
+                if (actionEP_Method == "GET")
+                    res = client.Get(actionEP_Path.c_str());
+                if (actionEP_Method == "POST")
+                    res = client.Post(actionEP_Path.c_str());
+                if (actionEP_Method == "PUT")
+                    res = client.Put(actionEP_Path.c_str());
+                if (actionEP_Method == "DELETE")
+                    res = client.Delete(actionEP_Path.c_str());
+                if (!res) {
+                    CubeLog::error("Error getting response: " + actionEP_AddrPort + actionEP_Path);
+                    return (unsigned int)2;
+                }
+                if (res->status != 200) {
+                    CubeLog::error("Response code: " + std::to_string(res->status));
+                    return (unsigned int)2;
+                }
+                CubeLog::info("Response: " + res->body + "From: " + actionEP_AddrPort + actionEP_Path);
+                return (unsigned int)0;
+            },
+            [&menuEntry, groupID, statusEP_AddrPort, statusEP_Path, statusEP_Method, statusEP_User, statusEP_Pass, statusEP_Token, enabledVals](void*) {
+                if (statusEP_AddrPort.length() == 0) {
+                    CubeLog::info("No action endpoint provided: " + statusEP_AddrPort + statusEP_Path);
+                    return (unsigned int)2;
+                }
+                if (statusEP_Method != "GET" && statusEP_Method != "POST" && statusEP_Method != "PUT" && statusEP_Method != "DELETE") {
+                    CubeLog::error("Invalid method: " + statusEP_Method + "From: " + statusEP_AddrPort + statusEP_Path);
+                    return (unsigned int)2;
+                }
+                httplib::Client client(statusEP_AddrPort);
+                if ((statusEP_User.length() > 0 || statusEP_Pass.length() > 0) && statusEP_Token.length() != 0) {
+                    CubeLog::error("Cannot have both basic auth and bearer token auth");
+                    return (unsigned int)2;
+                }
+                if (statusEP_User.length() > 0 && statusEP_Pass.length() > 0) {
+                    client.set_basic_auth(statusEP_User.c_str(), statusEP_Pass.c_str());
+                }
+                if (statusEP_Token.length() > 0) {
+                    client.set_bearer_token_auth(statusEP_Token.c_str());
+                }
+                httplib::Result res;
+                if (statusEP_Method == "GET")
+                    res = client.Get(statusEP_Path.c_str());
+                if (statusEP_Method == "POST")
+                    res = client.Post(statusEP_Path.c_str());
+                if (statusEP_Method == "PUT")
+                    res = client.Put(statusEP_Path.c_str());
+                if (statusEP_Method == "DELETE")
+                    res = client.Delete(statusEP_Path.c_str());
+                if (!res) {
+                    CubeLog::error("Error getting response from status endpoint: " + statusEP_AddrPort + statusEP_Path);
+                    return (unsigned int)2;
+                }
+                if (res->status != 200) {
+                    CubeLog::error("Response code: " + std::to_string(res->status) + "From: " + statusEP_AddrPort + statusEP_Path);
+                    return (unsigned int)2;
+                }
+                std::string response = res->body;
+                CubeLog::moreInfo("Response: " + response + "From: " + statusEP_AddrPort + statusEP_Path);
+                nlohmann::json j;
+                try {
+                    j = nlohmann::json::parse(response);
+                } catch (nlohmann::json::exception& e) {
+                    CubeLog::error("Error parsing json: " + std::string(e.what()));
+                    return (unsigned int)2;
+                }
+                std::string enabled = j["enabled"];
+                unsigned int retVal = 0;
+                for (auto v : enabledVals) {
+                    if (v == enabled) {
+                        retVal = 1;
+                    }
+                }
+                for (auto area : menuEntry->getParentMenu()->getClickableAreas()) {
+                    MENUS::MenuEntry* entry = reinterpret_cast<MENUS::MenuEntry*>(area);
+                    if (entry->getGroupID() == groupID) {
+                        entry->setStatusReturnData(0);
+                    }
+                }
+                return retVal;
+            },
+            nullptr);
+        break;
+    }
+    case MENUS::EntryType::MENUENTRY_TYPE_SUBMENU: {
+        menuEntry->addMenuEntry(
+            entryText,
+            uniqueID,
+            type,
+            [entryText](void*) {
+                CubeLog::moreInfo("MenuEntry clicked: " + entryText);
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr);
+        break;
+    }
+    case MENUS::EntryType::MENUENTRY_TYPE_TOGGLE: {
+        menuEntry->addMenuEntry(
+            entryText,
+            uniqueID,
+            type,
+            [actionEP_AddrPort, actionEP_Path, actionEP_Method, actionEP_User, actionEP_Pass, actionEP_Token](void*) {
+                if (actionEP_AddrPort.length() == 0) {
+                    CubeLog::info("No action endpoint provided: " + actionEP_AddrPort + actionEP_Path);
+                    return (unsigned int)2;
+                }
+                if (actionEP_Method != "GET" && actionEP_Method != "POST" && actionEP_Method != "PUT" && actionEP_Method != "DELETE") {
+                    CubeLog::error("Invalid method: " + actionEP_Method + "From: " + actionEP_AddrPort + actionEP_Path);
+                    return (unsigned int)2;
+                }
+                httplib::Client client(actionEP_AddrPort);
+                if ((actionEP_User.length() > 0 || actionEP_Pass.length() > 0) && actionEP_Token.length() != 0) {
+                    CubeLog::error("Cannot have both basic auth and bearer token auth: " + actionEP_AddrPort + actionEP_Path);
+                    return (unsigned int)2;
+                }
+                if (actionEP_User.length() > 0 && actionEP_Pass.length() > 0) {
+                    client.set_basic_auth(actionEP_User.c_str(), actionEP_Pass.c_str());
+                }
+                if (actionEP_Token.length() > 0) {
+                    client.set_bearer_token_auth(actionEP_Token.c_str());
+                }
+                httplib::Result res;
+                if (actionEP_Method == "GET")
+                    res = client.Get(actionEP_Path.c_str());
+                if (actionEP_Method == "POST")
+                    res = client.Post(actionEP_Path.c_str());
+                if (actionEP_Method == "PUT")
+                    res = client.Put(actionEP_Path.c_str());
+                if (actionEP_Method == "DELETE")
+                    res = client.Delete(actionEP_Path.c_str());
+                if (!res) {
+                    CubeLog::error("Error getting response: " + actionEP_AddrPort + actionEP_Path);
+                    return (unsigned int)2;
+                }
+                if (res->status != 200) {
+                    CubeLog::error("Response code: " + std::to_string(res->status));
+                    return (unsigned int)2;
+                }
+                CubeLog::info("Response: " + res->body + "From: " + actionEP_AddrPort + actionEP_Path);
+                return (unsigned int)0;
+            },
+            [statusEP_AddrPort, statusEP_Path, statusEP_Method, statusEP_User, statusEP_Pass, statusEP_Token, enabledVals](void*) {
+                if (statusEP_AddrPort.length() == 0) {
+                    CubeLog::info("No action endpoint provided: " + statusEP_AddrPort + statusEP_Path);
+                    return (unsigned int)2;
+                }
+                if (statusEP_Method != "GET" && statusEP_Method != "POST" && statusEP_Method != "PUT" && statusEP_Method != "DELETE") {
+                    CubeLog::error("Invalid method: " + statusEP_Method + "From: " + statusEP_AddrPort + statusEP_Path);
+                    return (unsigned int)2;
+                }
+                httplib::Client client(statusEP_AddrPort);
+                if ((statusEP_User.length() > 0 || statusEP_Pass.length() > 0) && statusEP_Token.length() != 0) {
+                    CubeLog::error("Cannot have both basic auth and bearer token auth");
+                    return (unsigned int)2;
+                }
+                if (statusEP_User.length() > 0 && statusEP_Pass.length() > 0) {
+                    client.set_basic_auth(statusEP_User.c_str(), statusEP_Pass.c_str());
+                }
+                if (statusEP_Token.length() > 0) {
+                    client.set_bearer_token_auth(statusEP_Token.c_str());
+                }
+                httplib::Result res;
+                if (statusEP_Method == "GET")
+                    res = client.Get(statusEP_Path.c_str());
+                if (statusEP_Method == "POST")
+                    res = client.Post(statusEP_Path.c_str());
+                if (statusEP_Method == "PUT")
+                    res = client.Put(statusEP_Path.c_str());
+                if (statusEP_Method == "DELETE")
+                    res = client.Delete(statusEP_Path.c_str());
+                if (!res) {
+                    CubeLog::error("Error getting response from status endpoint: " + statusEP_AddrPort + statusEP_Path);
+                    return (unsigned int)2;
+                }
+                if (res->status != 200) {
+                    CubeLog::error("Response code: " + std::to_string(res->status) + "From: " + statusEP_AddrPort + statusEP_Path);
+                    return (unsigned int)2;
+                }
+                std::string response = res->body;
+                CubeLog::moreInfo("Response: " + response + "From: " + statusEP_AddrPort + statusEP_Path);
+                nlohmann::json j;
+                try {
+                    j = nlohmann::json::parse(response);
+                } catch (nlohmann::json::exception& e) {
+                    CubeLog::error("Error parsing json: " + std::string(e.what()));
+                    return (unsigned int)2;
+                }
+                std::string enabled = j["enabled"];
+                unsigned int retVal = 0;
+                for (auto v : enabledVals) {
+                    if (v == enabled) {
+                        retVal = 1;
+                    }
+                }
+                return retVal;
+            },
+            nullptr);
+        break;
+    }
+    case MENUS::EntryType::MENUENTRY_TYPE_TEXT_INPUT: {
+        menuEntry->addMenuEntry(
+            entryText,
+            uniqueID,
+            type,
+            [actionEP_AddrPort, actionEP_Path, actionEP_Method, actionEP_User, actionEP_Pass, actionEP_Token](void*) {
+                if (actionEP_AddrPort.length() == 0) {
+                    CubeLog::info("No action endpoint provided: " + actionEP_AddrPort + actionEP_Path);
+                    return (unsigned int)2;
+                }
+                if (actionEP_Method != "GET" && actionEP_Method != "POST" && actionEP_Method != "PUT" && actionEP_Method != "DELETE") {
+                    CubeLog::error("Invalid method: " + actionEP_Method + "From: " + actionEP_AddrPort + actionEP_Path);
+                    return (unsigned int)2;
+                }
+                httplib::Client client(actionEP_AddrPort);
+                if ((actionEP_User.length() > 0 || actionEP_Pass.length() > 0) && actionEP_Token.length() != 0) {
+                    CubeLog::error("Cannot have both basic auth and bearer token auth: " + actionEP_AddrPort + actionEP_Path);
+                    return (unsigned int)2;
+                }
+                if (actionEP_User.length() > 0 && actionEP_Pass.length() > 0) {
+                    client.set_basic_auth(actionEP_User.c_str(), actionEP_Pass.c_str());
+                }
+                if (actionEP_Token.length() > 0) {
+                    client.set_bearer_token_auth(actionEP_Token.c_str());
+                }
+                httplib::Result res;
+                if (actionEP_Method == "GET")
+                    res = client.Get(actionEP_Path.c_str());
+                if (actionEP_Method == "POST")
+                    res = client.Post(actionEP_Path.c_str());
+                if (actionEP_Method == "PUT")
+                    res = client.Put(actionEP_Path.c_str());
+                if (actionEP_Method == "DELETE")
+                    res = client.Delete(actionEP_Path.c_str());
+                if (!res) {
+                    CubeLog::error("Error getting response: " + actionEP_AddrPort + actionEP_Path);
+                    return (unsigned int)2;
+                }
+                if (res->status != 200) {
+                    CubeLog::error("Response code: " + std::to_string(res->status));
+                    return (unsigned int)2;
+                }
+                CubeLog::info("Response: " + res->body + "From: " + actionEP_AddrPort + actionEP_Path);
+                return (unsigned int)0;
+            },
+            [statusEP_AddrPort, statusEP_Path, statusEP_Method, statusEP_User, statusEP_Pass, statusEP_Token, enabledVals](void* inText) {
+                std::string text = *(std::string*)inText;
+                if (statusEP_AddrPort.length() == 0) {
+                    CubeLog::info("No action endpoint provided: " + statusEP_AddrPort + statusEP_Path);
+                    return (unsigned int)2;
+                }
+                if (statusEP_Method != "GET" && statusEP_Method != "POST" && statusEP_Method != "PUT" && statusEP_Method != "DELETE") {
+                    CubeLog::error("Invalid method: " + statusEP_Method + "From: " + statusEP_AddrPort + statusEP_Path);
+                    return (unsigned int)2;
+                }
+                httplib::Client client(statusEP_AddrPort);
+                if ((statusEP_User.length() > 0 || statusEP_Pass.length() > 0) && statusEP_Token.length() != 0) {
+                    CubeLog::error("Cannot have both basic auth and bearer token auth");
+                    return (unsigned int)2;
+                }
+                if (statusEP_User.length() > 0 && statusEP_Pass.length() > 0) {
+                    client.set_basic_auth(statusEP_User.c_str(), statusEP_Pass.c_str());
+                }
+                if (statusEP_Token.length() > 0) {
+                    client.set_bearer_token_auth(statusEP_Token.c_str());
+                }
+                httplib::Result res;
+                if (statusEP_Method == "POST")
+                    res = client.Post(statusEP_Path.c_str(), text, "application/json");
+                if (statusEP_Method == "PUT")
+                    res = client.Put(statusEP_Path.c_str(), text, "application/json");
+                if (statusEP_Method == "GET")
+                    res = client.Get((statusEP_Path + "?text=" + text).c_str());
+                if (!res) {
+                    CubeLog::error("Error getting response from status endpoint: " + statusEP_AddrPort + statusEP_Path);
+                    return (unsigned int)2;
+                }
+                if (res->status != 200) {
+                    CubeLog::error("Response code: " + std::to_string(res->status) + "From: " + statusEP_AddrPort + statusEP_Path);
+                    return (unsigned int)2;
+                }
+                std::string response = res->body;
+                CubeLog::moreInfo("Response: " + response + "From: " + statusEP_AddrPort + statusEP_Path);
+                nlohmann::json j;
+                try {
+                    j = nlohmann::json::parse(response);
+                } catch (nlohmann::json::exception& e) {
+                    CubeLog::error("Error parsing json: " + std::string(e.what()));
+                    return (unsigned int)2;
+                }
+                std::string enabled = j["enabled"];
+                unsigned int retVal = 0;
+                for (auto v : enabledVals) {
+                    if (v == enabled) {
+                        retVal = 1;
+                    }
+                }
+                return retVal;
+            },
+            nullptr);
+        break;
+    }
+    default:
+        CubeLog::error("Entry type not found: " + entryType);
+        return false;
+    };
+
+    return true;
+}
+
+bool breakJsonApart(nlohmann::json j, AddMenu_Data_t& data, std::string* menuName, std::string* thisUniqueID, std::string* parentID)
+{
+    try {
+        *menuName = j["menuName"];
+        *thisUniqueID = j["uniqueID"];
+        *parentID = j["parentID"];
+        for (auto it = j["entries"].begin(); it != j["entries"].end(); ++it) {
+            std::string entryText = it.value()["entryText"];
+            nlohmann::json entryData = it.value();
+            std::string uniqueID = it.value()["uniqueID"];
+
+            data.push_back({ entryText, entryData, uniqueID });
+        }
+    } catch (nlohmann::json::exception& e) {
+        CubeLog::error("Error parsing json: " + std::string(e.what()));
+        return false;
+    }
+    return true;
 }

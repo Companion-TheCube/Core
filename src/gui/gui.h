@@ -21,6 +21,9 @@
 #include <vector>
 #include <latch>
 #include <expected>
+#include <nlohmann/json.hpp>
+#include <mutex>
+#include <tuple>
 #ifndef MESSAGEBOX_H
 #include "messageBox/messageBox.h"
 #endif
@@ -30,6 +33,9 @@
 #ifndef UTILS_H
 #include <utils.h>
 #endif
+#include "httplib.h"
+
+typedef std::vector<std::tuple<std::string, nlohmann::json, std::string>> AddMenu_Data_t;
 
 struct GUI_Error{
     enum ERROR_TYPES{
@@ -61,14 +67,18 @@ public:
     std::string getIntefaceName() const;
 
 private:
-    GUI_Error addMenu(std::string menuName, std::string thisUniqueID, std::string parentName, std::vector<std::string> entryTexts, std::vector<std::string> endpoints, std::vector<std::string> uniqueIDs, CountingLatch &latch);
-    GUI_Error addMenu(std::string menuName, std::string thisUniqueID, std::string parentName, std::vector<std::string> entryTexts, std::vector<std::string> endpoints, std::vector<std::string> uniqueIDs);
+    // GUI_Error addMenu(std::string menuName, std::string thisUniqueID, std::string parentName, std::vector<std::string> entryTexts, std::vector<std::string> endpoints, std::vector<std::string> uniqueIDs, CountingLatch &latch);
+    GUI_Error addMenu(std::string menuName, std::string thisUniqueID, std::string parentID, std::vector<std::tuple<std::string,nlohmann::json,std::string>> data);
     Renderer* renderer;
     std::jthread eventLoopThread;
     EventManager* eventManager;
     static CubeMessageBox* messageBox;
-    std::vector<Menu*> menus;
+    std::vector<MENUS::Menu*> menus;
     std::vector<std::pair<std::function<bool()>,std::function<void(int)>>> drag_y_actions; // bool is visibility. if the item is not visible, do not call the action.
+    std::mutex addMenuMutex;
 };
+
+bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry);
+bool breakJsonApart(nlohmann::json j, std::vector<std::tuple<std::string,nlohmann::json,std::string>> &data);
 
 #endif
