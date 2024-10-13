@@ -37,6 +37,9 @@
 
 typedef std::vector<std::tuple<std::string, nlohmann::json, std::string>> AddMenu_Data_t;
 
+bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry);
+bool breakJsonApart(nlohmann::json j, AddMenu_Data_t& data, std::string* menuName, std::string* thisUniqueID, std::string* parentID);
+
 struct GUI_Error{
     enum ERROR_TYPES{
         GUI_NO_ERROR,
@@ -44,6 +47,8 @@ struct GUI_Error{
         GUI_MENU_NOT_FOUND,
         GUI_UNIQUE_EXISTS,
         GUI_CHILD_UNIQUE_EXISTS,
+        GUI_JSON_ERROR,
+        GUI_INTERNAL_ERROR
     };
     GUI_Error(ERROR_TYPES errorType, std::string errorString)
         : errorType(errorType)
@@ -77,8 +82,5 @@ private:
     std::vector<std::pair<std::function<bool()>,std::function<void(int)>>> drag_y_actions; // bool is visibility. if the item is not visible, do not call the action.
     std::mutex addMenuMutex;
 };
-
-bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry);
-bool breakJsonApart(nlohmann::json j, std::vector<std::tuple<std::string,nlohmann::json,std::string>> &data);
 
 #endif

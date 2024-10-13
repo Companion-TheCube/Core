@@ -130,9 +130,6 @@ void GUI::eventLoop()
         testSubMenu->draw();
     });
 
-    // addMenu("Test Menu 2", "Main Menu", {"Test Menu 2 Entry 1", "Test Menu 2 Entry 2", "Test Menu 2 Entry 3"}, {"Test Menu 2 Entry 1", "Test Menu 2 Entry 2", "Test Menu 2 Entry 3"});
-    // addMenu("Test Menu 3", "Test Menu 1", {"Test Menu 3 Entry 1", "Test Menu 3 Entry 2", "Test Menu 3 Entry 3"}, {"Test Menu 3 Entry 1", "Test Menu 3 Entry 2", "Test Menu 3 Entry 3"});
-
     ///////// Main Menu /////////
     countingLatch.count_up();
     auto mainMenu = new MENUS::Menu(this->renderer, countingLatch);
@@ -295,105 +292,6 @@ void GUI::eventLoop()
  *
  * @param menuName the name of the menu
  * @param parentName the name of the parent menu
- * @param entryTexts the text for the menu entries
- * @param endpoints the endpoints for the menu entries. This can be simple HTTP GET endpoints or JSON objects that describe the endpoint.
- * @param latch a CountingLatch object that will be used to wait for the menu to be ready
- *
-GUI_Error GUI::addMenu(std::string menuName, std::string thisUniqueID, std::string parentID, std::vector<std::string> entryTexts, std::vector<std::string> endpoints, std::vector<std::string> uniqueIDs, CountingLatch& latch)
-{
-    latch.count_up();
-    auto aNewMenu = new Menu(this->renderer, latch);
-    aNewMenu->setMenuName(menuName);
-    aNewMenu->setUniqueMenuIdentifier(thisUniqueID);
-    aNewMenu->setVisible(false);
-    Menu* parentMenuPtr = nullptr;
-    bool unique = true;
-    for (auto m : menus) {
-        if (m->getUniqueMenuIdentifier() == parentID) {
-            parentMenuPtr = m;
-        }
-        for (auto t : uniqueIDs) {
-            if (m->getUniqueMenuIdentifier() == t) {
-                unique = false;
-            }
-        }
-        if(thisUniqueID == m->getUniqueMenuIdentifier()) {
-            unique = false;
-        }
-    }
-    if (!unique) {
-        CubeLog::error("Unique menu identifier is not unique for menu: " + menuName);
-        return GUI_Error(GUI_Error::ERROR_TYPES::GUI_UNIQUE_EXISTS, "Unique menu identifier is not unique for menu: " + menuName);
-    }
-    if (parentMenuPtr == nullptr) {
-        CubeLog::error("Parent menu not found for menu: " + menuName);
-        return GUI_Error(GUI_Error::ERROR_TYPES::GUI_PARENT_NOT_FOUND, "Parent menu not found for menu: " + menuName);
-    }
-    menus.push_back(aNewMenu);
-    drag_y_actions.push_back({ [aNewMenu]() { return aNewMenu->getVisible(); }, [aNewMenu](int y) { aNewMenu->scrollVert(y); } });
-    this->renderer->addSetupTask([parentMenuPtr, menuName, aNewMenu, entryTexts, uniqueIDs]() {
-        aNewMenu->addMenuEntry(
-            "< Back",
-            menuName + "_back",
-            MenuEntry::EntryType::MENUENTRY_TYPE_ACTION,
-            [aNewMenu](void* data) {
-                CubeLog::info("Back clicked");
-                aNewMenu->setVisible(false);
-                if (aNewMenu->getParentMenu() != nullptr) {
-                    aNewMenu->getParentMenu()->setVisible(true);
-                }
-                return 0;
-            },
-            [](void*) { return 0; },
-            nullptr);
-        aNewMenu->addHorizontalRule();
-        for (int i = 0; i < entryTexts.size(); i++) {
-            std::string temp = entryTexts[i];
-            // generate a random number
-            int random = rand() % 100;
-            aNewMenu->addMenuEntry(
-                entryTexts[i],
-                uniqueIDs[i],
-                MenuEntry::EntryType::MENUENTRY_TYPE_ACTION,
-                [i, temp, random](void*) {
-                    CubeLog::info("Test Sub Menu Entry " + std::to_string(i) + " clicked. (" + std::to_string(random) + ")" + temp);
-                    return 0;
-                },
-                [i, temp](void*) { return 0; },
-                [random](void*) { return random; },
-                nullptr);
-        }
-        aNewMenu->setup();
-        aNewMenu->setVisible(false);
-        aNewMenu->setParentMenu(parentMenuPtr);
-        aNewMenu->getParentMenu()->addMenuEntry(
-            menuName,
-            menuName + "_entry",
-            MenuEntry::EntryType::MENUENTRY_TYPE_ACTION,
-            [aNewMenu](void*) {
-                CubeLog::info("Test Sub Menu clicked");
-                aNewMenu->setVisible(true);
-                aNewMenu->getParentMenu()->setVisible(false);
-                aNewMenu->getParentMenu()->setIsClickable(false);
-                return 0;
-            },
-            [](void*) { return 0; },
-            nullptr);
-    });
-    CubeLog::moreInfo("Added menu: " + menuName + " with parent: " + parentID);
-    CubeLog::moreInfo("Adding draw function for menu: " + menuName);
-    this->renderer->addLoopTask([aNewMenu]() {
-        aNewMenu->draw();
-    });
-    CubeLog::moreInfo("Menu setup complete: " + menuName);
-    return GUI_Error(GUI_Error::ERROR_TYPES::GUI_NO_ERROR, "Menu setup complete: " + menuName);
-};
-*/
-/**
- * @brief Add a menu to the GUI
- *
- * @param menuName the name of the menu
- * @param parentName the name of the parent menu
  * @param data a vector of tuples containing the text, json data, and unique identifier for the menu entries
  */
 GUI_Error GUI::addMenu(std::string menuName, std::string thisUniqueID, std::string parentID, AddMenu_Data_t data)
@@ -432,7 +330,7 @@ GUI_Error GUI::addMenu(std::string menuName, std::string thisUniqueID, std::stri
     menus.push_back(aNewMenu);
     EventManager* eventManagerPtr = this->eventManager;
     drag_y_actions.push_back({ [aNewMenu]() { return aNewMenu->getVisible(); }, [aNewMenu](int y) { aNewMenu->scrollVert(y); } });
-    this->renderer->addSetupTask([parentMenuPtr, menuName, aNewMenu, data, eventManagerPtr, uniqueIDs]() {
+    this->renderer->addSetupTask([parentMenuPtr, menuName, aNewMenu, data, eventManagerPtr, thisUniqueID]() {
         aNewMenu->addMenuEntry(
             "< Back",
             menuName + "_back",
@@ -448,32 +346,23 @@ GUI_Error GUI::addMenu(std::string menuName, std::string thisUniqueID, std::stri
             [](void*) { return 0; },
             nullptr);
         aNewMenu->addHorizontalRule();
-        ////  TODO: here is where we'll call parseJsonDataAndAddMenuEntries()
-        ////  TODO: remove this for loop and replace it with one that iterates over the data vector
+        bool success = true;
         for (int i = 0; i < data.size(); i++) {
-            std::string temp = std::get<0>(data[i]);
-            aNewMenu->addMenuEntry(
-                std::get<0>(data[i]),
-                uniqueIDs[i],
-                MENUS::EntryType::MENUENTRY_TYPE_RADIOBUTTON_GROUP,
-                [i, temp](void*) {
-                    CubeLog::info("Test Sub Menu Entry " + std::to_string(i) + " clicked. " + temp);
-                    return 0;
-                },
-                [i, temp](void*) {
-                    // get random 0 or 1
-                    int random = (rand() % 2) + 1;
-                    CubeLog::info("Test Sub Menu Entry " + std::to_string(i) + " right clicked. " + temp + " (" + std::to_string(random) + ")");
-                    return random;
-                },
-                nullptr);
+            if(!parseJsonAndAddEntriesToMenu(std::get<1>(data[i]), aNewMenu)) {
+                CubeLog::error("Error parsing json and adding entries to menu: " + menuName);
+                success = false;
+            }
+        }
+        if(!success) {
+            CubeLog::error("Error parsing json and adding entries to menu: " + menuName);
+            return;
         }
         aNewMenu->setup();
         aNewMenu->setVisible(false);
         aNewMenu->setParentMenu(parentMenuPtr);
         aNewMenu->getParentMenu()->addMenuEntry(
             menuName,
-            menuName + "_entry",
+            thisUniqueID,
             MENUS::EntryType::MENUENTRY_TYPE_ACTION,
             [aNewMenu](void*) {
                 CubeLog::info("Test Sub Menu clicked");
@@ -572,7 +461,7 @@ HttpEndPointData_t GUI::getHttpEndpointData()
                 }
                 AddMenu_Data_t data;
                 std::string menuName, thisUniqueID, parentID;
-                if (!breakJsonApart(j, data)) {
+                if (!breakJsonApart(j, data, &menuName, &thisUniqueID, &parentID)) {
                     CubeLog::error("Error breaking json apart");
                     response["success"] = false;
                     response["message"] = "Error breaking json apart";
@@ -1173,7 +1062,8 @@ bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry)
                 }
                 return retVal;
             },
-            nullptr);
+            nullptr
+        );
         break;
     }
     default:

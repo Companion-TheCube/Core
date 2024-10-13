@@ -55,9 +55,9 @@
 #define SCREEN_PX_MIN_X 0.f
 #define SCREEN_PX_MIN_Y 0.f
 
-class MenuStencil;
-
 namespace MENUS {
+
+class MenuStencil;
 
 enum EntryType {
     MENUENTRY_TYPE_SUBMENU,
@@ -96,8 +96,8 @@ private:
     std::function<unsigned int(void*)> statusAction;
     void* statusActionArg;
     bool visible;
-    Shader* textShader;
-    Shader* meshShader;
+    // Shader* textShader;
+    // Shader* meshShader;
     std::vector<MeshObject*> allObjects;
     std::vector<MeshObject*> scrollObjects;
     std::vector<MeshObject*> fixedObjects;
@@ -119,7 +119,7 @@ private:
     int groupID;
 
 public:
-    MenuEntry(std::string text, Shader* textShader, Shader* meshShader, glm::vec2 position, float size, float visibleWidth, EntryType type, std::function<unsigned int(void*)> statusAction, void* statusActionArg);
+    MenuEntry(std::string text, glm::vec2 position, float size, float visibleWidth, EntryType type, std::function<unsigned int(void*)> statusAction, void* statusActionArg);
     ~MenuEntry();
     void onClick(void*);
     void onRightClick(void*);
@@ -267,7 +267,7 @@ class MenuStencil : public Object {
 private:
     glm::vec2 position;
     glm::vec2 size;
-    static Shader* shader;
+    // static Shader* shader;
     static bool shaderSet;
     GLuint VAO, VBO, EBO;
     std::vector<MeshObject*> objects;

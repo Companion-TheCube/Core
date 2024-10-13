@@ -30,6 +30,7 @@ class Shader{
         std::mutex mutex = {};
     public:
         unsigned int ID;
+        Shader(){};
         Shader(std::string vertexShaderPath, std::string fragmentShaderPath);
         ~Shader();
         void use();
