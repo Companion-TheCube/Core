@@ -21,7 +21,7 @@ M_Text::M_Text(Shader* sh, std::string text, float fontSize, glm::vec3 color, gl
     this->fontSize = fontSize;
     this->color = color;
     this->position = position;
-    this->projectionMatrix = glm::ortho(0.0f, 720.0f, 0.0f, 720.0f);
+    this->projectionMatrix = glm::ortho(0.0f, 720.0f, 0.0f, 720.0f, -1.f, 1.f);
     this->buildText();
     GlobalSettings::setSettingCB("selectedFontPath", [&]() {
         this->reloadFace = true;
@@ -122,7 +122,7 @@ void M_Text::buildText()
     checkGLError("0.7");
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
-    setProjectionMatrix(glm::ortho(0.0f, 720.f, 0.0f, 720.f));
+    // setProjectionMatrix(glm::ortho(0.0f, 720.f, 0.0f, 720.f));
     checkGLError("0.8");
     this->reloadFace = false;
 }
@@ -152,6 +152,9 @@ void M_Text::draw()
     this->shader->use();
     shader->setVec3("textColor", this->color.x, this->color.y, this->color.z);
     shader->setMat4("projection", projectionMatrix);
+    shader->setFloat("zindex", 0.0f);
+    shader->setFloat("alpha", 1.0f);
+    shader->setFloat("bg_alpha", 0.0f);
     glActiveTexture(GL_TEXTURE0);
     glBindVertexArray(this->VAO);
     std::string::const_iterator c;
@@ -609,7 +612,7 @@ M_RadioButtonTexture::M_RadioButtonTexture(Shader* sh, float radioSize, unsigned
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    setProjectionMatrix(glm::ortho(0.0f, 720.f, 0.0f, 720.f));
+    setProjectionMatrix(glm::ortho(0.0f, 720.f, 0.0f, 720.f, -1.f, 1.f));
     glBindTexture(GL_TEXTURE_2D, 0);
     glGenVertexArrays(1, &this->VAO);
     glGenBuffers(1, &this->VBO);
@@ -635,6 +638,9 @@ void M_RadioButtonTexture::draw()
     this->shader->use();
     shader->setVec3("textColor", this->color.x, this->color.y, this->color.z);
     shader->setMat4("projection", projectionMatrix);
+    shader->setFloat("zindex", 0.1f);
+    shader->setFloat("alpha", 1.0f);
+    shader->setFloat("bg_alpha", 1.0f);
     glActiveTexture(GL_TEXTURE0);
     float xPos = this->position.x;
     float yPos = this->position.y - this->radioSize;
