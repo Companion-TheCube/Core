@@ -117,11 +117,14 @@ private:
     static unsigned int menuEntryCount;
     unsigned int menuEntryIndex;
     int groupID;
+    M_Text* textObject;
 
 public:
     MenuEntry(Shader* t_shader, Shader* m_shader, std::string text, glm::vec2 position, float size, float visibleWidth, EntryType type, std::function<unsigned int(void*)> statusAction, void* statusActionArg);
     ~MenuEntry();
     void onClick(void*);
+    void onRelease(void*);
+    void onMouseDown(void*);
     void onRightClick(void*);
     std::vector<MeshObject*> getObjects();
     bool setVisible(bool visible);
@@ -144,6 +147,7 @@ public:
     void setGroupID(int groupID) { this->groupID = groupID; }
     int getGroupID() { return this->groupID; }
     void setStatusReturnData(unsigned int statusReturnData) { this->statusReturnData = statusReturnData; }
+    void setEntryTextTouched(bool touched);
 };
 
 class Menu : public Clickable {
@@ -181,6 +185,8 @@ public:
     ~Menu();
     void setup();
     void onClick(void*);
+    void onRelease(void*);
+    void onMouseDown(void*);
     void onRightClick(void*);
     bool setVisible(bool visible);
     bool getVisible();
@@ -209,7 +215,6 @@ public:
     void capturePosition() { }
     void restorePosition() { }
     bool getIsClickable();
-
 };
 
 class MenuBox : public M_Box {
@@ -250,6 +255,8 @@ public:
     bool setVisible(bool visible);
     bool getVisible();
     void onClick(void*);
+    void onRelease(void*);
+    void onMouseDown(void*);
     void onRightClick(void*);
     std::vector<MeshObject*> getObjects();
     void setOnClick(std::function<unsigned int(void*)> action);

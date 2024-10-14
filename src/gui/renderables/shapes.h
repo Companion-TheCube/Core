@@ -73,6 +73,7 @@ public:
     void restorePosition();
     void setVisibility(bool visible);
     void getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix);
+    void setColor(glm::vec3 color);
 };
 
 class M_PartCircle : public MeshObject {

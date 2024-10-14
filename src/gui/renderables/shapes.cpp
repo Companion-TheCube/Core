@@ -275,6 +275,11 @@ void M_Text::setText(std::string text)
     this->buildText();
 }
 
+void M_Text::setColor(glm::vec3 color)
+{
+    this->color = color;
+}
+
 float M_Text::getWidth()
 {
     return this->width;

@@ -290,6 +290,16 @@ void Menu::onClick(void* data)
     }
 }
 
+void Menu::onRelease(void* data)
+{
+    CubeLog::info("Menu released");
+}
+
+void Menu::onMouseDown(void* data)
+{
+    CubeLog::info("Menu mouse down");
+}
+
 /**
  * @brief Handle the right click event
  *
@@ -575,14 +585,15 @@ MenuEntry::MenuEntry(Shader* t_shader, Shader* m_shader, std::string text, glm::
     this->statusReturnData = statusAction(statusActionArg);
     this->statusActionArg = statusActionArg;
 
-    auto temp = new M_Text(
+    this->textObject = new M_Text(
         textShader,
         text,
         size,
         { 1.f, 1.f, 1.f },
         position);
-    this->scrollObjects.push_back(temp);
-    this->allObjects.push_back(temp);
+    // this->textObject->setColor({ 1.f, 1.f, 1.f });
+    this->scrollObjects.push_back(this->textObject);
+    this->allObjects.push_back(this->textObject);
     this->scrollObjects.at(0)->capturePosition();
     this->size.x = this->scrollObjects.at(0)->getWidth();
     this->size.y = size;
@@ -604,7 +615,7 @@ MenuEntry::MenuEntry(Shader* t_shader, Shader* m_shader, std::string text, glm::
         CubeLog::moreInfo("Creating radio button");
         float posX = this->position.x + (this->visibleWidth - size);
         float posY = this->position.y + size;
-        auto tempRB = new M_RadioButtonTexture(textShader, size+10, 20, { 1.f, 1.f, 1.f }, { posX, posY });
+        auto tempRB = new M_RadioButtonTexture(textShader, size + 10, 20, { 1.f, 1.f, 1.f }, { posX, posY });
         tempRB->setSelected(this->statusReturnData == 1);
         tempRB->capturePosition();
         tempRB->setVisibility(true);
@@ -640,13 +651,26 @@ MenuEntry::~MenuEntry()
 void MenuEntry::onClick(void* data)
 {
     CubeLog::info("MenuEntry clicked");
-    if(this->actions.size() == 0) return;
+    if (this->actions.size() == 0)
+        return;
     if (this->actions.size() == 1) {
         this->clickReturnData = this->actions.at(0)(data) & 0x00ff;
-    } else if(this->actions.size() == 2) {
+    } else if (this->actions.size() == 2) {
         this->clickReturnData = this->actions.at(0)(data) & 0x00ff;
         this->statusReturnData = this->actions.at(1)(this->statusActionArg);
     }
+}
+
+void MenuEntry::onRelease(void* data)
+{
+    CubeLog::debugSilly("MenuEntry released");
+    this->textObject->setColor({1.f, 1.f, 1.f});
+}
+
+void MenuEntry::onMouseDown(void* data)
+{
+    CubeLog::debugSilly("MenuEntry mouse down");
+    this->textObject->setColor({0.5f, 0.5f, 0.5f});
 }
 
 void MenuEntry::onRightClick(void* data)
@@ -672,8 +696,10 @@ bool MenuEntry::getVisible()
 void MenuEntry::setOnClick(std::function<unsigned int(void*)> action)
 {
     CubeLog::info("Setting onClick action for MenuEntry with text: " + this->text);
-    if(this->actions.size() == 0) this->actions.push_back(action);
-    else this->actions.at(0) = action;
+    if (this->actions.size() == 0)
+        this->actions.push_back(action);
+    else
+        this->actions.at(0) = action;
 }
 
 void MenuEntry::setOnRightClick(std::function<unsigned int(void*)> action)
@@ -684,14 +710,17 @@ void MenuEntry::setOnRightClick(std::function<unsigned int(void*)> action)
 
 /**
  * @brief Set the status action. This action is called when the status of the entry is updated. This must be called after the action is set.
- * 
- * @param action 
+ *
+ * @param action
  */
 void MenuEntry::setStatusAction(std::function<unsigned int(void*)> action)
 {
-    if(this->actions.size() == 0) return;
-    if(this->actions.size() == 1) this->actions.push_back(action);
-    else this->actions.at(1) = action;
+    if (this->actions.size() == 0)
+        return;
+    if (this->actions.size() == 1)
+        this->actions.push_back(action);
+    else
+        this->actions.at(1) = action;
 }
 
 std::vector<MeshObject*> MenuEntry::getObjects()
@@ -705,7 +734,7 @@ void MenuEntry::draw()
         return;
     }
 
-    switch(this->type) {
+    switch (this->type) {
     case EntryType::MENUENTRY_TYPE_ACTION: {
         break;
     }
@@ -713,7 +742,7 @@ void MenuEntry::draw()
         break;
     }
     case EntryType::MENUENTRY_TYPE_RADIOBUTTON_GROUP: {
-        if(this->statusReturnData == 1) {
+        if (this->statusReturnData == 1) {
             ((M_RadioButtonTexture*)this->xFixedObjects.at(0))->setSelected(true);
         } else {
             ((M_RadioButtonTexture*)this->xFixedObjects.at(0))->setSelected(false);
@@ -1061,6 +1090,16 @@ bool MenuHorizontalRule::getVisible()
 void MenuHorizontalRule::onClick(void* data)
 {
     CubeLog::info("MenuHorizontalRule clicked");
+}
+
+void MenuHorizontalRule::onRelease(void* data)
+{
+    CubeLog::info("MenuHorizontalRule released");
+}
+
+void MenuHorizontalRule::onMouseDown(void* data)
+{
+    CubeLog::info("MenuHorizontalRule mouse down");
 }
 
 void MenuHorizontalRule::onRightClick(void* data)

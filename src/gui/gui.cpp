@@ -1218,7 +1218,7 @@ bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry)
                 stringPtr->reset(t);
                 return (unsigned int)0;
             },
-            nullptr
+            (void*)new std::shared_ptr<std::string>(new std::string("default text"))
         );
         break;
     }
@@ -1291,11 +1291,11 @@ bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry)
                 }
                 httplib::Result res;
                 if (statusEP_Method == "GET")
-                    res = client.Get(statusEP_Path.c_str() + "?value=" + std::to_string(value));
+                    res = client.Get(statusEP_Path + "?value=" + std::to_string(value));
                 if (statusEP_Method == "POST"){
                     nlohmann::json j;
                     j["value"] = value;
-                    res = client.Post(statusEP_Path.c_str(), std::to_string(j.dump()), "application/json");
+                    res = client.Post(statusEP_Path.c_str(), j.dump(), "application/json");
                 }
                 if (statusEP_Method == "PUT")
                     res = client.Put(statusEP_Path.c_str());
@@ -1325,7 +1325,7 @@ bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry)
                     retVal = 1;
                 return retVal;
             },
-            nullptr
+            (void*)new int(0)
         );
         break;
     }
