@@ -565,6 +565,7 @@ bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry)
     std::string actionEP_AddrPort, actionEP_Path, actionEP_Method, actionEP_User, actionEP_Pass, actionEP_Token;
     std::string statusEP_AddrPort, statusEP_Path, statusEP_Method, statusEP_User, statusEP_Pass, statusEP_Token;
     bool hasActionData = false, hasStatusData = false;
+    // TODO: this is not parsing correctly. We need to fix this.
     try {
         nlohmann::json j2 = j["entryData"]["actionEndpoint"];
         actionEP_AddrPort = j2["addr_port"];
