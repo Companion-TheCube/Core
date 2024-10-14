@@ -405,13 +405,13 @@ bool EventManager::checkClickableAreas(sf::Event event)
         }
     }else if((sf::Mouse::isButtonPressed(sf::Mouse::Left) || sf::Mouse::isButtonPressed(sf::Mouse::Right) || sf::Touch::isDown(0))){
         if(std::abs(float(yChange)) * (0.5f) > std::abs(float(xChange))){
-            CubeLog::info("Dragged Y");
+            // CubeLog::info("Dragged Y");
             sf::Event ev;
             ev.type = sf::Event::MouseWheelScrolled;
             ev.mouseWheelScroll.delta = -yChange;
             triggerEvent(SpecificEventTypes::DRAG_Y, &ev);
         }else if(std::abs(float(xChange) * (0.5f)) > std::abs(float(yChange))){
-            CubeLog::info("Dragged X");
+            // CubeLog::info("Dragged X");
             sf::Event ev;
             ev.type = sf::Event::MouseWheelScrolled;
             ev.mouseWheelScroll.delta = xChange;

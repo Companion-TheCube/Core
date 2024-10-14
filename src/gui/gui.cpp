@@ -297,14 +297,10 @@ void GUI::eventLoop()
 GUI_Error GUI::addMenu(std::string menuName, std::string thisUniqueID, std::string parentID, AddMenu_Data_t data)
 {
     CubeLog::debugSilly("Adding menu: " + menuName + " with parent: " + parentID);
-    // std::vector<std::string> entryTexts;
-    // std::vector<std::string> endpoints;
-    // std::vector<std::string> uniqueIDs;
-    // for (int i = 0; i < data.size(); i++) {
-    //     entryTexts.push_back(std::get<0>(data.at(i)));
-    //     endpoints.push_back(std::get<1>(data.at(i)));
-    //     uniqueIDs.push_back(std::get<2>(data.at(i)));
-    // }
+    std::vector<std::string> uniqueIDs;
+    for (int i = 0; i < data.size(); i++) {
+        uniqueIDs.push_back(std::get<2>(data.at(i)));
+    }
     CubeLog::debugSilly("Locking addMenuMutex");
     std::unique_lock<std::mutex> lock(this->addMenuMutex);
     auto aNewMenu = new MENUS::Menu(this->renderer);
@@ -319,12 +315,12 @@ GUI_Error GUI::addMenu(std::string menuName, std::string thisUniqueID, std::stri
             parentMenuPtr = m;
             CubeLog::moreInfo("Parent menu found for menu: " + menuName);
         }
-        // for (auto t : uniqueIDs) {
-        //     if (m->getUniqueMenuIdentifier() == t) {
-        //         unique = false;
-        //         CubeLog::moreInfo("Unique identifier: " + t + " already exists");
-        //     }
-        // }
+        for (auto t : uniqueIDs) {
+            if (m->getUniqueMenuIdentifier() == t) {
+                unique = false;
+                CubeLog::moreInfo("Unique identifier: " + t + " already exists");
+            }
+        }
         if (thisUniqueID == m->getUniqueMenuIdentifier()) {
             unique = false;
             CubeLog::moreInfo("Unique identifier: " + thisUniqueID + " already exists");
@@ -587,27 +583,31 @@ bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry)
     bool hasActionData = false, hasStatusData = false;
     // TODO: this is not parsing correctly. We need to fix this.
     try {
-        nlohmann::json j2 = j["entryData"]["actionEndpoint"];
-        actionEP_AddrPort = j2["addr_port"];
-        actionEP_Path = j2["path"];
-        actionEP_Method = j2["method"];
-        actionEP_User = j2["user"];
-        actionEP_Pass = j2["password"];
-        actionEP_Token = j2["token"];
-        hasActionData = true;
+        if(!j["entryData"]["actionEndpoint"].is_null()){
+            nlohmann::json j2 = j["entryData"]["actionEndpoint"];
+            actionEP_AddrPort = j2["addr_port"];
+            actionEP_Path = j2["path"];
+            actionEP_Method = j2["method"];
+            actionEP_User = j2["user"];
+            actionEP_Pass = j2["password"];
+            actionEP_Token = j2["token"];
+            hasActionData = true;
+        }
     } catch (nlohmann::json::exception& e) {
         CubeLog::moreInfo("No action endpoint provided: " + entryText);
         CubeLog::debugSilly("Error provided by json: " + std::string(e.what()));
     }
     try {
-        nlohmann::json j2 = j["entryData"]["statusEndpoint"];
-        statusEP_AddrPort = j2["addr_port"];
-        statusEP_Path = j2["path"];
-        statusEP_Method = j2["method"];
-        statusEP_User = j2["user"];
-        statusEP_Pass = j2["password"];
-        statusEP_Token = j2["token"];
-        hasStatusData = true;
+        if(!j["entryData"]["statusEndpoint"].is_null()){
+            nlohmann::json j2 = j["entryData"]["statusEndpoint"];
+            statusEP_AddrPort = j2["addr_port"];
+            statusEP_Path = j2["path"];
+            statusEP_Method = j2["method"];
+            statusEP_User = j2["user"];
+            statusEP_Pass = j2["password"];
+            statusEP_Token = j2["token"];
+            hasStatusData = true;
+        }
     } catch (nlohmann::json::exception& e) {
         CubeLog::moreInfo("No status endpoint provided: " + entryText);
         CubeLog::debugSilly("Error provided by json: " + std::string(e.what()));
@@ -620,7 +620,7 @@ bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry)
         CubeLog::error("No action endpoint provided: " + entryText);
         return false;
     }
-    if (!hasActionData || !hasStatusData) {
+    if ((!hasActionData || !hasStatusData) && (type != MENUS::EntryType::MENUENTRY_TYPE_ACTION && type != MENUS::EntryType::MENUENTRY_TYPE_SUBMENU)) {
         CubeLog::error("No status endpoint provided or no action endpoint provided: " + entryText);
         return false;
     }
