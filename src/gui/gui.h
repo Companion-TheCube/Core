@@ -31,6 +31,9 @@
 #ifndef API_H
 #include "../api/api.h"
 #endif
+#ifndef API_I_H
+#include "../api_i.h"
+#endif
 #ifndef UTILS_H
 #include <utils.h>
 #endif
@@ -67,6 +70,11 @@ public:
     void eventLoop();
     void stop();
     static void showMessageBox(std::string title, std::string message);
+    static void showMessageBox(std::string title, std::string message, glm::vec2 size, glm::vec2 position);
+    static void showMessageBox(std::string title, std::string message, glm::vec2 size, glm::vec2 position, std::function<void()> callback);
+    static void showTextBox(std::string title, std::string message);
+    static void showTextBox(std::string title, std::string message, glm::vec2 size, glm::vec2 position);
+    static void showTextBox(std::string title, std::string message, glm::vec2 size, glm::vec2 position, std::function<void()> callback);
     // API Interface
     HttpEndPointData_t getHttpEndpointData();
     std::vector<std::pair<std::string, std::vector<std::string>>> getHttpEndpointNamesAndParams();
@@ -79,6 +87,7 @@ private:
     std::jthread eventLoopThread;
     EventManager* eventManager;
     static CubeMessageBox* messageBox;
+    static CubeTextBox* fullScreenTextBox;
     std::vector<MENUS::Menu*> menus;
     std::vector<std::pair<std::function<bool()>,std::function<void(int)>>> drag_y_actions; // bool is visibility. if the item is not visible, do not call the action.
     std::mutex addMenuMutex;

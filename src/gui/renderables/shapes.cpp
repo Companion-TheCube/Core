@@ -129,8 +129,8 @@ void M_Text::buildText()
 
 M_Text::~M_Text()
 {
-    FT_Done_Face(M_Text::face);
-    FT_Done_FreeType(M_Text::ft);
+    // FT_Done_Face(M_Text::face);
+    // FT_Done_FreeType(M_Text::ft);
     // delete all the openGl stuff
     glDeleteVertexArrays(1, &this->VAO);
     glDeleteBuffers(1, &this->VBO);

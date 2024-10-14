@@ -74,7 +74,7 @@ public:
 
 class Object {
 public:
-    virtual ~Object() {};
+    virtual ~Object(){};
     virtual void draw() = 0;
     virtual bool setVisible(bool visible) = 0;
     virtual bool getVisible() = 0;

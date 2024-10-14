@@ -4,6 +4,7 @@
 #include "./gui.h"
 
 CubeMessageBox* GUI::messageBox = nullptr;
+CubeTextBox* GUI::fullScreenTextBox = nullptr;
 
 /**
  * @brief Construct a new GUI::GUI object
@@ -771,11 +772,17 @@ void GUI::eventLoop()
             "Serial Number",
             "About_Serial_Number",
             MENUS::EntryType::MENUENTRY_TYPE_TEXT_INFO,
-            [&](void* data) {
+            [aboutSerialNumberMenu](void* data) {
                 CubeLog::info("Serial Number clicked");
                 // TODO: we'll need to close the menus and show the message box
                 // TODO: showMessageBox should call the version that takes size and position, and a callback that will re-enable the menus.
-                this->showMessageBox("Serial Number", "Serial Number: 1234567890");
+                aboutSerialNumberMenu->setVisible(false);
+                aboutSerialNumberMenu->setIsClickable(true);
+                // aboutSerialNumberMenu->getParentMenu()->setVisible(false);
+                GUI::showTextBox("Serial Number", "Serial Number: 1234567890", {720,720}, {0,0}, [aboutSerialNumberMenu]() {
+                    aboutSerialNumberMenu->setVisible(true);
+                    aboutSerialNumberMenu->setIsClickable(false);
+                });
                 return 0;
             },
             [](void* inPtr) { 
@@ -836,6 +843,23 @@ void GUI::eventLoop()
         messageBox->draw();
     });
     messageBox->setVisible(false);
+    MakeCubeBoxClickable<CubeMessageBox> clickable_messageBox(messageBox);
+    this->eventManager->addClickableArea(clickable_messageBox.getClickableArea());
+
+    ////////////////////////////////////////
+    /// Set up the full screen text box
+    ////////////////////////////////////////
+    fullScreenTextBox = new CubeTextBox(this->renderer->getMeshShader(), this->renderer->getTextShader(), this->renderer, countingLatch);
+    // countingLatch.count_up();
+    this->renderer->addSetupTask([&]() {
+        fullScreenTextBox->setup();
+    });
+    this->renderer->addLoopTask([&]() {
+        fullScreenTextBox->draw();
+    });
+    fullScreenTextBox->setVisible(false);
+    MakeCubeBoxClickable<CubeTextBox> clickable_fullScreenTextBox(fullScreenTextBox);
+    this->eventManager->addClickableArea(clickable_fullScreenTextBox.getClickableArea());
 
     ////////////////////////////////////////
     /// Wait for the rendered elements to be ready
@@ -1011,8 +1035,6 @@ void GUI::stop()
     this->renderer->stop();
 }
 
-// TODO: need an overload that takes in size and position.
-// TODO: need an overload that takes in a callback function to be called when the message box is closed (tapped).
 /**
  * @brief Show a message box with a title and message
  *
@@ -1026,9 +1048,61 @@ void GUI::showMessageBox(std::string title, std::string message)
         CubeLog::error("Message box is null. Cannot show message.");
         return;
     }
-    CubeLog::info("Showing message box with title: " + title + " and message: " + message);
     messageBox->setText(message);
     messageBox->setVisible(true);
+}
+
+void GUI::showMessageBox(std::string title, std::string message, glm::vec2 size, glm::vec2 position){
+    // check that messageBox is not null pointer
+    if (messageBox == nullptr) {
+        CubeLog::error("Message box is null. Cannot show message.");
+        return;
+    }
+    messageBox->setSize(size);
+    messageBox->setPosition(position);
+    showMessageBox(title, message);
+}
+
+void GUI::showMessageBox(std::string title, std::string message, glm::vec2 size, glm::vec2 position, std::function<void()> callback){
+    // check that messageBox is not null pointer
+    if (messageBox == nullptr) {
+        CubeLog::error("Message box is null. Cannot show message.");
+        return;
+    }
+    messageBox->setCallback(callback);
+    showMessageBox(title, message, size, position);
+}
+
+void GUI::showTextBox(std::string title, std::string message)
+{
+    // check that fullScreenTextBox is not null pointer
+    if (fullScreenTextBox == nullptr) {
+        CubeLog::error("Full screen text box is null. Cannot show text.");
+        return;
+    }
+    fullScreenTextBox->setText(message);
+    fullScreenTextBox->setVisible(true);
+}
+
+void GUI::showTextBox(std::string title, std::string message, glm::vec2 size, glm::vec2 position){
+    // check that fullScreenTextBox is not null pointer
+    if (fullScreenTextBox == nullptr) {
+        CubeLog::error("Full screen text box is null. Cannot show text.");
+        return;
+    }
+    fullScreenTextBox->setSize(size);
+    fullScreenTextBox->setPosition(position);
+    showTextBox(title, message);
+}
+
+void GUI::showTextBox(std::string title, std::string message, glm::vec2 size, glm::vec2 position, std::function<void()> callback){
+    // check that fullScreenTextBox is not null pointer
+    if (fullScreenTextBox == nullptr) {
+        CubeLog::error("Full screen text box is null. Cannot show text.");
+        return;
+    }
+    fullScreenTextBox->setCallback(callback);
+    showTextBox(title, message, size, position);
 }
 
 /**
