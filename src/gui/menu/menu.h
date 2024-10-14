@@ -96,8 +96,8 @@ private:
     std::function<unsigned int(void*)> statusAction;
     void* statusActionArg;
     bool visible;
-    // Shader* textShader;
-    // Shader* meshShader;
+    Shader* textShader;
+    Shader* meshShader;
     std::vector<MeshObject*> allObjects;
     std::vector<MeshObject*> scrollObjects;
     std::vector<MeshObject*> fixedObjects;
@@ -119,7 +119,7 @@ private:
     int groupID;
 
 public:
-    MenuEntry(std::string text, glm::vec2 position, float size, float visibleWidth, EntryType type, std::function<unsigned int(void*)> statusAction, void* statusActionArg);
+    MenuEntry(Shader* t_shader, Shader* m_shader, std::string text, glm::vec2 position, float size, float visibleWidth, EntryType type, std::function<unsigned int(void*)> statusAction, void* statusActionArg);
     ~MenuEntry();
     void onClick(void*);
     void onRightClick(void*);
@@ -267,8 +267,7 @@ class MenuStencil : public Object {
 private:
     glm::vec2 position;
     glm::vec2 size;
-    // static Shader* shader;
-    static bool shaderSet;
+    Shader* shader;
     GLuint VAO, VBO, EBO;
     std::vector<MeshObject*> objects;
     std::vector<glm::vec2> vertices;
@@ -282,7 +281,7 @@ private:
     int stencilIndex = 0;
 
 public:
-    MenuStencil(glm::vec2 position, glm::vec2 size);
+    MenuStencil(glm::vec2 position, glm::vec2 size, Shader* shader);
     ~MenuStencil();
     void setPosition(glm::vec2 position);
     void setSize(glm::vec2 size);

@@ -21,6 +21,7 @@
 #include <vector>
 #include <latch>
 #include <expected>
+#include <regex>
 #include <nlohmann/json.hpp>
 #include <mutex>
 #include <tuple>

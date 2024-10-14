@@ -5,14 +5,14 @@
     "entries": [
         {
             "entryText": "Test menu entry from JSON",
-            "uniqueID": "testMenuEntry",
+            "uniqueID": "testMenuEntry1212",
             "entryData": {
                 "entryType": "MENUENTRY_TYPE_SUBMENU"
             }
         },
         {
             "entryText": "Test menu entry from JSON 2",
-            "uniqueID": "testMenuEntry2",
+            "uniqueID": "testMenuEntry212",
             "entryData": {
                 "entryType": "MENUENTRY_TYPE_RADIOBUTTON_GROUP",
                 "radioGroup": 0,
@@ -37,7 +37,7 @@
         },
         {
             "entryText": "Test menu entry from JSON 3",
-            "uniqueID": "testMenuEntry3",
+            "uniqueID": "testMenuEntry312",
             "entryData": {
                 "entryType": "MENUENTRY_TYPE_RADIOBUTTON_GROUP",
                 "radioGroup": 0,
@@ -62,7 +62,7 @@
         },
         {
             "entryText": "Test menu entry from JSON 4",
-            "uniqueID": "testMenuEntry4",
+            "uniqueID": "testMenuEntry412",
             "entryData": {
                 "entryType": "MENUENTRY_TYPE_CHECKBOX",
                 "statusEndpoint": {

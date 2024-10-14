@@ -75,8 +75,11 @@ int Renderer::thread()
     this->window.setMouseCursorVisible(true); // TODO: change this to false for production
 #endif
     Shader edgesShader("./shaders/edges.vs", "./shaders/edges.fs");
-    this->shader = &edgesShader;
-    this->textShader = new Shader("shaders/text.vs", "shaders/text.fs");
+    Shader textureShader("./shaders/text.vs", "./shaders/text.fs");
+    Shader stencilShader("./shaders/menuStencil.vs", "./shaders/menuStencil.fs");
+    this->meshShader = &edgesShader;
+    this->textShader = &textureShader;
+    this->stencilShader = &stencilShader;
     auto characterManager = new CharacterManager(&edgesShader);
     Character_generic* character = characterManager->getCharacterByName("TheCube"); // TODO: this call should return a nullptr if the character is not found. Then we should throw an error.
     characterManager->setCharacter(character);
@@ -154,9 +157,19 @@ void Renderer::addObject(Object* object)
  * 
  * @return Shader* 
  */
-Shader* Renderer::getShader()
+Shader* Renderer::getMeshShader()
 {
-    return this->shader;
+    return this->meshShader;
+}
+
+/**
+ * @brief Get the stencil shader object
+ * 
+ * @return Shader* 
+ */
+Shader* Renderer::getStencilShader()
+{
+    return this->stencilShader;
 }
 
 /**

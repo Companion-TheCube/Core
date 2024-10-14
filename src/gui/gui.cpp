@@ -238,7 +238,7 @@ void GUI::eventLoop()
     ////////////////////////////////////////
     /// Set up the popup message box
     ////////////////////////////////////////
-    messageBox = new CubeMessageBox(this->renderer->getShader(), this->renderer->getTextShader(), this->renderer, countingLatch);
+    messageBox = new CubeMessageBox(this->renderer->getMeshShader(), this->renderer->getTextShader(), this->renderer, countingLatch);
     countingLatch.count_up();
     this->renderer->addSetupTask([&]() {
         messageBox->setup();
@@ -296,35 +296,48 @@ void GUI::eventLoop()
  */
 GUI_Error GUI::addMenu(std::string menuName, std::string thisUniqueID, std::string parentID, AddMenu_Data_t data)
 {
-    std::vector<std::string> entryTexts;
-    std::vector<std::string> endpoints;
-    std::vector<std::string> uniqueIDs;
+    CubeLog::debugSilly("Adding menu: " + menuName + " with parent: " + parentID);
+    // std::vector<std::string> entryTexts;
+    // std::vector<std::string> endpoints;
+    // std::vector<std::string> uniqueIDs;
+    // for (int i = 0; i < data.size(); i++) {
+    //     entryTexts.push_back(std::get<0>(data.at(i)));
+    //     endpoints.push_back(std::get<1>(data.at(i)));
+    //     uniqueIDs.push_back(std::get<2>(data.at(i)));
+    // }
+    CubeLog::debugSilly("Locking addMenuMutex");
     std::unique_lock<std::mutex> lock(this->addMenuMutex);
     auto aNewMenu = new MENUS::Menu(this->renderer);
     aNewMenu->setMenuName(menuName);
     aNewMenu->setUniqueMenuIdentifier(thisUniqueID);
     aNewMenu->setVisible(false);
+    CubeLog::debugSilly("Checking for unique identifiers for menu: " + menuName);
     MENUS::Menu* parentMenuPtr = nullptr;
     bool unique = true;
     for (auto m : menus) {
         if (m->getUniqueMenuIdentifier() == parentID) {
             parentMenuPtr = m;
+            CubeLog::moreInfo("Parent menu found for menu: " + menuName);
         }
-        for (auto t : uniqueIDs) {
-            if (m->getUniqueMenuIdentifier() == t) {
-                unique = false;
-            }
-        }
+        // for (auto t : uniqueIDs) {
+        //     if (m->getUniqueMenuIdentifier() == t) {
+        //         unique = false;
+        //         CubeLog::moreInfo("Unique identifier: " + t + " already exists");
+        //     }
+        // }
         if (thisUniqueID == m->getUniqueMenuIdentifier()) {
             unique = false;
+            CubeLog::moreInfo("Unique identifier: " + thisUniqueID + " already exists");
         }
     }
     if (!unique) {
         CubeLog::error("Unique menu identifiers for menu and children are not unique for menu: " + menuName);
+        delete aNewMenu;
         return GUI_Error(GUI_Error::ERROR_TYPES::GUI_UNIQUE_EXISTS, "Unique menu identifiers for menu and children are not unique for menu: " + menuName);
     }
     if (parentMenuPtr == nullptr) {
         CubeLog::error("Parent menu not found for menu: " + menuName);
+        delete aNewMenu;
         return GUI_Error(GUI_Error::ERROR_TYPES::GUI_PARENT_NOT_FOUND, "Parent menu not found for menu: " + menuName);
     }
     menus.push_back(aNewMenu);
@@ -553,26 +566,29 @@ bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry)
     std::string statusEP_AddrPort, statusEP_Path, statusEP_Method, statusEP_User, statusEP_Pass, statusEP_Token;
     bool hasActionData = false, hasStatusData = false;
     try {
-        actionEP_AddrPort = j["entryData"]["actionEndpoint"]["addr_port"];
-        actionEP_Path = j["entryData"]["actionEndpoint"]["path"];
-        actionEP_Method = j["entryData"]["actionEndpoint"]["method"];
-        actionEP_User = j["entryData"]["actionEndpoint"]["user"];
-        actionEP_Pass = j["entryData"]["actionEndpoint"]["pass"];
-        actionEP_Token = j["entryData"]["actionEndpoint"]["token"];
+        nlohmann::json j2 = j["entryData"]["actionEndpoint"];
+        actionEP_AddrPort = j2["addr_port"];
+        // actionEP_Path = j["entryData"]["actionEndpoint"]["path"];
+        // actionEP_Method = j["entryData"]["actionEndpoint"]["method"];
+        // actionEP_User = j["entryData"]["actionEndpoint"]["user"];
+        // actionEP_Pass = j["entryData"]["actionEndpoint"]["pass"];
+        // actionEP_Token = j["entryData"]["actionEndpoint"]["token"];
         hasActionData = true;
     } catch (nlohmann::json::exception& e) {
         CubeLog::moreInfo("No action endpoint provided: " + entryText);
+        CubeLog::debugSilly("Error provided by json: " + std::string(e.what()));
     }
     try {
-        statusEP_AddrPort = j["entryData"]["statusEndpoint"]["addr_port"];
-        statusEP_Path = j["entryData"]["statusEndpoint"]["path"];
-        statusEP_Method = j["entryData"]["statusEndpoint"]["method"];
-        statusEP_User = j["entryData"]["statusEndpoint"]["user"];
-        statusEP_Pass = j["entryData"]["statusEndpoint"]["pass"];
-        statusEP_Token = j["entryData"]["statusEndpoint"]["token"];
+        // statusEP_AddrPort = j["entryData"]["statusEndpoint"]["addr_port"];
+        // statusEP_Path = j["entryData"]["statusEndpoint"]["path"];
+        // statusEP_Method = j["entryData"]["statusEndpoint"]["method"];
+        // statusEP_User = j["entryData"]["statusEndpoint"]["user"];
+        // statusEP_Pass = j["entryData"]["statusEndpoint"]["pass"];
+        // statusEP_Token = j["entryData"]["statusEndpoint"]["token"];
         hasStatusData = true;
     } catch (nlohmann::json::exception& e) {
         CubeLog::moreInfo("No status endpoint provided: " + entryText);
+        CubeLog::debugSilly("Error provided by json: " + std::string(e.what()));
     }
     if (type != MENUS::EntryType::MENUENTRY_TYPE_SUBMENU && !hasActionData && !hasStatusData) {
         CubeLog::error("No action or status endpoint provided: " + entryText);
@@ -680,7 +696,7 @@ bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry)
                     return (unsigned int)2;
                 }
                 if (statusEP_Method != "GET" && statusEP_Method != "POST" && statusEP_Method != "PUT" && statusEP_Method != "DELETE") {
-                    CubeLog::error("Invalid method: " + statusEP_Method + "From: " + statusEP_AddrPort + statusEP_Path);
+                    CubeLog::error("Invalid method: " + statusEP_Method + " From: " + statusEP_AddrPort + statusEP_Path);
                     return (unsigned int)2;
                 }
                 httplib::Client client(statusEP_AddrPort);
@@ -960,7 +976,8 @@ bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry)
                 }
                 return retVal;
             },
-            nullptr);
+            nullptr
+        );
         break;
     }
     case MENUS::EntryType::MENUENTRY_TYPE_TEXT_INPUT: {
@@ -1062,7 +1079,7 @@ bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry)
                 }
                 return retVal;
             },
-            nullptr
+            (void*)new std::string("default text")
         );
         break;
     }
