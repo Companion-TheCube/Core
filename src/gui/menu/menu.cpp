@@ -582,7 +582,6 @@ MenuEntry::MenuEntry(Shader* t_shader, Shader* m_shader, std::string text, glm::
     this->type = type;
     this->text = text;
     this->visible = true;
-    // this->textShader = textShader;
     this->statusReturnData = statusAction(statusActionArg);
     this->statusActionArg = statusActionArg;
 
@@ -592,7 +591,6 @@ MenuEntry::MenuEntry(Shader* t_shader, Shader* m_shader, std::string text, glm::
         size,
         { 1.f, 1.f, 1.f },
         position);
-    // this->textObject->setColor({ 1.f, 1.f, 1.f });
     this->scrollObjects.push_back(this->textObject);
     this->allObjects.push_back(this->textObject);
     this->scrollObjects.at(0)->capturePosition();

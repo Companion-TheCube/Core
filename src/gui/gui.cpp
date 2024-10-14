@@ -748,12 +748,12 @@ void GUI::eventLoop()
     aboutSerialNumberMenu->setVisible(false);
     aboutSerialNumberMenu->setParentMenu(aboutMenu);
     drag_y_actions.push_back({ [aboutSerialNumberMenu]() { return aboutSerialNumberMenu->getVisible(); }, [aboutSerialNumberMenu](int y) { aboutSerialNumberMenu->scrollVert(y); } });
-    this->renderer->addSetupTask([aboutSerialNumberMenu]() {
+    this->renderer->addSetupTask([&]() {
         aboutSerialNumberMenu->addMenuEntry(
             "< Back",
             "About_Serial_Number",
             MENUS::EntryType::MENUENTRY_TYPE_ACTION,
-            [aboutSerialNumberMenu](void* data) {
+            [&](void* data) {
                 CubeLog::info("Back clicked");
                 aboutSerialNumberMenu->setVisible(false);
                 aboutSerialNumberMenu->setIsClickable(true);
@@ -771,11 +771,11 @@ void GUI::eventLoop()
             "Serial Number",
             "About_Serial_Number",
             MENUS::EntryType::MENUENTRY_TYPE_TEXT_INFO,
-            [aboutSerialNumberMenu](void* data) {
+            [&](void* data) {
                 CubeLog::info("Serial Number clicked");
-                aboutSerialNumberMenu->setVisible(true);
-                aboutSerialNumberMenu->getParentMenu()->setVisible(false);
-                aboutSerialNumberMenu->getParentMenu()->setIsClickable(false);
+                // TODO: we'll need to close the menus and show the message box
+                // TODO: showMessageBox should call the version that takes size and position, and a callback that will re-enable the menus.
+                this->showMessageBox("Serial Number", "Serial Number: 1234567890");
                 return 0;
             },
             [](void* inPtr) { 
@@ -835,9 +835,6 @@ void GUI::eventLoop()
     this->renderer->addLoopTask([&]() {
         messageBox->draw();
     });
-
-    // TODO: make this not visible by default. Add a method for showing message box messages that checks if the menu is visible so
-    // that we don't draw on top of the menu. Then, in the loop, if the messagebox is pending, and the menu gets closed, show the messagebox.
     messageBox->setVisible(false);
 
     ////////////////////////////////////////
@@ -1014,6 +1011,8 @@ void GUI::stop()
     this->renderer->stop();
 }
 
+// TODO: need an overload that takes in size and position.
+// TODO: need an overload that takes in a callback function to be called when the message box is closed (tapped).
 /**
  * @brief Show a message box with a title and message
  *
