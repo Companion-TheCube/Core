@@ -224,9 +224,10 @@ private:
     glm::vec2 size;
     std::vector<MeshObject*> objects;
     bool visible;
-    static float index;
+    
 
 public:
+    static float index;
     // TODO: add bool: border to constructor
     MenuBox(glm::vec2 position, glm::vec2 size, Shader* shader);
     ~MenuBox();
@@ -246,6 +247,7 @@ private:
     Shader* shader;
     ClickableArea clickArea;
     // MenuStencil* stencil;
+
 public:
     MenuHorizontalRule(glm::vec2 position, float size, Shader* shader);
     ~MenuHorizontalRule();

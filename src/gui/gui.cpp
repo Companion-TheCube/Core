@@ -77,73 +77,22 @@ void GUI::eventLoop()
     ////////////////////////////////////////
     /// Here we build the menus
     ////////////////////////////////////////
-    CountingLatch countingLatch(0);
-
-    ///////// Submenu ///////// TODO: fill in all the submenus
-    countingLatch.count_up();
-    auto testSubMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
-    testSubMenu->setMenuName("Test Sub Menu");
-    testSubMenu->setUniqueMenuIdentifier("Test Sub Menu");
-    testSubMenu->setVisible(false);
-    menus.push_back(testSubMenu);
-    drag_y_actions.push_back({ [&]() { return testSubMenu->getVisible(); }, [&](int y) { testSubMenu->scrollVert(y); } });
-    this->renderer->addSetupTask([&]() {
-        testSubMenu->addMenuEntry(
-            "< Back",
-            "Test Sub Menu_back",
-            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
-            [&](void* data) {
-                CubeLog::info("Back clicked");
-                testSubMenu->setVisible(false);
-                if (testSubMenu->getParentMenu() != nullptr) {
-                    testSubMenu->getParentMenu()->setVisible(true);
-                }
-                return 0;
-            },
-            [](void* data) { return 0; },
-            nullptr);
-        testSubMenu->addHorizontalRule();
-        testSubMenu->addMenuEntry(
-            "Test Sub Menu Entry 1",
-            "Test Sub Menu Entry 1",
-            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
-            [](void*) {
-                CubeLog::info("Test Sub Menu Entry 1 clicked");
-                return 0;
-            },
-            [](void*) { return 0; },
-            nullptr);
-        testSubMenu->addMenuEntry(
-            "Test Sub Menu Entry 2",
-            "Test Sub Menu Entry 2",
-            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
-            [](void*) {
-                CubeLog::info("Test Sub Menu Entry 2 clicked");
-                return 0;
-            },
-            [](void*) { return 0; },
-            nullptr);
-        testSubMenu->setup();
-        testSubMenu->setVisible(false);
-    });
-    this->renderer->addLoopTask([&]() {
-        testSubMenu->draw();
-    });
+    CountingLatch countingLatch(16);
 
     ///////// Main Menu /////////
-    countingLatch.count_up();
+    // countingLatch.count_up();
     auto mainMenu = new MENUS::Menu(this->renderer, countingLatch);
-    testSubMenu->setParentMenu(mainMenu);
+    mainMenu->setAsMainMenu();
     mainMenu->setMenuName("Main Menu");
     mainMenu->setUniqueMenuIdentifier("Main Menu");
     menus.push_back(mainMenu);
-    drag_y_actions.push_back({ [&]() { return mainMenu->getVisible(); }, [&](int y) { mainMenu->scrollVert(y); } });
-    this->renderer->addSetupTask([&]() {
+    drag_y_actions.push_back({ [mainMenu]() { return mainMenu->getVisible(); }, [mainMenu](int y) { mainMenu->scrollVert(y); } });
+    this->renderer->addSetupTask([mainMenu]() {
         mainMenu->addMenuEntry(
             "< Settings",
             "Settings_back",
             MENUS::EntryType::MENUENTRY_TYPE_ACTION,
-            [&](void* data) {
+            [mainMenu](void* data) {
                 CubeLog::info("Settings clicked");
                 mainMenu->setVisible(false);
                 mainMenu->setIsClickable(true);
@@ -152,54 +101,694 @@ void GUI::eventLoop()
             [](void*) { return 0; },
             nullptr);
         mainMenu->addHorizontalRule();
-        mainMenu->addMenuEntry(
-            "Test Sub Menu",
-            "Test Sub Menu2",
-            MENUS::EntryType::MENUENTRY_TYPE_SUBMENU,
-            [&](void* data) {
-                CubeLog::info("Test Sub Menu clicked");
-                testSubMenu->setVisible(true);
-                mainMenu->setVisible(false);
-                mainMenu->setIsClickable(false);
+        mainMenu->setup();
+        mainMenu->setVisible(false);
+        mainMenu->setIsClickable(true);
+    });
+    this->renderer->addLoopTask([mainMenu]() {
+        mainMenu->draw();
+    });
+
+    /////////
+    /*
+    1. Connections
+    2. Personality
+    3. Sensors
+    4. Sound
+    5. Notifications
+    6. Display
+    7. Privacy
+    8. Accounts
+    9. Apps
+    10. General Settings
+    11. Accessibility
+    12.Updates
+    13. About
+    */
+    /////////
+    ///////// Connections Menu /////////
+    // countingLatch.count_up();
+    auto connectionsMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
+    connectionsMenu->setMenuName("Connections");
+    connectionsMenu->setUniqueMenuIdentifier("Connections");
+    connectionsMenu->setVisible(false);
+    connectionsMenu->setParentMenu(mainMenu);
+    drag_y_actions.push_back({ [connectionsMenu]() { return connectionsMenu->getVisible(); }, [connectionsMenu](int y) { connectionsMenu->scrollVert(y); } });
+    this->renderer->addSetupTask([connectionsMenu]() {
+        connectionsMenu->addMenuEntry(
+            "< Back",
+            "Connections_back",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [connectionsMenu](void* data) {
+                CubeLog::info("Back clicked");
+                connectionsMenu->setVisible(false);
+                connectionsMenu->setIsClickable(true);
+                if (connectionsMenu->getParentMenu() != nullptr) {
+                    connectionsMenu->getParentMenu()->setVisible(true);
+                }
                 return 0;
             },
             [](void*) { return 0; },
             nullptr);
-        mainMenu->addMenuEntry(
-            "Test Menu Entry but with radio button",
-            "Test Menu Entry but with radio button",
-            MENUS::EntryType::MENUENTRY_TYPE_RADIOBUTTON_GROUP,
-            [&](void* data) {
-                CubeLog::info("Test Menu Entry 1 clicked");
+        connectionsMenu->addHorizontalRule();
+        connectionsMenu->setup();
+        connectionsMenu->setVisible(false);
+        connectionsMenu->getParentMenu()->addMenuEntry(
+            "Connections",
+            "Main_Menu_Connections",
+            MENUS::EntryType::MENUENTRY_TYPE_SUBMENU,
+            [connectionsMenu](void* data) {
+                CubeLog::info("Connections clicked");
+                connectionsMenu->setVisible(true);
+                connectionsMenu->getParentMenu()->setVisible(false);
+                connectionsMenu->getParentMenu()->setIsClickable(false);
                 return 0;
             },
-            [](void*) {
-                // generate a random number between 0 and 1
-                return rand() % 2;
-            },
-            nullptr);
-        for (int i = 0; i < 25; i++) {
-            std::string s = " - repeats: ";
-            repeatChar(s, i, "a ");
-            mainMenu->addMenuEntry(
-                "Test Menu Entry " + std::to_string(i) + s,
-                "Test Menu Entry " + std::to_string(i),
-                MENUS::EntryType::MENUENTRY_TYPE_ACTION,
-                [&, i](void*) { CubeLog::info("Test Menu Entry " + std::to_string(i) + " clicked"); return 0; },
-                [](void*) { return 0; },
-                nullptr);
-        }
-        mainMenu->setup();
-        mainMenu->setVisible(false);
-        mainMenu->setAsMainMenu(); // No other menus should call this method
-        mainMenu->setIsClickable(true);
+            [](void*) { return 0; },
+            nullptr
+        );
     });
-    this->renderer->addLoopTask([&]() {
-        mainMenu->draw();
+    this->renderer->addLoopTask([connectionsMenu]() {
+        connectionsMenu->draw();
     });
+    menus.push_back(connectionsMenu);
 
-    // TODO: remove this
-    // addMenu("Test Menu 1", "testMenu1", "Main Menu", { "Test Menu 1 Entry 1", "Test Menu 1 Entry 2", "Test Menu 1 Entry 3" }, { "Test Menu 1 Entry 1", "Test Menu 1 Entry 2", "Test Menu 1 Entry 3" }, { "sub1_1", "sub1_2", "sub1_3" }, countingLatch);
+    ///////// Personality Menu /////////
+    // countingLatch.count_up();
+    auto personalityMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
+    personalityMenu->setMenuName("Personality");
+    personalityMenu->setUniqueMenuIdentifier("Personality");
+    personalityMenu->setVisible(false);
+    personalityMenu->setParentMenu(mainMenu);
+    drag_y_actions.push_back({ [personalityMenu]() { return personalityMenu->getVisible(); }, [personalityMenu](int y) { personalityMenu->scrollVert(y); } });
+    this->renderer->addSetupTask([personalityMenu]() {
+        personalityMenu->addMenuEntry(
+            "< Back",
+            "Personality_back",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [personalityMenu](void* data) {
+                CubeLog::info("Back clicked");
+                personalityMenu->setVisible(false);
+                personalityMenu->setIsClickable(true);
+                if (personalityMenu->getParentMenu() != nullptr) {
+                    personalityMenu->getParentMenu()->setVisible(true);
+                }
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr);
+        personalityMenu->addHorizontalRule();
+        personalityMenu->setup();
+        personalityMenu->setVisible(false);
+        personalityMenu->getParentMenu()->addMenuEntry(
+            "Personality",
+            "Main_Menu_Personality",
+            MENUS::EntryType::MENUENTRY_TYPE_SUBMENU,
+            [personalityMenu](void* data) {
+                CubeLog::info("Personality clicked");
+                personalityMenu->setVisible(true);
+                personalityMenu->getParentMenu()->setVisible(false);
+                personalityMenu->getParentMenu()->setIsClickable(false);
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
+    });
+    this->renderer->addLoopTask([personalityMenu]() {
+        personalityMenu->draw();
+    });
+    menus.push_back(personalityMenu);
+
+    ///////// Sensors Menu /////////
+    // countingLatch.count_up();
+    auto sensorsMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
+    sensorsMenu->setMenuName("Sensors");
+    sensorsMenu->setUniqueMenuIdentifier("Sensors");
+    sensorsMenu->setVisible(false);
+    sensorsMenu->setParentMenu(mainMenu);
+    drag_y_actions.push_back({ [sensorsMenu]() { return sensorsMenu->getVisible(); }, [sensorsMenu](int y) { sensorsMenu->scrollVert(y); } });
+    this->renderer->addSetupTask([sensorsMenu]() {
+        sensorsMenu->addMenuEntry(
+            "< Back",
+            "Sensors_back",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [sensorsMenu](void* data) {
+                CubeLog::info("Back clicked");
+                sensorsMenu->setVisible(false);
+                sensorsMenu->setIsClickable(true);
+                if (sensorsMenu->getParentMenu() != nullptr) {
+                    sensorsMenu->getParentMenu()->setVisible(true);
+                }
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr);
+        sensorsMenu->addHorizontalRule();
+        sensorsMenu->setup();
+        sensorsMenu->setVisible(false);
+        sensorsMenu->getParentMenu()->addMenuEntry(
+            "Sensors",
+            "Main_Menu_Sensors",
+            MENUS::EntryType::MENUENTRY_TYPE_SUBMENU,
+            [sensorsMenu](void* data) {
+                CubeLog::info("Sensors clicked");
+                sensorsMenu->setVisible(true);
+                sensorsMenu->getParentMenu()->setVisible(false);
+                sensorsMenu->getParentMenu()->setIsClickable(false);
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
+    });
+    this->renderer->addLoopTask([sensorsMenu]() {
+        sensorsMenu->draw();
+    });
+    menus.push_back(sensorsMenu);
+
+    ///////// Sound Menu /////////
+    // countingLatch.count_up();
+    auto soundMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
+    soundMenu->setMenuName("Sound");
+    soundMenu->setUniqueMenuIdentifier("Sound");
+    soundMenu->setVisible(false);
+    soundMenu->setParentMenu(mainMenu);
+    drag_y_actions.push_back({ [soundMenu]() { return soundMenu->getVisible(); }, [soundMenu](int y) { soundMenu->scrollVert(y); } });
+    this->renderer->addSetupTask([soundMenu]() {
+        soundMenu->addMenuEntry(
+            "< Back",
+            "Sound_back",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [soundMenu](void* data) {
+                CubeLog::info("Back clicked");
+                soundMenu->setVisible(false);
+                soundMenu->setIsClickable(true);
+                if (soundMenu->getParentMenu() != nullptr) {
+                    soundMenu->getParentMenu()->setVisible(true);
+                }
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr);
+        soundMenu->addHorizontalRule();
+        soundMenu->setup();
+        soundMenu->setVisible(false);
+        soundMenu->getParentMenu()->addMenuEntry(
+            "Sound",
+            "Main_Menu_Sound",
+            MENUS::EntryType::MENUENTRY_TYPE_SUBMENU,
+            [soundMenu](void* data) {
+                CubeLog::info("Sound clicked");
+                soundMenu->setVisible(true);
+                soundMenu->getParentMenu()->setVisible(false);
+                soundMenu->getParentMenu()->setIsClickable(false);
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
+    });
+    this->renderer->addLoopTask([soundMenu]() {
+        soundMenu->draw();
+    });
+    menus.push_back(soundMenu);
+
+    ///////// Notifications Menu /////////
+    // countingLatch.count_up();
+    auto notificationsMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
+    notificationsMenu->setMenuName("Notifications");
+    notificationsMenu->setUniqueMenuIdentifier("Notifications");
+    notificationsMenu->setVisible(false);
+    notificationsMenu->setParentMenu(mainMenu);
+    drag_y_actions.push_back({ [&]() { return notificationsMenu->getVisible(); }, [notificationsMenu](int y) { notificationsMenu->scrollVert(y); } });
+    this->renderer->addSetupTask([notificationsMenu]() {
+        notificationsMenu->addMenuEntry(
+            "< Back",
+            "Notifications_back",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [notificationsMenu](void* data) {
+                CubeLog::info("Back clicked");
+                notificationsMenu->setVisible(false);
+                notificationsMenu->setIsClickable(true);
+                if (notificationsMenu->getParentMenu() != nullptr) {
+                    notificationsMenu->getParentMenu()->setVisible(true);
+                }
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr);
+        notificationsMenu->addHorizontalRule();
+        notificationsMenu->setup();
+        notificationsMenu->setVisible(false);
+        notificationsMenu->getParentMenu()->addMenuEntry(
+            "Notifications",
+            "Main_Menu_Notifications",
+            MENUS::EntryType::MENUENTRY_TYPE_SUBMENU,
+            [notificationsMenu](void* data) {
+                CubeLog::info("Notifications clicked");
+                notificationsMenu->setVisible(true);
+                notificationsMenu->getParentMenu()->setVisible(false);
+                notificationsMenu->getParentMenu()->setIsClickable(false);
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
+    });
+    this->renderer->addLoopTask([notificationsMenu]() {
+        notificationsMenu->draw();
+    });
+    menus.push_back(notificationsMenu);
+
+    ///////// Display Menu /////////
+    // countingLatch.count_up();
+    auto displayMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
+    displayMenu->setMenuName("Display");
+    displayMenu->setUniqueMenuIdentifier("Display");
+    displayMenu->setVisible(false);
+    displayMenu->setParentMenu(mainMenu);
+    drag_y_actions.push_back({ [displayMenu]() { return displayMenu->getVisible(); }, [displayMenu](int y) { displayMenu->scrollVert(y); } });
+    this->renderer->addSetupTask([displayMenu]() {
+        displayMenu->addMenuEntry(
+            "< Back",
+            "Display_back",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [displayMenu](void* data) {
+                CubeLog::info("Back clicked");
+                displayMenu->setVisible(false);
+                displayMenu->setIsClickable(true);
+                if (displayMenu->getParentMenu() != nullptr) {
+                    displayMenu->getParentMenu()->setVisible(true);
+                }
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr);
+        displayMenu->addHorizontalRule();
+        displayMenu->setup();
+        displayMenu->setVisible(false);
+        displayMenu->getParentMenu()->addMenuEntry(
+            "Display",
+            "Main_Menu_Display",
+            MENUS::EntryType::MENUENTRY_TYPE_SUBMENU,
+            [displayMenu](void* data) {
+                CubeLog::info("Display clicked");
+                displayMenu->setVisible(true);
+                displayMenu->getParentMenu()->setVisible(false);
+                displayMenu->getParentMenu()->setIsClickable(false);
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
+    });
+    this->renderer->addLoopTask([displayMenu]() {
+        displayMenu->draw();
+    });
+    menus.push_back(displayMenu);
+
+    ///////// Privacy Menu /////////
+    // countingLatch.count_up();
+    auto privacyMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
+    privacyMenu->setMenuName("Privacy");
+    privacyMenu->setUniqueMenuIdentifier("Privacy");
+    privacyMenu->setVisible(false);
+    privacyMenu->setParentMenu(mainMenu);
+    drag_y_actions.push_back({ [privacyMenu]() { return privacyMenu->getVisible(); }, [privacyMenu](int y) { privacyMenu->scrollVert(y); } });
+    this->renderer->addSetupTask([privacyMenu]() {
+        privacyMenu->addMenuEntry(
+            "< Back",
+            "Privacy_back",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [privacyMenu](void* data) {
+                CubeLog::info("Back clicked");
+                privacyMenu->setVisible(false);
+                privacyMenu->setIsClickable(true);
+                if (privacyMenu->getParentMenu() != nullptr) {
+                    privacyMenu->getParentMenu()->setVisible(true);
+                }
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr);
+        privacyMenu->setup();
+        privacyMenu->addHorizontalRule();
+        
+        privacyMenu->setVisible(false);
+        privacyMenu->getParentMenu()->addMenuEntry(
+            "Privacy",
+            "Main_Menu_Privacy",
+            MENUS::EntryType::MENUENTRY_TYPE_SUBMENU,
+            [privacyMenu](void* data) {
+                CubeLog::info("Privacy clicked");
+                privacyMenu->setVisible(true);
+                privacyMenu->getParentMenu()->setVisible(false);
+                privacyMenu->getParentMenu()->setIsClickable(false);
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
+    });
+    this->renderer->addLoopTask([privacyMenu]() {
+        privacyMenu->draw();
+    });
+    menus.push_back(privacyMenu);
+
+    ///////// Accounts Menu /////////
+    // countingLatch.count_up();
+    auto accountsMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
+    accountsMenu->setMenuName("Accounts");
+    accountsMenu->setUniqueMenuIdentifier("Accounts");
+    accountsMenu->setVisible(false);
+    accountsMenu->setParentMenu(mainMenu);
+    drag_y_actions.push_back({ [accountsMenu]() { return accountsMenu->getVisible(); }, [accountsMenu](int y) { accountsMenu->scrollVert(y); } });
+    this->renderer->addSetupTask([accountsMenu]() {
+        accountsMenu->addMenuEntry(
+            "< Back",
+            "Accounts_back",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [accountsMenu](void* data) {
+                CubeLog::info("Back clicked");
+                accountsMenu->setVisible(false);
+                accountsMenu->setIsClickable(true);
+                if (accountsMenu->getParentMenu() != nullptr) {
+                    accountsMenu->getParentMenu()->setVisible(true);
+                }
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr);
+        accountsMenu->setup();
+        accountsMenu->addHorizontalRule();
+        
+        accountsMenu->setVisible(false);
+        accountsMenu->getParentMenu()->addMenuEntry(
+            "Accounts",
+            "Main_Menu_Accounts",
+            MENUS::EntryType::MENUENTRY_TYPE_SUBMENU,
+            [accountsMenu](void* data) {
+                CubeLog::info("Accounts clicked");
+                accountsMenu->setVisible(true);
+                accountsMenu->getParentMenu()->setVisible(false);
+                accountsMenu->getParentMenu()->setIsClickable(false);
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
+    });
+    this->renderer->addLoopTask([accountsMenu]() {
+        accountsMenu->draw();
+    });
+    menus.push_back(accountsMenu);
+
+    ///////// Apps Menu /////////
+    // countingLatch.count_up();
+    auto appsMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
+    appsMenu->setMenuName("Apps");
+    appsMenu->setUniqueMenuIdentifier("Apps");
+    appsMenu->setVisible(false);
+    appsMenu->setParentMenu(mainMenu);
+    drag_y_actions.push_back({ [appsMenu]() { return appsMenu->getVisible(); }, [appsMenu](int y) { appsMenu->scrollVert(y); } });
+    this->renderer->addSetupTask([appsMenu]() {
+        appsMenu->addMenuEntry(
+            "< Back",
+            "Apps_back",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [appsMenu](void* data) {
+                CubeLog::info("Back clicked");
+                appsMenu->setVisible(false);
+                appsMenu->setIsClickable(true);
+                if (appsMenu->getParentMenu() != nullptr) {
+                    appsMenu->getParentMenu()->setVisible(true);
+                }
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr);
+        appsMenu->setup();
+        appsMenu->addHorizontalRule();
+        
+        appsMenu->setVisible(false);
+        appsMenu->getParentMenu()->addMenuEntry(
+            "Apps",
+            "Main_Menu_Apps",
+            MENUS::EntryType::MENUENTRY_TYPE_SUBMENU,
+            [appsMenu](void* data) {
+                CubeLog::info("Apps clicked");
+                appsMenu->setVisible(true);
+                appsMenu->getParentMenu()->setVisible(false);
+                appsMenu->getParentMenu()->setIsClickable(false);
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
+    });
+    this->renderer->addLoopTask([appsMenu]() {
+        appsMenu->draw();
+    });
+    menus.push_back(appsMenu);
+
+    ///////// General Settings Menu /////////
+    // countingLatch.count_up();
+    auto generalSettingsMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
+    generalSettingsMenu->setMenuName("General Settings");
+    generalSettingsMenu->setUniqueMenuIdentifier("General Settings");
+    generalSettingsMenu->setVisible(false);
+    generalSettingsMenu->setParentMenu(mainMenu);
+    drag_y_actions.push_back({ [generalSettingsMenu]() { return generalSettingsMenu->getVisible(); }, [generalSettingsMenu](int y) { generalSettingsMenu->scrollVert(y); } });
+    this->renderer->addSetupTask([generalSettingsMenu]() {
+        generalSettingsMenu->addMenuEntry(
+            "< Back",
+            "General_Settings_back",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [generalSettingsMenu](void* data) {
+                CubeLog::info("Back clicked");
+                generalSettingsMenu->setVisible(false);
+                generalSettingsMenu->setIsClickable(true);
+                if (generalSettingsMenu->getParentMenu() != nullptr) {
+                    generalSettingsMenu->getParentMenu()->setVisible(true);
+                }
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr);
+        generalSettingsMenu->addHorizontalRule();
+        generalSettingsMenu->setup();
+        generalSettingsMenu->setVisible(false);
+        generalSettingsMenu->getParentMenu()->addMenuEntry(
+            "General Settings",
+            "Main_Menu_General_Settings",
+            MENUS::EntryType::MENUENTRY_TYPE_SUBMENU,
+            [generalSettingsMenu](void* data) {
+                CubeLog::info("General Settings clicked");
+                generalSettingsMenu->setVisible(true);
+                generalSettingsMenu->getParentMenu()->setVisible(false);
+                generalSettingsMenu->getParentMenu()->setIsClickable(false);
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
+    });
+    this->renderer->addLoopTask([generalSettingsMenu]() {
+        generalSettingsMenu->draw();
+    });
+    menus.push_back(generalSettingsMenu);
+
+    ///////// Accessibility Menu /////////
+    // countingLatch.count_up();
+    auto accessibilityMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
+    accessibilityMenu->setMenuName("Accessibility");
+    accessibilityMenu->setUniqueMenuIdentifier("Accessibility");
+    accessibilityMenu->setVisible(false);
+    accessibilityMenu->setParentMenu(mainMenu);
+    drag_y_actions.push_back({ [accessibilityMenu]() { return accessibilityMenu->getVisible(); }, [accessibilityMenu](int y) { accessibilityMenu->scrollVert(y); } });
+    this->renderer->addSetupTask([accessibilityMenu]() {
+        accessibilityMenu->addMenuEntry(
+            "< Back",
+            "Accessibility_back",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [accessibilityMenu](void* data) {
+                CubeLog::info("Back clicked");
+                accessibilityMenu->setVisible(false);
+                accessibilityMenu->setIsClickable(true);
+                if (accessibilityMenu->getParentMenu() != nullptr) {
+                    accessibilityMenu->getParentMenu()->setVisible(true);
+                }
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr);
+        accessibilityMenu->addHorizontalRule();
+        accessibilityMenu->setup();
+        accessibilityMenu->setVisible(false);
+        accessibilityMenu->getParentMenu()->addMenuEntry(
+            "Accessibility",
+            "Main_Menu_Accessibility",
+            MENUS::EntryType::MENUENTRY_TYPE_SUBMENU,
+            [accessibilityMenu](void* data) {
+                CubeLog::info("Accessibility clicked");
+                accessibilityMenu->setVisible(true);
+                accessibilityMenu->getParentMenu()->setVisible(false);
+                accessibilityMenu->getParentMenu()->setIsClickable(false);
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
+    });
+    this->renderer->addLoopTask([accessibilityMenu]() {
+        accessibilityMenu->draw();
+    });
+    menus.push_back(accessibilityMenu);
+
+    ///////// Updates Menu /////////
+    // countingLatch.count_up();
+    auto updatesMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
+    updatesMenu->setMenuName("Updates");
+    updatesMenu->setUniqueMenuIdentifier("Updates");
+    updatesMenu->setVisible(false);
+    updatesMenu->setParentMenu(mainMenu);
+    drag_y_actions.push_back({ [updatesMenu]() { return updatesMenu->getVisible(); }, [updatesMenu](int y) { updatesMenu->scrollVert(y); } });
+    this->renderer->addSetupTask([updatesMenu]() {
+        updatesMenu->addMenuEntry(
+            "< Back",
+            "Updates_back",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [updatesMenu](void* data) {
+                CubeLog::info("Back clicked");
+                updatesMenu->setVisible(false);
+                updatesMenu->setIsClickable(true);
+                if (updatesMenu->getParentMenu() != nullptr) {
+                    updatesMenu->getParentMenu()->setVisible(true);
+                }
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr);
+        updatesMenu->addHorizontalRule();
+        updatesMenu->setup();
+        updatesMenu->setVisible(false);
+        updatesMenu->getParentMenu()->addMenuEntry(
+            "Updates",
+            "Main_Menu_Updates",
+            MENUS::EntryType::MENUENTRY_TYPE_SUBMENU,
+            [updatesMenu](void* data) {
+                CubeLog::info("Updates clicked");
+                updatesMenu->setVisible(true);
+                updatesMenu->getParentMenu()->setVisible(false);
+                updatesMenu->getParentMenu()->setIsClickable(false);
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
+    });
+    this->renderer->addLoopTask([updatesMenu]() {
+        updatesMenu->draw();
+    });
+    menus.push_back(updatesMenu);
+
+    ///////// About Menu /////////
+    // countingLatch.count_up();
+    auto aboutMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
+    aboutMenu->setMenuName("About");
+    aboutMenu->setUniqueMenuIdentifier("About");
+    aboutMenu->setVisible(false);
+    aboutMenu->setParentMenu(mainMenu);
+    drag_y_actions.push_back({ [aboutMenu]() { return aboutMenu->getVisible(); }, [aboutMenu](int y) { aboutMenu->scrollVert(y); } });
+    this->renderer->addSetupTask([aboutMenu]() {
+        aboutMenu->addMenuEntry(
+            "< Back",
+            "About_back",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [aboutMenu](void* data) {
+                CubeLog::info("Back clicked");
+                aboutMenu->setVisible(false);
+                aboutMenu->setIsClickable(true);
+                if (aboutMenu->getParentMenu() != nullptr) {
+                    aboutMenu->getParentMenu()->setVisible(true);
+                }
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr);
+        aboutMenu->addHorizontalRule();
+        aboutMenu->setup();
+        aboutMenu->setVisible(false);
+        aboutMenu->getParentMenu()->addMenuEntry(
+            "About",
+            "Main_Menu_About",
+            MENUS::EntryType::MENUENTRY_TYPE_SUBMENU,
+            [aboutMenu](void* data) {
+                CubeLog::info("About clicked");
+                aboutMenu->setVisible(true);
+                aboutMenu->getParentMenu()->setVisible(false);
+                aboutMenu->getParentMenu()->setIsClickable(false);
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
+    });
+    this->renderer->addLoopTask([aboutMenu]() {
+        aboutMenu->draw();
+    });
+    menus.push_back(aboutMenu);
+
+    ///////// About Menu - Serial Number /////////
+    // countingLatch.count_up();
+    auto aboutSerialNumberMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
+    aboutSerialNumberMenu->setMenuName("Serial Number");
+    aboutSerialNumberMenu->setUniqueMenuIdentifier("Serial Number");
+    aboutSerialNumberMenu->setVisible(false);
+    aboutSerialNumberMenu->setParentMenu(aboutMenu);
+    drag_y_actions.push_back({ [aboutSerialNumberMenu]() { return aboutSerialNumberMenu->getVisible(); }, [aboutSerialNumberMenu](int y) { aboutSerialNumberMenu->scrollVert(y); } });
+    this->renderer->addSetupTask([aboutSerialNumberMenu]() {
+        aboutSerialNumberMenu->addMenuEntry(
+            "< Back",
+            "About_Serial_Number",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [aboutSerialNumberMenu](void* data) {
+                CubeLog::info("Back clicked");
+                aboutSerialNumberMenu->setVisible(false);
+                aboutSerialNumberMenu->setIsClickable(true);
+                if (aboutSerialNumberMenu->getParentMenu() != nullptr) {
+                    aboutSerialNumberMenu->getParentMenu()->setVisible(true);
+                }
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr);
+        aboutSerialNumberMenu->addHorizontalRule();
+        aboutSerialNumberMenu->setup();
+        aboutSerialNumberMenu->setVisible(false);
+        aboutSerialNumberMenu->getParentMenu()->addMenuEntry(
+            "Serial Number",
+            "About_Serial_Number",
+            MENUS::EntryType::MENUENTRY_TYPE_TEXT_INFO,
+            [aboutSerialNumberMenu](void* data) {
+                CubeLog::info("Serial Number clicked");
+                aboutSerialNumberMenu->setVisible(true);
+                aboutSerialNumberMenu->getParentMenu()->setVisible(false);
+                aboutSerialNumberMenu->getParentMenu()->setIsClickable(false);
+                return 0;
+            },
+            [](void* inPtr) { 
+                // TODO: the inPtr is a ptr to the output string. We need to get the serial number (somehow) and make the inPtr point to that.
+                return 0; 
+            },
+            nullptr
+        );
+    });
+    this->renderer->addLoopTask([aboutSerialNumberMenu]() {
+        aboutSerialNumberMenu->draw();
+    });
+    menus.push_back(aboutSerialNumberMenu);
 
     ////////////////////////////////////////
     /// Set up the event handlers
@@ -239,7 +828,7 @@ void GUI::eventLoop()
     /// Set up the popup message box
     ////////////////////////////////////////
     messageBox = new CubeMessageBox(this->renderer->getMeshShader(), this->renderer->getTextShader(), this->renderer, countingLatch);
-    countingLatch.count_up();
+    // countingLatch.count_up();
     this->renderer->addSetupTask([&]() {
         messageBox->setup();
     });
@@ -359,12 +948,12 @@ GUI_Error GUI::addMenu(std::string menuName, std::string thisUniqueID, std::stri
         aNewMenu->addHorizontalRule();
         bool success = true;
         for (int i = 0; i < data.size(); i++) {
-            if(!parseJsonAndAddEntriesToMenu(std::get<1>(data[i]), aNewMenu)) {
+            if (!parseJsonAndAddEntriesToMenu(std::get<1>(data[i]), aNewMenu)) {
                 CubeLog::error("Error parsing json and adding entries to menu: " + menuName);
                 success = false;
             }
         }
-        if(!success) {
+        if (!success) {
             CubeLog::error("Error parsing json and adding entries to menu: " + menuName);
         }
         aNewMenu->setup();
@@ -388,9 +977,9 @@ GUI_Error GUI::addMenu(std::string menuName, std::string thisUniqueID, std::stri
             eventManagerPtr->addClickableArea(area);
         }
         std::unique_lock<std::mutex> lock(menuAddParsedMutex);
-        if(!success) {
+        if (!success) {
             menuAddParsed = 1;
-        }else {
+        } else {
             menuAddParsed = 2;
         }
     });
@@ -401,13 +990,13 @@ GUI_Error GUI::addMenu(std::string menuName, std::string thisUniqueID, std::stri
     });
     CubeLog::moreInfo("Menu setup complete: " + menuName);
     bool wait = true;
-    while(wait) {
+    while (wait) {
         {
             std::unique_lock<std::mutex> lock(menuAddParsedMutex);
-            if(menuAddParsed == 1) {
+            if (menuAddParsed == 1) {
                 return GUI_Error(GUI_Error::ERROR_TYPES::GUI_INTERNAL_ERROR, "Error parsing json and adding entries to menu: " + menuName);
             }
-            if(menuAddParsed == 2) {
+            if (menuAddParsed == 2) {
                 wait = false;
             }
         }
@@ -583,7 +1172,7 @@ bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry)
     bool hasActionData = false, hasStatusData = false;
     // TODO: this is not parsing correctly. We need to fix this.
     try {
-        if(!j["entryData"]["actionEndpoint"].is_null()){
+        if (!j["entryData"]["actionEndpoint"].is_null()) {
             nlohmann::json j2 = j["entryData"]["actionEndpoint"];
             actionEP_AddrPort = j2["addr_port"];
             actionEP_Path = j2["path"];
@@ -598,7 +1187,7 @@ bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry)
         CubeLog::debugSilly("Error provided by json: " + std::string(e.what()));
     }
     try {
-        if(!j["entryData"]["statusEndpoint"].is_null()){
+        if (!j["entryData"]["statusEndpoint"].is_null()) {
             nlohmann::json j2 = j["entryData"]["statusEndpoint"];
             statusEP_AddrPort = j2["addr_port"];
             statusEP_Path = j2["path"];
@@ -625,7 +1214,7 @@ bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry)
         return false;
     }
     int sliderMinValue = 0, sliderMaxValue = 0, sliderStep = 0;
-    if(type == MENUS::EntryType::MENUENTRY_TYPE_SLIDER){
+    if (type == MENUS::EntryType::MENUENTRY_TYPE_SLIDER) {
         try {
             sliderMinValue = j["entryData"]["minValue"];
             sliderMaxValue = j["entryData"]["maxValue"];
@@ -634,7 +1223,7 @@ bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry)
             CubeLog::error("Error parsing json: " + std::string(e.what()));
             return false;
         }
-        if(sliderMinValue >= sliderMaxValue || sliderStep <= 0){
+        if (sliderMinValue >= sliderMaxValue || sliderStep <= 0) {
             CubeLog::error("Invalid slider values: " + entryText);
             return false;
         }
@@ -1013,8 +1602,7 @@ bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry)
                 }
                 return retVal;
             },
-            nullptr
-        );
+            nullptr);
         break;
     }
     case MENUS::EntryType::MENUENTRY_TYPE_TEXT_INPUT: {
@@ -1116,12 +1704,10 @@ bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry)
                 }
                 return retVal;
             },
-            (void*)new std::string("default text")
-        );
+            (void*)new std::string("default text"));
         break;
     }
-    case MENUS::EntryType::MENUENTRY_TYPE_TEXT_INFO:
-    {
+    case MENUS::EntryType::MENUENTRY_TYPE_TEXT_INFO: {
         menuEntry->addMenuEntry(
             entryText,
             uniqueID,
@@ -1210,20 +1796,18 @@ bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry)
                 try {
                     j = nlohmann::json::parse(response);
                 } catch (nlohmann::json::exception& e) {
-                    std::string *t = new std::string(response);
+                    std::string* t = new std::string(response);
                     stringPtr->reset(t);
                     return (unsigned int)0;
                 }
-                std::string *t  = new std::string(j["text"]);
+                std::string* t = new std::string(j["text"]);
                 stringPtr->reset(t);
                 return (unsigned int)0;
             },
-            (void*)new std::shared_ptr<std::string>(new std::string("default text"))
-        );
+            (void*)new std::shared_ptr<std::string>(new std::string("default text")));
         break;
     }
-    case MENUS::EntryType::MENUENTRY_TYPE_SLIDER:
-    {
+    case MENUS::EntryType::MENUENTRY_TYPE_SLIDER: {
         menuEntryID = menuEntry->addMenuEntry(
             entryText,
             uniqueID,
@@ -1292,7 +1876,7 @@ bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry)
                 httplib::Result res;
                 if (statusEP_Method == "GET")
                     res = client.Get(statusEP_Path + "?value=" + std::to_string(value));
-                if (statusEP_Method == "POST"){
+                if (statusEP_Method == "POST") {
                     nlohmann::json j;
                     j["value"] = value;
                     res = client.Post(statusEP_Path.c_str(), j.dump(), "application/json");
@@ -1318,15 +1902,14 @@ bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry)
                     CubeLog::error("Error parsing json: " + std::string(e.what()));
                     return (unsigned int)2;
                 }
-                
+
                 std::string enabled = j["success"];
                 unsigned int retVal = 0;
-                if(enabled == "true")
+                if (enabled == "true")
                     retVal = 1;
                 return retVal;
             },
-            (void*)new int(0)
-        );
+            (void*)new int(0));
         break;
     }
     default:

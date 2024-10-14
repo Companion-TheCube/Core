@@ -399,7 +399,7 @@ bool Menu::isReady()
 }
 
 /**
- * @brief Draw the menu
+ * @brief Draw the menu. Should only be called from the renderer thread.
  *
  */
 void Menu::draw()
@@ -458,7 +458,7 @@ float MenuBox::index = 0;
  */
 MenuBox::MenuBox(glm::vec2 position, glm::vec2 size, Shader* shader)
 {
-    this->index += 0.001;
+    MenuBox::index += 0.000001;
     this->position = position;
     this->size = size;
     this->visible = false;
@@ -468,27 +468,27 @@ MenuBox::MenuBox(glm::vec2 position, glm::vec2 size, Shader* shader)
     float diameter = radius * 2;
     float xStart = position.x - size.x / 2;
     float yStart = position.y - size.y / 2;
-    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart + radius, Z_DISTANCE + this->index }, { size.x - diameter, size.y - diameter }, 0.0, 0.0)); // main box
+    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart + radius, Z_DISTANCE + MenuBox::index }, { size.x - diameter, size.y - diameter }, 0.0, 0.0)); // main box
 
-    this->objects.push_back(new M_Rect(shader, { xStart, yStart + radius, Z_DISTANCE + this->index }, { radius, size.y - diameter }, 0.0, 0.0)); // left
-    this->objects.push_back(new M_Rect(shader, { xStart + size.x - radius, yStart + radius, Z_DISTANCE + this->index }, { radius, size.y - diameter }, 0.0, 0.0)); // right
-    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart, Z_DISTANCE + this->index }, { size.x - diameter, radius }, 0.0, 0.0)); // top
-    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart + size.y - radius, Z_DISTANCE + this->index }, { size.x - diameter, radius }, 0.0, 0.0)); // bottom
+    this->objects.push_back(new M_Rect(shader, { xStart, yStart + radius, Z_DISTANCE + MenuBox::index }, { radius, size.y - diameter }, 0.0, 0.0)); // left
+    this->objects.push_back(new M_Rect(shader, { xStart + size.x - radius, yStart + radius, Z_DISTANCE + MenuBox::index }, { radius, size.y - diameter }, 0.0, 0.0)); // right
+    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart, Z_DISTANCE + MenuBox::index }, { size.x - diameter, radius }, 0.0, 0.0)); // top
+    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart + size.y - radius, Z_DISTANCE + MenuBox::index }, { size.x - diameter, radius }, 0.0, 0.0)); // bottom
 
-    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + size.x - radius, yStart + size.y - radius, Z_DISTANCE + this->index }, 0, 90, { 0.f, 0.f, 0.f })); // top right
-    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + radius, yStart + size.y - radius, Z_DISTANCE + this->index }, 90, 180, { 0.f, 0.f, 0.f })); // top left
-    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + radius, yStart + radius, Z_DISTANCE + this->index }, 180, 270, { 0.f, 0.f, 0.f })); // bottom left
-    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + size.x - radius, yStart + radius, Z_DISTANCE + this->index }, 270, 360, { 0.f, 0.f, 0.f })); // bottom right
+    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + size.x - radius, yStart + size.y - radius, Z_DISTANCE + MenuBox::index }, 0, 90, { 0.f, 0.f, 0.f })); // top right
+    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + radius, yStart + size.y - radius, Z_DISTANCE + MenuBox::index }, 90, 180, { 0.f, 0.f, 0.f })); // top left
+    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + radius, yStart + radius, Z_DISTANCE + MenuBox::index }, 180, 270, { 0.f, 0.f, 0.f })); // bottom left
+    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + size.x - radius, yStart + radius, Z_DISTANCE + MenuBox::index }, 270, 360, { 0.f, 0.f, 0.f })); // bottom right
 
-    this->objects.push_back(new M_Line(shader, { xStart + radius, yStart + size.y, Z_DISTANCE + 0.001 + this->index }, { xStart + size.x - radius, yStart + size.y, Z_DISTANCE + 0.001 + this->index })); // top
-    this->objects.push_back(new M_Line(shader, { xStart + size.x, yStart + radius, Z_DISTANCE + 0.001 + this->index }, { xStart + size.x, yStart + size.y - radius, Z_DISTANCE + 0.001 + this->index })); // right
-    this->objects.push_back(new M_Line(shader, { xStart + radius, yStart, Z_DISTANCE + 0.001 + this->index }, { xStart + size.x - radius, yStart, Z_DISTANCE + 0.001 + this->index })); // bottom
-    this->objects.push_back(new M_Line(shader, { xStart, yStart + radius, Z_DISTANCE + 0.001 + this->index }, { xStart, yStart + size.y - radius, Z_DISTANCE + 0.001 + this->index })); // left
+    this->objects.push_back(new M_Line(shader, { xStart + radius, yStart + size.y, Z_DISTANCE + 0.001 + MenuBox::index }, { xStart + size.x - radius, yStart + size.y, Z_DISTANCE + 0.001 + MenuBox::index })); // top
+    this->objects.push_back(new M_Line(shader, { xStart + size.x, yStart + radius, Z_DISTANCE + 0.001 + MenuBox::index }, { xStart + size.x, yStart + size.y - radius, Z_DISTANCE + 0.001 + MenuBox::index })); // right
+    this->objects.push_back(new M_Line(shader, { xStart + radius, yStart, Z_DISTANCE + 0.001 + MenuBox::index }, { xStart + size.x - radius, yStart, Z_DISTANCE + 0.001 + MenuBox::index })); // bottom
+    this->objects.push_back(new M_Line(shader, { xStart, yStart + radius, Z_DISTANCE + 0.001 + MenuBox::index }, { xStart, yStart + size.y - radius, Z_DISTANCE + 0.001 + MenuBox::index })); // left
 
-    this->objects.push_back(new M_Arc(shader, 50, radius, 0, 90, { xStart + size.x - radius, yStart + size.y - radius, Z_DISTANCE + 0.001 + this->index })); // top right
-    this->objects.push_back(new M_Arc(shader, 50, radius, 360, 270, { xStart + size.x - radius, yStart + radius, Z_DISTANCE + 0.001 + this->index })); // bottom right
-    this->objects.push_back(new M_Arc(shader, 50, radius, 180, 270, { xStart + radius, yStart + radius, Z_DISTANCE + 0.001 + this->index })); // bottom left
-    this->objects.push_back(new M_Arc(shader, 50, radius, 180, 90, { xStart + radius, yStart + size.y - radius, Z_DISTANCE + 0.001 + this->index })); // top left
+    this->objects.push_back(new M_Arc(shader, 50, radius, 0, 90, { xStart + size.x - radius, yStart + size.y - radius, Z_DISTANCE + 0.001 + MenuBox::index })); // top right
+    this->objects.push_back(new M_Arc(shader, 50, radius, 360, 270, { xStart + size.x - radius, yStart + radius, Z_DISTANCE + 0.001 + MenuBox::index })); // bottom right
+    this->objects.push_back(new M_Arc(shader, 50, radius, 180, 270, { xStart + radius, yStart + radius, Z_DISTANCE + 0.001 + MenuBox::index })); // bottom left
+    this->objects.push_back(new M_Arc(shader, 50, radius, 180, 90, { xStart + radius, yStart + size.y - radius, Z_DISTANCE + 0.001 + MenuBox::index })); // top left
 
     CubeLog::info("MenuBox created of size: " + std::to_string(size.x) + "x" + std::to_string(size.y) + " at position: " + std::to_string(position.x) + "x" + std::to_string(position.y));
 }
@@ -1034,7 +1034,8 @@ MenuHorizontalRule::MenuHorizontalRule(glm::vec2 position, float size, Shader* s
     glm::vec2 pos = { posX, posY };
     // convert size to screen relative size
     float sizeX = mapRange(size, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X, SCREEN_RELATIVE_MIN_WIDTH, SCREEN_RELATIVE_MAX_WIDTH);
-    this->objects.push_back(new M_Line(shader, { pos, Z_DISTANCE + 0.01 }, { pos.x + sizeX, pos.y, Z_DISTANCE + 0.01 }));
+    this->objects.push_back(new M_Line(shader, { pos, Z_DISTANCE + MenuBox::index + 0.0001f }, { pos.x + sizeX, pos.y, Z_DISTANCE + MenuBox::index  + 0.0001f }));
+    MenuBox::index += 0.000001f;
     this->objects.at(0)->type = "MenuHorizontalRule";
     // this->stencil = new MenuStencil({ position.x, position.y }, { size, 4 });
     CubeLog::info("MenuHorizontalRule created at position: " + std::to_string(position.x) + "x" + std::to_string(position.y) + " of size: " + std::to_string(size));
