@@ -292,7 +292,8 @@ void Menu::onClick(void* data)
 
 void Menu::onRelease(void* data)
 {
-    CubeLog::info("Menu released");
+    // CubeLog::info("Menu released");
+    // noop
 }
 
 void Menu::onMouseDown(void* data)
@@ -663,7 +664,7 @@ void MenuEntry::onClick(void* data)
 
 void MenuEntry::onRelease(void* data)
 {
-    CubeLog::debugSilly("MenuEntry released");
+    // CubeLog::debugSilly("MenuEntry released");
     this->textObject->setColor({1.f, 1.f, 1.f});
 }
 
@@ -1094,7 +1095,8 @@ void MenuHorizontalRule::onClick(void* data)
 
 void MenuHorizontalRule::onRelease(void* data)
 {
-    CubeLog::info("MenuHorizontalRule released");
+    // CubeLog::info("MenuHorizontalRule released");
+    // noop
 }
 
 void MenuHorizontalRule::onMouseDown(void* data)
