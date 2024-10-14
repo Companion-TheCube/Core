@@ -1,18 +1,18 @@
 {
-    "uniqueID": "testMenu_uniqueID",
+    "uniqueID": "2testMenu_uniqueID",
     "menuName": "Test menu from JSON",
-    "parentID": "Main Menu",
+    "parentID": "testMenu_uniqueID",
     "entries": [
         {
             "entryText": "Test menu entry from JSON",
-            "uniqueID": "testMenuEntry1212",
+            "uniqueID": "2testMenuEntry1212",
             "entryData": {
                 "entryType": "MENUENTRY_TYPE_SUBMENU"
             }
         },
         {
             "entryText": "Test menu entry from JSON 2",
-            "uniqueID": "testMenuEntry212",
+            "uniqueID": "2testMenuEntry212",
             "entryData": {
                 "entryType": "MENUENTRY_TYPE_RADIOBUTTON_GROUP",
                 "radioGroup": 0,
@@ -37,7 +37,7 @@
         },
         {
             "entryText": "Test menu entry from JSON 3",
-            "uniqueID": "testMenuEntry312",
+            "uniqueID": "2testMenuEntry312",
             "entryData": {
                 "entryType": "MENUENTRY_TYPE_RADIOBUTTON_GROUP",
                 "radioGroup": 0,
@@ -62,7 +62,7 @@
         },
         {
             "entryText": "Test menu entry from JSON 4",
-            "uniqueID": "testMenuEntry412",
+            "uniqueID": "2testMenuEntry412",
             "entryData": {
                 "entryType": "MENUENTRY_TYPE_CHECKBOX",
                 "statusEndpoint": {
@@ -86,7 +86,7 @@
         },
         {
             "entryText": "Test menu entry from JSON 5",
-            "uniqueID": "testMenuEntry5",
+            "uniqueID": "2testMenuEntry5",
             "entryData": {
                 "entryType": "MENUENTRY_TYPE_CHECKBOX",
                 "statusEndpoint": {
@@ -110,7 +110,7 @@
         },
         {
             "entryText": "Test menu entry from JSON 6",
-            "uniqueID": "testMenuEntry6",
+            "uniqueID": "2testMenuEntry6",
             "entryData": {
                 "entryType": "MENUENTRY_TYPE_SLIDER",
                 "statusEndpoint": {
@@ -136,7 +136,7 @@
         },
         {
             "entryText": "Test menu entry from JSON 7",
-            "uniqueID": "testMenuEntry7",
+            "uniqueID": "2testMenuEntry7",
             "entryData": {
                 "entryType": "MENUENTRY_TYPE_TEXT_INFO",
                 "statusEndpoint": {
@@ -149,17 +149,17 @@
                 },
                 "actionEndpoint": {
                     "addr_port": "http://localhost:55280",
-                    "path": "/getEndpoints",
+                    "path": "/api/test&val=testMenuEntry7Action",
                     "user": "test",
                     "password": "test",
                     "token": "",
-                    "method": "GET"
+                    "method": "POST"
                 }
             }
         },
         {
-            "entryText": "Test text info menu entry from JSON 8",
-            "uniqueID": "testMenuEntry8",
+            "entryText": "Test menu entry from JSON 8",
+            "uniqueID": "2testMenuEntry8",
             "entryData": {
                 "entryType": "MENUENTRY_TYPE_TEXT_INPUT",
                 "statusEndpoint": {
@@ -182,7 +182,7 @@
         },
         {
             "entryText": "Test menu entry from JSON 9",
-            "uniqueID": "testMenuEntry9",
+            "uniqueID": "2testMenuEntry9",
             "entryData": {
                 "entryType": "MENUENTRY_TYPE_TOGGLE",
                 "statusEndpoint": {
@@ -206,7 +206,7 @@
         },
         {
             "entryText": "Test menu entry from JSON 10",
-            "uniqueID": "testMenuEntry10",
+            "uniqueID": "2testMenuEntry10",
             "entryData": {
                 "entryType": "MENUENTRY_TYPE_TOGGLE",
                 "statusEndpoint": {
@@ -230,7 +230,7 @@
         },
         {
             "entryText": "Test menu entry from JSON 11",
-            "uniqueID": "testMenuEntry11",
+            "uniqueID": "2testMenuEntry11",
             "entryData": {
                 "entryType": "MENUENTRY_TYPE_ACTION",
                 "actionEndpoint": {
