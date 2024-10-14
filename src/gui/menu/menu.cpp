@@ -670,7 +670,7 @@ void MenuEntry::onRelease(void* data)
 void MenuEntry::onMouseDown(void* data)
 {
     CubeLog::debugSilly("MenuEntry mouse down");
-    this->textObject->setColor({0.5f, 0.5f, 0.5f});
+    this->textObject->setColor(MENU_ENTRY_DIM_COLOR);
 }
 
 void MenuEntry::onRightClick(void* data)

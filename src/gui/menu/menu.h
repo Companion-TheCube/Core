@@ -28,6 +28,7 @@
 
 #define MENU_ITEM_SCROLL_LEFT_SPEED 1.5f
 #define MENU_ITEM_SCROLL_RIGHT_SPEED 4.2f
+#define MENU_ENTRY_DIM_COLOR { 0.2f, 0.2f, 0.2f }
 
 #define Z_DISTANCE 3.57
 #define BOX_RADIUS 0.05
