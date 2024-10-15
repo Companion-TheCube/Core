@@ -11,7 +11,7 @@ void main()
     vec4 sampled = vec4(texture(text, TexCoords).r, texture(text, TexCoords).r, texture(text, TexCoords).r, 1.0);
     if(texture(text, TexCoords).r < 1.0)
     {
-        sampled = vec4(texture(text, TexCoords).r, texture(text, TexCoords).r, texture(text, TexCoords).r, bg_alpha + texture(text, TexCoords).r);
+        sampled = vec4(texture(text, TexCoords).r, texture(text, TexCoords).r, texture(text, TexCoords).r, bg_alpha + texture(text, TexCoords).r * (2.0 - bg_alpha));
     }
     color = vec4(textColor, alpha) * sampled;
 }
