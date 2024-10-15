@@ -28,6 +28,7 @@
 
 #define MENU_ITEM_SCROLL_LEFT_SPEED 1.5f
 #define MENU_ITEM_SCROLL_RIGHT_SPEED 4.2f
+#define MENU_ENTRY_DIM_COLOR { 0.6f, 0.6f, 0.6f }
 
 #define Z_DISTANCE 3.57
 #define BOX_RADIUS 0.05
@@ -55,19 +56,35 @@
 #define SCREEN_PX_MIN_X 0.f
 #define SCREEN_PX_MIN_Y 0.f
 
+namespace MENUS {
+
 class MenuStencil;
 
-class MenuEntry : public Clickable {
-public:
-    enum EntryType {
-        MENUENTRY_TYPE_SUBMENU,
-        MENUENTRY_TYPE_ACTION, // return 0.
-        MENUENTRY_TYPE_RADIOBUTTON, // return 1 (selected) or 2 (not selected)
-        MENUENTRY_TYPE_TEXT_INFO,
-        MENUENTRY_TYPE_TEXT_INPUT,
-        MENUENTRY_TYPE_SLIDER
-    };
+enum EntryType {
+    MENUENTRY_TYPE_SUBMENU,
+    MENUENTRY_TYPE_ACTION,
+    MENUENTRY_TYPE_RADIOBUTTON_GROUP,
+    MENUENTRY_TYPE_CHECKBOX,
+    MENUENTRY_TYPE_TOGGLE,
+    MENUENTRY_TYPE_TEXT_INFO,
+    MENUENTRY_TYPE_TEXT_INPUT,
+    MENUENTRY_TYPE_SLIDER,
 
+    MENUENTRY_TYPE_COUNT
+};
+
+const std::unordered_map<std::string, EntryType> entryTypeMap = {
+    { "MENUENTRY_TYPE_SUBMENU", MENUENTRY_TYPE_SUBMENU },
+    { "MENUENTRY_TYPE_ACTION", MENUENTRY_TYPE_ACTION },
+    { "MENUENTRY_TYPE_RADIOBUTTON_GROUP", MENUENTRY_TYPE_RADIOBUTTON_GROUP },
+    { "MENUENTRY_TYPE_CHECKBOX", MENUENTRY_TYPE_CHECKBOX },
+    { "MENUENTRY_TYPE_TOGGLE", MENUENTRY_TYPE_TOGGLE },
+    { "MENUENTRY_TYPE_TEXT_INFO", MENUENTRY_TYPE_TEXT_INFO },
+    { "MENUENTRY_TYPE_TEXT_INPUT", MENUENTRY_TYPE_TEXT_INPUT },
+    { "MENUENTRY_TYPE_SLIDER", MENUENTRY_TYPE_SLIDER }
+};
+
+class MenuEntry : public Clickable {
 private:
     enum ScrollingDirection {
         NOT_SCROLLING,
@@ -100,11 +117,15 @@ private:
     void setVisibleWidth(float width);
     static unsigned int menuEntryCount;
     unsigned int menuEntryIndex;
+    int groupID;
+    M_Text* textObject;
 
 public:
-    MenuEntry(std::string text, Shader* textShader, Shader* meshShader, glm::vec2 position, float size, float visibleWidth, EntryType type, std::function<unsigned int(void*)> statusAction, void* statusActionArg);
+    MenuEntry(Shader* t_shader, Shader* m_shader, std::string text, glm::vec2 position, float size, float visibleWidth, EntryType type, std::function<unsigned int(void*)> statusAction, void* statusActionArg);
     ~MenuEntry();
     void onClick(void*);
+    void onRelease(void*);
+    void onMouseDown(void*);
     void onRightClick(void*);
     std::vector<MeshObject*> getObjects();
     bool setVisible(bool visible);
@@ -122,7 +143,12 @@ public:
     void translate(glm::vec2 translation);
     unsigned int clickReturnData = 0;
     unsigned int statusReturnData = 0;
-    unsigned int getMenuEntryIndex(){ return this->menuEntryIndex; }
+    unsigned int getMenuEntryIndex() { return this->menuEntryIndex; }
+    void callStatusAction() { this->statusReturnData = this->statusAction(this->statusActionArg); }
+    void setGroupID(int groupID) { this->groupID = groupID; }
+    int getGroupID() { return this->groupID; }
+    void setStatusReturnData(unsigned int statusReturnData) { this->statusReturnData = statusReturnData; }
+    void setEntryTextTouched(bool touched);
 };
 
 class Menu : public Clickable {
@@ -160,6 +186,8 @@ public:
     ~Menu();
     void setup();
     void onClick(void*);
+    void onRelease(void*);
+    void onMouseDown(void*);
     void onRightClick(void*);
     bool setVisible(bool visible);
     bool getVisible();
@@ -169,8 +197,8 @@ public:
     bool isReady();
     void draw();
     std::vector<ClickableArea*> getClickableAreas();
-    unsigned int addMenuEntry(std::string text, std::string uniqueID, MenuEntry::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> statusAction, void* statusActionData);
-    unsigned int addMenuEntry(std::string text, std::string uniqueID, MenuEntry::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> rightAction, std::function<unsigned int(void*)> statusAction, void* statusActionData);
+    unsigned int addMenuEntry(std::string text, std::string uniqueID, MENUS::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> statusAction, void* statusActionData);
+    unsigned int addMenuEntry(std::string text, std::string uniqueID, MENUS::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> rightAction, std::function<unsigned int(void*)> statusAction, void* statusActionData);
     void setParentMenu(Menu* parentMenu);
     Menu* getParentMenu();
     void setMenuName(std::string name);
@@ -196,9 +224,10 @@ private:
     glm::vec2 size;
     std::vector<MeshObject*> objects;
     bool visible;
-    static float index;
+    
 
 public:
+    static float index;
     // TODO: add bool: border to constructor
     MenuBox(glm::vec2 position, glm::vec2 size, Shader* shader);
     ~MenuBox();
@@ -218,6 +247,7 @@ private:
     Shader* shader;
     ClickableArea clickArea;
     // MenuStencil* stencil;
+
 public:
     MenuHorizontalRule(glm::vec2 position, float size, Shader* shader);
     ~MenuHorizontalRule();
@@ -228,6 +258,8 @@ public:
     bool setVisible(bool visible);
     bool getVisible();
     void onClick(void*);
+    void onRelease(void*);
+    void onMouseDown(void*);
     void onRightClick(void*);
     std::vector<MeshObject*> getObjects();
     void setOnClick(std::function<unsigned int(void*)> action);
@@ -245,8 +277,7 @@ class MenuStencil : public Object {
 private:
     glm::vec2 position;
     glm::vec2 size;
-    static Shader* shader;
-    static bool shaderSet;
+    Shader* shader;
     GLuint VAO, VBO, EBO;
     std::vector<MeshObject*> objects;
     std::vector<glm::vec2> vertices;
@@ -260,7 +291,7 @@ private:
     int stencilIndex = 0;
 
 public:
-    MenuStencil(glm::vec2 position, glm::vec2 size);
+    MenuStencil(glm::vec2 position, glm::vec2 size, Shader* shader);
     ~MenuStencil();
     void setPosition(glm::vec2 position);
     void setSize(glm::vec2 size);
@@ -271,5 +302,5 @@ public:
     virtual void disable();
     void translate(glm::vec2 translation);
 };
-
+} // namespace MENUS
 #endif // MENU_H

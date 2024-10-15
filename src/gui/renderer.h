@@ -45,8 +45,9 @@ class Renderer{
         sf::RenderWindow window;
         std::vector<sf::Event> events;
         std::vector<Object*> objects;
-        Shader* shader;
+        Shader* meshShader;
         Shader* textShader;
+        Shader* stencilShader;
         TaskQueue setupQueue;
         TaskQueue loopQueue;
         std::atomic<bool> ready = false;
@@ -58,8 +59,9 @@ class Renderer{
         std::vector<sf::Event> getEvents();
         bool getIsRunning();
         void addObject(Object *object);
-        Shader* getShader();
+        Shader* getMeshShader();
         Shader* getTextShader();
+        Shader* getStencilShader();
         void addSetupTask(std::function<void()> task);
         void addLoopTask(std::function<void()> task);
         void setupTasksRun();

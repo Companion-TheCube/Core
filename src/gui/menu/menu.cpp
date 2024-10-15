@@ -1,11 +1,11 @@
 #include "menu.h"
 
+namespace MENUS {
 float screenRelativeToScreenPx(float screenRelative);
 float screenPxToScreenRelative(float screenPx);
 float screenPxToScreenRelativeWidth(float screenPx);
 float screenRelativeToScreenPxWidth(float screenRelative);
 bool Menu::mainMenuSet = false;
-
 
 /**
  * @brief Construct a new Menu object
@@ -85,7 +85,7 @@ Menu::~Menu()
  * @param text The text to display
  * @param action The action to take when the menu entry is clicked
  */
-unsigned int Menu::addMenuEntry(std::string text, std::string uniqueID, MenuEntry::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> statusAction, void* statusActionData)
+unsigned int Menu::addMenuEntry(std::string text, std::string uniqueID, MENUS::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> statusAction, void* statusActionData)
 {
     // TODO: add the ability to have an entry be fixed to the top of the menu. This will need a stencil so that other entries can be scrolled under it.
     // TODO: add icon support
@@ -98,7 +98,7 @@ unsigned int Menu::addMenuEntry(std::string text, std::string uniqueID, MenuEntr
     float textY = mapRange(MENU_POSITION_SCREEN_RELATIVE_Y_TOP, SCREEN_RELATIVE_MIN_Y, SCREEN_RELATIVE_MAX_Y, SCREEN_PX_MIN_Y, SCREEN_PX_MAX_Y) - startY - (STENCIL_INSET_PX * 2) - this->menuItemTextSize;
     float menuWidthPx = mapRange(MENU_WIDTH_SCREEN_RELATIVE, SCREEN_RELATIVE_MIN_WIDTH, SCREEN_RELATIVE_MAX_WIDTH, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X);
     float menuWidthAdjusted = menuWidthPx - (STENCIL_INSET_PX * 2) - (MENU_ITEM_PADDING_PX * 2);
-    auto entry = new MenuEntry(text, new Shader("shaders/text.vs", "shaders/text.fs"), this->renderer->getShader(), { textX, textY }, menuItemTextSize, menuWidthAdjusted, type, statusAction, statusActionData);
+    auto entry = new MenuEntry(this->renderer->getTextShader(), this->renderer->getMeshShader(), text, { textX, textY }, menuItemTextSize, menuWidthAdjusted, type, statusAction, statusActionData);
     entry->getClickableArea()->yMin -= (MENU_ITEM_PADDING_PX);
     entry->getClickableArea()->yMax += (MENU_ITEM_PADDING_PX);
     entry->setVisible(true);
@@ -122,7 +122,7 @@ unsigned int Menu::addMenuEntry(std::string text, std::string uniqueID, MenuEntr
  * @param action The action to take when the menu entry is clicked
  * @param rightAction The action to take when the menu entry is right clicked
  */
-unsigned int Menu::addMenuEntry(std::string text, std::string uniqueID, MenuEntry::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> rightAction, std::function<unsigned int(void*)> statusAction, void* statusActionData)
+unsigned int Menu::addMenuEntry(std::string text, std::string uniqueID, MENUS::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> rightAction, std::function<unsigned int(void*)> statusAction, void* statusActionData)
 {
     unsigned int t = this->addMenuEntry(text, uniqueID, type, action, statusAction, statusActionData);
     this->childrenClickables.at(this->childrenClickables.size() - 1)->setOnRightClick(rightAction);
@@ -139,7 +139,7 @@ void Menu::addHorizontalRule()
     float startY = (((menuItemTextSize * 1.2) + MENU_ITEM_PADDING_PX) * this->childrenClickables.size()) + MENU_TOP_PADDING_PX + ((menuItemTextSize + (MENU_ITEM_PADDING_PX * 2)) / 2);
     // get start x from screen relative position of menu
     float startX = mapRange(MENU_POSITION_SCREEN_RELATIVE_X_LEFT, SCREEN_RELATIVE_MIN_X, SCREEN_RELATIVE_MAX_X, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X) + (STENCIL_INSET_PX * 2) + 30;
-    this->childrenClickables.push_back(new MenuHorizontalRule({ startX, startY }, 350, this->renderer->getShader()));
+    this->childrenClickables.push_back(new MenuHorizontalRule({ startX, startY }, 350, this->renderer->getMeshShader()));
     this->childrenClickables.at(this->childrenClickables.size() - 1)->setVisible(true);
     for (auto object : this->childrenClickables.at(this->childrenClickables.size() - 1)->getObjects()) {
         object->capturePosition();
@@ -261,7 +261,7 @@ void Menu::setAsMainMenu()
  */
 void Menu::setup()
 {
-    this->objects.push_back(new MenuBox({ MENU_POSITION_SCREEN_RELATIVE_X_CENTER, MENU_POSITION_SCREEN_RELATIVE_Y_CENTER }, { MENU_WIDTH_SCREEN_RELATIVE, MENU_HEIGHT_SCREEN_RELATIVE }, this->renderer->getShader()));
+    this->objects.push_back(new MenuBox({ MENU_POSITION_SCREEN_RELATIVE_X_CENTER, MENU_POSITION_SCREEN_RELATIVE_Y_CENTER }, { MENU_WIDTH_SCREEN_RELATIVE, MENU_HEIGHT_SCREEN_RELATIVE }, this->renderer->getMeshShader()));
     this->objects.at(0)->setVisible(true);
     // Shader* stencilShader = new Shader("shaders/menuStencil.vs", "shaders/menuStencil.fs");
     float stencilX_start_temp = MENU_POSITION_SCREEN_RELATIVE_X_CENTER - MENU_WIDTH_SCREEN_RELATIVE / 2;
@@ -270,34 +270,7 @@ void Menu::setup()
     float stencilY_start = mapRange(stencilY_start_temp, SCREEN_RELATIVE_MIN_Y, SCREEN_RELATIVE_MAX_Y, SCREEN_PX_MIN_Y, SCREEN_PX_MAX_Y);
     float stencilWidth = mapRange(MENU_WIDTH_SCREEN_RELATIVE, SCREEN_RELATIVE_MIN_WIDTH, SCREEN_RELATIVE_MAX_WIDTH, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X) - (STENCIL_INSET_PX * 2);
     float stencilHeight = mapRange(MENU_HEIGHT_SCREEN_RELATIVE, SCREEN_RELATIVE_MIN_HEIGHT, SCREEN_RELATIVE_MAX_HEIGHT, SCREEN_PX_MIN_Y, SCREEN_PX_MAX_Y) - (STENCIL_INSET_PX * 2);
-    this->stencil = new MenuStencil({ stencilX_start + STENCIL_INSET_PX, stencilY_start + STENCIL_INSET_PX }, { stencilWidth, stencilHeight });
-
-    /////// TESTING ////////////
-    // for (auto font : GlobalSettings::fontPaths) {
-    //     FT_Library ft;
-    //     FT_Face face;
-    //     FT_Init_FreeType(&ft);
-    //     if (FT_New_Face(ft, font.c_str(), 0, &face)) {
-    //         CubeLog::error("Could not load font: " + font);
-    //     } else {
-    //         CubeLog::info("Loaded font: " + std::string(face->family_name) + ":" + std::string(face->style_name));
-    //         std::string fontName = std::string(face->family_name) + ":" + std::string(face->style_name);
-    //         this->addMenuEntry(fontName, [&, fontName, font](void* data) { // copy fontName and font
-    //             CubeLog::info("Changing to font: " + fontName);
-    //             if (GlobalSettings::setSetting("selectedFontPath", font)) {
-    //                 CubeLog::info("SelectedFontPath: " + GlobalSettings::selectedFontPath);
-    //             }
-    //         });
-    //     }
-    //     FT_Done_Face(face);
-    //     FT_Done_FreeType(ft);
-    // }
-    ////////// END TESTING //////////
-
-    // for (auto clickArea : this->getClickableAreas()) {
-    //     if (clickArea->yMax > this->maxScrollY)
-    //         this->maxScrollY = clickArea->yMax;
-    // }
+    this->stencil = new MenuStencil({ stencilX_start + STENCIL_INSET_PX, stencilY_start + STENCIL_INSET_PX }, { stencilWidth, stencilHeight }, this->renderer->getStencilShader());
     std::lock_guard<std::mutex> lock(this->mutex);
     this->ready = true;
     if (this->hasLatch)
@@ -315,6 +288,17 @@ void Menu::onClick(void* data)
     if (this->action != nullptr && this->onClickEnabled) {
         this->action(data);
     }
+}
+
+void Menu::onRelease(void* data)
+{
+    // CubeLog::info("Menu released");
+    // noop
+}
+
+void Menu::onMouseDown(void* data)
+{
+    CubeLog::info("Menu mouse down");
 }
 
 /**
@@ -415,7 +399,7 @@ bool Menu::isReady()
 }
 
 /**
- * @brief Draw the menu
+ * @brief Draw the menu. Should only be called from the renderer thread.
  *
  */
 void Menu::draw()
@@ -474,7 +458,7 @@ float MenuBox::index = 0;
  */
 MenuBox::MenuBox(glm::vec2 position, glm::vec2 size, Shader* shader)
 {
-    this->index += 0.001;
+    MenuBox::index += 0.000001;
     this->position = position;
     this->size = size;
     this->visible = false;
@@ -484,27 +468,27 @@ MenuBox::MenuBox(glm::vec2 position, glm::vec2 size, Shader* shader)
     float diameter = radius * 2;
     float xStart = position.x - size.x / 2;
     float yStart = position.y - size.y / 2;
-    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart + radius, Z_DISTANCE + this->index }, { size.x - diameter, size.y - diameter }, 0.0, 0.0)); // main box
+    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart + radius, Z_DISTANCE + MenuBox::index }, { size.x - diameter, size.y - diameter }, 0.0, 0.0)); // main box
 
-    this->objects.push_back(new M_Rect(shader, { xStart, yStart + radius, Z_DISTANCE + this->index }, { radius, size.y - diameter }, 0.0, 0.0)); // left
-    this->objects.push_back(new M_Rect(shader, { xStart + size.x - radius, yStart + radius, Z_DISTANCE + this->index }, { radius, size.y - diameter }, 0.0, 0.0)); // right
-    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart, Z_DISTANCE + this->index }, { size.x - diameter, radius }, 0.0, 0.0)); // top
-    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart + size.y - radius, Z_DISTANCE + this->index }, { size.x - diameter, radius }, 0.0, 0.0)); // bottom
+    this->objects.push_back(new M_Rect(shader, { xStart, yStart + radius, Z_DISTANCE + MenuBox::index }, { radius, size.y - diameter }, 0.0, 0.0)); // left
+    this->objects.push_back(new M_Rect(shader, { xStart + size.x - radius, yStart + radius, Z_DISTANCE + MenuBox::index }, { radius, size.y - diameter }, 0.0, 0.0)); // right
+    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart, Z_DISTANCE + MenuBox::index }, { size.x - diameter, radius }, 0.0, 0.0)); // top
+    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart + size.y - radius, Z_DISTANCE + MenuBox::index }, { size.x - diameter, radius }, 0.0, 0.0)); // bottom
 
-    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + size.x - radius, yStart + size.y - radius, Z_DISTANCE + this->index }, 0, 90, { 0.f, 0.f, 0.f })); // top right
-    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + radius, yStart + size.y - radius, Z_DISTANCE + this->index }, 90, 180, { 0.f, 0.f, 0.f })); // top left
-    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + radius, yStart + radius, Z_DISTANCE + this->index }, 180, 270, { 0.f, 0.f, 0.f })); // bottom left
-    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + size.x - radius, yStart + radius, Z_DISTANCE + this->index }, 270, 360, { 0.f, 0.f, 0.f })); // bottom right
+    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + size.x - radius, yStart + size.y - radius, Z_DISTANCE + MenuBox::index }, 0, 90, { 0.f, 0.f, 0.f })); // top right
+    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + radius, yStart + size.y - radius, Z_DISTANCE + MenuBox::index }, 90, 180, { 0.f, 0.f, 0.f })); // top left
+    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + radius, yStart + radius, Z_DISTANCE + MenuBox::index }, 180, 270, { 0.f, 0.f, 0.f })); // bottom left
+    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + size.x - radius, yStart + radius, Z_DISTANCE + MenuBox::index }, 270, 360, { 0.f, 0.f, 0.f })); // bottom right
 
-    this->objects.push_back(new M_Line(shader, { xStart + radius, yStart + size.y, Z_DISTANCE + 0.001 + this->index }, { xStart + size.x - radius, yStart + size.y, Z_DISTANCE + 0.001 + this->index })); // top
-    this->objects.push_back(new M_Line(shader, { xStart + size.x, yStart + radius, Z_DISTANCE + 0.001 + this->index }, { xStart + size.x, yStart + size.y - radius, Z_DISTANCE + 0.001 + this->index })); // right
-    this->objects.push_back(new M_Line(shader, { xStart + radius, yStart, Z_DISTANCE + 0.001 + this->index }, { xStart + size.x - radius, yStart, Z_DISTANCE + 0.001 + this->index })); // bottom
-    this->objects.push_back(new M_Line(shader, { xStart, yStart + radius, Z_DISTANCE + 0.001 + this->index }, { xStart, yStart + size.y - radius, Z_DISTANCE + 0.001 + this->index })); // left
+    this->objects.push_back(new M_Line(shader, { xStart + radius, yStart + size.y, Z_DISTANCE + 0.001 + MenuBox::index }, { xStart + size.x - radius, yStart + size.y, Z_DISTANCE + 0.001 + MenuBox::index })); // top
+    this->objects.push_back(new M_Line(shader, { xStart + size.x, yStart + radius, Z_DISTANCE + 0.001 + MenuBox::index }, { xStart + size.x, yStart + size.y - radius, Z_DISTANCE + 0.001 + MenuBox::index })); // right
+    this->objects.push_back(new M_Line(shader, { xStart + radius, yStart, Z_DISTANCE + 0.001 + MenuBox::index }, { xStart + size.x - radius, yStart, Z_DISTANCE + 0.001 + MenuBox::index })); // bottom
+    this->objects.push_back(new M_Line(shader, { xStart, yStart + radius, Z_DISTANCE + 0.001 + MenuBox::index }, { xStart, yStart + size.y - radius, Z_DISTANCE + 0.001 + MenuBox::index })); // left
 
-    this->objects.push_back(new M_Arc(shader, 50, radius, 0, 90, { xStart + size.x - radius, yStart + size.y - radius, Z_DISTANCE + 0.001 + this->index })); // top right
-    this->objects.push_back(new M_Arc(shader, 50, radius, 360, 270, { xStart + size.x - radius, yStart + radius, Z_DISTANCE + 0.001 + this->index })); // bottom right
-    this->objects.push_back(new M_Arc(shader, 50, radius, 180, 270, { xStart + radius, yStart + radius, Z_DISTANCE + 0.001 + this->index })); // bottom left
-    this->objects.push_back(new M_Arc(shader, 50, radius, 180, 90, { xStart + radius, yStart + size.y - radius, Z_DISTANCE + 0.001 + this->index })); // top left
+    this->objects.push_back(new M_Arc(shader, 50, radius, 0, 90, { xStart + size.x - radius, yStart + size.y - radius, Z_DISTANCE + 0.001 + MenuBox::index })); // top right
+    this->objects.push_back(new M_Arc(shader, 50, radius, 360, 270, { xStart + size.x - radius, yStart + radius, Z_DISTANCE + 0.001 + MenuBox::index })); // bottom right
+    this->objects.push_back(new M_Arc(shader, 50, radius, 180, 270, { xStart + radius, yStart + radius, Z_DISTANCE + 0.001 + MenuBox::index })); // bottom left
+    this->objects.push_back(new M_Arc(shader, 50, radius, 180, 90, { xStart + radius, yStart + size.y - radius, Z_DISTANCE + 0.001 + MenuBox::index })); // top left
 
     CubeLog::info("MenuBox created of size: " + std::to_string(size.x) + "x" + std::to_string(size.y) + " at position: " + std::to_string(position.x) + "x" + std::to_string(position.y));
 }
@@ -590,24 +574,25 @@ unsigned int MenuEntry::menuEntryCount = 0;
  * @param logger a CubeLog object
  * @param text the text to display
  */
-MenuEntry::MenuEntry(std::string text, Shader* textShader, Shader* meshShader, glm::vec2 position, float size, float visibleWidth, EntryType type, std::function<unsigned int(void*)> statusAction, void* statusActionArg)
+MenuEntry::MenuEntry(Shader* t_shader, Shader* m_shader, std::string text, glm::vec2 position, float size, float visibleWidth, EntryType type, std::function<unsigned int(void*)> statusAction, void* statusActionArg)
 {
     this->menuEntryIndex = MenuEntry::menuEntryCount++;
+    this->textShader = t_shader;
+    this->meshShader = m_shader;
     this->type = type;
     this->text = text;
     this->visible = true;
-    this->textShader = textShader;
     this->statusReturnData = statusAction(statusActionArg);
     this->statusActionArg = statusActionArg;
 
-    auto temp = new M_Text(
+    this->textObject = new M_Text(
         textShader,
         text,
         size,
         { 1.f, 1.f, 1.f },
         position);
-    this->scrollObjects.push_back(temp);
-    this->allObjects.push_back(temp);
+    this->scrollObjects.push_back(this->textObject);
+    this->allObjects.push_back(this->textObject);
     this->scrollObjects.at(0)->capturePosition();
     this->size.x = this->scrollObjects.at(0)->getWidth();
     this->size.y = size;
@@ -625,11 +610,11 @@ MenuEntry::MenuEntry(std::string text, Shader* textShader, Shader* meshShader, g
     case EntryType::MENUENTRY_TYPE_SUBMENU: {
         break;
     }
-    case EntryType::MENUENTRY_TYPE_RADIOBUTTON: {
+    case EntryType::MENUENTRY_TYPE_RADIOBUTTON_GROUP: {
         CubeLog::moreInfo("Creating radio button");
         float posX = this->position.x + (this->visibleWidth - size);
         float posY = this->position.y + size;
-        auto tempRB = new M_RadioButtonTexture(new Shader("shaders/text.vs", "shaders/text.fs"), size+10, 20, { 1.f, 1.f, 1.f }, { posX, posY });
+        auto tempRB = new M_RadioButtonTexture(textShader, size + 10, 20, { 1.f, 1.f, 1.f }, { posX, posY });
         tempRB->setSelected(this->statusReturnData == 1);
         tempRB->capturePosition();
         tempRB->setVisibility(true);
@@ -665,13 +650,26 @@ MenuEntry::~MenuEntry()
 void MenuEntry::onClick(void* data)
 {
     CubeLog::info("MenuEntry clicked");
-    if(this->actions.size() == 0) return;
+    if (this->actions.size() == 0)
+        return;
     if (this->actions.size() == 1) {
         this->clickReturnData = this->actions.at(0)(data) & 0x00ff;
-    } else if(this->actions.size() == 2) {
+    } else if (this->actions.size() == 2) {
         this->clickReturnData = this->actions.at(0)(data) & 0x00ff;
         this->statusReturnData = this->actions.at(1)(this->statusActionArg);
     }
+}
+
+void MenuEntry::onRelease(void* data)
+{
+    // CubeLog::debugSilly("MenuEntry released");
+    this->textObject->setColor({1.f, 1.f, 1.f});
+}
+
+void MenuEntry::onMouseDown(void* data)
+{
+    CubeLog::debugSilly("MenuEntry mouse down");
+    this->textObject->setColor(MENU_ENTRY_DIM_COLOR);
 }
 
 void MenuEntry::onRightClick(void* data)
@@ -697,8 +695,10 @@ bool MenuEntry::getVisible()
 void MenuEntry::setOnClick(std::function<unsigned int(void*)> action)
 {
     CubeLog::info("Setting onClick action for MenuEntry with text: " + this->text);
-    if(this->actions.size() == 0) this->actions.push_back(action);
-    else this->actions.at(0) = action;
+    if (this->actions.size() == 0)
+        this->actions.push_back(action);
+    else
+        this->actions.at(0) = action;
 }
 
 void MenuEntry::setOnRightClick(std::function<unsigned int(void*)> action)
@@ -709,14 +709,17 @@ void MenuEntry::setOnRightClick(std::function<unsigned int(void*)> action)
 
 /**
  * @brief Set the status action. This action is called when the status of the entry is updated. This must be called after the action is set.
- * 
- * @param action 
+ *
+ * @param action
  */
 void MenuEntry::setStatusAction(std::function<unsigned int(void*)> action)
 {
-    if(this->actions.size() == 0) return;
-    if(this->actions.size() == 1) this->actions.push_back(action);
-    else this->actions.at(1) = action;
+    if (this->actions.size() == 0)
+        return;
+    if (this->actions.size() == 1)
+        this->actions.push_back(action);
+    else
+        this->actions.at(1) = action;
 }
 
 std::vector<MeshObject*> MenuEntry::getObjects()
@@ -730,15 +733,15 @@ void MenuEntry::draw()
         return;
     }
 
-    switch(this->type) {
+    switch (this->type) {
     case EntryType::MENUENTRY_TYPE_ACTION: {
         break;
     }
     case EntryType::MENUENTRY_TYPE_SUBMENU: {
         break;
     }
-    case EntryType::MENUENTRY_TYPE_RADIOBUTTON: {
-        if(this->statusReturnData == 1) {
+    case EntryType::MENUENTRY_TYPE_RADIOBUTTON_GROUP: {
+        if (this->statusReturnData == 1) {
             ((M_RadioButtonTexture*)this->xFixedObjects.at(0))->setSelected(true);
         } else {
             ((M_RadioButtonTexture*)this->xFixedObjects.at(0))->setSelected(false);
@@ -870,17 +873,13 @@ bool MenuEntry::getIsClickable()
 }
 
 //////////////////////////////////////////////////////////////////////////
-Shader* MenuStencil::shader = nullptr;
-bool MenuStencil::shaderSet = false;
-MenuStencil::MenuStencil(glm::vec2 position, glm::vec2 size)
+
+MenuStencil::MenuStencil(glm::vec2 position, glm::vec2 size, Shader* shader)
 {
-    if (!MenuStencil::shaderSet) {
-        MenuStencil::shader = new Shader("shaders/menuStencil.vs", "shaders/menuStencil.fs");
-        MenuStencil::shaderSet = true;
-    }
     CubeLog::info("Creating MenuStencil at position: " + std::to_string(position.x) + "x" + std::to_string(position.y) + " of size: " + std::to_string(size.x) + "x" + std::to_string(size.y));
     this->position = position;
     this->size = size;
+    this->shader = shader;
     // create vertices for the stencil
     this->vertices.push_back({ position.x, position.y });
     this->vertices.push_back({ position.x + size.x, position.y });
@@ -954,8 +953,8 @@ void MenuStencil::enable()
         glDisable(GL_STENCIL_TEST);
         glDisable(GL_DEPTH_TEST);
         glDepthMask(GL_FALSE);
-        MenuStencil::shader->use();
-        MenuStencil::shader->setMat4("projection", projectionMatrix);
+        this->shader->use();
+        this->shader->setMat4("projection", projectionMatrix);
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
@@ -984,10 +983,10 @@ void MenuStencil::enable()
     }
     glStencilMask(0xFF);
     // Draw the mask
-    MenuStencil::shader->use();
-    MenuStencil::shader->setMat4("projection", projectionMatrix);
-    MenuStencil::shader->setMat4("model", modelMatrix);
-    MenuStencil::shader->setMat4("view", viewMatrix);
+    this->shader->use();
+    this->shader->setMat4("projection", projectionMatrix);
+    this->shader->setMat4("model", modelMatrix);
+    this->shader->setMat4("view", viewMatrix);
     glBindVertexArray(VAO);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
@@ -1033,7 +1032,8 @@ MenuHorizontalRule::MenuHorizontalRule(glm::vec2 position, float size, Shader* s
     glm::vec2 pos = { posX, posY };
     // convert size to screen relative size
     float sizeX = mapRange(size, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X, SCREEN_RELATIVE_MIN_WIDTH, SCREEN_RELATIVE_MAX_WIDTH);
-    this->objects.push_back(new M_Line(shader, { pos, Z_DISTANCE + 0.01 }, { pos.x + sizeX, pos.y, Z_DISTANCE + 0.01 }));
+    this->objects.push_back(new M_Line(shader, { pos, Z_DISTANCE + MenuBox::index + 0.0001f }, { pos.x + sizeX, pos.y, Z_DISTANCE + MenuBox::index  + 0.0001f }));
+    MenuBox::index += 0.000001f;
     this->objects.at(0)->type = "MenuHorizontalRule";
     // this->stencil = new MenuStencil({ position.x, position.y }, { size, 4 });
     CubeLog::info("MenuHorizontalRule created at position: " + std::to_string(position.x) + "x" + std::to_string(position.y) + " of size: " + std::to_string(size));
@@ -1090,6 +1090,17 @@ bool MenuHorizontalRule::getVisible()
 void MenuHorizontalRule::onClick(void* data)
 {
     CubeLog::info("MenuHorizontalRule clicked");
+}
+
+void MenuHorizontalRule::onRelease(void* data)
+{
+    // CubeLog::info("MenuHorizontalRule released");
+    // noop
+}
+
+void MenuHorizontalRule::onMouseDown(void* data)
+{
+    CubeLog::info("MenuHorizontalRule mouse down");
 }
 
 void MenuHorizontalRule::onRightClick(void* data)
@@ -1150,3 +1161,4 @@ float screenRelativeToScreenPxWidth(float screenRelative)
 {
     return mapRange(screenRelative, SCREEN_RELATIVE_MIN_WIDTH, SCREEN_RELATIVE_MAX_WIDTH, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X);
 }
+} // namespace MENUS

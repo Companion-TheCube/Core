@@ -27,6 +27,7 @@ M_Text::M_Text(Shader* sh, std::string text, float fontSize, glm::vec3 color, gl
         this->reloadFace = true;
     });
     CubeLog::debug("Created Text: " + text);
+    CubeLog::debugSilly("Position: " + std::to_string(position.x) + "x" + std::to_string(position.y));
 }
 
 void M_Text::reloadFont()
@@ -129,8 +130,8 @@ void M_Text::buildText()
 
 M_Text::~M_Text()
 {
-    FT_Done_Face(M_Text::face);
-    FT_Done_FreeType(M_Text::ft);
+    // FT_Done_Face(M_Text::face);
+    // FT_Done_FreeType(M_Text::ft);
     // delete all the openGl stuff
     glDeleteVertexArrays(1, &this->VAO);
     glDeleteBuffers(1, &this->VBO);
@@ -273,6 +274,11 @@ void M_Text::setText(std::string text)
     }
     this->text = text;
     this->buildText();
+}
+
+void M_Text::setColor(glm::vec3 color)
+{
+    this->color = color;
 }
 
 float M_Text::getWidth()

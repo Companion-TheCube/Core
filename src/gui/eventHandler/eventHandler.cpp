@@ -372,9 +372,9 @@ bool EventManager::checkClickableAreas(sf::Event event)
     if (sf::Event::MouseButtonPressed == event.type) {
         this->mouseDownPosition = { event.mouseButton.x, event.mouseButton.y };
     }
-    if (event.type != sf::Event::MouseButtonReleased) {
-        return false;
-    }
+    // if (event.type != sf::Event::MouseButtonReleased) {
+    //     return false;
+    // }
     int xChange = event.mouseButton.x - std::get<0>(this->mouseDownPosition);
     int yChange = event.mouseButton.y - std::get<1>(this->mouseDownPosition);
     float distance = sqrt(pow(xChange, 2) + pow(yChange, 2));
@@ -388,29 +388,41 @@ bool EventManager::checkClickableAreas(sf::Event event)
             // check if the x and y are within the area
             CubeLog::debugSilly("Checking clickable area: x:" + std::to_string(x) + " y:" + std::to_string(y) + " area: xMin:" + std::to_string(area->xMin) + " xMax:" + std::to_string(area->xMax) + " yMin:" + std::to_string(area->yMin) + " yMax:" + std::to_string(area->yMax));
             if (x < area->xMax && x > area->xMin && y < area->yMax && y > area->yMin) {
-                if (event.mouseButton.button == sf::Mouse::Left) {
+                if(event.type == sf::Event::MouseButtonReleased) area->clickableObject->onRelease(&event);
+                if (event.mouseButton.button == sf::Mouse::Left && event.type == sf::Event::MouseButtonReleased) {
                     area->clickableObject->onClick(&event);
                     return true;
                 }
-                if (event.mouseButton.button == sf::Mouse::Right) {
+                if (event.mouseButton.button == sf::Mouse::Right && event.type == sf::Event::MouseButtonReleased) {
                     area->clickableObject->onRightClick(&event);
+                    return true;
+                }
+                if(event.type == sf::Event::MouseButtonPressed){
+                    area->clickableObject->onMouseDown(&event);
                     return true;
                 }
             }
         }
-    }else{
+    }else if((sf::Mouse::isButtonPressed(sf::Mouse::Left) || sf::Mouse::isButtonPressed(sf::Mouse::Right) || sf::Touch::isDown(0))){
         if(std::abs(float(yChange)) * (0.5f) > std::abs(float(xChange))){
-            CubeLog::info("Dragged Y");
+            // CubeLog::info("Dragged Y");
             sf::Event ev;
             ev.type = sf::Event::MouseWheelScrolled;
             ev.mouseWheelScroll.delta = -yChange;
             triggerEvent(SpecificEventTypes::DRAG_Y, &ev);
         }else if(std::abs(float(xChange) * (0.5f)) > std::abs(float(yChange))){
-            CubeLog::info("Dragged X");
+            // CubeLog::info("Dragged X");
             sf::Event ev;
             ev.type = sf::Event::MouseWheelScrolled;
             ev.mouseWheelScroll.delta = xChange;
             triggerEvent(SpecificEventTypes::DRAG_X, &ev);
+        }
+    }else{
+        for(ClickableArea* area : this->clickableAreas){
+            if(!area->clickableObject->getIsClickable()) continue;
+            if(event.type == sf::Event::MouseButtonReleased){
+                area->clickableObject->onRelease(&event);
+            }
         }
     }
     return false;

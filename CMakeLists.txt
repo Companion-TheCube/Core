@@ -5,7 +5,23 @@
 cmake_minimum_required(VERSION 3.25)
 
 # Project name and the language used
-project(CubeCore VERSION 1.0 LANGUAGES CXX)
+project(CubeCore VERSION 1.0.0 LANGUAGES CXX)
+
+# Read build number from file
+file(READ "${CMAKE_SOURCE_DIR}/build_number.txt" BUILD_NUMBER)
+math(EXPR BUILD_NUMBER "${BUILD_NUMBER} + 1")
+
+# Update build_number.txt
+file(WRITE "${CMAKE_SOURCE_DIR}/build_number.txt" "${BUILD_NUMBER}")
+
+# Define build number in your code
+add_definitions(-DBUILD_NUMBER=${BUILD_NUMBER})
+
+message(STATUS "Build Number: ${BUILD_NUMBER}")
+
+add_definitions(-DMAJOR_VERSION=${PROJECT_VERSION_MAJOR})
+add_definitions(-DMINOR_VERSION=${PROJECT_VERSION_MINOR})
+add_definitions(-DPATCH_VERSION=${PROJECT_VERSION_PATCH})
 
 # set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE "ON" FORCE)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
@@ -110,10 +126,10 @@ endif()
 
 # Add libsodium
 # add_definitions(-DSODIUM_STATIC)
-
 if(WIN32)
     include_directories(${CMAKE_SOURCE_DIR}/libraries/libsodium/include)
     find_library(SODIUM_LIBRARIES libsodium HINTS "${CMAKE_SOURCE_DIR}/libraries/libsodium/x64/Release/v143/*" "${CMAKE_SOURCE_DIR}/libraries/libsodium/x64/Debug/v143/*")
+
     if(NOT SODIUM_LIBRARIES)
         message(FATAL_ERROR "libsodium library not found")
     endif()

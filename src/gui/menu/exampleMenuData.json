@@ -1,0 +1,247 @@
+{
+    "uniqueID": "testMenu_uniqueID",
+    "menuName": "Test menu from JSON",
+    "parentID": "Main Menu",
+    "entries": [
+        {
+            "entryText": "Test menu entry from JSON",
+            "uniqueID": "testMenuEntry1212",
+            "entryData": {
+                "entryType": "MENUENTRY_TYPE_SUBMENU"
+            }
+        },
+        {
+            "entryText": "Test menu entry from JSON 2",
+            "uniqueID": "testMenuEntry212",
+            "entryData": {
+                "entryType": "MENUENTRY_TYPE_RADIOBUTTON_GROUP",
+                "radioGroup": 0,
+                "statusEndpoint": {
+                    "addr_port": "http://localhost:55280",
+                    "path": "/api/test&val=testMenuEntry2",
+                    "user": "",
+                    "password": "",
+                    "token": "testToken",
+                    "method":"GET"
+                },
+                "actionEndpoint": {
+                    "addr_port": "http://localhost:55280",
+                    "path": "/api/test&val=testMenuEntry2Action",
+                    "user": "",
+                    "password": "",
+                    "token": "testToken",
+                    "method":"GET"
+                },
+                "enabledValues": [1, "1", "true", "True", "TRUE"]
+            }
+        },
+        {
+            "entryText": "Test menu entry from JSON 3",
+            "uniqueID": "testMenuEntry312",
+            "entryData": {
+                "entryType": "MENUENTRY_TYPE_RADIOBUTTON_GROUP",
+                "radioGroup": 0,
+                "statusEndpoint": {
+                    "addr_port": "http://localhost:55280",
+                    "path": "/api/test&val=testMenuEntry3",
+                    "user": "",
+                    "password": "",
+                    "token": "testToken",
+                    "method":"GET"
+                },
+                "actionEndpoint": {
+                    "addr_port": "http://localhost:55280",
+                    "path": "/api/test&val=testMenuEntry3Action",
+                    "user": "",
+                    "password": "",
+                    "token": "testToken",
+                    "method":"GET"
+                },
+                "enabledValues": [2, "2"]
+            }
+        },
+        {
+            "entryText": "Test menu entry from JSON 4",
+            "uniqueID": "testMenuEntry412",
+            "entryData": {
+                "entryType": "MENUENTRY_TYPE_CHECKBOX",
+                "statusEndpoint": {
+                    "addr_port": "http://localhost:55280",
+                    "path": "/api/test&val=testMenuEntry4",
+                    "user": "test",
+                    "password": "test",
+                    "token": "",
+                    "method": "GET"
+                },
+                "actionEndpoint": {
+                    "addr_port": "http://localhost:55280",
+                    "path": "/api/test&val=testMenuEntry4Action",
+                    "user": "test",
+                    "password": "test",
+                    "token": "",
+                    "method": "GET"
+                },
+                "enabledValues": [1, "1", "true", "True", "TRUE"]
+            }
+        },
+        {
+            "entryText": "Test menu entry from JSON 5",
+            "uniqueID": "testMenuEntry5",
+            "entryData": {
+                "entryType": "MENUENTRY_TYPE_CHECKBOX",
+                "statusEndpoint": {
+                    "addr_port": "http://localhost:55280",
+                    "path": "/api/test&val=testMenuEntry5",
+                    "user": "",
+                    "password": "",
+                    "token": "",
+                    "method": "GET"
+                },
+                "actionEndpoint": {
+                    "addr_port": "http://localhost:55280",
+                    "path": "/api/test&val=testMenuEntry5Action",
+                    "user": "",
+                    "password": "",
+                    "token": "",
+                    "method": "GET"
+                },
+                "enabledValues": [2, "2"]
+            }
+        },
+        {
+            "entryText": "Test menu entry from JSON 6",
+            "uniqueID": "testMenuEntry6",
+            "entryData": {
+                "entryType": "MENUENTRY_TYPE_SLIDER",
+                "statusEndpoint": {
+                    "addr_port": "http://localhost:55280",
+                    "path": "/api/test&val=testMenuEntry6",
+                    "user": "test",
+                    "password": "test",
+                    "token": "",
+                    "method": "GET"
+                },
+                "actionEndpoint": {
+                    "addr_port": "http://localhost:55280",
+                    "path": "/api/test&val=testMenuEntry6Action",
+                    "user": "test",
+                    "password": "test",
+                    "token": "",
+                    "method": "POST"
+                },
+                "minValue": 0,
+                "maxValue": 100,
+                "step": 1
+            }
+        },
+        {
+            "entryText": "Test menu entry from JSON 7",
+            "uniqueID": "testMenuEntry7",
+            "entryData": {
+                "entryType": "MENUENTRY_TYPE_TEXT_INFO",
+                "statusEndpoint": {
+                    "addr_port": "http://localhost:55280",
+                    "path": "/api/test&val=testMenuEntry7",
+                    "user": "test",
+                    "password": "test",
+                    "token": "",
+                    "method": "GET"
+                },
+                "actionEndpoint": {
+                    "addr_port": "http://localhost:55280",
+                    "path": "/getEndpoints",
+                    "user": "test",
+                    "password": "test",
+                    "token": "",
+                    "method": "GET"
+                }
+            }
+        },
+        {
+            "entryText": "Test text info menu entry from JSON 8",
+            "uniqueID": "testMenuEntry8",
+            "entryData": {
+                "entryType": "MENUENTRY_TYPE_TEXT_INPUT",
+                "statusEndpoint": {
+                    "addr_port": "http://localhost:55280",
+                    "path": "/api/test&val=testMenuEntry8",
+                    "user": "test",
+                    "password": "test",
+                    "token": "",
+                    "method": "POST"
+                },
+                "actionEndpoint": {
+                    "addr_port": "http://localhost:55280",
+                    "path": "/api/test&val=testMenuEntry8Action",
+                    "user": "test",
+                    "password": "test",
+                    "token": "",
+                    "method": "POST"
+                }
+            }
+        },
+        {
+            "entryText": "Test menu entry from JSON 9",
+            "uniqueID": "testMenuEntry9",
+            "entryData": {
+                "entryType": "MENUENTRY_TYPE_TOGGLE",
+                "statusEndpoint": {
+                    "addr_port": "http://localhost:55280",
+                    "path": "/api/test&val=testMenuEntry9",
+                    "user": "test",
+                    "password": "test",
+                    "token": "",
+                    "method": "GET"
+                },
+                "actionEndpoint": {
+                    "addr_port": "http://localhost:55280",
+                    "path": "/api/test&val=testMenuEntry9Action",
+                    "user": "test",
+                    "password": "test",
+                    "token": "",
+                    "method": "GET"
+                },
+                "enabledValues": [1, "1", "true", "True", "TRUE"]
+            }
+        },
+        {
+            "entryText": "Test menu entry from JSON 10",
+            "uniqueID": "testMenuEntry10",
+            "entryData": {
+                "entryType": "MENUENTRY_TYPE_TOGGLE",
+                "statusEndpoint": {
+                    "addr_port": "http://localhost:55280",
+                    "path": "/api/test&val=testMenuEntry10",
+                    "user": "",
+                    "password": "",
+                    "token": "",
+                    "method": "GET"
+                },
+                "actionEndpoint": {
+                    "addr_port": "http://localhost:55280",
+                    "path": "/api/test&val=testMenuEntry10Action",
+                    "user": "",
+                    "password": "",
+                    "token": "",
+                    "method": "GET"
+                },
+                "enabledValues": [2, "2"]
+            }
+        },
+        {
+            "entryText": "Test menu entry from JSON 11",
+            "uniqueID": "testMenuEntry11",
+            "entryData": {
+                "entryType": "MENUENTRY_TYPE_ACTION",
+                "actionEndpoint": {
+                    "addr_port": "http://localhost:55280",
+                    "path": "/api/test&val=testMenuEntry11",
+                    "user": "",
+                    "password": "",
+                    "token": "",
+                    "method": "GET"
+                }
+            }
+        }
+    ]
+}

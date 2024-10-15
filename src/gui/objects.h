@@ -74,7 +74,7 @@ public:
 
 class Object {
 public:
-    virtual ~Object() {};
+    virtual ~Object(){};
     virtual void draw() = 0;
     virtual bool setVisible(bool visible) = 0;
     virtual bool getVisible() = 0;
@@ -93,6 +93,8 @@ public:
     virtual ~Clickable() {};
     ClickableArea clickArea;
     virtual void onClick(void*) = 0;
+    virtual void onRelease(void*) = 0;
+    virtual void onMouseDown(void*) = 0;
     virtual void onRightClick(void*) = 0;
     virtual std::vector<MeshObject*> getObjects() = 0;
     virtual void setOnClick(std::function<unsigned int(void*)> action) = 0;
