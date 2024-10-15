@@ -172,6 +172,11 @@ int main(int argc, char* argv[])
     CubeLog::critical("Test critical message.");
     CubeLog::moreInfo("Test more info message.");
     CubeLog::fatal("Test fatal message.");
+
+    CubeLog::debugSilly("MajorVersion: " + MAJOR_VERSION);
+    CubeLog::debugSilly("MinorVersion: " + MINOR_VERSION);
+    CubeLog::debugSilly("PatchVersion: " + PATCH_VERSION);
+    CubeLog::debugSilly("BuildVersion: " + BUILD_NUMBER);
     /////////////////////////////////////////////////////////////////
     // Main loop
     /////////////////////////////////////////////////////////////////
