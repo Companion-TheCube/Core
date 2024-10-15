@@ -443,6 +443,10 @@ void GUI::eventLoop()
     });
     menus.push_back(privacyMenu);
 
+    ///////// Privacy Menu - Privacy Settings /////////
+    // TODO: figure out what to put here: list apps that use microphone, presence detection, etc. and allow the user to disable them
+    // also, telemetry stuff
+
     ///////// Accounts Menu /////////
     auto accountsMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
     accountsMenu->setMenuName("Accounts");
@@ -488,6 +492,18 @@ void GUI::eventLoop()
         accountsMenu->draw();
     });
     menus.push_back(accountsMenu);
+
+    ///////// Accounts Menu - Account List /////////
+    // TODO: list all the accounts that have been added to the system
+
+    ///////// Accounts Menu - Account List - Account Settings /////////
+    // TODO:
+
+    ///////// Accounts Menu - Account List - Remove Account /////////
+    // TODO:
+
+    ///////// Accounts Menu - Add Account /////////
+    // TODO: add a button to add an account
 
     ///////// Apps Menu /////////
     auto appsMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
@@ -535,6 +551,26 @@ void GUI::eventLoop()
     });
     menus.push_back(appsMenu);
 
+    ///////// Apps Menu - App List /////////
+    // TODO:
+
+    ///////// Apps Menu - Installed Apps /////////
+    // TODO:
+
+    ///////// Apps Menu - Installed Apps - App List /////////
+    // TODO: for each installed app do the following
+    ///////// Apps Menu - Installed Apps - App List - Force Stop /////////
+    ///////// Apps Menu - Installed Apps - App List - Uninstall /////////
+    ///////// Apps Menu - Installed Apps - App List - Reload /////////
+    ///////// Apps Menu - Installed Apps - App List - App Settings /////////
+    // TODO: each app will fill in the details here
+
+    ///////// Apps Menu - Available Apps /////////
+    // TODO:
+
+    ///////// Apps Menu - Available Apps - App List /////////
+    // TODO: List all the available apps here. each app gets an install button and a details button
+
     ///////// General Settings Menu /////////
     auto generalSettingsMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
     generalSettingsMenu->setMenuName("General Settings");
@@ -579,6 +615,12 @@ void GUI::eventLoop()
         generalSettingsMenu->draw();
     });
     menus.push_back(generalSettingsMenu);
+
+    ///////// General Settings Menu - Date and Time /////////
+    // TODO:
+
+    ///////// General Settings Menu - Language /////////
+    // TODO:
 
     ///////// Accessibility Menu /////////
     auto accessibilityMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
@@ -625,6 +667,9 @@ void GUI::eventLoop()
     });
     menus.push_back(accessibilityMenu);
 
+    ///////// Accessibility Menu - ??? /////////
+    // TODO: figure out what should go here
+
     ///////// Updates Menu /////////
     auto updatesMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
     updatesMenu->setMenuName("Updates");
@@ -669,6 +714,15 @@ void GUI::eventLoop()
         updatesMenu->draw();
     });
     menus.push_back(updatesMenu);
+
+    ///////// Updates Menu - Check for Updates /////////
+    // TODO:
+
+    ///////// Updates Menu - Last Update Info /////////
+    // TODO:
+
+    ///////// Updates Menu - Auto Update Enable /////////
+    // TODO:
 
     ///////// About Menu /////////
     auto aboutMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
@@ -863,13 +917,54 @@ void GUI::eventLoop()
     menus.push_back(aboutSoftwareInformationMenu);
 
     ///////// About Menu - Software Information - TheCube-CORE Version /////////
+    // TODO:
 
     ///////// About Menu - Software Information - Build Number /////////
+    // TODO:
 
     ///////// About Menu - Status /////////
     // TODO:
 
+    ///////// About Menu - Status - IP Address /////////
+    // TODO:
+
+    ///////// About Menu - Status - WIFi MAC Address /////////
+    // TODO:
+
+    ///////// About Menu - Status - BT Mac Address /////////
+    // TODO:
+
+    ///////// About Menu - Status - Up Time /////////
+    // TODO:
+
+    ///////// About Menu - Status - Memory Usage /////////
+    // TODO:
+
+    ///////// About Menu - Status - Disk Usage /////////
+    // TODO:
+
+    ///////// About Menu - Status - CPU Usage /////////
+    // TODO:
+
+    ///////// About Menu - Status - FCC ID /////////
+    // TODO:
+
     ///////// About Menu - Legal Information /////////
+    // TODO:
+
+    ///////// About Menu - Legal Information - Open Source Licenses /////////
+    // TODO:
+
+    ///////// About Menu - Legal Information - Legal Notices /////////
+    // TODO:
+
+    ///////// About Menu - Legal Information - Trademarks /////////
+    // TODO:
+
+    ///////// About Menu - Legal Information - EULA /////////
+    // TODO:
+
+    ///////// About Menu - Legal Information - Privacy Policy /////////
     // TODO:
 
     ///////// Developer Settings Menu /////////
@@ -916,6 +1011,48 @@ void GUI::eventLoop()
         developerSettingsMenu->draw();
     });
     menus.push_back(developerSettingsMenu);
+
+    ///////// Developer Settings Menu - Developer Mode Enable /////////
+    // TODO:
+
+    ///////// Developer Settings Menu - SSH /////////
+    // TODO:
+
+    ///////// Developer Settings Menu - SSH - Enable SSH /////////
+    // TODO:
+
+    ///////// Developer Settings Menu - SSH - Change Password /////////
+    // TODO:
+
+    ///////// Developer Settings Menu - CPU and Memory Display /////////
+    // TODO:
+
+    ///////// Developer Settings Menu - Send Bug Report /////////
+    // TODO:
+
+    ///////// Developer Settings Menu - Verify SSD Integrity /////////
+    // TODO:
+
+    ///////// Developer Settings Menu - Factory Reset /////////
+    // TODO:
+
+    ///////// Developer Settings Menu - Reboot /////////
+    // TODO:
+
+    ///////// Developer Settings Menu - Shutdown /////////
+    // TODO:
+
+    ///////// Developer Settings Menu - Logging /////////
+    // TODO:
+
+    ///////// Developer Settings Menu - Logging - File Log Level /////////
+    // TODO:
+
+    ///////// Developer Settings Menu - Logging - Telemetry Log Level /////////
+    // TODO:
+
+    ///////// Developer Settings Menu - Logging - Log Verbosity /////////
+    // TODO:
 
     ////////////////////////////////////////
     /// Set up the event handlers

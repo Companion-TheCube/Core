@@ -173,10 +173,10 @@ int main(int argc, char* argv[])
     CubeLog::moreInfo("Test more info message.");
     CubeLog::fatal("Test fatal message.");
 
-    CubeLog::debugSilly("MajorVersion: " + MAJOR_VERSION);
-    CubeLog::debugSilly("MinorVersion: " + MINOR_VERSION);
-    CubeLog::debugSilly("PatchVersion: " + PATCH_VERSION);
-    CubeLog::debugSilly("BuildVersion: " + BUILD_NUMBER);
+    CubeLog::debugSilly("MajorVersion: " + std::to_string(MAJOR_VERSION));
+    CubeLog::debugSilly("MinorVersion: " + std::to_string(MINOR_VERSION));
+    CubeLog::debugSilly("PatchVersion: " + std::to_string(PATCH_VERSION));
+    CubeLog::debugSilly("BuildVersion: " + std::to_string(BUILD_NUMBER));
     /////////////////////////////////////////////////////////////////
     // Main loop
     /////////////////////////////////////////////////////////////////
