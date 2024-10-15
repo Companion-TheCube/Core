@@ -128,7 +128,6 @@ void GUI::eventLoop()
     */
     /////////
     ///////// Connections Menu /////////
-    // countingLatch.count_up();
     auto connectionsMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
     connectionsMenu->setMenuName("Connections");
     connectionsMenu->setUniqueMenuIdentifier("Connections");
@@ -174,7 +173,6 @@ void GUI::eventLoop()
     menus.push_back(connectionsMenu);
 
     ///////// Personality Menu /////////
-    // countingLatch.count_up();
     auto personalityMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
     personalityMenu->setMenuName("Personality");
     personalityMenu->setUniqueMenuIdentifier("Personality");
@@ -220,7 +218,6 @@ void GUI::eventLoop()
     menus.push_back(personalityMenu);
 
     ///////// Sensors Menu /////////
-    // countingLatch.count_up();
     auto sensorsMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
     sensorsMenu->setMenuName("Sensors");
     sensorsMenu->setUniqueMenuIdentifier("Sensors");
@@ -266,7 +263,6 @@ void GUI::eventLoop()
     menus.push_back(sensorsMenu);
 
     ///////// Sound Menu /////////
-    // countingLatch.count_up();
     auto soundMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
     soundMenu->setMenuName("Sound");
     soundMenu->setUniqueMenuIdentifier("Sound");
@@ -312,7 +308,6 @@ void GUI::eventLoop()
     menus.push_back(soundMenu);
 
     ///////// Notifications Menu /////////
-    // countingLatch.count_up();
     auto notificationsMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
     notificationsMenu->setMenuName("Notifications");
     notificationsMenu->setUniqueMenuIdentifier("Notifications");
@@ -358,7 +353,6 @@ void GUI::eventLoop()
     menus.push_back(notificationsMenu);
 
     ///////// Display Menu /////////
-    // countingLatch.count_up();
     auto displayMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
     displayMenu->setMenuName("Display");
     displayMenu->setUniqueMenuIdentifier("Display");
@@ -404,7 +398,6 @@ void GUI::eventLoop()
     menus.push_back(displayMenu);
 
     ///////// Privacy Menu /////////
-    // countingLatch.count_up();
     auto privacyMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
     privacyMenu->setMenuName("Privacy");
     privacyMenu->setUniqueMenuIdentifier("Privacy");
@@ -451,7 +444,6 @@ void GUI::eventLoop()
     menus.push_back(privacyMenu);
 
     ///////// Accounts Menu /////////
-    // countingLatch.count_up();
     auto accountsMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
     accountsMenu->setMenuName("Accounts");
     accountsMenu->setUniqueMenuIdentifier("Accounts");
@@ -498,7 +490,6 @@ void GUI::eventLoop()
     menus.push_back(accountsMenu);
 
     ///////// Apps Menu /////////
-    // countingLatch.count_up();
     auto appsMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
     appsMenu->setMenuName("Apps");
     appsMenu->setUniqueMenuIdentifier("Apps");
@@ -545,7 +536,6 @@ void GUI::eventLoop()
     menus.push_back(appsMenu);
 
     ///////// General Settings Menu /////////
-    // countingLatch.count_up();
     auto generalSettingsMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
     generalSettingsMenu->setMenuName("General Settings");
     generalSettingsMenu->setUniqueMenuIdentifier("General Settings");
@@ -591,7 +581,6 @@ void GUI::eventLoop()
     menus.push_back(generalSettingsMenu);
 
     ///////// Accessibility Menu /////////
-    // countingLatch.count_up();
     auto accessibilityMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
     accessibilityMenu->setMenuName("Accessibility");
     accessibilityMenu->setUniqueMenuIdentifier("Accessibility");
@@ -637,7 +626,6 @@ void GUI::eventLoop()
     menus.push_back(accessibilityMenu);
 
     ///////// Updates Menu /////////
-    // countingLatch.count_up();
     auto updatesMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
     updatesMenu->setMenuName("Updates");
     updatesMenu->setUniqueMenuIdentifier("Updates");
@@ -683,7 +671,6 @@ void GUI::eventLoop()
     menus.push_back(updatesMenu);
 
     ///////// About Menu /////////
-    // countingLatch.count_up();
     auto aboutMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
     aboutMenu->setMenuName("About");
     aboutMenu->setUniqueMenuIdentifier("About");
@@ -729,7 +716,6 @@ void GUI::eventLoop()
     menus.push_back(aboutMenu);
 
     ///////// About Menu - Serial Number /////////
-    // countingLatch.count_up();
     auto aboutSerialNumberMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
     aboutSerialNumberMenu->setMenuName("Serial Number");
     aboutSerialNumberMenu->setUniqueMenuIdentifier("Serial Number");
@@ -761,7 +747,8 @@ void GUI::eventLoop()
             MENUS::EntryType::MENUENTRY_TYPE_TEXT_INFO,
             [aboutSerialNumberMenu](void* data) {
                 CubeLog::info("Serial Number clicked");
-                GUI::showTextBox("Serial Number", "Serial Number: 1234567890\nlsadfljasdlfjkdsflkjhsdkljhdsfkljh\nlkjhdfkljhsdlkfjhdfkjhdfkjhdfgkjhfdg\nklhdfkljhdfkjlhdfkjlhdfgkjh", { 720, 720 }, { 0, 0 }, [aboutSerialNumberMenu]() {
+                // TODO: get the serial number from the hardware class
+                GUI::showTextBox("Serial Number", "Serial Number: 1234567890h", { 720, 720 }, { 0, 0 }, [aboutSerialNumberMenu]() {
                     aboutSerialNumberMenu->getParentMenu()->setVisible(true);
                     aboutSerialNumberMenu->getParentMenu()->setIsClickable(false);
                 });
@@ -778,6 +765,157 @@ void GUI::eventLoop()
         aboutSerialNumberMenu->draw();
     });
     menus.push_back(aboutSerialNumberMenu);
+
+    ///////// About Menu - Hardware Version /////////
+    auto aboutHardwareVersionMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
+    aboutHardwareVersionMenu->setMenuName("Hardware Version");
+    aboutHardwareVersionMenu->setUniqueMenuIdentifier("Hardware Version");
+    aboutHardwareVersionMenu->setVisible(false);
+    aboutHardwareVersionMenu->setParentMenu(aboutMenu);
+    drag_y_actions.push_back({ [aboutHardwareVersionMenu]() { return aboutHardwareVersionMenu->getVisible(); }, [aboutHardwareVersionMenu](int y) { aboutHardwareVersionMenu->scrollVert(y); } });
+    this->renderer->addSetupTask([&]() {
+        aboutHardwareVersionMenu->addMenuEntry(
+            "< Back",
+            "About_Hardware_Version",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [&](void* data) {
+                CubeLog::info("Back clicked");
+                aboutHardwareVersionMenu->setVisible(false);
+                aboutHardwareVersionMenu->setIsClickable(true);
+                if (aboutHardwareVersionMenu->getParentMenu() != nullptr) {
+                    aboutHardwareVersionMenu->getParentMenu()->setVisible(true);
+                }
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr);
+        aboutHardwareVersionMenu->addHorizontalRule();
+        aboutHardwareVersionMenu->setup();
+        aboutHardwareVersionMenu->setVisible(false);
+        aboutHardwareVersionMenu->getParentMenu()->addMenuEntry(
+            "Hardware Version",
+            "About_Hardware_Version",
+            MENUS::EntryType::MENUENTRY_TYPE_TEXT_INFO,
+            [aboutHardwareVersionMenu](void* data) {
+                CubeLog::info("Hardware Version clicked");
+                // TODO: get the hardware version from the hardware class
+                GUI::showTextBox("Hardware Version", "Hardware Version: 1.0.0", { 720, 720 }, { 0, 0 }, [aboutHardwareVersionMenu]() {
+                    aboutHardwareVersionMenu->getParentMenu()->setVisible(true);
+                    aboutHardwareVersionMenu->getParentMenu()->setIsClickable(false);
+                });
+                aboutHardwareVersionMenu->getParentMenu()->setVisible(false);
+                aboutHardwareVersionMenu->getParentMenu()->setIsClickable(true);
+                return 0;
+            },
+            [](void*) {
+                return 0;
+            },
+            nullptr);
+    });
+    this->renderer->addLoopTask([aboutHardwareVersionMenu]() {
+        aboutHardwareVersionMenu->draw();
+    });
+    menus.push_back(aboutHardwareVersionMenu);
+
+    ///////// About Menu - Software Information /////////
+    auto aboutSoftwareInformationMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
+    aboutSoftwareInformationMenu->setMenuName("Software Information");
+    aboutSoftwareInformationMenu->setUniqueMenuIdentifier("Software Information");
+    aboutSoftwareInformationMenu->setVisible(false);
+    aboutSoftwareInformationMenu->setParentMenu(aboutMenu);
+    drag_y_actions.push_back({ [aboutSoftwareInformationMenu]() { return aboutSoftwareInformationMenu->getVisible(); }, [aboutSoftwareInformationMenu](int y) { aboutSoftwareInformationMenu->scrollVert(y); } });
+    this->renderer->addSetupTask([&]() {
+        aboutSoftwareInformationMenu->addMenuEntry(
+            "< Back",
+            "About_Software_Information",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [&](void* data) {
+                CubeLog::info("Back clicked");
+                aboutSoftwareInformationMenu->setVisible(false);
+                aboutSoftwareInformationMenu->setIsClickable(true);
+                if (aboutSoftwareInformationMenu->getParentMenu() != nullptr) {
+                    aboutSoftwareInformationMenu->getParentMenu()->setVisible(true);
+                }
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr);
+        aboutSoftwareInformationMenu->addHorizontalRule();
+        aboutSoftwareInformationMenu->setup();
+        aboutSoftwareInformationMenu->setVisible(false);
+        aboutSoftwareInformationMenu->getParentMenu()->addMenuEntry(
+            "Software Information",
+            "About_Software_Information",
+            MENUS::EntryType::MENUENTRY_TYPE_SUBMENU,
+            [aboutSoftwareInformationMenu](void* data) {
+                CubeLog::info("Software Information clicked");
+                aboutSoftwareInformationMenu->setVisible(true);
+                aboutSoftwareInformationMenu->getParentMenu()->setVisible(false);
+                aboutSoftwareInformationMenu->getParentMenu()->setIsClickable(false);
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr);
+    });
+    this->renderer->addLoopTask([aboutSoftwareInformationMenu]() {
+        aboutSoftwareInformationMenu->draw();
+    });
+    menus.push_back(aboutSoftwareInformationMenu);
+
+    ///////// About Menu - Software Information - TheCube-CORE Version /////////
+
+    ///////// About Menu - Software Information - Build Number /////////
+
+    ///////// About Menu - Status /////////
+    // TODO:
+
+    ///////// About Menu - Legal Information /////////
+    // TODO:
+
+    ///////// Developer Settings Menu /////////
+    auto developerSettingsMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
+    developerSettingsMenu->setMenuName("Developer Settings");
+    developerSettingsMenu->setUniqueMenuIdentifier("Developer Settings");
+    developerSettingsMenu->setVisible(false);
+    developerSettingsMenu->setParentMenu(mainMenu);
+    drag_y_actions.push_back({ [developerSettingsMenu]() { return developerSettingsMenu->getVisible(); }, [developerSettingsMenu](int y) { developerSettingsMenu->scrollVert(y); } });
+    this->renderer->addSetupTask([developerSettingsMenu]() {
+        developerSettingsMenu->addMenuEntry(
+            "< Back",
+            "Developer_Settings",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [developerSettingsMenu](void* data) {
+                CubeLog::info("Back clicked");
+                developerSettingsMenu->setVisible(false);
+                developerSettingsMenu->setIsClickable(true);
+                if (developerSettingsMenu->getParentMenu() != nullptr) {
+                    developerSettingsMenu->getParentMenu()->setVisible(true);
+                }
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr);
+        developerSettingsMenu->addHorizontalRule();
+        developerSettingsMenu->setup();
+        developerSettingsMenu->setVisible(false);
+        developerSettingsMenu->getParentMenu()->addMenuEntry(
+            "Developer Settings",
+            "Developer_Settings",
+            MENUS::EntryType::MENUENTRY_TYPE_SUBMENU,
+            [developerSettingsMenu](void* data) {
+                CubeLog::info("Developer Settings clicked");
+                developerSettingsMenu->setVisible(true);
+                developerSettingsMenu->getParentMenu()->setVisible(false);
+                developerSettingsMenu->getParentMenu()->setIsClickable(false);
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr);
+    });
+    this->renderer->addLoopTask([developerSettingsMenu]() {
+        developerSettingsMenu->draw();
+    });
+    menus.push_back(developerSettingsMenu);
 
     ////////////////////////////////////////
     /// Set up the event handlers
