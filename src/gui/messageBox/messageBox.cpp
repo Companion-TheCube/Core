@@ -30,6 +30,12 @@ CubeMessageBox::CubeMessageBox(Shader* shader, Shader* textShader, Renderer* ren
  */
 CubeMessageBox::~CubeMessageBox()
 {
+    for(auto object : this->objects) {
+        delete object;
+    }
+    for(auto object : this->textObjects) {
+        delete object;
+    }
     CubeLog::info("MessageBox destroyed");
 }
 
@@ -74,41 +80,31 @@ void CubeMessageBox::setup()
  * 
  * @param text - the text to display
  */
-void CubeMessageBox::setText(std::string text)
+void CubeMessageBox::setText(std::string text, std::string title)
 {
-    // TODO: make the text wrap around the box
-    auto fn = [&, text]() {
+    auto fn = [&, text, title]() {
         CubeLog::info("Objects size: " + std::to_string(this->objects.size()));
-        CubeLog::info("TextMeshIndices size: " + std::to_string(this->textMeshIndices.size()));
+        CubeLog::info("textObjects size: " + std::to_string(this->textObjects.size()));
         CubeLog::info("Objects size in memory: " + std::to_string(this->objects.size() * sizeof(MeshObject)));
-        for (size_t index = 0; index < this->textMeshIndices.size(); index++) {
-            // delete the object referenced by the textMeshIndices
-            this->objects[this->textMeshIndices[index]]->~MeshObject();
+        for (size_t index = 0; index < this->textObjects.size(); index++) {
+            delete this->textObjects[index];
         }
-        // remove the vector entries for the textMeshIndices
-        for (size_t index = 0; index < this->textMeshIndices.size(); index++) {
-            this->objects.erase(this->objects.begin() + this->textMeshIndices[index]);
-            // decrement all the indices after the current index
-            for (size_t i = index + 1; i < this->textMeshIndices.size(); i++) {
-                this->textMeshIndices[i]--;
-            }
-        }
-        this->textMeshIndices.clear();
-        float xStart = -0.2;
-        float yStart = -0.2;
-        float textXStart = mapRange(xStart, -1.f, 1.f, 0.f, 720.f);
-        float textYStart = mapRange(yStart, -1.f, 1.f, 0.f, 720.f) + mapRange(1.f, 0.f, 2.f, 0.f, 720.f);
+        this->textObjects.clear();
+        this->textObjects.push_back(new M_Text(textShader, title, (this->messageTextSize * MESSAGEBOX_TITLE_TEXT_MULT), { 1.f, 1.f, 1.f }, { this->position.x + STENCIL_INSET_PX, (this->position.y + this->size.y) - this->messageTextSize - STENCIL_INSET_PX }));
         std::vector<std::string> lines;
         std::string line;
         std::istringstream textStream(text);
         while (std::getline(textStream, line)) {
             lines.push_back(line);
         }
-        for (size_t i = 0; i < lines.size(); i++) {
-            this->objects.push_back(new M_Text(textShader, lines[i], this->messageTextSize, { 1.f, 1.f, 1.f }, { textXStart + STENCIL_INSET_PX, textYStart - STENCIL_INSET_PX - ((i + 1) * this->messageTextSize * (i > 0 ? 1.1 : 1.f)) }));
-            this->textMeshIndices.push_back(this->objects.size() - 1);
+        if(lines.size() == 0) lines.push_back(text);
+        if(lines[0].size() == 0) lines[0] = text;
+        for ( size_t i = 0; i < lines.size(); i++) {
+            float shiftForPreviousLines = ((float)(i + 1) * this->messageTextSize ) + (this->messageTextSize * MESSAGEBOX_TITLE_TEXT_MULT);
+            float shiftForMargin = (float)(i + 1) * MESSAGEBOX_LINE_SPACING * this->messageTextSize;
+            this->textObjects.push_back(new M_Text(textShader, lines[i], this->messageTextSize, { 1.f, 1.f, 1.f }, { this->position.x + STENCIL_INSET_PX, (this->position.y + this->size.y) - STENCIL_INSET_PX - shiftForPreviousLines - shiftForMargin }));
         }
-        CubeLog::info("MessageBox text set");
+        CubeLog::info("TextBox text set");
     };
     this->renderer->addSetupTask(fn);
 }
@@ -148,6 +144,9 @@ void CubeMessageBox::draw()
         return;
     }
     for (auto object : this->objects) {
+        object->draw();
+    }
+    for(auto object : this->textObjects) {
         object->draw();
     }
 }
@@ -211,6 +210,12 @@ CubeTextBox::CubeTextBox(Shader* shader, Shader* textShader, Renderer* renderer,
 
 CubeTextBox::~CubeTextBox()
 {
+    for(auto object : this->objects) {
+        delete object;
+    }
+    for(auto object : this->textObjects) {
+        delete object;
+    }
     CubeLog::info("TextBox destroyed");
 }
 
@@ -274,6 +279,9 @@ void CubeTextBox::draw()
     for (auto object : this->objects) {
         object->draw();
     }
+    for (auto object : this->textObjects) {
+        object->draw();
+    }
 }
 
 void CubeTextBox::setPosition(glm::vec2 position)
@@ -298,6 +306,11 @@ void CubeTextBox::setSize(glm::vec2 size)
     this->index = 0.001;
 }
 
+void CubeTextBox::setTextSize(float size)
+{
+    this->messageTextSize = size;
+}
+
 std::vector<MeshObject*> CubeTextBox::getObjects()
 {
     // concat objects and textObjects
@@ -312,9 +325,9 @@ void CubeTextBox::setCallback(std::function<void()> callback)
     this->callback = callback;
 }
 
-void CubeTextBox::setText(std::string text)
+void CubeTextBox::setText(std::string text, std::string title)
 {
-    auto fn = [&, text]() {
+    auto fn = [&, text, title]() {
         CubeLog::info("Objects size: " + std::to_string(this->objects.size()));
         CubeLog::info("textObjects size: " + std::to_string(this->textObjects.size()));
         CubeLog::info("Objects size in memory: " + std::to_string(this->objects.size() * sizeof(MeshObject)));
@@ -322,21 +335,19 @@ void CubeTextBox::setText(std::string text)
             delete this->textObjects[index];
         }
         this->textObjects.clear();
-        float xStart = mapRange(this->position.x, 0.f, 720.f, -1.f, 1.f);
-        float yStart = mapRange(this->position.y, 0.f, 720.f, 1.f, -1.f);
-        float xSize = mapRange(this->size.x, 0.f, 720.f, -1.f, 1.f);
-        float ySize = mapRange(this->size.y - 1, 0.f, 720.f, 1.f, -1.f);
-        glm::vec2 size_ = { xSize, ySize };
-        float textXStart = mapRange(xStart, -1.f, 1.f, 0.f, 720.f);
-        float textYStart = mapRange(yStart, -1.f, 1.f, 0.f, 720.f) + mapRange(1.f, 0.f, 2.f, 0.f, 720.f);
+        this->textObjects.push_back(new M_Text(textShader, title, (this->messageTextSize * MESSAGEBOX_TITLE_TEXT_MULT), { 1.f, 1.f, 1.f }, { this->position.x + STENCIL_INSET_PX, (this->position.y + this->size.y) - this->messageTextSize - STENCIL_INSET_PX }));
         std::vector<std::string> lines;
         std::string line;
         std::istringstream textStream(text);
         while (std::getline(textStream, line)) {
             lines.push_back(line);
         }
+        if(lines.size() == 0) lines.push_back(text);
+        if(lines[0].size() == 0) lines[0] = text;
         for ( size_t i = 0; i < lines.size(); i++) {
-            this->textObjects.push_back(new M_Text(textShader, lines[i], MESSAGEBOX_ITEM_TEXT_SIZE, { 1.f, 1.f, 1.f }, { textXStart + STENCIL_INSET_PX, textYStart - STENCIL_INSET_PX - ((i + 1) * this->messageTextSize * (i > 0 ? 1.1 : 1.f)) }));
+            float shiftForPreviousLines = ((float)(i + 1) * this->messageTextSize ) + (this->messageTextSize * MESSAGEBOX_TITLE_TEXT_MULT);
+            float shiftForMargin = (float)(i + 1) * MESSAGEBOX_LINE_SPACING * this->messageTextSize;
+            this->textObjects.push_back(new M_Text(textShader, lines[i], this->messageTextSize, { 1.f, 1.f, 1.f }, { this->position.x + STENCIL_INSET_PX, (this->position.y + this->size.y) - STENCIL_INSET_PX - shiftForPreviousLines - shiftForMargin }));
         }
         CubeLog::info("TextBox text set");
     };

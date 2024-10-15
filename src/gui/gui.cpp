@@ -78,7 +78,7 @@ void GUI::eventLoop()
     ////////////////////////////////////////
     /// Here we build the menus
     ////////////////////////////////////////
-    CountingLatch countingLatch(16);
+    CountingLatch countingLatch(16); // this value must be equal to count of MENUS::MENU() calls + 2 (for the message box and text box)
 
     ///////// Main Menu /////////
     // countingLatch.count_up();
@@ -166,8 +166,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
     });
     this->renderer->addLoopTask([connectionsMenu]() {
         connectionsMenu->draw();
@@ -213,8 +212,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
     });
     this->renderer->addLoopTask([personalityMenu]() {
         personalityMenu->draw();
@@ -260,8 +258,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
     });
     this->renderer->addLoopTask([sensorsMenu]() {
         sensorsMenu->draw();
@@ -307,8 +304,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
     });
     this->renderer->addLoopTask([soundMenu]() {
         soundMenu->draw();
@@ -354,8 +350,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
     });
     this->renderer->addLoopTask([notificationsMenu]() {
         notificationsMenu->draw();
@@ -401,8 +396,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
     });
     this->renderer->addLoopTask([displayMenu]() {
         displayMenu->draw();
@@ -435,7 +429,7 @@ void GUI::eventLoop()
             nullptr);
         privacyMenu->setup();
         privacyMenu->addHorizontalRule();
-        
+
         privacyMenu->setVisible(false);
         privacyMenu->getParentMenu()->addMenuEntry(
             "Privacy",
@@ -449,8 +443,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
     });
     this->renderer->addLoopTask([privacyMenu]() {
         privacyMenu->draw();
@@ -483,7 +476,7 @@ void GUI::eventLoop()
             nullptr);
         accountsMenu->setup();
         accountsMenu->addHorizontalRule();
-        
+
         accountsMenu->setVisible(false);
         accountsMenu->getParentMenu()->addMenuEntry(
             "Accounts",
@@ -497,8 +490,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
     });
     this->renderer->addLoopTask([accountsMenu]() {
         accountsMenu->draw();
@@ -531,7 +523,7 @@ void GUI::eventLoop()
             nullptr);
         appsMenu->setup();
         appsMenu->addHorizontalRule();
-        
+
         appsMenu->setVisible(false);
         appsMenu->getParentMenu()->addMenuEntry(
             "Apps",
@@ -545,8 +537,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
     });
     this->renderer->addLoopTask([appsMenu]() {
         appsMenu->draw();
@@ -592,8 +583,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
     });
     this->renderer->addLoopTask([generalSettingsMenu]() {
         generalSettingsMenu->draw();
@@ -639,8 +629,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
     });
     this->renderer->addLoopTask([accessibilityMenu]() {
         accessibilityMenu->draw();
@@ -686,8 +675,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
     });
     this->renderer->addLoopTask([updatesMenu]() {
         updatesMenu->draw();
@@ -733,8 +721,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
     });
     this->renderer->addLoopTask([aboutMenu]() {
         aboutMenu->draw();
@@ -774,23 +761,18 @@ void GUI::eventLoop()
             MENUS::EntryType::MENUENTRY_TYPE_TEXT_INFO,
             [aboutSerialNumberMenu](void* data) {
                 CubeLog::info("Serial Number clicked");
-                // TODO: we'll need to close the menus and show the message box
-                // TODO: showMessageBox should call the version that takes size and position, and a callback that will re-enable the menus.
-                aboutSerialNumberMenu->setVisible(false);
-                aboutSerialNumberMenu->setIsClickable(true);
-                // aboutSerialNumberMenu->getParentMenu()->setVisible(false);
-                GUI::showTextBox("Serial Number", "Serial Number: 1234567890", {720,720}, {0,0}, [aboutSerialNumberMenu]() {
-                    aboutSerialNumberMenu->setVisible(true);
-                    aboutSerialNumberMenu->setIsClickable(false);
+                GUI::showTextBox("Serial Number", "Serial Number: 1234567890\nlsadfljasdlfjkdsflkjhsdkljhdsfkljh\nlkjhdfkljhsdlkfjhdfkjhdfkjhdfgkjhfdg\nklhdfkljhdfkjlhdfkjlhdfgkjh", { 720, 720 }, { 0, 0 }, [aboutSerialNumberMenu]() {
+                    aboutSerialNumberMenu->getParentMenu()->setVisible(true);
+                    aboutSerialNumberMenu->getParentMenu()->setIsClickable(false);
                 });
+                aboutSerialNumberMenu->getParentMenu()->setVisible(false);
+                aboutSerialNumberMenu->getParentMenu()->setIsClickable(true);
                 return 0;
             },
-            [](void* inPtr) { 
-                // TODO: the inPtr is a ptr to the output string. We need to get the serial number (somehow) and make the inPtr point to that.
-                return 0; 
+            [](void*) {
+                return 0;
             },
-            nullptr
-        );
+            nullptr);
     });
     this->renderer->addLoopTask([aboutSerialNumberMenu]() {
         aboutSerialNumberMenu->draw();
@@ -1048,11 +1030,12 @@ void GUI::showMessageBox(std::string title, std::string message)
         CubeLog::error("Message box is null. Cannot show message.");
         return;
     }
-    messageBox->setText(message);
+    messageBox->setText(message, title);
     messageBox->setVisible(true);
 }
 
-void GUI::showMessageBox(std::string title, std::string message, glm::vec2 size, glm::vec2 position){
+void GUI::showMessageBox(std::string title, std::string message, glm::vec2 size, glm::vec2 position)
+{
     // check that messageBox is not null pointer
     if (messageBox == nullptr) {
         CubeLog::error("Message box is null. Cannot show message.");
@@ -1063,7 +1046,8 @@ void GUI::showMessageBox(std::string title, std::string message, glm::vec2 size,
     showMessageBox(title, message);
 }
 
-void GUI::showMessageBox(std::string title, std::string message, glm::vec2 size, glm::vec2 position, std::function<void()> callback){
+void GUI::showMessageBox(std::string title, std::string message, glm::vec2 size, glm::vec2 position, std::function<void()> callback)
+{
     // check that messageBox is not null pointer
     if (messageBox == nullptr) {
         CubeLog::error("Message box is null. Cannot show message.");
@@ -1080,11 +1064,12 @@ void GUI::showTextBox(std::string title, std::string message)
         CubeLog::error("Full screen text box is null. Cannot show text.");
         return;
     }
-    fullScreenTextBox->setText(message);
+    fullScreenTextBox->setText(message, title);
     fullScreenTextBox->setVisible(true);
 }
 
-void GUI::showTextBox(std::string title, std::string message, glm::vec2 size, glm::vec2 position){
+void GUI::showTextBox(std::string title, std::string message, glm::vec2 size, glm::vec2 position)
+{
     // check that fullScreenTextBox is not null pointer
     if (fullScreenTextBox == nullptr) {
         CubeLog::error("Full screen text box is null. Cannot show text.");
@@ -1095,7 +1080,8 @@ void GUI::showTextBox(std::string title, std::string message, glm::vec2 size, gl
     showTextBox(title, message);
 }
 
-void GUI::showTextBox(std::string title, std::string message, glm::vec2 size, glm::vec2 position, std::function<void()> callback){
+void GUI::showTextBox(std::string title, std::string message, glm::vec2 size, glm::vec2 position, std::function<void()> callback)
+{
     // check that fullScreenTextBox is not null pointer
     if (fullScreenTextBox == nullptr) {
         CubeLog::error("Full screen text box is null. Cannot show text.");
@@ -1114,27 +1100,68 @@ HttpEndPointData_t GUI::getHttpEndpointData()
 {
     /*
     TODO: Add the following endpoints:
-    - addMenu
-    - showMessageBoxMessage
     - addCharacter
     - removeCharacter
     - animateCharacter
     */
     HttpEndPointData_t actions;
-    actions.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
-        [&](const httplib::Request& req, httplib::Response& res) {
-            // this->stop();
-            std::string p = "no param";
-            for (auto param : req.params) {
-                if (param.first == "text") {
-                    this->messageBox->setText(param.second);
-                    p = param.second;
-                    p.length() > 0 ? this->messageBox->setVisible(true) : this->messageBox->setVisible(false);
+    actions.push_back(
+        { PUBLIC_ENDPOINT | GET_ENDPOINT,
+            [&](const httplib::Request& req, httplib::Response& res) {
+                // this->stop();
+                std::string mes = "";
+                std::string title = "";
+                for (auto param : req.params) {
+                    if (param.first == "text") {
+                        mes = param.second;
+                    } else if (param.first == "title") {
+                        title = param.second;
+                    }
                 }
-            }
-            CubeLog::info("Endpoint stop called and message set to: " + p);
-            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Message set to: " + p);
-        } });
+                if (title == "" || mes == "") {
+                    messageBox->setVisible(false);
+                } else {
+                    showMessageBox(title, mes);
+                }
+                CubeLog::info("Endpoint stop called and message set to: " + mes + " with title: " + title);
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Message set to: " + mes);
+            } });
+    actions.push_back(
+        { PUBLIC_ENDPOINT | GET_ENDPOINT,
+            [&](const httplib::Request& req, httplib::Response& res) {
+                std::string mes = "";
+                std::string title = "";
+                if (req.has_param("text")) {
+                    mes = req.get_param_value("text");
+                }
+                if (req.has_param("title")) {
+                    title = req.get_param_value("title");
+                }
+                std::string size_x, size_y, position_x, position_y;
+                if (req.has_param("size-x")) {
+                    size_x = req.get_param_value("size-x");
+                } else
+                    size_x = "720";
+                if (req.has_param("size-y")) {
+                    size_y = req.get_param_value("size-y");
+                } else
+                    size_y = "720";
+                if (req.has_param("position-x")) {
+                    position_x = req.get_param_value("position-x");
+                } else
+                    position_x = "0";
+                if (req.has_param("position-y")) {
+                    position_y = req.get_param_value("position-y");
+                } else
+                    position_y = "0";
+                if (title == "" || mes == "") {
+                    fullScreenTextBox->setVisible(false);
+                } else {
+                    showTextBox(title, mes, { std::stoi(size_x), std::stoi(size_y) }, { std::stoi(position_x), std::stoi(position_y) });
+                }
+                CubeLog::info("Endpoint stop called and message set to: " + mes + " with title: " + title);
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Message set to: " + mes);
+            } });
     actions.push_back(
         { PRIVATE_ENDPOINT | POST_ENDPOINT,
             [&](const httplib::Request& req, httplib::Response& res) {
@@ -1183,9 +1210,8 @@ HttpEndPointData_t GUI::getHttpEndpointData()
 std::vector<std::pair<std::string, std::vector<std::string>>> GUI::getHttpEndpointNamesAndParams()
 {
     std::vector<std::pair<std::string, std::vector<std::string>>> names;
-    std::vector<std::string> stopParams;
-    stopParams.push_back("text");
-    names.push_back({ "stop", stopParams });
+    names.push_back({ "messageBox", { "text", "title" } });
+    names.push_back({ "textBox", { "text", "title", "size-x", "size-y", "position-x", "position-y" } });
     names.push_back({ "addMenu", {} });
     return names;
 }

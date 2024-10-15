@@ -27,6 +27,7 @@ M_Text::M_Text(Shader* sh, std::string text, float fontSize, glm::vec3 color, gl
         this->reloadFace = true;
     });
     CubeLog::debug("Created Text: " + text);
+    CubeLog::debugSilly("Position: " + std::to_string(position.x) + "x" + std::to_string(position.y));
 }
 
 void M_Text::reloadFont()

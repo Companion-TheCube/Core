@@ -26,11 +26,14 @@
 #define Z_DISTANCE 3.57
 #define BOX_RADIUS 0.05
 #define MESSAGEBOX_ITEM_TEXT_SIZE 32.f
+#define MESSAGEBOX_LINE_SPACING 0.3f
+#define MESSAGEBOX_TITLE_TEXT_MULT 1.3f
 
 class CubeMessageBox : public M_Box {
 private:
     bool visible;
     std::vector<MeshObject*> objects;
+    std::vector<MeshObject*> textObjects;
     Shader* shader;
     Shader* textShader;
     float messageTextSize = MESSAGEBOX_ITEM_TEXT_SIZE;
@@ -56,7 +59,7 @@ public:
     void setPosition(glm::vec2 position);
     void setSize(glm::vec2 size);
     std::vector<MeshObject*> getObjects();
-    void setText(std::string text);
+    void setText(std::string text, std::string title);
     void setCallback(std::function<void()> callback);
     void call_callback()
     {
@@ -96,8 +99,9 @@ public:
     void draw();
     void setPosition(glm::vec2 position);
     void setSize(glm::vec2 size);
+    void setTextSize(float size);
     std::vector<MeshObject*> getObjects();
-    void setText(std::string text);
+    void setText(std::string text, std::string title);
     void setCallback(std::function<void()> callback);
     void call_callback()
     {
