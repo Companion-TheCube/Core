@@ -1393,50 +1393,52 @@ HttpEndPointData_t GUI::getHttpEndpointData()
                         title = param.second;
                     }
                 }
-                if (title == "" || mes == "") {
+                if (title == "" || mes == "")
                     messageBox->setVisible(false);
-                } else {
+                else
                     showMessageBox(title, mes);
-                }
                 CubeLog::info("Endpoint stop called and message set to: " + mes + " with title: " + title);
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Message set to: " + mes);
-            } });
+            },
+            "messageBox",
+            { "text", "title" },
+            "Show a message box with a title and message" });
     actions.push_back(
         { PUBLIC_ENDPOINT | GET_ENDPOINT,
             [&](const httplib::Request& req, httplib::Response& res) {
                 std::string mes = "";
                 std::string title = "";
-                if (req.has_param("text")) {
+                if (req.has_param("text"))
                     mes = req.get_param_value("text");
-                }
-                if (req.has_param("title")) {
+                if (req.has_param("title"))
                     title = req.get_param_value("title");
-                }
                 std::string size_x, size_y, position_x, position_y;
-                if (req.has_param("size-x")) {
+                if (req.has_param("size-x"))
                     size_x = req.get_param_value("size-x");
-                } else
+                else
                     size_x = "720";
-                if (req.has_param("size-y")) {
+                if (req.has_param("size-y"))
                     size_y = req.get_param_value("size-y");
-                } else
+                else
                     size_y = "720";
-                if (req.has_param("position-x")) {
+                if (req.has_param("position-x"))
                     position_x = req.get_param_value("position-x");
-                } else
+                else
                     position_x = "0";
-                if (req.has_param("position-y")) {
+                if (req.has_param("position-y"))
                     position_y = req.get_param_value("position-y");
-                } else
+                else
                     position_y = "0";
-                if (title == "" || mes == "") {
+                if (title == "" || mes == "")
                     fullScreenTextBox->setVisible(false);
-                } else {
+                else
                     showTextBox(title, mes, { std::stoi(size_x), std::stoi(size_y) }, { std::stoi(position_x), std::stoi(position_y) });
-                }
                 CubeLog::info("Endpoint stop called and message set to: " + mes + " with title: " + title);
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Message set to: " + mes);
-            } });
+            },
+            "textBox",
+            { "text", "title", "size-x", "size-y", "position-x", "position-y" },
+            "Show a text box with a title and message of a specified size and position. Default values for size and position are 720x720 at 0,0." });
     actions.push_back(
         { PRIVATE_ENDPOINT | POST_ENDPOINT,
             [&](const httplib::Request& req, httplib::Response& res) {
@@ -1473,7 +1475,10 @@ HttpEndPointData_t GUI::getHttpEndpointData()
                 response["message"] = "Menu added";
                 res.set_content(response.dump(), "application/json");
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Menu added");
-            } });
+            },
+            "addMenu",
+            {},
+            "Add a menu to the GUI" });
     return actions;
 }
 
@@ -1482,14 +1487,14 @@ HttpEndPointData_t GUI::getHttpEndpointData()
  *
  * @return std::vector<std::pair<std::string, std::vector<std::string>>> a vector of pairs of strings and vectors of strings
  */
-std::vector<std::pair<std::string, std::vector<std::string>>> GUI::getHttpEndpointNamesAndParams()
-{
-    std::vector<std::pair<std::string, std::vector<std::string>>> names;
-    names.push_back({ "messageBox", { "text", "title" } });
-    names.push_back({ "textBox", { "text", "title", "size-x", "size-y", "position-x", "position-y" } });
-    names.push_back({ "addMenu", {} });
-    return names;
-}
+// std::vector<std::pair<std::string, std::vector<std::string>>> GUI::getHttpEndpointNamesAndParams()
+// {
+//     std::vector<std::pair<std::string, std::vector<std::string>>> names;
+//     names.push_back({ "messageBox", { "text", "title" } });
+//     names.push_back({ "textBox", { "text", "title", "size-x", "size-y", "position-x", "position-y" } });
+//     names.push_back({ "addMenu", {} });
+//     return names;
+// }
 
 /**
  * @brief Get the Inteface Name
@@ -1544,9 +1549,9 @@ bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry)
     std::string actionEP_AddrPort, actionEP_Path, actionEP_Method, actionEP_User, actionEP_Pass, actionEP_Token;
     std::string statusEP_AddrPort, statusEP_Path, statusEP_Method, statusEP_User, statusEP_Pass, statusEP_Token;
     bool hasActionData = false, hasStatusData = false;
-    // TODO: this is not parsing correctly. We need to fix this.
     try {
         if (!j["entryData"]["actionEndpoint"].is_null()) {
+            // for some reason we can't index more than two levels deep with [] operator. So we'll just make a new json object and index that.
             nlohmann::json j2 = j["entryData"]["actionEndpoint"];
             actionEP_AddrPort = j2["addr_port"];
             actionEP_Path = j2["path"];

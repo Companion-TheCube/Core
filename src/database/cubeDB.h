@@ -29,7 +29,7 @@ public:
     static std::shared_ptr<BlobsManager> getBlobsManager();
     // API Interface
     HttpEndPointData_t getHttpEndpointData() override;
-    std::vector<std::pair<std::string,std::vector<std::string>>> getHttpEndpointNamesAndParams() override;
+    // std::vector<std::pair<std::string,std::vector<std::string>>> getHttpEndpointNamesAndParams() override;
     std::string getIntefaceName() const override;
 };
 

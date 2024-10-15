@@ -436,7 +436,8 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
             j["auth_code"] = encryptedString;
             res.set_content(j.dump(), "application/json");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
-        } });
+        },
+        "authHeader", { "client_id", "initial_code" }, "Authorize the client. Returns an authentication header." });
     data.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
             // get the appID from the query string
@@ -485,7 +486,8 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
             // we need to display the initial code to the user
             GUI::showMessageBox("Authorization Code", "Your authorization code is:\n" + initialCode); // TODO: verify/test that this is thread safe
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
-        } });
+        },
+        "initCode", { "client_id" }, "Generate an initial code for the client." });
     return data;
 }
 
@@ -494,12 +496,12 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
  *
  * @return std::vector<std::pair<std::string, std::vector<std::string>>>
  */
-std::vector<std::pair<std::string, std::vector<std::string>>> CubeAuth::getHttpEndpointNamesAndParams()
-{
-    std::vector<std::pair<std::string, std::vector<std::string>>> namesAndParams;
-    namesAndParams.push_back({ "authHeader", { "client_id", "initial_code" } });
-    namesAndParams.push_back({ "initCode", { "client_id" } });
-    return namesAndParams;
-}
+// std::vector<std::pair<std::string, std::vector<std::string>>> CubeAuth::getHttpEndpointNamesAndParams()
+// {
+//     std::vector<std::pair<std::string, std::vector<std::string>>> namesAndParams;
+//     namesAndParams.push_back({ "authHeader", { "client_id", "initial_code" } });
+//     namesAndParams.push_back({ "initCode", { "client_id" } });
+//     return namesAndParams;
+// }
 
 //////////////////////////////////////////////////////////////////////////////////////////////

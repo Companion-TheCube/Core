@@ -77,7 +77,7 @@ public:
     static void showTextBox(std::string title, std::string message, glm::vec2 size, glm::vec2 position, std::function<void()> callback);
     // API Interface
     HttpEndPointData_t getHttpEndpointData();
-    std::vector<std::pair<std::string, std::vector<std::string>>> getHttpEndpointNamesAndParams();
+    // std::vector<std::pair<std::string, std::vector<std::string>>> getHttpEndpointNamesAndParams();
     std::string getIntefaceName() const;
 
 private:

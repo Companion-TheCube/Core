@@ -783,7 +783,10 @@ HttpEndPointData_t CubeLog::getHttpEndpointData()
                 res.set_content(j.dump(), "application/json");
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, "Content-Type header must be set to \"application/json\".");
             }
-        } });
+        },
+        "log",
+        { "message", "level", "source", "line", "function" },
+        "Log a message" });
     data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
             CUBELOG_TRACE("Getting logs for endpoint");
@@ -799,7 +802,10 @@ HttpEndPointData_t CubeLog::getHttpEndpointData()
             }
             res.set_content(j.dump(), "application/json");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Got logs");
-        } });
+        },
+        "getLogs",
+        {},
+        "Get logs" });
     return data;
 }
 
@@ -808,13 +814,13 @@ HttpEndPointData_t CubeLog::getHttpEndpointData()
  *
  * @return std::vector<std::string> The endpoint names
  */
-std::vector<std::pair<std::string, std::vector<std::string>>> CubeLog::getHttpEndpointNamesAndParams()
-{
-    std::vector<std::pair<std::string, std::vector<std::string>>> names;
-    names.push_back({ "log", { "message", "level", "source", "line", "function" } });
-    names.push_back({ "getLogs", {} });
-    return names;
-}
+// std::vector<std::pair<std::string, std::vector<std::string>>> CubeLog::getHttpEndpointNamesAndParams()
+// {
+//     std::vector<std::pair<std::string, std::vector<std::string>>> names;
+//     names.push_back({ "log", { "message", "level", "source", "line", "function" } });
+//     names.push_back({ "getLogs", {} });
+//     return names;
+// }
 
 /**
  * @brief Get the size of the CubeLog in memory

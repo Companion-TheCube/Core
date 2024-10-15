@@ -189,7 +189,10 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
             res.set_content(j.dump(), "application/json");
             delete[] blob;
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Blob saved");
-        } });
+        },
+        "CubeDB-saveBlob",
+        { "client_id", "app_id", "stringBlob", "blob" },
+        "Save a blob to the database. client_id or app_id is required. stringBlob is a string blob, blob is a base64 encoded binary blob." });
 
     // TODO: fix this endpoint. It has testing data in it.
     // Endpoint name: CubeDB-insertData
@@ -230,7 +233,10 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
             // We return the response string
             res.set_content(retStr, "text/plain");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Data inserted");
-        } });
+        },
+        "CubeDB-insertData",
+        { "none" },
+        "Insert data into the database. This is a test endpoint." }); // TODO: fix this endpoint. It has testing data in it.
 
     // retrieveBlobBinary - private, get - get a binary blob from the database, returns base64 encoded data
     data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
@@ -304,7 +310,10 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
             // We return the response string
             res.set_content(base64Blob, "text/plain");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Blob retrieved");
-        } });
+        },
+        "retrieveBlobBinary",
+        { "clientOrApp_id", "blob_id" },
+        "Retrieve a binary blob from the database. clientOrApp_id is the client_id or app_id of the owner of the blob. blob_id is the id of the blob. Returns base64 encoded data." });
     // retrieveBlobString - private, get - get a string blob from the database, returns string
     data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
@@ -373,7 +382,10 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
             // We return the response string
             res.set_content(retStr, "text/plain");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Blob retrieved");
-        } });
+        },
+        "retrieveBlobString",
+        { "clientOrApp_id", "blob_id" },
+        "Retrieve a string blob from the database. clientOrApp_id is the client_id or app_id of the owner of the blob. blob_id is the id of the blob. Returns string." });
     // TODO: endpoints to write:
     // retrieveData - private, get - get data from the database, returns json
     // clientIDExists - private, get - check if a client_id exists in the database, returns bool
@@ -393,29 +405,29 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
  * @return std::vector<std::pair<std::string, std::vector<std::string>>>
  * @details This function returns a vector of pairs. Each pair contains a string and a vector of strings. The string is the name of the endpoint and the vector of strings are the parameters that the endpoint accepts.
  */
-std::vector<std::pair<std::string, std::vector<std::string>>> CubeDB::getHttpEndpointNamesAndParams()
-{
-    std::vector<std::string> names;
-    std::vector<std::string> params;
-    std::pair<std::string, std::vector<std::string>> saveBlob;
-    saveBlob.first = "saveBlob";
-    saveBlob.second = {};
-    std::pair<std::string, std::vector<std::string>> insertData;
-    insertData.first = "insertData";
-    insertData.second = {};
-    std::pair<std::string, std::vector<std::string>> retrieveBlobBinary;
-    retrieveBlobBinary.first = "retrieveBlobBinary";
-    retrieveBlobBinary.second = { "clientOrApp_id", "blob_id" };
-    std::pair<std::string, std::vector<std::string>> retrieveBlobString;
-    retrieveBlobString.first = "retrieveBlobString";
-    retrieveBlobString.second = { "clientOrApp_id", "blob_id" };
-    std::vector<std::pair<std::string, std::vector<std::string>>> namesAndParams;
-    namesAndParams.push_back(saveBlob);
-    namesAndParams.push_back(insertData);
-    namesAndParams.push_back(retrieveBlobBinary);
-    namesAndParams.push_back(retrieveBlobString);
-    return namesAndParams;
-}
+// std::vector<std::pair<std::string, std::vector<std::string>>> CubeDB::getHttpEndpointNamesAndParams()
+// {
+//     std::vector<std::string> names;
+//     std::vector<std::string> params;
+//     std::pair<std::string, std::vector<std::string>> saveBlob;
+//     saveBlob.first = "saveBlob";
+//     saveBlob.second = {};
+//     std::pair<std::string, std::vector<std::string>> insertData;
+//     insertData.first = "insertData";
+//     insertData.second = {};
+//     std::pair<std::string, std::vector<std::string>> retrieveBlobBinary;
+//     retrieveBlobBinary.first = "retrieveBlobBinary";
+//     retrieveBlobBinary.second = { "clientOrApp_id", "blob_id" };
+//     std::pair<std::string, std::vector<std::string>> retrieveBlobString;
+//     retrieveBlobString.first = "retrieveBlobString";
+//     retrieveBlobString.second = { "clientOrApp_id", "blob_id" };
+//     std::vector<std::pair<std::string, std::vector<std::string>>> namesAndParams;
+//     namesAndParams.push_back(saveBlob);
+//     namesAndParams.push_back(insertData);
+//     namesAndParams.push_back(retrieveBlobBinary);
+//     namesAndParams.push_back(retrieveBlobString);
+//     return namesAndParams;
+// }
 
 /**
  * @brief Get the Inteface Name for the database endpoints

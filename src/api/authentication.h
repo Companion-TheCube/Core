@@ -45,7 +45,7 @@ public:
     // API Interface
     std::string getIntefaceName() const;
     HttpEndPointData_t getHttpEndpointData();
-    std::vector<std::pair<std::string, std::vector<std::string>>> getHttpEndpointNamesAndParams();
+    // std::vector<std::pair<std::string, std::vector<std::string>>> getHttpEndpointNamesAndParams();
 
     enum AUTH_CODES {
         AUTH_FAIL_UNKNOWN = -1,

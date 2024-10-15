@@ -33,5 +33,4 @@ public:
     }
 };
 
-
 #endif// BUILDER_H

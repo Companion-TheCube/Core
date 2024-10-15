@@ -24,7 +24,7 @@
 #define CUBELOG_TRACE(x)
 #endif
 
-namespace Logger{
+namespace Logger {
 enum LogVerbosity {
     MINIMUM,
     TIMESTAMP,
@@ -77,9 +77,15 @@ struct CustomSourceLocation {
     const char* function_name;
 
     CustomSourceLocation(const char* file, std::uint_least32_t line_num, std::uint_least32_t col_num, const char* func)
-        : file_name(file), line(line_num), column(col_num), function_name(func) {}
+        : file_name(file)
+        , line(line_num)
+        , column(col_num)
+        , function_name(func)
+    {
+    }
 
-    static CustomSourceLocation current(const std::source_location& loc = std::source_location::current()) {
+    static CustomSourceLocation current(const std::source_location& loc = std::source_location::current())
+    {
         return CustomSourceLocation(loc.file_name(), loc.line(), loc.column(), loc.function_name());
     }
 };
@@ -158,7 +164,7 @@ public:
     // API Interface
     std::string getIntefaceName() const;
     HttpEndPointData_t getHttpEndpointData();
-    std::vector<std::pair<std::string, std::vector<std::string>>> getHttpEndpointNamesAndParams();
+    // std::vector<std::pair<std::string, std::vector<std::string>>> getHttpEndpointNamesAndParams();
 };
 
 std::string convertTimestampToString(std::chrono::time_point<std::chrono::system_clock> timestamp);

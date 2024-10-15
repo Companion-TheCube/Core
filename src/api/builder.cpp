@@ -31,16 +31,11 @@ void API_Builder::start()
         std::string name = i_face.first;
         I_API_Interface* i_face_obj = i_face.second;
         CubeLog::info("Building interface object: " + name);
-        auto endpointNames = i_face_obj->getHttpEndpointNamesAndParams();
         auto endpointData = i_face_obj->getHttpEndpointData();
-        if (endpointNames.size() != endpointData.size()) {
-            CubeLog::error("Error: Size of endpoint names and data do not match for interface: " + name + ". Skipping.");
-            continue;
-        }
-        for (int i = 0; i < endpointNames.size(); i++) {
-            CubeLog::info("Adding endpoint: " + endpointNames.at(i).first + " at " + name + "/" + endpointNames.at(i).first);
-            std::string endpointPath = name + "-" + endpointNames.at(i).first;
-            this->api->addEndpoint(endpointPath, "/" + endpointPath, endpointData.at(i).first, endpointData.at(i).second);
+        for (int i = 0; i < endpointData.size(); i++) {
+            CubeLog::info("Adding endpoint: " + std::get<2>(endpointData.at(i)) + " at " + name + "/" + std::get<2>(endpointData.at(i)));
+            std::string endpointPath = name + "-" + std::get<2>(endpointData.at(i));
+            this->api->addEndpoint(endpointPath, "/" + endpointPath, std::get<0>(endpointData.at(i)), std::get<1>(endpointData.at(i)));
         }
     }
     // create an endpoint that will return the list of all endpoints as json, including the parameters and whether or not they are public
@@ -50,13 +45,14 @@ void API_Builder::start()
         for (auto i_face : this->interface_objs) {
             std::string name = i_face.first;
             I_API_Interface* i_face_obj = i_face.second;
-            auto endpointNames = i_face_obj->getHttpEndpointNamesAndParams();
-            for (size_t i = 0; i < endpointNames.size(); i++) {
+            auto endpointData = i_face_obj->getHttpEndpointData();
+            for (size_t i = 0; i < endpointData.size(); i++) {
                 nlohmann::json endpoint_json;
-                endpoint_json["name"] = endpointNames.at(i).first;
-                endpoint_json["params"] = endpointNames.at(i).second;
-                endpoint_json["public"] = (i_face_obj->getHttpEndpointData().at(i).first & PUBLIC_ENDPOINT) == PUBLIC_ENDPOINT ? "true" : "false";
-                endpoint_json["endpoint_type"] = (i_face_obj->getHttpEndpointData().at(i).first & GET_ENDPOINT) == GET_ENDPOINT ? "GET" : "POST";
+                endpoint_json["name"] = std::get<2>(endpointData.at(i));
+                endpoint_json["params"] = std::get<3>(endpointData.at(i));
+                endpoint_json["description"] = std::get<4>(endpointData.at(i));
+                endpoint_json["public"] = (std::get<0>(endpointData.at(i)) & PUBLIC_ENDPOINT) == PUBLIC_ENDPOINT ? "true" : "false";
+                endpoint_json["endpoint_type"] = (std::get<0>(endpointData.at(i)) & GET_ENDPOINT) == GET_ENDPOINT ? "GET" : "POST";
                 j[name].push_back(endpoint_json);
             }
         }
@@ -74,7 +70,6 @@ void API_Builder::start()
         res.set_content(j.dump(), "application/json");
         return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, j.dump());
     });
-
     // recursively search http folder for static files and add them to the server
     std::vector<std::filesystem::path> staticFiles;
     for (auto& p : std::filesystem::recursive_directory_iterator("http")) {
