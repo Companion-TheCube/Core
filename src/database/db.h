@@ -39,6 +39,7 @@ namespace TableNames {
     const std::string APPS = "apps";
     const std::string CLIENT_BLOBS = "client_blobs";
     const std::string APP_BLOBS = "app_blobs";
+    const std::string ACCOUNTS = "accounts";
 }
 // clang-format off
 const std::vector<DB_NS::Database_T> dbDefs = {
@@ -84,6 +85,17 @@ const std::vector<DB_NS::Database_T> dbDefs = {
                 { "id", "app_id", "app_name", "enabled", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason" }, 
                 { "INTEGER PRIMARY KEY", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT" }, 
                 { true, true, false, false, false, false, false, false, false, false, false, false, false } 
+            } 
+        } 
+    },
+    { 
+        "data/accounts.db", "accounts", 
+        { 
+            { 
+                DB_NS::TableNames::ACCOUNTS, 
+                { "id", "username", "password", "service" }, 
+                { "INTEGER PRIMARY KEY", "TEXT", "TEXT", "TEXT" }, 
+                { true, false, false, false } 
             } 
         } 
     }
@@ -166,6 +178,7 @@ public:
     bool isBlobsManagerReady();
 };
 
+// TODO: make sure all the data is sanitized before being inserted into the database.
 bool sanitizeString(std::string& str);
 
 #endif// DB_H

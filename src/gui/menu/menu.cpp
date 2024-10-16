@@ -603,8 +603,6 @@ MenuEntry::MenuEntry(Shader* t_shader, Shader* m_shader, std::string text, glm::
     this->setVisibleWidth(visibleWidth);
     switch (this->type) {
     case EntryType::MENUENTRY_TYPE_ACTION: {
-        // This is the default type
-        // TODO: add some sort of feedback to the user when this type is clicked / tapped.
         break;
     }
     case EntryType::MENUENTRY_TYPE_SUBMENU: {
@@ -624,6 +622,7 @@ MenuEntry::MenuEntry(Shader* t_shader, Shader* m_shader, std::string text, glm::
         this->allObjects.push_back(tempRB);
         break;
     }
+    // TODO: add the rest of the MENU_ENTRY_TYPEs
     }
     // this->textStencil = new MenuStencil({ position.x, position.y - 2 }, { this->visibleWidth, size + 4 });
     CubeLog::info("MenuEntry created with text: " + text + " with click area: " + std::to_string(this->clickArea.xMin) + "x" + std::to_string(this->clickArea.yMin) + " to " + std::to_string(this->clickArea.xMax) + "x" + std::to_string(this->clickArea.yMax));
