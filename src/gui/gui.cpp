@@ -301,7 +301,7 @@ void GUI::eventLoop()
     menus.push_back(accountsMenu);
 
     ///////// Accounts Menu - Account List /////////
-    // TODO: list all the accounts that have been added to the system
+    // TODO: list all the accounts that have been added to the system. These are stored in the database.
 
     ///////// Accounts Menu - Account List - Account Settings /////////
     // TODO:
@@ -329,9 +329,6 @@ void GUI::eventLoop()
         appsMenu->draw();
     });
     menus.push_back(appsMenu);
-
-    ///////// Apps Menu - App List /////////
-    // TODO:
 
     ///////// Apps Menu - Installed Apps /////////
     // TODO:
@@ -369,7 +366,62 @@ void GUI::eventLoop()
     menus.push_back(generalSettingsMenu);
 
     ///////// General Settings Menu - Date and Time /////////
-    // TODO:
+    auto generalSettingsDateTimeMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
+    generalSettingsDateTimeMenu->setMenuName("Date and Time");
+    generalSettingsDateTimeMenu->setUniqueMenuIdentifier("Date and Time");
+    generalSettingsDateTimeMenu->setVisible(false);
+    generalSettingsDateTimeMenu->setParentMenu(generalSettingsMenu);
+    drag_y_actions.push_back({ [generalSettingsDateTimeMenu]() { return generalSettingsDateTimeMenu->getVisible(); }, [generalSettingsDateTimeMenu](int y) { generalSettingsDateTimeMenu->scrollVert(y); } });
+    this->renderer->addSetupTask([generalSettingsDateTimeMenu, addBackButton, addToParent]() {
+        addBackButton(generalSettingsDateTimeMenu);
+        generalSettingsDateTimeMenu->setup();
+        generalSettingsDateTimeMenu->setVisible(false);
+        addToParent(generalSettingsDateTimeMenu);
+    });
+    this->renderer->addLoopTask([generalSettingsDateTimeMenu]() {
+        generalSettingsDateTimeMenu->draw();
+    });
+    menus.push_back(generalSettingsDateTimeMenu);
+
+    ///////// General Settings Menu - Date and Time - Set Date and Time /////////
+    auto generalSettingsDateTimeSetDateTimeMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
+    generalSettingsDateTimeSetDateTimeMenu->setMenuName("Set Date and Time");
+    generalSettingsDateTimeSetDateTimeMenu->setUniqueMenuIdentifier("Set Date and Time");
+    generalSettingsDateTimeSetDateTimeMenu->setVisible(false);
+    generalSettingsDateTimeSetDateTimeMenu->setParentMenu(generalSettingsDateTimeMenu);
+    drag_y_actions.push_back({ [generalSettingsDateTimeSetDateTimeMenu]() { return generalSettingsDateTimeSetDateTimeMenu->getVisible(); }, [generalSettingsDateTimeSetDateTimeMenu](int y) { generalSettingsDateTimeSetDateTimeMenu->scrollVert(y); } });
+    this->renderer->addSetupTask([generalSettingsDateTimeSetDateTimeMenu, addBackButton, addToParent]() {
+        generalSettingsDateTimeSetDateTimeMenu->setup();
+        generalSettingsDateTimeSetDateTimeMenu->setVisible(false);
+        std::vector<std::string>* fields = new std::vector<std::string>({ "Year", "Month", "Day", "Hour", "Minute" });
+        generalSettingsDateTimeSetDateTimeMenu->getParentMenu()->addMenuEntry(
+            "Set Date and Time",
+            "Date_Time_Set_Date_Time",
+            MENUS::EntryType::MENUENTRY_TYPE_TEXT_INPUT,
+            [generalSettingsDateTimeSetDateTimeMenu](void* data) {
+                CubeLog::info("Set Date and Time clicked");
+                std::vector<std::string> fields = { "Year", "Month", "Day", "Hour", "Minute" };
+                // GUI::showTextInput("Set Date and Time", field, { 720, 720 }, { 0, 0 }, [generalSettingsDateTimeSetDateTimeMenu](std::vector<std::string> textVector) {
+                //     CubeLog::info("Set Date and Time: " + text);
+                //     // do something with the text in the textVector
+                //     generalSettingsDateTimeSetDateTimeMenu->getParentMenu()->setVisible(true);
+                //     generalSettingsDateTimeSetDateTimeMenu->getParentMenu()->setIsClickable(false);
+                // });
+                // generalSettingsDateTimeSetDateTimeMenu->getParentMenu()->setVisible(false);
+                // generalSettingsDateTimeSetDateTimeMenu->getParentMenu()->setIsClickable(true); 
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr);
+    });
+    this->renderer->addLoopTask([generalSettingsDateTimeSetDateTimeMenu]() {
+        generalSettingsDateTimeSetDateTimeMenu->draw();
+    });
+    menus.push_back(generalSettingsDateTimeSetDateTimeMenu);
+    ///////// General Settings Menu - Date and Time - Set Time Zone /////////
+    ///////// General Settings Menu - Date and Time - Set Time Format /////////
+    ///////// General Settings Menu - Date and Time - Set Date Format /////////
+    ///////// General Settings Menu - Date and Time - Enable Automatic Date and Time /////////
 
     ///////// General Settings Menu - Language /////////
     // TODO:
@@ -431,6 +483,25 @@ void GUI::eventLoop()
     drag_y_actions.push_back({ [aboutMenu]() { return aboutMenu->getVisible(); }, [aboutMenu](int y) { aboutMenu->scrollVert(y); } });
     this->renderer->addSetupTask([aboutMenu, addBackButton, addToParent]() {
         addBackButton(aboutMenu);
+        aboutMenu->addMenuEntry(
+            "Serial Number",
+            "About_Serial_Number",
+            MENUS::EntryType::MENUENTRY_TYPE_TEXT_INFO,
+            [aboutMenu](void* data) {
+                CubeLog::info("Serial Number clicked");
+                // TODO: get the serial number from the hardware class
+                GUI::showTextBox("Serial Number", "Serial Number: 1234567890h", { 720, 720 }, { 0, 0 }, [aboutMenu]() {
+                    aboutMenu->setVisible(true);
+                    aboutMenu->setIsClickable(false);
+                });
+                aboutMenu->setVisible(false);
+                aboutMenu->setIsClickable(true);
+                return 0;
+            },
+            [](void*) {
+                return 0;
+            },
+            nullptr);
         aboutMenu->setup();
         aboutMenu->setVisible(false);
         addToParent(aboutMenu);
@@ -441,39 +512,39 @@ void GUI::eventLoop()
     menus.push_back(aboutMenu);
 
     ///////// About Menu - Serial Number /////////
-    auto aboutSerialNumberMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
-    aboutSerialNumberMenu->setMenuName("Serial Number");
-    aboutSerialNumberMenu->setUniqueMenuIdentifier("Serial Number");
-    aboutSerialNumberMenu->setVisible(false);
-    aboutSerialNumberMenu->setParentMenu(aboutMenu);
-    drag_y_actions.push_back({ [aboutSerialNumberMenu]() { return aboutSerialNumberMenu->getVisible(); }, [aboutSerialNumberMenu](int y) { aboutSerialNumberMenu->scrollVert(y); } });
-    this->renderer->addSetupTask([&]() {
-        aboutSerialNumberMenu->setup();
-        aboutSerialNumberMenu->setVisible(false);
-        aboutSerialNumberMenu->getParentMenu()->addMenuEntry(
-            "Serial Number",
-            "About_Serial_Number",
-            MENUS::EntryType::MENUENTRY_TYPE_TEXT_INFO,
-            [aboutSerialNumberMenu](void* data) {
-                CubeLog::info("Serial Number clicked");
-                // TODO: get the serial number from the hardware class
-                GUI::showTextBox("Serial Number", "Serial Number: 1234567890h", { 720, 720 }, { 0, 0 }, [aboutSerialNumberMenu]() {
-                    aboutSerialNumberMenu->getParentMenu()->setVisible(true);
-                    aboutSerialNumberMenu->getParentMenu()->setIsClickable(false);
-                });
-                aboutSerialNumberMenu->getParentMenu()->setVisible(false);
-                aboutSerialNumberMenu->getParentMenu()->setIsClickable(true);
-                return 0;
-            },
-            [](void*) {
-                return 0;
-            },
-            nullptr);
-    });
-    this->renderer->addLoopTask([aboutSerialNumberMenu]() {
-        aboutSerialNumberMenu->draw();
-    });
-    menus.push_back(aboutSerialNumberMenu);
+    // auto aboutSerialNumberMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
+    // aboutSerialNumberMenu->setMenuName("Serial Number");
+    // aboutSerialNumberMenu->setUniqueMenuIdentifier("Serial Number");
+    // aboutSerialNumberMenu->setVisible(false);
+    // aboutSerialNumberMenu->setParentMenu(aboutMenu);
+    // drag_y_actions.push_back({ [aboutSerialNumberMenu]() { return aboutSerialNumberMenu->getVisible(); }, [aboutSerialNumberMenu](int y) { aboutSerialNumberMenu->scrollVert(y); } });
+    // this->renderer->addSetupTask([&]() {
+    //     aboutSerialNumberMenu->setup();
+    //     aboutSerialNumberMenu->setVisible(false);
+    // aboutSerialNumberMenu->getParentMenu()->addMenuEntry(
+    //     "Serial Number",
+    //     "About_Serial_Number",
+    //     MENUS::EntryType::MENUENTRY_TYPE_TEXT_INFO,
+    //     [aboutSerialNumberMenu](void* data) {
+    //         CubeLog::info("Serial Number clicked");
+    //         // TODO: get the serial number from the hardware class
+    //         GUI::showTextBox("Serial Number", "Serial Number: 1234567890h", { 720, 720 }, { 0, 0 }, [aboutSerialNumberMenu]() {
+    //             aboutSerialNumberMenu->getParentMenu()->setVisible(true);
+    //             aboutSerialNumberMenu->getParentMenu()->setIsClickable(false);
+    //         });
+    //         aboutSerialNumberMenu->getParentMenu()->setVisible(false);
+    //         aboutSerialNumberMenu->getParentMenu()->setIsClickable(true);
+    //         return 0;
+    //     },
+    //     [](void*) {
+    //         return 0;
+    //     },
+    //     nullptr);
+    // });
+    // this->renderer->addLoopTask([aboutSerialNumberMenu]() {
+    //     aboutSerialNumberMenu->draw();
+    // });
+    // menus.push_back(aboutSerialNumberMenu);
 
     ///////// About Menu - Hardware Version /////////
     auto aboutHardwareVersionMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);

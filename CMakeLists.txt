@@ -7,17 +7,13 @@ cmake_minimum_required(VERSION 3.25)
 # Project name and the language used
 project(CubeCore VERSION 1.0.0 LANGUAGES CXX)
 
-# Read build number from file
-file(READ "${CMAKE_SOURCE_DIR}/build_number.txt" BUILD_NUMBER)
-math(EXPR BUILD_NUMBER "${BUILD_NUMBER} + 1")
+# # Read build number from file
+# file(READ "${CMAKE_SOURCE_DIR}/build_number.txt" BUILD_NUMBER)
 
-# Update build_number.txt
-file(WRITE "${CMAKE_SOURCE_DIR}/build_number.txt" "${BUILD_NUMBER}")
+# # Define build number in your code
+# add_definitions(-DBUILD_NUMBER=${BUILD_NUMBER})
 
-# Define build number in your code
-add_definitions(-DBUILD_NUMBER=${BUILD_NUMBER})
-
-message(STATUS "Build Number: ${BUILD_NUMBER}")
+# message(STATUS "Build Number: ${BUILD_NUMBER}")
 
 add_definitions(-DMAJOR_VERSION=${PROJECT_VERSION_MAJOR})
 add_definitions(-DMINOR_VERSION=${PROJECT_VERSION_MINOR})
@@ -289,6 +285,33 @@ add_custom_command(
     ${HTTP_DEST_DIR}
     COMMAND ${CMAKE_COMMAND} -E echo "Copying http to output directory"
 )
+
+# Define path to the build number file
+set(BUILD_NUMBER_FILE "${CMAKE_SOURCE_DIR}/build_number.txt")
+
+# Custom command to increment the build number and write it to the file
+add_custom_command(
+    TARGET CubeCore POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -P "${CMAKE_SOURCE_DIR}/incr_build_num.cmake"
+    COMMENT "Incrementing build number..."
+)
+
+# Custom target that will always run
+add_custom_target(incr_build_num ALL
+    DEPENDS "${BUILD_NUMBER_FILE}"
+    COMMENT "Build number increment target"
+)
+
+# Ensure that the build number target runs before your actual target
+add_dependencies(CubeCore incr_build_num)
+
+# Optionally, you can define this build number as a preprocessor definition
+file(READ "${BUILD_NUMBER_FILE}" BUILD_NUMBER)
+add_definitions(-DBUILD_NUMBER=${BUILD_NUMBER})
+
+# Print the build number in the output
+message(STATUS "Build number: ${BUILD_NUMBER}")
+
 
 install(TARGETS CubeCore)
 
