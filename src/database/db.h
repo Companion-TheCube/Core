@@ -40,6 +40,7 @@ namespace TableNames {
     const std::string CLIENT_BLOBS = "client_blobs";
     const std::string APP_BLOBS = "app_blobs";
     const std::string ACCOUNTS = "accounts";
+    const std::string NOTIFICATIONS = "notifications";
 }
 // clang-format off
 const std::vector<DB_NS::Database_T> dbDefs = {
@@ -96,6 +97,17 @@ const std::vector<DB_NS::Database_T> dbDefs = {
                 { "id", "username", "password", "service" }, 
                 { "INTEGER PRIMARY KEY", "TEXT", "TEXT", "TEXT" }, 
                 { true, false, false, false } 
+            } 
+        } 
+    },
+    { 
+        "data/notifications.db", "notifications", 
+        { 
+            { 
+                DB_NS::TableNames::NOTIFICATIONS, 
+                { "id", "title", "message", "time", "source", "read" }, 
+                { "INTEGER PRIMARY KEY", "TEXT", "TEXT", "TEXT", "TEXT", "INTEGER" }, 
+                { true, false, false, false, false, false } 
             } 
         } 
     }

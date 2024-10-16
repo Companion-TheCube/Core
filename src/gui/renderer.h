@@ -53,6 +53,7 @@ class Renderer{
         std::atomic<bool> ready = false;
         std::latch* latch;
     public:
+        Renderer(){}; // Default constructor
         Renderer(std::latch& latch);
         ~Renderer();
         void stop();

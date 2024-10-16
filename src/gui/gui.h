@@ -25,6 +25,9 @@
 #include <nlohmann/json.hpp>
 #include <mutex>
 #include <tuple>
+#ifndef NOTIFICATIONS_H
+#include "notifications.h"
+#endif
 #ifndef MESSAGEBOX_H
 #include "messageBox/messageBox.h"
 #endif
@@ -75,19 +78,22 @@ public:
     static void showTextBox(std::string title, std::string message);
     static void showTextBox(std::string title, std::string message, glm::vec2 size, glm::vec2 position);
     static void showTextBox(std::string title, std::string message, glm::vec2 size, glm::vec2 position, std::function<void()> callback);
+    static void showNotification(std::string title, std::string message, Notifications::NotificationType type);
+    static void showNotificationWithCallback(std::string title, std::string message, Notifications::NotificationType type, std::function<void()> callback);
+    static void showNotificationWithCallback(std::string title, std::string message, Notifications::NotificationType type, std::function<void()> callbackYes, std::function<void()> callbackNo);
     // API Interface
     HttpEndPointData_t getHttpEndpointData();
-    // std::vector<std::pair<std::string, std::vector<std::string>>> getHttpEndpointNamesAndParams();
     std::string getIntefaceName() const;
 
 private:
     // GUI_Error addMenu(std::string menuName, std::string thisUniqueID, std::string parentName, std::vector<std::string> entryTexts, std::vector<std::string> endpoints, std::vector<std::string> uniqueIDs, CountingLatch &latch);
-    GUI_Error addMenu(std::string menuName, std::string thisUniqueID, std::string parentID, std::vector<std::tuple<std::string,nlohmann::json,std::string>> data);
+    GUI_Error addMenu(std::string menuName, std::string thisUniqueID, std::string parentID, AddMenu_Data_t data);
     Renderer* renderer;
     std::jthread eventLoopThread;
     EventManager* eventManager;
     static CubeMessageBox* messageBox;
     static CubeTextBox* fullScreenTextBox;
+    // static NotificationBox* notificationBox;
     std::vector<MENUS::Menu*> menus;
     std::vector<std::pair<std::function<bool()>,std::function<void(int)>>> drag_y_actions; // bool is visibility. if the item is not visible, do not call the action.
     std::mutex addMenuMutex;

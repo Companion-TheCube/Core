@@ -1,5 +1,6 @@
 // TODO: Need to add a sort of status bar to the top of the screen. It should show the time and whether or not a person is detected. probably more.
 // TODO: we should monitor the CubeLog for errors and display them in the status bar. This will require a way to get the last error message from the CubeLog. <- this is done in CubeLog
+// TODO: setup notifications that pop up with a CubeMessageBox. this will need to have notifications.cpp fleshed out.
 
 #include "./gui.h"
 
@@ -242,6 +243,9 @@ void GUI::eventLoop()
     });
     menus.push_back(notificationsMenu);
 
+    ///////// Notifications Menu - Allow Notifications from Network Sources (Other cubes) /////////
+    ///////// Notifications Menu - Recent Notifications /////////
+
     ///////// Display Menu /////////
     auto displayMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
     displayMenu->setMenuName("Display");
@@ -259,6 +263,10 @@ void GUI::eventLoop()
         displayMenu->draw();
     });
     menus.push_back(displayMenu);
+
+    ///////// Display Menu - Brightness /////////
+    ///////// Display Menu - Auto Off /////////
+    ///////// Display Menu - Font /////////
 
     ///////// Privacy Menu /////////
     auto privacyMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
@@ -374,6 +382,30 @@ void GUI::eventLoop()
     drag_y_actions.push_back({ [generalSettingsDateTimeMenu]() { return generalSettingsDateTimeMenu->getVisible(); }, [generalSettingsDateTimeMenu](int y) { generalSettingsDateTimeMenu->scrollVert(y); } });
     this->renderer->addSetupTask([generalSettingsDateTimeMenu, addBackButton, addToParent]() {
         addBackButton(generalSettingsDateTimeMenu);
+        ///////// General Settings Menu - Date and Time - Set Date and Time /////////
+        // generalSettingsDateTimeMenu->addMenuEntry(
+        //     "Set Date and Time",
+        //     "Date_Time_Set_Date_Time",
+        //     MENUS::EntryType::MENUENTRY_TYPE_TEXT_INPUT,
+        //     [generalSettingsDateTimeMenu](void* data) {
+        //         CubeLog::info("Set Date and Time clicked");
+        //         std::vector<std::string> fields = { "Year", "Month", "Day", "Hour", "Minute" };
+                // GUI::showTextInput("Set Date and Time", field, { 720, 720 }, { 0, 0 }, [generalSettingsDateTimeMenu](std::vector<std::string> textVector) {
+                //     CubeLog::info("Set Date and Time: " + text);
+                //     // do something with the text in the textVector
+                //     generalSettingsDateTimeMenu->setVisible(true);
+                //     generalSettingsDateTimeMenu->setIsClickable(false);
+                // });
+                // generalSettingsDateTimeMenu->setVisible(false);
+                // generalSettingsDateTimeMenu->setIsClickable(true); 
+            //     return 0;
+            // },
+            // [](void*) { return 0; },
+            // nullptr);
+        ///////// General Settings Menu - Date and Time - Set Time Zone ///////// TODO:
+        ///////// General Settings Menu - Date and Time - Set Time Format ///////// TODO:
+        ///////// General Settings Menu - Date and Time - Set Date Format ///////// TODO:
+        ///////// General Settings Menu - Date and Time - Enable Automatic Date and Time ///////// TODO:
         generalSettingsDateTimeMenu->setup();
         generalSettingsDateTimeMenu->setVisible(false);
         addToParent(generalSettingsDateTimeMenu);
@@ -382,46 +414,6 @@ void GUI::eventLoop()
         generalSettingsDateTimeMenu->draw();
     });
     menus.push_back(generalSettingsDateTimeMenu);
-
-    ///////// General Settings Menu - Date and Time - Set Date and Time /////////
-    auto generalSettingsDateTimeSetDateTimeMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
-    generalSettingsDateTimeSetDateTimeMenu->setMenuName("Set Date and Time");
-    generalSettingsDateTimeSetDateTimeMenu->setUniqueMenuIdentifier("Set Date and Time");
-    generalSettingsDateTimeSetDateTimeMenu->setVisible(false);
-    generalSettingsDateTimeSetDateTimeMenu->setParentMenu(generalSettingsDateTimeMenu);
-    drag_y_actions.push_back({ [generalSettingsDateTimeSetDateTimeMenu]() { return generalSettingsDateTimeSetDateTimeMenu->getVisible(); }, [generalSettingsDateTimeSetDateTimeMenu](int y) { generalSettingsDateTimeSetDateTimeMenu->scrollVert(y); } });
-    this->renderer->addSetupTask([generalSettingsDateTimeSetDateTimeMenu, addBackButton, addToParent]() {
-        generalSettingsDateTimeSetDateTimeMenu->setup();
-        generalSettingsDateTimeSetDateTimeMenu->setVisible(false);
-        std::vector<std::string>* fields = new std::vector<std::string>({ "Year", "Month", "Day", "Hour", "Minute" });
-        generalSettingsDateTimeSetDateTimeMenu->getParentMenu()->addMenuEntry(
-            "Set Date and Time",
-            "Date_Time_Set_Date_Time",
-            MENUS::EntryType::MENUENTRY_TYPE_TEXT_INPUT,
-            [generalSettingsDateTimeSetDateTimeMenu](void* data) {
-                CubeLog::info("Set Date and Time clicked");
-                std::vector<std::string> fields = { "Year", "Month", "Day", "Hour", "Minute" };
-                // GUI::showTextInput("Set Date and Time", field, { 720, 720 }, { 0, 0 }, [generalSettingsDateTimeSetDateTimeMenu](std::vector<std::string> textVector) {
-                //     CubeLog::info("Set Date and Time: " + text);
-                //     // do something with the text in the textVector
-                //     generalSettingsDateTimeSetDateTimeMenu->getParentMenu()->setVisible(true);
-                //     generalSettingsDateTimeSetDateTimeMenu->getParentMenu()->setIsClickable(false);
-                // });
-                // generalSettingsDateTimeSetDateTimeMenu->getParentMenu()->setVisible(false);
-                // generalSettingsDateTimeSetDateTimeMenu->getParentMenu()->setIsClickable(true); 
-                return 0;
-            },
-            [](void*) { return 0; },
-            nullptr);
-    });
-    this->renderer->addLoopTask([generalSettingsDateTimeSetDateTimeMenu]() {
-        generalSettingsDateTimeSetDateTimeMenu->draw();
-    });
-    menus.push_back(generalSettingsDateTimeSetDateTimeMenu);
-    ///////// General Settings Menu - Date and Time - Set Time Zone /////////
-    ///////// General Settings Menu - Date and Time - Set Time Format /////////
-    ///////// General Settings Menu - Date and Time - Set Date Format /////////
-    ///////// General Settings Menu - Date and Time - Enable Automatic Date and Time /////////
 
     ///////// General Settings Menu - Language /////////
     // TODO:
@@ -1048,7 +1040,7 @@ HttpEndPointData_t GUI::getHttpEndpointData()
     actions.push_back(
         { PUBLIC_ENDPOINT | GET_ENDPOINT,
             [&](const httplib::Request& req, httplib::Response& res) {
-                // this->stop();
+                // TODO: anything that gets displayed needs to be logged in the DB->notifications
                 std::string mes = "";
                 std::string title = "";
                 for (auto param : req.params) {
@@ -1071,6 +1063,7 @@ HttpEndPointData_t GUI::getHttpEndpointData()
     actions.push_back(
         { PUBLIC_ENDPOINT | GET_ENDPOINT,
             [&](const httplib::Request& req, httplib::Response& res) {
+                // TODO: anything that gets displayed needs to be logged in the DB->notifications
                 std::string mes = "";
                 std::string title = "";
                 if (req.has_param("text"))
