@@ -332,7 +332,7 @@ bool Menu::setVisible(bool visible)
     }
     if (this->visible) {
         // TODO: create a timeout that will hide the menu after a certain amount of time. will need to adjust clickable area so that it catches clicks
-        // for the entire menu area to reset the timer. Will also need to fix the issue where clicks don't propagate to all areas that are possible,
+        // for the entire menu area to reset the timer.
     }
     return temp;
 }

@@ -33,6 +33,13 @@ struct GlobalSettings {
         SCREEN_AUTO_OFF,
         SCREEN_AUTO_OFF_TIME,
         NOTIFICATIONS_FROM_NETWORK_ENABLED,
+        SYSTEM_VOLUME,
+        NOTIFICATION_SOUND,
+        ALARM_SOUND,
+        VOICE_COMMAND_SOUND,
+        NFC_ENABLED,
+        MICROPHONE_ENABLED,
+        PRESENCE_DETECTION_ENABLED,
 
         SETTING_TYPE_COUNT
     };
@@ -42,6 +49,9 @@ struct GlobalSettings {
      */
     static std::unordered_map <SettingType, std::string> settingTypeStringMap;
 
+    /**
+     * @brief Convert a string to a SettingType
+     */
     static std::unordered_map <std::string, SettingType> stringSettingTypeMap;
 
     GlobalSettings(){

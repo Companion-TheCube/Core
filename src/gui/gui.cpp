@@ -126,7 +126,9 @@ void GUI::eventLoop()
         menu->getParentMenu()->setChildrenClickables_isClickable(false);
     };
 
-    auto createANewSubMenu =  [&](std::string name, std::string u_id, MENUS::Menu* parent) -> MENUS::Menu* {        auto m = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
+    // Helper function to create a new submenu
+    auto createANewSubMenu = [&](std::string name, std::string u_id, MENUS::Menu* parent) -> MENUS::Menu* {
+        auto m = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
         m->setMenuName(name);
         m->setUniqueMenuIdentifier(u_id);
         m->setVisible(false);
@@ -155,7 +157,7 @@ void GUI::eventLoop()
     mainMenu->setOnClick([&](void* data) {
         mainMenu->setVisible(!mainMenu->getVisible());
         mainMenu->setIsClickable(!mainMenu->getIsClickable());
-        if(mainMenu->getVisible()){
+        if (mainMenu->getVisible()) {
             mainMenu->setChildrenClickables_isClickable(true);
         }
         return 0;
@@ -196,22 +198,37 @@ void GUI::eventLoop()
     auto wifiMenu = createANewSubMenu("WiFi", "WiFi", connectionsMenu);
     this->renderer->addSetupTask([&wifiMenu, addBackButton, addToParent]() {
         addBackButton(wifiMenu);
+        ///////// Connections Menu - WiFi - Enable/Disable WiFi /////////
+        ///////// Connections Menu - WiFi - Current Network /////////
         wifiMenu->setup();
         addToParent(wifiMenu);
     });
+
+    ///////// Connections Menu - WiFi - WiFi Networks /////////
+    ///////// Connections Menu - WiFi - WiFi Networks - Specify SSID /////////
+    ///////// Connections Menu - WiFi - WiFi Networks - Scan /////////
+    ///////// Connections Menu - WiFi - WiFi Networks - List available networks /////////
 
     ///////// Connections Menu - Bluetooth /////////
     auto bluetoothMenu = createANewSubMenu("Bluetooth", "Bluetooth", connectionsMenu);
     this->renderer->addSetupTask([&bluetoothMenu, addBackButton, addToParent]() {
         addBackButton(bluetoothMenu);
+        ///////// Connections Menu - Bluetooth - Enable/Disable Bluetooth /////////
+        ///////// Connections Menu - Bluetooth - Pairing Mode /////////
+        ///////// Connections Menu - Bluetooth - About Bluetooth /////////
         bluetoothMenu->setup();
         addToParent(bluetoothMenu);
     });
+
+    ///////// Connections Menu - Bluetooth - Bluetooth Devices /////////
+    // TODO: list all the bluetooth devices that have been paired with the cube
 
     ///////// Connections Menu - NFC /////////
     auto nfcMenu = createANewSubMenu("NFC", "NFC", connectionsMenu);
     this->renderer->addSetupTask([&nfcMenu, addBackButton, addToParent]() {
         addBackButton(nfcMenu);
+        ///////// Connections Menu - NFC - Enable/Disable NFC /////////
+        ///////// Connections Menu - NFC - About NFC /////////
         nfcMenu->setup();
         addToParent(nfcMenu);
     });
@@ -220,14 +237,21 @@ void GUI::eventLoop()
     auto personalityMenu = createANewSubMenu("Personality", "Personality", mainMenu);
     this->renderer->addSetupTask([&personalityMenu, addBackButton, addToParent]() {
         addBackButton(personalityMenu);
+        ///////// Personality Menu - Enable/Disable Personality /////////
+        ///////// Personality Menu - Personality reset /////////
         personalityMenu->setup();
         addToParent(personalityMenu);
     });
+
+    ///////// Personality Menu - Personality Settings /////////
+    // TODO: list each attribute of the personality and provide a slider to adjust. 
 
     ///////// Sensors Menu /////////
     auto sensorsMenu = createANewSubMenu("Sensors", "Sensors", mainMenu);
     this->renderer->addSetupTask([&sensorsMenu, addBackButton, addToParent]() {
         addBackButton(sensorsMenu);
+        ///////// Sensors Menu - Microphone enable/disable /////////
+        ///////// Sensors Menu - Presence Detection enable/disable /////////
         sensorsMenu->setup();
         addToParent(sensorsMenu);
     });
@@ -236,9 +260,16 @@ void GUI::eventLoop()
     auto soundMenu = createANewSubMenu("Sound", "Sound", mainMenu);
     this->renderer->addSetupTask([&soundMenu, addBackButton, addToParent]() {
         addBackButton(soundMenu);
+        ///////// Sound Menu - Volume /////////
+        // TODO: add a slider to control the volume
         soundMenu->setup();
         addToParent(soundMenu);
     });
+
+    
+    ///////// Sound Menu - Notification Sound /////////
+    ///////// Sound Menu - Alarm Sound /////////
+    ///////// Sound Menu - Voice Command Sound /////////
 
     ///////// Notifications Menu /////////
     auto notificationsMenu = createANewSubMenu("Notifications", "Notifications", mainMenu);
@@ -369,6 +400,8 @@ void GUI::eventLoop()
 
     ///////// General Settings Menu - Language /////////
     // TODO:
+    // This menu should allow the user to change the language of the system. This will require a restart of the system.
+    // TODO: All the strings in the system should be in a language file that can be changed at runtime.
 
     ///////// Accessibility Menu /////////
     auto accessibilityMenu = createANewSubMenu("Accessibility", "Accessibility", mainMenu);
@@ -385,18 +418,17 @@ void GUI::eventLoop()
     auto updatesMenu = createANewSubMenu("Updates", "Updates", mainMenu);
     this->renderer->addSetupTask([&updatesMenu, addBackButton, addToParent]() {
         addBackButton(updatesMenu);
+        ///////// Updates Menu - Check for Updates /////////
+        // TODO:
+        ///////// Updates Menu - Last Update Info /////////
+        // TODO:
+        // This menu should show the last time the system was updated and what was updated.
+        // For example: "Last updated:\nJanuary 1, 1979 at 12:00pm\n \nUpdated:\nTheCube-CORE to version 1.0.0\nJSON library to version 1.0.0\netc."
+        ///////// Updates Menu - Auto Update Enable /////////
+        // TODO:
         updatesMenu->setup();
         addToParent(updatesMenu);
     });
-
-    ///////// Updates Menu - Check for Updates /////////
-    // TODO:
-
-    ///////// Updates Menu - Last Update Info /////////
-    // TODO:
-
-    ///////// Updates Menu - Auto Update Enable /////////
-    // TODO:
 
     ///////// About Menu /////////
     auto aboutMenu = createANewSubMenu("About", "About", mainMenu);
@@ -450,10 +482,12 @@ void GUI::eventLoop()
     auto aboutSoftwareInformationMenu = createANewSubMenu("Software Information", "Software Information", aboutMenu);
     this->renderer->addSetupTask([&aboutSoftwareInformationMenu, addBackButton, addToParent]() {
         addBackButton(aboutSoftwareInformationMenu);
-        ///////// About Menu - Software Information - TheCube-CORE Version /////////
-        // TODO:
-        ///////// About Menu - Software Information - Build Number /////////
-        // TODO:
+        ///////// About Menu - Software Information - TheCube-CORE /////////
+        // TODO: Show the version, build number, and build date of TheCube-CORE
+        ///////// About Menu - Software Information - System /////////
+        // TODO: Show the Raspbian version, kernel version, etc
+        ///////// About Menu - Software Information - Libraries /////////
+        // TODO: Show the versions of all the libraries used in the system
         aboutSoftwareInformationMenu->setup();
         addToParent(aboutSoftwareInformationMenu);
         aboutSoftwareInformationMenu->setChildrenClickables_isClickable(false);
@@ -490,19 +524,19 @@ void GUI::eventLoop()
     // TODO:
 
     ///////// About Menu - Legal Information - Open Source Licenses /////////
-    // TODO:
+    // TODO: list all the open source licenses used in the system
 
     ///////// About Menu - Legal Information - Legal Notices /////////
-    // TODO:
+    // TODO: list all the legal notices
 
     ///////// About Menu - Legal Information - Trademarks /////////
-    // TODO:
+    // TODO: list all the trademarks used in the system
 
     ///////// About Menu - Legal Information - EULA /////////
-    // TODO:
+    // TODO: Read in the EULA from a file and display it
 
     ///////// About Menu - Legal Information - Privacy Policy /////////
-    // TODO:
+    // TODO: Read in the privacy policy from a file and display it
 
     ///////// Developer Settings Menu /////////
     auto developerSettingsMenu = createANewSubMenu("Developer Settings", "Developer Settings", mainMenu);
