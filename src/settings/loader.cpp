@@ -32,7 +32,7 @@ bool SettingsLoader::loadSettings(){
     // iterate through all the settings and set them
     for(auto it = this->settings.begin(); it != this->settings.end(); ++it){
         CubeLog::info("Setting " + it.key() + " to " + it.value().dump());
-        this->globalSettings->setSetting(it.key(), it.value());
+        this->globalSettings->setSetting(GlobalSettings::stringSettingTypeMap[it.key()], it.value());
     }
     CubeLog::debug("Settings loaded. Closing file...");
     file.close();

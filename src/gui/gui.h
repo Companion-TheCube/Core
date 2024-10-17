@@ -25,9 +25,6 @@
 #include <nlohmann/json.hpp>
 #include <mutex>
 #include <tuple>
-#ifndef NOTIFICATIONS_H
-#include "notifications.h"
-#endif
 #ifndef MESSAGEBOX_H
 #include "messageBox/messageBox.h"
 #endif
@@ -41,6 +38,9 @@
 #include <utils.h>
 #endif
 #include "httplib.h"
+#ifndef GLOBAL_SETTINGS_H
+#include "globalSettings.h"
+#endif
 
 typedef std::vector<std::tuple<std::string, nlohmann::json, std::string>> AddMenu_Data_t;
 
@@ -66,6 +66,26 @@ struct GUI_Error{
     std::string errorString;
 };
 
+
+
+class NotificationsManager : public I_API_Interface {
+public:
+    enum NotificationType {
+        NOTIFICATION_OKAY,
+        NOTIFICATION_WARNING,
+        NOTIFICATION_ERROR,
+        NOTIFICATION_YES_NO,
+        NOTIFICATION_TYPE_COUNT
+    };
+    NotificationsManager();
+    ~NotificationsManager();
+    static void showNotification(std::string title, std::string message, NotificationType type);
+    static void showNotificationWithCallback(std::string title, std::string message, NotificationType type, std::function<void()> callback);
+    static void showNotificationWithCallback(std::string title, std::string message, NotificationType type, std::function<void()> callbackYes, std::function<void()> callbackNo);
+    std::string getIntefaceName() const override;
+    HttpEndPointData_t getHttpEndpointData() override;
+};
+
 class GUI : public I_API_Interface {
 public:
     GUI();
@@ -78,9 +98,11 @@ public:
     static void showTextBox(std::string title, std::string message);
     static void showTextBox(std::string title, std::string message, glm::vec2 size, glm::vec2 position);
     static void showTextBox(std::string title, std::string message, glm::vec2 size, glm::vec2 position, std::function<void()> callback);
-    static void showNotification(std::string title, std::string message, Notifications::NotificationType type);
-    static void showNotificationWithCallback(std::string title, std::string message, Notifications::NotificationType type, std::function<void()> callback);
-    static void showNotificationWithCallback(std::string title, std::string message, Notifications::NotificationType type, std::function<void()> callbackYes, std::function<void()> callbackNo);
+    static void showNotification(std::string title, std::string message, NotificationsManager::NotificationType type);
+    static void showNotificationWithCallback(std::string title, std::string message, NotificationsManager::NotificationType type, std::function<void()> callback);
+    static void showNotificationWithCallback(std::string title, std::string message, NotificationsManager::NotificationType type, std::function<void()> callbackYes, std::function<void()> callbackNo);
+    static void showTextInputBox(std::string title, std::vector<std::string> fields, std::function<void(std::vector<std::string>&)> callback);
+    static void showTextInputBox(std::string title, std::string field, std::function<void(std::string&)> callback);
     // API Interface
     HttpEndPointData_t getHttpEndpointData();
     std::string getIntefaceName() const;

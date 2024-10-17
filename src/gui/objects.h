@@ -106,6 +106,7 @@ public:
     virtual void restorePosition() = 0;
     virtual void resetScroll() = 0;
     virtual bool getIsClickable() = 0;
+    virtual bool setIsClickable(bool isClickable) = 0;
 };
 
 template <typename T>

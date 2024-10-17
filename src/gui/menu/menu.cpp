@@ -73,7 +73,7 @@ Menu::Menu(Renderer* renderer, CountingLatch& latch, unsigned int xMin, unsigned
  */
 Menu::~Menu()
 {
-    CubeLog::info("Menu destroyed");
+    // CubeLog::info("Menu destroyed");
     for (auto object : this->objects) {
         delete object;
     }
@@ -102,6 +102,7 @@ unsigned int Menu::addMenuEntry(std::string text, std::string uniqueID, MENUS::E
     entry->getClickableArea()->yMin -= (MENU_ITEM_PADDING_PX);
     entry->getClickableArea()->yMax += (MENU_ITEM_PADDING_PX);
     entry->setVisible(true);
+    entry->setIsClickable(true);
     entry->setOnClick(action);
     for (auto object : entry->getObjects()) {
         object->capturePosition();
@@ -252,6 +253,7 @@ void Menu::setAsMainMenu()
         return;
     }
     this->isMainMenu = true;
+    this->isClickable = true;
     Menu::mainMenuSet = true;
 }
 
@@ -335,9 +337,20 @@ bool Menu::setVisible(bool visible)
     return temp;
 }
 
-void Menu::setIsClickable(bool isClickable)
+bool Menu::setIsClickable(bool isClickable)
 {
+    bool temp = this->isClickable;
     this->isClickable = isClickable;
+    return temp;
+}
+
+bool Menu::setChildrenClickables_isClickable(bool isClickable)
+{
+    if(this->childrenClickables.size() == 0) return false;
+    for (auto clickable : this->childrenClickables) {
+        clickable->setIsClickable(isClickable);
+    }
+    return true;
 }
 
 /**
@@ -443,7 +456,8 @@ ClickableArea* Menu::getClickableArea()
 
 bool Menu::getIsClickable()
 {
-    return this->isClickable;
+    if(this->isMainMenu) return this->isClickable;
+    return this->isClickable && this->visible;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -502,7 +516,7 @@ MenuBox::~MenuBox()
     for (auto object : this->objects) {
         delete object;
     }
-    CubeLog::info("MenuBox destroyed");
+    // CubeLog::info("MenuBox destroyed");
 }
 
 /**
@@ -648,6 +662,7 @@ MenuEntry::~MenuEntry()
  */
 void MenuEntry::onClick(void* data)
 {
+    if(!this->isClickable) return;
     CubeLog::info("MenuEntry clicked");
     if (this->actions.size() == 0)
         return;
@@ -689,6 +704,18 @@ bool MenuEntry::setVisible(bool visible)
 bool MenuEntry::getVisible()
 {
     return this->visible;
+}
+
+bool MenuEntry::setIsClickable(bool isClickable)
+{
+    bool temp = this->isClickable;
+    this->isClickable = isClickable;
+    return temp;
+}
+
+bool MenuEntry::getIsClickable()
+{
+    return this->isClickable && this->visible;
 }
 
 void MenuEntry::setOnClick(std::function<unsigned int(void*)> action)
@@ -864,11 +891,6 @@ void MenuEntry::restorePosition()
     this->clickArea.yMin = this->originalPosition.y;
     this->clickArea.xMax = this->originalPosition.z;
     this->clickArea.yMax = this->originalPosition.w;
-}
-
-bool MenuEntry::getIsClickable()
-{
-    return this->getVisible();
 }
 
 //////////////////////////////////////////////////////////////////////////

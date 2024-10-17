@@ -131,13 +131,13 @@ int main(int argc, char* argv[])
         exit(0);
     }
     if (customLogVerbosity)
-        settings.logVerbosity = Logger::LogVerbosity(logVerbosity);
-    logger->setVerbosity(settings.logVerbosity);
+        settings.setSetting(GlobalSettings::SettingType::LOG_VERBOSITY, logVerbosity);
+    logger->setVerbosity(settings.getSettingOfType<Logger::LogVerbosity>(GlobalSettings::SettingType::LOG_VERBOSITY));
     if (customLogLevelP)
-        settings.setSetting("LogLevelP", logLevelPrint);
+        settings.setSetting(GlobalSettings::SettingType::LOG_LEVEL_PRINT, logLevelPrint);
     if (customLogLevelF)
-        settings.setSetting("LogLevelF", logLevelFile);
-    logger->setLogLevel(settings.logLevelPrint, settings.logLevelFile);
+        settings.setSetting(GlobalSettings::SettingType::LOG_LEVEL_FILE, logLevelFile);
+    logger->setLogLevel(settings.getSettingOfType<Logger::LogLevel>(GlobalSettings::SettingType::LOG_LEVEL_PRINT), settings.getSettingOfType<Logger::LogLevel>(GlobalSettings::SettingType::LOG_LEVEL_FILE));
     if (supportsExtendedColors()) {
         CubeLog::info("Extended colors supported.");
     } else if (supportsBasicColors()) {

@@ -29,6 +29,8 @@
 #define MESSAGEBOX_LINE_SPACING 0.3f
 #define MESSAGEBOX_TITLE_TEXT_MULT 1.3f
 
+// TODO: make a generic message box class that can be inherited from to make different types of message boxes
+
 class CubeMessageBox : public M_Box {
 private:
     bool visible;
@@ -111,6 +113,49 @@ public:
     ClickableArea getClickableArea_() { return this->clickArea; };
 };
 
+class CubeNotificaionBox : public M_Box {
+private:
+    bool visible;
+    std::vector<MeshObject*> objects;
+    std::vector<MeshObject*> textObjects;
+    Shader* shader;
+    Shader* textShader;
+    float messageTextSize = MESSAGEBOX_ITEM_TEXT_SIZE;
+    long scrollVertPosition = 0;
+    float index = 0.001;
+    CountingLatch* latch;
+    std::mutex mutex;
+    Renderer* renderer;
+    std::function<void()> callbackYes = nullptr;
+    std::function<void()> callbackNo = nullptr;
+    ClickableArea clickArea;
+    bool needsSetup = true;
+    glm::vec2 position;
+    glm::vec2 size;
+    int textMeshCount = 0;
+
+public:
+    CubeNotificaionBox(Shader* shader, Shader* textShader, Renderer* renderer, CountingLatch& latch);
+    ~CubeNotificaionBox();
+    void setup();
+    bool setVisible(bool visible);
+    bool getVisible();
+    void draw();
+    void setPosition(glm::vec2 position);
+    void setSize(glm::vec2 size);
+    void setTextSize(float size);
+    std::vector<MeshObject*> getObjects();
+    void setText(std::string text, std::string title);
+    void setCallbackYes(std::function<void()> callback);
+    void setCallbackNo(std::function<void()> callback);
+    void call_callback()
+    {
+        if (this->callbackNo != nullptr)
+            this->callbackNo();
+    };
+    ClickableArea getClickableArea_() { return this->clickArea; };
+};
+
 template <class T>
 class MakeCubeBoxClickable : public Clickable {
 public:
@@ -150,6 +195,7 @@ public:
     void draw() override { };
     bool setVisible(bool visible) override { return object->setVisible(visible); };
     bool getVisible() override { return object->getVisible(); };
+    bool setIsClickable(bool isClickable) override { return object->getVisible(); };
     T* object;
     ClickableArea* clickAreaPtr;
 };

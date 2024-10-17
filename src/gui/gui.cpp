@@ -67,7 +67,7 @@ void GUI::eventLoop()
     keyAPressedHandler->setSpecificEventType(SpecificEventTypes::KEYPRESS_A);
 
     ////////////////////////////////////////
-    /// TESTING FUNCTION TODO: remove this
+    /// TESTING FUNCTION TODO: remove this or move to utils
     ////////////////////////////////////////
     auto repeatChar = [](std::string& inOut, int n, std::string repeatChars) {
         for (int i = 0; i < n; i++) {
@@ -79,7 +79,7 @@ void GUI::eventLoop()
     ////////////////////////////////////////
     /// Here we build the menus
     ////////////////////////////////////////
-    CountingLatch countingLatch(20); // this value must be equal to count of "new MENUS::Menu()" calls in this method + 2 (for the message box and text box)
+    CountingLatch countingLatch(22); // this value must be equal to count of "new MENUS::Menu()" calls in this method + 2 (for the message box and text box)
 
     // Helper function to add a back button to a menu with a horizontal rule
     auto addBackButton = [](auto* menu) {
@@ -88,17 +88,21 @@ void GUI::eventLoop()
             menu->getMenuName() + "_back",
             MENUS::EntryType::MENUENTRY_TYPE_ACTION,
             [menu](void* data) {
-                CubeLog::info("Back clicked");
+                CubeLog::info(menu->getMenuName() + " - Back clicked");
                 menu->setVisible(false);
+                menu->setChildrenClickables_isClickable(false);
                 menu->setIsClickable(true);
                 if (menu->getParentMenu() != nullptr) {
                     menu->getParentMenu()->setVisible(true);
+                    menu->getParentMenu()->setIsClickable(false);
+                    menu->getParentMenu()->setChildrenClickables_isClickable(true);
                 }
                 return 0;
             },
             [](void*) { return 0; },
             nullptr);
         menu->addHorizontalRule();
+        menu->setChildrenClickables_isClickable(false);
     };
 
     // Helper function to add a menu to its parent menu
@@ -110,12 +114,31 @@ void GUI::eventLoop()
             [menu](void* data) {
                 CubeLog::info(menu->getMenuName() + " clicked");
                 menu->setVisible(true);
+                menu->setIsClickable(false);
+                menu->setChildrenClickables_isClickable(true);
                 menu->getParentMenu()->setVisible(false);
                 menu->getParentMenu()->setIsClickable(false);
+                menu->getParentMenu()->setChildrenClickables_isClickable(false);
                 return 0;
             },
             [](void*) { return 0; },
             nullptr);
+        menu->getParentMenu()->setChildrenClickables_isClickable(false);
+    };
+
+    auto createANewSubMenu =  [&](std::string name, std::string u_id, MENUS::Menu* parent) -> MENUS::Menu* {        auto m = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
+        m->setMenuName(name);
+        m->setUniqueMenuIdentifier(u_id);
+        m->setVisible(false);
+        m->setIsClickable(false);
+        m->setChildrenClickables_isClickable(false);
+        m->setParentMenu(parent);
+        drag_y_actions.push_back({ [m]() { return m->getVisible(); }, [m](int y) { m->scrollVert(y); } });
+        this->renderer->addLoopTask([m]() {
+            m->draw();
+        });
+        menus.push_back(m);
+        return m;
     };
 
     ///////// Main Menu /////////
@@ -124,13 +147,21 @@ void GUI::eventLoop()
     mainMenu->setMenuName("Main Menu");
     mainMenu->setUniqueMenuIdentifier("Main Menu");
     menus.push_back(mainMenu);
-    drag_y_actions.push_back({ [mainMenu]() { return mainMenu->getVisible(); }, [mainMenu](int y) { mainMenu->scrollVert(y); } });
-    this->renderer->addSetupTask([mainMenu, addBackButton]() {
+    drag_y_actions.push_back({ [&mainMenu]() { return mainMenu->getVisible(); }, [mainMenu](int y) { mainMenu->scrollVert(y); } });
+    this->renderer->addSetupTask([&mainMenu, addBackButton]() {
         addBackButton(mainMenu);
         mainMenu->setup();
-        mainMenu->setVisible(false);
-        mainMenu->setIsClickable(true);
     });
+    mainMenu->setOnClick([&](void* data) {
+        mainMenu->setVisible(!mainMenu->getVisible());
+        mainMenu->setIsClickable(!mainMenu->getIsClickable());
+        if(mainMenu->getVisible()){
+            mainMenu->setChildrenClickables_isClickable(true);
+        }
+        return 0;
+    });
+    mainMenu->setIsClickable(true);
+    mainMenu->setVisible(false);
     this->renderer->addLoopTask([mainMenu]() {
         mainMenu->draw();
     });
@@ -154,159 +185,106 @@ void GUI::eventLoop()
 
     /////////
     ///////// Connections Menu /////////
-    auto connectionsMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
-    connectionsMenu->setMenuName("Connections");
-    connectionsMenu->setUniqueMenuIdentifier("Connections");
-    connectionsMenu->setVisible(false);
-    connectionsMenu->setParentMenu(mainMenu);
-    drag_y_actions.push_back({ [connectionsMenu]() { return connectionsMenu->getVisible(); }, [connectionsMenu](int y) { connectionsMenu->scrollVert(y); } });
-    this->renderer->addSetupTask([connectionsMenu, addBackButton, addToParent]() {
+    auto connectionsMenu = createANewSubMenu("Connections", "Connections", mainMenu);
+    this->renderer->addSetupTask([&connectionsMenu, addBackButton, addToParent]() {
         addBackButton(connectionsMenu);
         connectionsMenu->setup();
-        connectionsMenu->setVisible(false);
         addToParent(connectionsMenu);
     });
-    this->renderer->addLoopTask([connectionsMenu]() {
-        connectionsMenu->draw();
+
+    ///////// Connections Menu - WiFi /////////
+    auto wifiMenu = createANewSubMenu("WiFi", "WiFi", connectionsMenu);
+    this->renderer->addSetupTask([&wifiMenu, addBackButton, addToParent]() {
+        addBackButton(wifiMenu);
+        wifiMenu->setup();
+        addToParent(wifiMenu);
     });
-    menus.push_back(connectionsMenu);
+
+    ///////// Connections Menu - Bluetooth /////////
+    auto bluetoothMenu = createANewSubMenu("Bluetooth", "Bluetooth", connectionsMenu);
+    this->renderer->addSetupTask([&bluetoothMenu, addBackButton, addToParent]() {
+        addBackButton(bluetoothMenu);
+        bluetoothMenu->setup();
+        addToParent(bluetoothMenu);
+    });
+
+    ///////// Connections Menu - NFC /////////
+    auto nfcMenu = createANewSubMenu("NFC", "NFC", connectionsMenu);
+    this->renderer->addSetupTask([&nfcMenu, addBackButton, addToParent]() {
+        addBackButton(nfcMenu);
+        nfcMenu->setup();
+        addToParent(nfcMenu);
+    });
 
     ///////// Personality Menu /////////
-    auto personalityMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
-    personalityMenu->setMenuName("Personality");
-    personalityMenu->setUniqueMenuIdentifier("Personality");
-    personalityMenu->setVisible(false);
-    personalityMenu->setParentMenu(mainMenu);
-    drag_y_actions.push_back({ [personalityMenu]() { return personalityMenu->getVisible(); }, [personalityMenu](int y) { personalityMenu->scrollVert(y); } });
-    this->renderer->addSetupTask([personalityMenu, addBackButton, addToParent]() {
+    auto personalityMenu = createANewSubMenu("Personality", "Personality", mainMenu);
+    this->renderer->addSetupTask([&personalityMenu, addBackButton, addToParent]() {
         addBackButton(personalityMenu);
         personalityMenu->setup();
-        personalityMenu->setVisible(false);
         addToParent(personalityMenu);
     });
-    this->renderer->addLoopTask([personalityMenu]() {
-        personalityMenu->draw();
-    });
-    menus.push_back(personalityMenu);
 
     ///////// Sensors Menu /////////
-    auto sensorsMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
-    sensorsMenu->setMenuName("Sensors");
-    sensorsMenu->setUniqueMenuIdentifier("Sensors");
-    sensorsMenu->setVisible(false);
-    sensorsMenu->setParentMenu(mainMenu);
-    drag_y_actions.push_back({ [sensorsMenu]() { return sensorsMenu->getVisible(); }, [sensorsMenu](int y) { sensorsMenu->scrollVert(y); } });
-    this->renderer->addSetupTask([sensorsMenu, addBackButton, addToParent]() {
+    auto sensorsMenu = createANewSubMenu("Sensors", "Sensors", mainMenu);
+    this->renderer->addSetupTask([&sensorsMenu, addBackButton, addToParent]() {
         addBackButton(sensorsMenu);
         sensorsMenu->setup();
-        sensorsMenu->setVisible(false);
         addToParent(sensorsMenu);
     });
-    this->renderer->addLoopTask([sensorsMenu]() {
-        sensorsMenu->draw();
-    });
-    menus.push_back(sensorsMenu);
 
     ///////// Sound Menu /////////
-    auto soundMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
-    soundMenu->setMenuName("Sound");
-    soundMenu->setUniqueMenuIdentifier("Sound");
-    soundMenu->setVisible(false);
-    soundMenu->setParentMenu(mainMenu);
-    drag_y_actions.push_back({ [soundMenu]() { return soundMenu->getVisible(); }, [soundMenu](int y) { soundMenu->scrollVert(y); } });
-    this->renderer->addSetupTask([soundMenu, addBackButton, addToParent]() {
+    auto soundMenu = createANewSubMenu("Sound", "Sound", mainMenu);
+    this->renderer->addSetupTask([&soundMenu, addBackButton, addToParent]() {
         addBackButton(soundMenu);
         soundMenu->setup();
-        soundMenu->setVisible(false);
         addToParent(soundMenu);
     });
-    this->renderer->addLoopTask([soundMenu]() {
-        soundMenu->draw();
-    });
-    menus.push_back(soundMenu);
 
     ///////// Notifications Menu /////////
-    auto notificationsMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
-    notificationsMenu->setMenuName("Notifications");
-    notificationsMenu->setUniqueMenuIdentifier("Notifications");
-    notificationsMenu->setVisible(false);
-    notificationsMenu->setParentMenu(mainMenu);
-    drag_y_actions.push_back({ [&]() { return notificationsMenu->getVisible(); }, [notificationsMenu](int y) { notificationsMenu->scrollVert(y); } });
-    this->renderer->addSetupTask([notificationsMenu, addBackButton, addToParent]() {
+    auto notificationsMenu = createANewSubMenu("Notifications", "Notifications", mainMenu);
+    this->renderer->addSetupTask([&notificationsMenu, addBackButton, addToParent]() {
         addBackButton(notificationsMenu);
         notificationsMenu->setup();
-        notificationsMenu->setVisible(false);
         addToParent(notificationsMenu);
     });
-    this->renderer->addLoopTask([notificationsMenu]() {
-        notificationsMenu->draw();
-    });
-    menus.push_back(notificationsMenu);
 
     ///////// Notifications Menu - Allow Notifications from Network Sources (Other cubes) /////////
     ///////// Notifications Menu - Recent Notifications /////////
 
     ///////// Display Menu /////////
-    auto displayMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
-    displayMenu->setMenuName("Display");
-    displayMenu->setUniqueMenuIdentifier("Display");
-    displayMenu->setVisible(false);
-    displayMenu->setParentMenu(mainMenu);
-    drag_y_actions.push_back({ [displayMenu]() { return displayMenu->getVisible(); }, [displayMenu](int y) { displayMenu->scrollVert(y); } });
-    this->renderer->addSetupTask([displayMenu, addBackButton, addToParent]() {
+    auto displayMenu = createANewSubMenu("Display", "Display", mainMenu);
+    this->renderer->addSetupTask([&displayMenu, addBackButton, addToParent]() {
         addBackButton(displayMenu);
         displayMenu->setup();
-        displayMenu->setVisible(false);
         addToParent(displayMenu);
     });
-    this->renderer->addLoopTask([displayMenu]() {
-        displayMenu->draw();
-    });
-    menus.push_back(displayMenu);
 
+    ///////// Display Menu - Animations /////////
+    ///////// Display Menu - Animations - Select Idle Animation /////////
+    ///////// Display Menu - Animations - Enable remote animations /////////
     ///////// Display Menu - Brightness /////////
-    ///////// Display Menu - Auto Off /////////
+    ///////// Display Menu - Auto Off ///////// time?
     ///////// Display Menu - Font /////////
 
     ///////// Privacy Menu /////////
-    auto privacyMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
-    privacyMenu->setMenuName("Privacy");
-    privacyMenu->setUniqueMenuIdentifier("Privacy");
-    privacyMenu->setVisible(false);
-    privacyMenu->setParentMenu(mainMenu);
-    drag_y_actions.push_back({ [privacyMenu]() { return privacyMenu->getVisible(); }, [privacyMenu](int y) { privacyMenu->scrollVert(y); } });
-    this->renderer->addSetupTask([privacyMenu, addBackButton, addToParent]() {
+    auto privacyMenu = createANewSubMenu("Privacy", "Privacy", mainMenu);
+    this->renderer->addSetupTask([&privacyMenu, addBackButton, addToParent]() {
         addBackButton(privacyMenu);
         privacyMenu->setup();
-        privacyMenu->setVisible(false);
         addToParent(privacyMenu);
     });
-    this->renderer->addLoopTask([privacyMenu]() {
-        privacyMenu->draw();
-    });
-    menus.push_back(privacyMenu);
 
     ///////// Privacy Menu - Privacy Settings /////////
     // TODO: figure out what to put here: list apps that use microphone, presence detection, etc. and allow the user to disable them
     // also, telemetry stuff
 
     ///////// Accounts Menu /////////
-    auto accountsMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
-    accountsMenu->setMenuName("Accounts");
-    accountsMenu->setUniqueMenuIdentifier("Accounts");
-    accountsMenu->setVisible(false);
-    accountsMenu->setParentMenu(mainMenu);
-    drag_y_actions.push_back({ [accountsMenu]() { return accountsMenu->getVisible(); }, [accountsMenu](int y) { accountsMenu->scrollVert(y); } });
-    this->renderer->addSetupTask([accountsMenu, addBackButton, addToParent]() {
+    auto accountsMenu = createANewSubMenu("Accounts", "Accounts", mainMenu);
+    this->renderer->addSetupTask([&accountsMenu, addBackButton, addToParent]() {
         addBackButton(accountsMenu);
         accountsMenu->setup();
-        accountsMenu->setVisible(false);
         addToParent(accountsMenu);
     });
-    this->renderer->addLoopTask([accountsMenu]() {
-        accountsMenu->draw();
-    });
-    menus.push_back(accountsMenu);
 
     ///////// Accounts Menu - Account List /////////
     // TODO: list all the accounts that have been added to the system. These are stored in the database.
@@ -321,22 +299,15 @@ void GUI::eventLoop()
     // TODO: add a button to add an account
 
     ///////// Apps Menu /////////
-    auto appsMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
-    appsMenu->setMenuName("Apps");
-    appsMenu->setUniqueMenuIdentifier("Apps");
-    appsMenu->setVisible(false);
-    appsMenu->setParentMenu(mainMenu);
-    drag_y_actions.push_back({ [appsMenu]() { return appsMenu->getVisible(); }, [appsMenu](int y) { appsMenu->scrollVert(y); } });
-    this->renderer->addSetupTask([appsMenu, addBackButton, addToParent]() {
+    auto appsMenu = createANewSubMenu("Apps", "Apps", mainMenu);
+    this->renderer->addSetupTask([&appsMenu, addBackButton, addToParent]() {
         addBackButton(appsMenu);
         appsMenu->setup();
-        appsMenu->setVisible(false);
         addToParent(appsMenu);
     });
-    this->renderer->addLoopTask([appsMenu]() {
-        appsMenu->draw();
-    });
-    menus.push_back(appsMenu);
+
+    ///////// Apps Menu - Core Apps /////////
+    // list all the core apps here and allow the user to enable/disable them
 
     ///////// Apps Menu - Installed Apps /////////
     // TODO:
@@ -356,31 +327,16 @@ void GUI::eventLoop()
     // TODO: List all the available apps here. each app gets an install button and a details button
 
     ///////// General Settings Menu /////////
-    auto generalSettingsMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
-    generalSettingsMenu->setMenuName("General Settings");
-    generalSettingsMenu->setUniqueMenuIdentifier("General Settings");
-    generalSettingsMenu->setVisible(false);
-    generalSettingsMenu->setParentMenu(mainMenu);
-    drag_y_actions.push_back({ [generalSettingsMenu]() { return generalSettingsMenu->getVisible(); }, [generalSettingsMenu](int y) { generalSettingsMenu->scrollVert(y); } });
-    this->renderer->addSetupTask([generalSettingsMenu, addBackButton, addToParent]() {
+    auto generalSettingsMenu = createANewSubMenu("General Settings", "General Settings", mainMenu);
+    this->renderer->addSetupTask([&generalSettingsMenu, addBackButton, addToParent]() {
         addBackButton(generalSettingsMenu);
         generalSettingsMenu->setup();
-        generalSettingsMenu->setVisible(false);
         addToParent(generalSettingsMenu);
     });
-    this->renderer->addLoopTask([generalSettingsMenu]() {
-        generalSettingsMenu->draw();
-    });
-    menus.push_back(generalSettingsMenu);
 
     ///////// General Settings Menu - Date and Time /////////
-    auto generalSettingsDateTimeMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
-    generalSettingsDateTimeMenu->setMenuName("Date and Time");
-    generalSettingsDateTimeMenu->setUniqueMenuIdentifier("Date and Time");
-    generalSettingsDateTimeMenu->setVisible(false);
-    generalSettingsDateTimeMenu->setParentMenu(generalSettingsMenu);
-    drag_y_actions.push_back({ [generalSettingsDateTimeMenu]() { return generalSettingsDateTimeMenu->getVisible(); }, [generalSettingsDateTimeMenu](int y) { generalSettingsDateTimeMenu->scrollVert(y); } });
-    this->renderer->addSetupTask([generalSettingsDateTimeMenu, addBackButton, addToParent]() {
+    auto generalSettingsDateTimeMenu = createANewSubMenu("Date and Time", "Date and Time", generalSettingsMenu);
+    this->renderer->addSetupTask([&generalSettingsDateTimeMenu, addBackButton, addToParent]() {
         addBackButton(generalSettingsDateTimeMenu);
         ///////// General Settings Menu - Date and Time - Set Date and Time /////////
         // generalSettingsDateTimeMenu->addMenuEntry(
@@ -390,72 +346,48 @@ void GUI::eventLoop()
         //     [generalSettingsDateTimeMenu](void* data) {
         //         CubeLog::info("Set Date and Time clicked");
         //         std::vector<std::string> fields = { "Year", "Month", "Day", "Hour", "Minute" };
-                // GUI::showTextInput("Set Date and Time", field, { 720, 720 }, { 0, 0 }, [generalSettingsDateTimeMenu](std::vector<std::string> textVector) {
-                //     CubeLog::info("Set Date and Time: " + text);
-                //     // do something with the text in the textVector
-                //     generalSettingsDateTimeMenu->setVisible(true);
-                //     generalSettingsDateTimeMenu->setIsClickable(false);
-                // });
-                // generalSettingsDateTimeMenu->setVisible(false);
-                // generalSettingsDateTimeMenu->setIsClickable(true); 
-            //     return 0;
-            // },
-            // [](void*) { return 0; },
-            // nullptr);
+        // GUI::showTextInput("Set Date and Time", fields, [generalSettingsDateTimeMenu](std::vector<std::string> textVector) {
+        //     CubeLog::info("Set Date and Time: " + text);
+        //     // do something with the text in the textVector
+        //     generalSettingsDateTimeMenu->setVisible(true);
+        //     generalSettingsDateTimeMenu->setIsClickable(false);
+        // });
+        // generalSettingsDateTimeMenu->setVisible(false);
+        // generalSettingsDateTimeMenu->setIsClickable(true);
+        //     return 0;
+        // },
+        // [](void*) { return 0; },
+        // nullptr);
         ///////// General Settings Menu - Date and Time - Set Time Zone ///////// TODO:
         ///////// General Settings Menu - Date and Time - Set Time Format ///////// TODO:
         ///////// General Settings Menu - Date and Time - Set Date Format ///////// TODO:
         ///////// General Settings Menu - Date and Time - Enable Automatic Date and Time ///////// TODO:
         generalSettingsDateTimeMenu->setup();
-        generalSettingsDateTimeMenu->setVisible(false);
         addToParent(generalSettingsDateTimeMenu);
+        generalSettingsDateTimeMenu->setChildrenClickables_isClickable(false);
     });
-    this->renderer->addLoopTask([generalSettingsDateTimeMenu]() {
-        generalSettingsDateTimeMenu->draw();
-    });
-    menus.push_back(generalSettingsDateTimeMenu);
 
     ///////// General Settings Menu - Language /////////
     // TODO:
 
     ///////// Accessibility Menu /////////
-    auto accessibilityMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
-    accessibilityMenu->setMenuName("Accessibility");
-    accessibilityMenu->setUniqueMenuIdentifier("Accessibility");
-    accessibilityMenu->setVisible(false);
-    accessibilityMenu->setParentMenu(mainMenu);
-    drag_y_actions.push_back({ [accessibilityMenu]() { return accessibilityMenu->getVisible(); }, [accessibilityMenu](int y) { accessibilityMenu->scrollVert(y); } });
-    this->renderer->addSetupTask([accessibilityMenu, addBackButton, addToParent]() {
+    auto accessibilityMenu = createANewSubMenu("Accessibility", "Accessibility", mainMenu);
+    this->renderer->addSetupTask([&accessibilityMenu, addBackButton, addToParent]() {
         addBackButton(accessibilityMenu);
         accessibilityMenu->setup();
-        accessibilityMenu->setVisible(false);
         addToParent(accessibilityMenu);
     });
-    this->renderer->addLoopTask([accessibilityMenu]() {
-        accessibilityMenu->draw();
-    });
-    menus.push_back(accessibilityMenu);
 
     ///////// Accessibility Menu - ??? /////////
     // TODO: figure out what should go here
 
     ///////// Updates Menu /////////
-    auto updatesMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
-    updatesMenu->setMenuName("Updates");
-    updatesMenu->setUniqueMenuIdentifier("Updates");
-    updatesMenu->setVisible(false);
-    updatesMenu->setParentMenu(mainMenu);
-    drag_y_actions.push_back({ [updatesMenu]() { return updatesMenu->getVisible(); }, [updatesMenu](int y) { updatesMenu->scrollVert(y); } });
-    this->renderer->addSetupTask([updatesMenu, addBackButton, addToParent]() {
+    auto updatesMenu = createANewSubMenu("Updates", "Updates", mainMenu);
+    this->renderer->addSetupTask([&updatesMenu, addBackButton, addToParent]() {
         addBackButton(updatesMenu);
         updatesMenu->setup();
-        updatesMenu->setVisible(false);
         addToParent(updatesMenu);
     });
-    this->renderer->addLoopTask([updatesMenu]() {
-        updatesMenu->draw();
-    });
-    menus.push_back(updatesMenu);
 
     ///////// Updates Menu - Check for Updates /////////
     // TODO:
@@ -467,14 +399,10 @@ void GUI::eventLoop()
     // TODO:
 
     ///////// About Menu /////////
-    auto aboutMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
-    aboutMenu->setMenuName("About");
-    aboutMenu->setUniqueMenuIdentifier("About");
-    aboutMenu->setVisible(false);
-    aboutMenu->setParentMenu(mainMenu);
-    drag_y_actions.push_back({ [aboutMenu]() { return aboutMenu->getVisible(); }, [aboutMenu](int y) { aboutMenu->scrollVert(y); } });
-    this->renderer->addSetupTask([aboutMenu, addBackButton, addToParent]() {
+    auto aboutMenu = createANewSubMenu("About", "About", mainMenu);
+    this->renderer->addSetupTask([&aboutMenu, addBackButton, addToParent]() {
         addBackButton(aboutMenu);
+        ///////// About Menu - Serial Number /////////
         aboutMenu->addMenuEntry(
             "Serial Number",
             "About_Serial_Number",
@@ -494,121 +422,42 @@ void GUI::eventLoop()
                 return 0;
             },
             nullptr);
-        aboutMenu->setup();
-        aboutMenu->setVisible(false);
-        addToParent(aboutMenu);
-    });
-    this->renderer->addLoopTask([aboutMenu]() {
-        aboutMenu->draw();
-    });
-    menus.push_back(aboutMenu);
-
-    ///////// About Menu - Serial Number /////////
-    // auto aboutSerialNumberMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
-    // aboutSerialNumberMenu->setMenuName("Serial Number");
-    // aboutSerialNumberMenu->setUniqueMenuIdentifier("Serial Number");
-    // aboutSerialNumberMenu->setVisible(false);
-    // aboutSerialNumberMenu->setParentMenu(aboutMenu);
-    // drag_y_actions.push_back({ [aboutSerialNumberMenu]() { return aboutSerialNumberMenu->getVisible(); }, [aboutSerialNumberMenu](int y) { aboutSerialNumberMenu->scrollVert(y); } });
-    // this->renderer->addSetupTask([&]() {
-    //     aboutSerialNumberMenu->setup();
-    //     aboutSerialNumberMenu->setVisible(false);
-    // aboutSerialNumberMenu->getParentMenu()->addMenuEntry(
-    //     "Serial Number",
-    //     "About_Serial_Number",
-    //     MENUS::EntryType::MENUENTRY_TYPE_TEXT_INFO,
-    //     [aboutSerialNumberMenu](void* data) {
-    //         CubeLog::info("Serial Number clicked");
-    //         // TODO: get the serial number from the hardware class
-    //         GUI::showTextBox("Serial Number", "Serial Number: 1234567890h", { 720, 720 }, { 0, 0 }, [aboutSerialNumberMenu]() {
-    //             aboutSerialNumberMenu->getParentMenu()->setVisible(true);
-    //             aboutSerialNumberMenu->getParentMenu()->setIsClickable(false);
-    //         });
-    //         aboutSerialNumberMenu->getParentMenu()->setVisible(false);
-    //         aboutSerialNumberMenu->getParentMenu()->setIsClickable(true);
-    //         return 0;
-    //     },
-    //     [](void*) {
-    //         return 0;
-    //     },
-    //     nullptr);
-    // });
-    // this->renderer->addLoopTask([aboutSerialNumberMenu]() {
-    //     aboutSerialNumberMenu->draw();
-    // });
-    // menus.push_back(aboutSerialNumberMenu);
-
-    ///////// About Menu - Hardware Version /////////
-    auto aboutHardwareVersionMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
-    aboutHardwareVersionMenu->setMenuName("Hardware Version");
-    aboutHardwareVersionMenu->setUniqueMenuIdentifier("Hardware Version");
-    aboutHardwareVersionMenu->setVisible(false);
-    aboutHardwareVersionMenu->setParentMenu(aboutMenu);
-    drag_y_actions.push_back({ [aboutHardwareVersionMenu]() { return aboutHardwareVersionMenu->getVisible(); }, [aboutHardwareVersionMenu](int y) { aboutHardwareVersionMenu->scrollVert(y); } });
-    this->renderer->addSetupTask([&]() {
-        aboutHardwareVersionMenu->setup();
-        aboutHardwareVersionMenu->setVisible(false);
-        aboutHardwareVersionMenu->getParentMenu()->addMenuEntry(
+        ///////// About Menu - Hardware Version /////////
+        aboutMenu->addMenuEntry(
             "Hardware Version",
             "About_Hardware_Version",
             MENUS::EntryType::MENUENTRY_TYPE_TEXT_INFO,
-            [aboutHardwareVersionMenu](void* data) {
+            [aboutMenu](void* data) {
                 CubeLog::info("Hardware Version clicked");
-                // TODO: get the hardware version from the hardware class
-                GUI::showTextBox("Hardware Version", "Hardware Version: 1.0.0", { 720, 720 }, { 0, 0 }, [aboutHardwareVersionMenu]() {
-                    aboutHardwareVersionMenu->getParentMenu()->setVisible(true);
-                    aboutHardwareVersionMenu->getParentMenu()->setIsClickable(false);
+                GUI::showTextBox("Hardware Version", "Hardware Version: 1.0.0", { 720, 720 }, { 0, 0 }, [aboutMenu]() {
+                    aboutMenu->setVisible(true);
+                    aboutMenu->setIsClickable(false);
                 });
-                aboutHardwareVersionMenu->getParentMenu()->setVisible(false);
-                aboutHardwareVersionMenu->getParentMenu()->setIsClickable(true);
+                aboutMenu->setVisible(false);
+                aboutMenu->setIsClickable(true);
                 return 0;
             },
             [](void*) {
                 return 0;
             },
             nullptr);
+        aboutMenu->setup();
+        addToParent(aboutMenu);
+        aboutMenu->setChildrenClickables_isClickable(false);
     });
-    this->renderer->addLoopTask([aboutHardwareVersionMenu]() {
-        aboutHardwareVersionMenu->draw();
-    });
-    menus.push_back(aboutHardwareVersionMenu);
 
     ///////// About Menu - Software Information /////////
-    auto aboutSoftwareInformationMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
-    aboutSoftwareInformationMenu->setMenuName("Software Information");
-    aboutSoftwareInformationMenu->setUniqueMenuIdentifier("Software Information");
-    aboutSoftwareInformationMenu->setVisible(false);
-    aboutSoftwareInformationMenu->setParentMenu(aboutMenu);
-    drag_y_actions.push_back({ [aboutSoftwareInformationMenu]() { return aboutSoftwareInformationMenu->getVisible(); }, [aboutSoftwareInformationMenu](int y) { aboutSoftwareInformationMenu->scrollVert(y); } });
-    this->renderer->addSetupTask([aboutSoftwareInformationMenu, addBackButton, addToParent]() {
+    auto aboutSoftwareInformationMenu = createANewSubMenu("Software Information", "Software Information", aboutMenu);
+    this->renderer->addSetupTask([&aboutSoftwareInformationMenu, addBackButton, addToParent]() {
         addBackButton(aboutSoftwareInformationMenu);
+        ///////// About Menu - Software Information - TheCube-CORE Version /////////
+        // TODO:
+        ///////// About Menu - Software Information - Build Number /////////
+        // TODO:
         aboutSoftwareInformationMenu->setup();
-        aboutSoftwareInformationMenu->setVisible(false);
-        aboutSoftwareInformationMenu->getParentMenu()->addMenuEntry(
-            "Software Information",
-            "About_Software_Information",
-            MENUS::EntryType::MENUENTRY_TYPE_TEXT_INFO,
-            [aboutSoftwareInformationMenu](void* data) {
-                CubeLog::info("Software Information clicked");
-                aboutSoftwareInformationMenu->setVisible(true);
-                aboutSoftwareInformationMenu->getParentMenu()->setVisible(false);
-                aboutSoftwareInformationMenu->getParentMenu()->setIsClickable(false);
-                // TODO: replace this with the actual software information similar to the hardware information
-                return 0;
-            },
-            [](void*) { return 0; },
-            nullptr);
+        addToParent(aboutSoftwareInformationMenu);
+        aboutSoftwareInformationMenu->setChildrenClickables_isClickable(false);
     });
-    this->renderer->addLoopTask([aboutSoftwareInformationMenu]() {
-        aboutSoftwareInformationMenu->draw();
-    });
-    menus.push_back(aboutSoftwareInformationMenu);
-
-    ///////// About Menu - Software Information - TheCube-CORE Version /////////
-    // TODO:
-
-    ///////// About Menu - Software Information - Build Number /////////
-    // TODO:
 
     ///////// About Menu - Status /////////
     // TODO:
@@ -656,64 +505,139 @@ void GUI::eventLoop()
     // TODO:
 
     ///////// Developer Settings Menu /////////
-    auto developerSettingsMenu = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
-    developerSettingsMenu->setMenuName("Developer Settings");
-    developerSettingsMenu->setUniqueMenuIdentifier("Developer Settings");
-    developerSettingsMenu->setVisible(false);
-    developerSettingsMenu->setParentMenu(mainMenu);
-    drag_y_actions.push_back({ [developerSettingsMenu]() { return developerSettingsMenu->getVisible(); }, [developerSettingsMenu](int y) { developerSettingsMenu->scrollVert(y); } });
-    this->renderer->addSetupTask([developerSettingsMenu, addBackButton, addToParent]() {
+    auto developerSettingsMenu = createANewSubMenu("Developer Settings", "Developer Settings", mainMenu);
+    this->renderer->addSetupTask([&developerSettingsMenu, addBackButton, addToParent]() {
         addBackButton(developerSettingsMenu);
+        ///////// Developer Settings Menu - Developer Mode Enable /////////
+        developerSettingsMenu->addMenuEntry(
+            "Developer Mode Enable",
+            "Developer_Settings_Developer_Mode_Enable",
+            MENUS::EntryType::MENUENTRY_TYPE_TOGGLE,
+            [developerSettingsMenu](void* data) {
+                CubeLog::info("Developer Mode Enable clicked");
+                GlobalSettings::setSetting(
+                    GlobalSettings::SettingType::DEVELOPER_MODE_ENABLED,
+                    !GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::DEVELOPER_MODE_ENABLED));
+                std::string message = "Developer mode ";
+                message += (GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::DEVELOPER_MODE_ENABLED)) ? "enabled." : "disabled.";
+                message += "\nPlease reboot the system for changes to take effect.";
+                GUI::showMessageBox("Developer Mode", message, { 720, 720 }, { 0, 0 }, [developerSettingsMenu]() {
+                    developerSettingsMenu->setVisible(true);
+                    developerSettingsMenu->setIsClickable(false);
+                });
+                developerSettingsMenu->setVisible(false);
+                developerSettingsMenu->setIsClickable(true);
+                return 0;
+            },
+            [](void*) {
+                return GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::DEVELOPER_MODE_ENABLED);
+            },
+            nullptr);
+        ///////// Developer Settings Menu - Verify SSD Integrity /////////
+        developerSettingsMenu->addMenuEntry(
+            "Verify SSD Integrity",
+            "Developer_Settings_Verify_SSD_Integrity",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [developerSettingsMenu](void* data) {
+                CubeLog::info("Verify SSD Integrity clicked");
+                // TODO: call some method that checks the SSD integrity
+                GUI::showMessageBox("Verifying SSD Integrity", "SSD Integrity verification in process.\nYou will be notified when it is complete.", { 720, 720 }, { 0, 0 }, [developerSettingsMenu]() {
+                    developerSettingsMenu->setVisible(true);
+                    developerSettingsMenu->setIsClickable(false);
+                });
+                developerSettingsMenu->setVisible(false);
+                developerSettingsMenu->setIsClickable(true);
+                return 0;
+            },
+            [](void*) {
+                return 0;
+            },
+            nullptr);
+        ///////// Developer Settings Menu - Factory Reset /////////
+        developerSettingsMenu->addMenuEntry(
+            "Factory Reset",
+            "Developer_Settings_Factory_Reset",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [developerSettingsMenu](void* data) {
+                CubeLog::info("Factory Reset clicked");
+                // TODO: call some method that resets the system to factory settings
+                GUI::showMessageBox("Factory Reset", "Factory Reset in process.\nSystem will reboot when it is complete.", { 720, 720 }, { 0, 0 }, [developerSettingsMenu]() {});
+                developerSettingsMenu->setVisible(false);
+                developerSettingsMenu->setIsClickable(true);
+                return 0;
+            },
+            [](void*) {
+                return 0;
+            },
+            nullptr);
+        ///////// Developer Settings Menu - Reboot /////////
+        developerSettingsMenu->addMenuEntry(
+            "Reboot",
+            "Developer_Settings_Reboot",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [developerSettingsMenu](void* data) {
+                CubeLog::info("Reboot clicked");
+                // TODO: trigger a reboot
+                GUI::showMessageBox("Reboot", "Rebooting the system.", { 720, 720 }, { 0, 0 }, [developerSettingsMenu]() {});
+                developerSettingsMenu->setVisible(false);
+                developerSettingsMenu->setIsClickable(true);
+                return 0;
+            },
+            [](void*) {
+                return 0;
+            },
+            nullptr);
+        ///////// Developer Settings Menu - Shutdown /////////
+        developerSettingsMenu->addMenuEntry(
+            "Shutdown",
+            "Developer_Settings_Shutdown",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [developerSettingsMenu](void* data) {
+                CubeLog::info("Shutdown clicked");
+                // TODO: trigger a shutdown
+                GUI::showMessageBox("Shutdown", "Shutting down the system.", { 720, 720 }, { 0, 0 }, [developerSettingsMenu]() {});
+                developerSettingsMenu->setVisible(false);
+                developerSettingsMenu->setIsClickable(true);
+                return 0;
+            },
+            [](void*) {
+                return 0;
+            },
+            nullptr);
+        if (GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::DEVELOPER_MODE_ENABLED)) {
+            ///////// Developer Settings Menu - CPU and Memory Display /////////
+            // TODO:
+
+            ///////// Developer Settings Menu - Send Bug Report /////////
+            // TODO:
+        }
         developerSettingsMenu->setup();
-        developerSettingsMenu->setVisible(false);
         addToParent(developerSettingsMenu);
+        developerSettingsMenu->setChildrenClickables_isClickable(false);
     });
-    this->renderer->addLoopTask([developerSettingsMenu]() {
-        developerSettingsMenu->draw();
-    });
-    menus.push_back(developerSettingsMenu);
 
-    ///////// Developer Settings Menu - Developer Mode Enable /////////
-    // TODO:
+    if (GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::DEVELOPER_MODE_ENABLED)) {
+        ///////// Developer Settings Menu - SSH /////////
+        // TODO:
 
-    ///////// Developer Settings Menu - SSH /////////
-    // TODO:
+        ///////// Developer Settings Menu - SSH - Enable SSH /////////
+        // TODO:
 
-    ///////// Developer Settings Menu - SSH - Enable SSH /////////
-    // TODO:
+        ///////// Developer Settings Menu - SSH - Change Password /////////
+        // TODO:
 
-    ///////// Developer Settings Menu - SSH - Change Password /////////
-    // TODO:
+        ///////// Developer Settings Menu - Logging /////////
+        // TODO:
 
-    ///////// Developer Settings Menu - CPU and Memory Display /////////
-    // TODO:
+        ///////// Developer Settings Menu - Logging - File Log Level /////////
+        // TODO:
 
-    ///////// Developer Settings Menu - Send Bug Report /////////
-    // TODO:
+        ///////// Developer Settings Menu - Logging - Telemetry Log Level /////////
+        // TODO:
 
-    ///////// Developer Settings Menu - Verify SSD Integrity /////////
-    // TODO:
-
-    ///////// Developer Settings Menu - Factory Reset /////////
-    // TODO:
-
-    ///////// Developer Settings Menu - Reboot /////////
-    // TODO:
-
-    ///////// Developer Settings Menu - Shutdown /////////
-    // TODO:
-
-    ///////// Developer Settings Menu - Logging /////////
-    // TODO:
-
-    ///////// Developer Settings Menu - Logging - File Log Level /////////
-    // TODO:
-
-    ///////// Developer Settings Menu - Logging - Telemetry Log Level /////////
-    // TODO:
-
-    ///////// Developer Settings Menu - Logging - Log Verbosity /////////
-    // TODO:
+        ///////// Developer Settings Menu - Logging - Log Verbosity /////////
+        // TODO:
+    }
 
     ////////////////////////////////////////
     /// Set up the event handlers
@@ -778,6 +702,10 @@ void GUI::eventLoop()
     fullScreenTextBox->setVisible(false);
     MakeCubeBoxClickable<CubeTextBox> clickable_fullScreenTextBox(fullScreenTextBox);
     this->eventManager->addClickableArea(clickable_fullScreenTextBox.getClickableArea());
+
+    ////////////////////////////////////////
+    /// Set up the notifications text box
+    ////////////////////////////////////////
 
     ////////////////////////////////////////
     /// Wait for the rendered elements to be ready
@@ -862,7 +790,7 @@ GUI_Error GUI::addMenu(std::string menuName, std::string thisUniqueID, std::stri
     }
     menus.push_back(aNewMenu);
     EventManager* eventManagerPtr = this->eventManager;
-    drag_y_actions.push_back({ [aNewMenu]() { return aNewMenu->getVisible(); }, [aNewMenu](int y) { aNewMenu->scrollVert(y); } });
+    drag_y_actions.push_back({ [&aNewMenu]() { return aNewMenu->getVisible(); }, [aNewMenu](int y) { aNewMenu->scrollVert(y); } });
     int menuAddParsed = 0;
     std::mutex menuAddParsedMutex;
     this->renderer->addSetupTask([parentMenuPtr, menuName, aNewMenu, data, eventManagerPtr, thisUniqueID, &menuAddParsed, &menuAddParsedMutex]() {
@@ -1021,6 +949,31 @@ void GUI::showTextBox(std::string title, std::string message, glm::vec2 size, gl
     }
     fullScreenTextBox->setCallback(callback);
     showTextBox(title, message, size, position);
+}
+
+void GUI::showNotification(std::string title, std::string message, NotificationsManager::NotificationType type)
+{
+    // TODO: show a notification
+}
+
+void GUI::showNotificationWithCallback(std::string title, std::string message, NotificationsManager::NotificationType type, std::function<void()> callback)
+{
+    // TODO: show a notification with a callback
+}
+
+void GUI::showNotificationWithCallback(std::string title, std::string message, NotificationsManager::NotificationType type, std::function<void()> callbackYes, std::function<void()> cancelNo)
+{
+    // TODO: show a notification with a callback for yes and no
+}
+
+void GUI::showTextInputBox(std::string title, std::vector<std::string> fields, std::function<void(std::vector<std::string>&)> callback)
+{
+    // TODO: show a text input box
+    std::vector<std::string> textVector;
+    for (int i = 0; i < fields.size(); i++) {
+        textVector.push_back(fields[i]);
+    }
+    callback(textVector);
 }
 
 /**
@@ -1975,4 +1928,58 @@ bool breakJsonApart(nlohmann::json j, AddMenu_Data_t& data, std::string* menuNam
         return false;
     }
     return true;
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+
+NotificationsManager::NotificationsManager()
+{
+    CubeLog::info("Notifications initialized");
+}
+
+NotificationsManager::~NotificationsManager()
+{
+    CubeLog::info("Notifications destroyed");
+}
+
+void NotificationsManager::showNotification(std::string title, std::string message, NotificationType type)
+{
+    CubeLog::info("Notification shown: " + title + " - " + message);
+}
+
+void NotificationsManager::showNotificationWithCallback(std::string title, std::string message, NotificationType type, std::function<void()> callback)
+{
+    CubeLog::info("Notification shown with callback: " + title + " - " + message);
+}
+
+void NotificationsManager::showNotificationWithCallback(std::string title, std::string message, NotificationType type, std::function<void()> callbackYes, std::function<void()> callbackNo)
+{
+    CubeLog::info("Notification shown with callback: " + title + " - " + message);
+}
+
+std::string NotificationsManager::getIntefaceName() const
+{
+    return "Notifications";
+}
+
+HttpEndPointData_t NotificationsManager::getHttpEndpointData()
+{
+    HttpEndPointData_t actions;
+    actions.push_back(
+        { PRIVATE_ENDPOINT | POST_ENDPOINT,
+            [&](const httplib::Request& req, httplib::Response& res) {
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Notification shown with callback");
+            },
+            "showNotificationOkayWarningError",
+            {},
+            "Show a notification with an optional callback" });
+    actions.push_back(
+        { PRIVATE_ENDPOINT | POST_ENDPOINT,
+            [&](const httplib::Request& req, httplib::Response& res) {
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Notification shown with callback");
+            },
+            "showNotificationYesNo",
+            {},
+            "Show a yes/no notification with two callbacks" });
+    return actions;
 }

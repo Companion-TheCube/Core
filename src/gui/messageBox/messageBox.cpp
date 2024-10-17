@@ -355,3 +355,155 @@ void CubeTextBox::setText(std::string text, std::string title)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+CubeNotificaionBox::CubeNotificaionBox(Shader* shader, Shader* textShader, Renderer* renderer, CountingLatch& latch)
+{
+    this->shader = shader;
+    this->textShader = textShader;
+    this->visible = false;
+    this->latch = &latch;
+    this->renderer = renderer;
+    CubeLog::info("NotificationBox initialized");
+    this->callbackYes = [&](){return;};
+    this->callbackNo = [&](){return;};
+}
+
+CubeNotificaionBox::~CubeNotificaionBox()
+{
+    for(auto object : this->objects) {
+        delete object;
+    }
+    for(auto object : this->textObjects) {
+        delete object;
+    }
+    CubeLog::info("NotificationBox destroyed");
+}
+
+void CubeNotificaionBox::setup()
+{
+    float radius = BOX_RADIUS;
+    float diameter = radius * 2;
+    float xStart = -0.2;
+    float yStart = -0.2;
+    glm::vec2 size_ = { 1.f, 1.f };
+    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart + radius, Z_DISTANCE + this->index }, { size_.x - diameter, size_.y - diameter }, 0.0, 0.0)); // main box
+    this->objects.push_back(new M_Rect(shader, { xStart, yStart + radius, Z_DISTANCE + this->index }, { radius, size_.y - diameter }, 0.0, 0.0)); // left
+    this->objects.push_back(new M_Rect(shader, { xStart + size_.x - radius, yStart + radius, Z_DISTANCE + this->index }, { radius, size_.y - diameter }, 0.0, 0.0)); // right
+    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart, Z_DISTANCE + this->index }, { size_.x - diameter, radius }, 0.0, 0.0)); // top
+    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart + size_.y - radius, Z_DISTANCE + this->index }, { size_.x - diameter, radius }, 0.0, 0.0)); // bottom
+    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + size_.x - radius, yStart + size_.y - radius, Z_DISTANCE + this->index }, 0, 90, {0.f,0.f,0.f})); // top right
+    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + radius, yStart + size_.y - radius, Z_DISTANCE + this->index }, 90, 180, {0.f,0.f,0.f})); // top left
+    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + radius, yStart + radius, Z_DISTANCE + this->index }, 180, 270, {0.f,0.f,0.f})); // bottom left
+    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + size_.x - radius, yStart + radius, Z_DISTANCE + this->index }, 270, 360, {0.f,0.f,0.f})); // bottom right
+    this->objects.push_back(new M_Line(shader, { xStart + radius, yStart + size_.y, Z_DISTANCE + 0.001 + this->index }, { xStart + size_.x - radius, yStart + size_.y, Z_DISTANCE + 0.001 + this->index })); // top
+    this->objects.push_back(new M_Line(shader, { xStart + size_.x, yStart + radius, Z_DISTANCE + 0.001 + this->index }, { xStart + size_.x, yStart + size_.y - radius, Z_DISTANCE + 0.001 + this->index })); // right
+    this->objects.push_back(new M_Line(shader, { xStart + radius, yStart, Z_DISTANCE + 0.001 + this->index }, { xStart + size_.x - radius, yStart, Z_DISTANCE + 0.001 + this->index })); // bottom
+    this->objects.push_back(new M_Line(shader, { xStart, yStart + radius, Z_DISTANCE + 0.001 + this->index }, { xStart, yStart + size_.y - radius, Z_DISTANCE + 0.001 + this->index })); // left
+    this->objects.push_back(new M_Arc(shader, 50, radius, 0, 90, { xStart + size_.x - radius, yStart + size_.y - radius, Z_DISTANCE + 0.001 + this->index })); // top right
+    this->objects.push_back(new M_Arc(shader, 50, radius, 360, 270, { xStart + size_.x - radius, yStart + radius, Z_DISTANCE + 0.001 + this->index })); // bottom right
+    this->objects.push_back(new M_Arc(shader, 50, radius, 180, 270, { xStart + radius, yStart + radius, Z_DISTANCE + 0.001 + this->index })); // bottom left
+    this->objects.push_back(new M_Arc(shader, 50, radius, 180, 90, { xStart + radius, yStart + size_.y - radius, Z_DISTANCE + 0.001 + this->index })); // top left
+    textMeshCount = this->objects.size();
+    std::lock_guard<std::mutex> lock(this->mutex);
+    this->latch->count_down();
+    CubeLog::info("NotificationBox setup");
+}
+
+bool CubeNotificaionBox::setVisible(bool visible)
+{
+    CubeLog::debug("NotificationBox visibility set to " + std::to_string(visible));
+    bool temp = this->visible;
+    this->visible = visible;
+    if (this->callbackYes != nullptr) if(this->visible) this->callbackYes();
+    return temp;
+}
+
+bool CubeNotificaionBox::getVisible()
+{
+    return this->visible;
+}
+
+void CubeNotificaionBox::draw()
+{
+    if (!this->visible) {
+        return;
+    }
+    for (auto object : this->objects) {
+        object->draw();
+    }
+    for(auto object : this->textObjects) {
+        object->draw();
+    }
+}
+
+void CubeNotificaionBox::setPosition(glm::vec2 position)
+{
+    this->needsSetup = true;
+    this->position = position;
+    for(auto object : this->objects){
+        delete object;
+    }
+    this->objects.clear();
+    this->index = 0.001;
+}
+
+void CubeNotificaionBox::setSize(glm::vec2 size)
+{
+    this->needsSetup = true;
+    this->size = size;
+    for(auto object : this->objects){
+        delete object;
+    }
+    this->objects.clear();
+    this->index = 0.001;
+}
+
+void CubeNotificaionBox::setTextSize(float size)
+{
+    this->messageTextSize = size;
+}
+
+std::vector<MeshObject*> CubeNotificaionBox::getObjects()
+{
+    // concat objects and textObjects
+    std::vector<MeshObject*> allObjects;
+    allObjects.insert(allObjects.end(), this->objects.begin(), this->objects.end());
+    allObjects.insert(allObjects.end(), this->textObjects.begin(), this->textObjects.end());
+    return allObjects;
+}
+
+void CubeNotificaionBox::setCallbackNo(std::function<void()> callback)
+{
+    this->callbackNo = callback;
+}
+
+void CubeNotificaionBox::setCallbackYes(std::function<void()> callback)
+{
+    this->callbackYes = callback;
+}
+
+void CubeNotificaionBox::setText(std::string text, std::string title)
+{
+    this->renderer->addSetupTask([&, text, title]() {
+        // TODO: this was copy/pasted from CubeTextBox::setText. We need to refactor this so that is renders the text field names and a text input box for each.
+        for (size_t index = 0; index < this->textObjects.size(); index++) {
+            delete this->textObjects[index];
+        }
+        this->textObjects.clear();
+        this->textObjects.push_back(new M_Text(textShader, title, (this->messageTextSize * MESSAGEBOX_TITLE_TEXT_MULT), { 1.f, 1.f, 1.f }, { this->position.x + STENCIL_INSET_PX, (this->position.y + this->size.y) - this->messageTextSize - STENCIL_INSET_PX }));
+        std::vector<std::string> lines;
+        std::string line;
+        std::istringstream textStream(text);
+        while (std::getline(textStream, line)) {
+            lines.push_back(line);
+        }
+        if(lines.size() == 0) lines.push_back(text);
+        if(lines[0].size() == 0) lines[0] = text;
+        for ( size_t i = 0; i < lines.size(); i++) {
+            float shiftForPreviousLines = ((float)(i + 1) * this->messageTextSize ) + (this->messageTextSize * MESSAGEBOX_TITLE_TEXT_MULT);
+            float shiftForMargin = (float)(i + 1) * MESSAGEBOX_LINE_SPACING * this->messageTextSize;
+            this->textObjects.push_back(new M_Text(textShader, lines[i], this->messageTextSize, { 1.f, 1.f, 1.f }, { this->position.x + STENCIL_INSET_PX, (this->position.y + this->size.y) - STENCIL_INSET_PX - shiftForPreviousLines - shiftForMargin }));
+        }
+        CubeLog::info("TextBox text set");
+    });
+}

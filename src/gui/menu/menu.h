@@ -119,6 +119,7 @@ private:
     unsigned int menuEntryIndex;
     int groupID;
     M_Text* textObject;
+    bool isClickable = false;
 
 public:
     MenuEntry(Shader* t_shader, Shader* m_shader, std::string text, glm::vec2 position, float size, float visibleWidth, EntryType type, std::function<unsigned int(void*)> statusAction, void* statusActionArg);
@@ -130,6 +131,8 @@ public:
     std::vector<MeshObject*> getObjects();
     bool setVisible(bool visible);
     bool getVisible();
+    bool setIsClickable(bool isClickable);
+    bool getIsClickable();
     void setOnClick(std::function<unsigned int(void*)> action);
     void setOnRightClick(std::function<unsigned int(void*)> action);
     void setStatusAction(std::function<unsigned int(void*)> action);
@@ -139,7 +142,6 @@ public:
     void setClickAreaSize(unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax);
     void capturePosition();
     void restorePosition();
-    bool getIsClickable();
     void translate(glm::vec2 translation);
     unsigned int clickReturnData = 0;
     unsigned int statusReturnData = 0;
@@ -203,7 +205,7 @@ public:
     Menu* getParentMenu();
     void setMenuName(std::string name);
     void setAsMainMenu();
-    void setIsClickable(bool isClickable);
+    bool setIsClickable(bool isClickable);
     std::string getMenuName();
     void setUniqueMenuIdentifier(std::string uniqueMenuIdentifier);
     std::string getUniqueMenuIdentifier();
@@ -216,6 +218,7 @@ public:
     void capturePosition() { }
     void restorePosition() { }
     bool getIsClickable();
+    bool setChildrenClickables_isClickable(bool isClickable);
 };
 
 class MenuBox : public M_Box {
@@ -257,6 +260,8 @@ public:
     void draw();
     bool setVisible(bool visible);
     bool getVisible();
+    bool setIsClickable(bool isClickable) { return false; }
+    bool getIsClickable() { return false; }
     void onClick(void*);
     void onRelease(void*);
     void onMouseDown(void*);
@@ -270,7 +275,6 @@ public:
     void setClickAreaSize(unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax) { }
     void capturePosition();
     void restorePosition();
-    bool getIsClickable() { return false; }
 };
 
 class MenuStencil : public Object {

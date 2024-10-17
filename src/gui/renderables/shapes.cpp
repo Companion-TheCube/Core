@@ -23,7 +23,7 @@ M_Text::M_Text(Shader* sh, std::string text, float fontSize, glm::vec3 color, gl
     this->position = position;
     this->projectionMatrix = glm::ortho(0.0f, 720.0f, 0.0f, 720.0f, -1.f, 1.f);
     this->buildText();
-    GlobalSettings::setSettingCB("selectedFontPath", [&]() {
+    GlobalSettings::setSettingCB(GlobalSettings::SettingType::SELECTED_FONT_PATH, [&]() {
         this->reloadFace = true;
     });
     CubeLog::debug("Created Text: " + text);
@@ -50,7 +50,7 @@ void M_Text::buildText()
         if (FT_Init_FreeType(&M_Text::ft)) {
             CubeLog::error("ERROR::FREETYPE: Could not init FreeType Library");
         }
-        std::string fontPath = GlobalSettings::selectedFontPath;
+        std::string fontPath = GlobalSettings::getSettingOfType<std::string>(GlobalSettings::SettingType::SELECTED_FONT_PATH);
         if (!std::filesystem::exists(fontPath)) {
             CubeLog::error("ERROR::FREETYPE: Font file does not exist");
             fontPath = "fonts/Roboto/Roboto-Regular.ttf";
@@ -138,7 +138,7 @@ M_Text::~M_Text()
     for (unsigned char c = 0; c < 128; c++) {
         glDeleteTextures(1, &this->characters[c].textureID);
     }
-    CubeLog::info("Destroyed Text");
+    // CubeLog::info("Destroyed Text");
 }
 
 void M_Text::draw()
@@ -376,7 +376,7 @@ M_PartCircle::M_PartCircle(Shader* sh, unsigned int numSegments, float radius, g
 
 M_PartCircle::~M_PartCircle()
 {
-    CubeLog::info("Destroyed PartCircle");
+    // CubeLog::info("Destroyed PartCircle");
     glDeleteVertexArrays(1, VAO);
     glDeleteBuffers(1, VBO);
 }
@@ -634,7 +634,7 @@ M_RadioButtonTexture::M_RadioButtonTexture(Shader* sh, float radioSize, unsigned
 
 M_RadioButtonTexture::~M_RadioButtonTexture()
 {
-    CubeLog::info("Destroyed RadioButtonTexture");
+    // CubeLog::info("Destroyed RadioButtonTexture");
     glDeleteTextures(1, &this->textureSelected);
     glDeleteTextures(1, &this->textureUnselected);
 }
@@ -835,7 +835,7 @@ M_Rect::M_Rect(Shader* sh, glm::vec3 position, glm::vec2 size, float fillColor, 
 
 M_Rect::~M_Rect()
 {
-    CubeLog::info("Destroyed Rect");
+    // CubeLog::info("Destroyed Rect");
     glDeleteVertexArrays(1, VAO);
     glDeleteBuffers(1, VBO);
 }
@@ -1043,7 +1043,7 @@ M_Line::M_Line(Shader* sh, glm::vec3 start, glm::vec3 end)
 
 M_Line::~M_Line()
 {
-    CubeLog::info("Destroyed Line");
+    // CubeLog::info("Destroyed Line");
     glDeleteVertexArrays(1, VAO);
     glDeleteBuffers(1, VBO);
 }
@@ -1257,7 +1257,7 @@ M_Arc::M_Arc(Shader* sh, unsigned int numSegments, float radius, float startAngl
 
 M_Arc::~M_Arc()
 {
-    CubeLog::info("Destroyed Arc");
+    // CubeLog::info("Destroyed Arc");
     glDeleteVertexArrays(1, VAO);
     glDeleteBuffers(1, VBO);
 }
