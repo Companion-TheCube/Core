@@ -636,6 +636,20 @@ MenuEntry::MenuEntry(Shader* t_shader, Shader* m_shader, std::string text, glm::
         this->allObjects.push_back(tempRB);
         break;
     }
+    case EntryType::MENUENTRY_TYPE_TOGGLE:{
+        CubeLog::moreInfo("Creating toggle button");
+        float posX = this->position.x + (this->visibleWidth - (size * 2.f - 10.f));
+        float posY = this->position.y + size;
+        auto tempTB = new M_ToggleTexture(textShader, size * 2.f + 10.f, size + 10, 20, { 1.f, 1.f, 1.f }, { posX, posY });
+        tempTB->setSelected(this->statusReturnData == 1);
+        tempTB->capturePosition();
+        tempTB->setVisibility(true);
+        CubeLog::moreInfo("Toggle button getWidth(): " + std::to_string(tempTB->getWidth()));
+        this->setVisibleWidth(this->visibleWidth - tempTB->getWidth());
+        this->xFixedObjects.push_back(tempTB);
+        this->allObjects.push_back(tempTB);
+        break;
+    }
     // TODO: add the rest of the MENU_ENTRY_TYPEs
     }
     // this->textStencil = new MenuStencil({ position.x, position.y - 2 }, { this->visibleWidth, size + 4 });
@@ -771,6 +785,14 @@ void MenuEntry::draw()
             ((M_RadioButtonTexture*)this->xFixedObjects.at(0))->setSelected(true);
         } else {
             ((M_RadioButtonTexture*)this->xFixedObjects.at(0))->setSelected(false);
+        }
+        break;
+    }
+    case EntryType::MENUENTRY_TYPE_TOGGLE: {
+        if (this->statusReturnData == 1) {
+            ((M_ToggleTexture*)this->xFixedObjects.at(0))->setSelected(true);
+        } else {
+            ((M_ToggleTexture*)this->xFixedObjects.at(0))->setSelected(false);
         }
         break;
     }

@@ -629,7 +629,7 @@ M_RadioButtonTexture::M_RadioButtonTexture(Shader* sh, float radioSize, unsigned
     glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
-    CubeLog::info("Created RadioButtonTexture");
+    // CubeLog::info("Created RadioButtonTexture");
 }
 
 M_RadioButtonTexture::~M_RadioButtonTexture()
@@ -791,7 +791,307 @@ void M_RadioButtonTexture::setPosition(glm::vec2 position)
     this->position = position;
 }
 
-float M_RadioButtonTexture::getWidth() { return this->radioSize; };
+float M_RadioButtonTexture::getWidth() { return this->radioSize; }
+
+//////////////////////////////////////////////////////////////////////////////////////////
+
+unsigned char* createToggleTexture(unsigned int height, unsigned int width, unsigned int padding, bool selected)
+{
+    float overallWidth = width + padding * 2.f;
+    float overallHeight = height + padding * 2.f;
+    unsigned char* data = new unsigned char[(unsigned int)(overallWidth * overallHeight)];
+    float centerR_x = overallWidth - (overallHeight / 2.0f);
+    float centerR_y = overallHeight / 2.0f;
+    float centerL_x = overallHeight / 2.0f;
+    float centerL_y = overallHeight / 2.0f;
+    float circle_outer_radius = height / 2.0f;
+    float circle_inner_radius = circle_outer_radius * TOGGLE_INNER_OUTER_RATIO;
+    float dot_radius = circle_inner_radius * TOGGLE_DOT_INNER_RATIO;
+    for (unsigned int y = 0; y < overallHeight; ++y) {
+        for (unsigned int x = 0; x < overallWidth; ++x) {
+            float dx_R = x - centerR_x;
+            float dy_R = y - centerR_y;
+            float dx_L = x - centerL_x;
+            float dy_L = y - centerL_y;
+            float dist_R = std::sqrt(dx_R * dx_R + dy_R * dy_R);
+            float dist_L = std::sqrt(dx_L * dx_L + dy_L * dy_L);
+            unsigned char pixel_color = 0;
+            // check if the pixel is in the right semi-circle
+            if (dist_R >= circle_inner_radius && dist_R <= circle_outer_radius && x >= centerR_x) {
+                pixel_color = 255;
+            }
+            // check if the pixel is in the left semi-circle
+            else if (dist_L >= circle_inner_radius && dist_L <= circle_outer_radius && x <= centerL_x) {
+                pixel_color = 255;
+            }
+            // check if the pixel is in the top line or bottom line
+            else if (
+                ((y >= centerR_y + circle_inner_radius && y <= centerR_y + circle_outer_radius) ||
+                (y <= centerR_y - circle_inner_radius && y >= centerR_y - circle_outer_radius)) &&
+                x <= centerR_x && x >= centerL_x
+            ) {
+                pixel_color = 255;
+            }
+            // check if the pixel is in the dot to the right
+            else if (selected && dist_R < dot_radius) {
+                pixel_color = 255;
+            }
+            // check if the pixel is in the dot to the left
+            else if (!selected && dist_L < dot_radius) {
+                pixel_color = 255;
+            }
+            // check if pixel is in the middle
+            else if (selected) {
+                bool inInnerCircle = dist_R < circle_inner_radius || dist_L < circle_inner_radius;
+                bool betweenYVals = y >= centerR_y - circle_inner_radius && y <= centerR_y + circle_inner_radius;
+                bool betweenXVals = x <= centerR_x && x >= centerL_x;
+                if(inInnerCircle || (betweenYVals && betweenXVals)) {
+                    pixel_color = 64;
+                }
+            }
+
+            // set the pixel color
+            data[(unsigned int)((float)y * overallWidth + x)] = pixel_color;
+            // add some blur to the edges
+            for (float i = -(height * 0.1f); i <= (height * 0.1f); i++) {
+                for (float j = -(height * 0.1f); j <= (height * 0.1f); j++) {
+                    unsigned int yIdx = y + i;
+                    unsigned int xIdx = x + j;
+                    if (yIdx < 0 || yIdx >= overallHeight || xIdx < 0 || xIdx >= overallWidth) {
+                        continue;
+                    }
+                    if((((unsigned int)data[(unsigned int)((float)yIdx * overallWidth + xIdx)]) + pixel_color / ((height * 0.2f) *(height * 0.2f))) > 255) {
+                        data[(unsigned int)((float)yIdx * overallWidth + xIdx)] = 255;
+                    } else {
+                        data[(unsigned int)((float)yIdx * overallWidth + xIdx)] += pixel_color / ((height * 0.2f) * (height * 0.2f));
+                    }
+                }
+            }
+        }
+    }
+    return data;
+}
+
+M_ToggleTexture::M_ToggleTexture(Shader* sh, float toggleWidth, float toggleHeight, unsigned int padding, glm::vec3 color, glm::vec2 position)
+{
+    this->shader = sh;
+    this->position = position;
+    this->selected = false;
+    this->toggleWidth = toggleWidth;
+    this->toggleHeight = toggleHeight;
+    this->padding = padding;
+    this->color = color;
+    this->scale_ = 1.0f;
+    this->selectedTextureBitmap = createToggleTexture(toggleHeight, toggleWidth, padding, true);
+    this->unselectedTextureBitmap = createToggleTexture(toggleHeight, toggleWidth, padding, false);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);   
+    glGenTextures(1, &this->textureSelected);
+    glBindTexture(GL_TEXTURE_2D, this->textureSelected);
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RED,
+        toggleWidth + padding * 2,
+        toggleHeight + padding * 2,
+        0,
+        GL_RED,
+        GL_UNSIGNED_BYTE,
+        this->selectedTextureBitmap);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glGenTextures(1, &this->textureUnselected);
+    glBindTexture(GL_TEXTURE_2D, this->textureUnselected);
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RED,
+        toggleWidth + padding * 2,
+        toggleHeight + padding * 2,
+        0,
+        GL_RED,
+        GL_UNSIGNED_BYTE,
+        this->unselectedTextureBitmap);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    setProjectionMatrix(glm::ortho(0.0f, 720.f, 0.0f, 720.f, -1.f, 1.f));
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glGenVertexArrays(1, &this->VAO);
+    glGenBuffers(1, &this->VBO);
+    glBindVertexArray(this->VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+    // CubeLog::info("Created ToggleTexture");
+}
+
+M_ToggleTexture::~M_ToggleTexture()
+{
+    // CubeLog::info("Destroyed ToggleTexture");
+    glDeleteTextures(1, &this->textureSelected);
+    glDeleteTextures(1, &this->textureUnselected);
+}
+
+void M_ToggleTexture::draw()
+{
+    this->shader->use();
+    shader->setVec3("textColor", this->color.x, this->color.y, this->color.z);
+    shader->setMat4("projection", projectionMatrix);
+    shader->setFloat("zindex", 0.1f);
+    shader->setFloat("alpha", 1.0f);
+    shader->setFloat("bg_alpha", 1.0f);
+    glActiveTexture(GL_TEXTURE0);
+    float xPos = this->position.x;
+    float yPos = this->position.y - this->toggleHeight;
+    float vertices[6][4] = {
+        // Positions            // Texture Coords
+        { xPos, yPos + this->toggleHeight, 0.0f, 0.0f }, // Top-left
+        { xPos + this->toggleWidth, yPos, 1.0f, 1.0f }, // Bottom-right
+        { xPos, yPos, 0.0f, 1.0f }, // Bottom-left
+
+        { xPos, yPos + this->toggleHeight, 0.0f, 0.0f }, // Top-left
+        { xPos + this->toggleWidth, yPos + this->toggleHeight, 1.0f, 0.0f }, // Top-right
+        { xPos + this->toggleWidth, yPos, 1.0f, 1.0f } // Bottom-right
+    };
+    if (this->selected) {
+        glBindTexture(GL_TEXTURE_2D, this->textureSelected);
+    } else {
+        glBindTexture(GL_TEXTURE_2D, this->textureUnselected);
+    }
+    glBindVertexArray(this->VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void M_ToggleTexture::setProjectionMatrix(glm::mat4 projectionMatrix)
+{
+    this->projectionMatrix = projectionMatrix;
+}
+
+void M_ToggleTexture::setViewMatrix(glm::vec3 viewMatrix)
+{
+    return; // do nothing
+}
+
+void M_ToggleTexture::setViewMatrix(glm::mat4 viewMatrix)
+{
+    return; // do nothing
+}
+
+void M_ToggleTexture::setModelMatrix(glm::mat4 modelMatrix)
+{
+    return; // do nothing
+}
+
+void M_ToggleTexture::translate(glm::vec3 translation)
+{
+    this->position.x += translation.x;
+    this->position.y += translation.y;
+}
+
+void M_ToggleTexture::rotate(float angle, glm::vec3 axis)
+{
+    // do nothing
+}
+
+void M_ToggleTexture::scale(glm::vec3 scale)
+{
+    this->toggleWidth = this->toggleWidth * scale.x;
+    this->toggleHeight = this->toggleHeight * scale.y;
+}
+
+void M_ToggleTexture::uniformScale(float scale)
+{
+    this->scale_ *= scale;
+}
+
+void M_ToggleTexture::rotateAbout(float angle, glm::vec3 point)
+{
+    // do nothing
+}
+
+void M_ToggleTexture::rotateAbout(float angle, glm::vec3 axis, glm::vec3 point)
+{
+    // do nothing
+}
+
+glm::vec3 M_ToggleTexture::getCenterPoint()
+{
+    return { this->position.x, this->position.y, 0.f };
+}
+
+std::vector<Vertex> M_ToggleTexture::getVertices()
+{
+    std::vector<Vertex> vertices;
+    return vertices;
+}
+
+void M_ToggleTexture::capturePosition()
+{
+    this->capturedModelMatrix = this->modelMatrix;
+    this->capturedViewMatrix = this->viewMatrix;
+    this->capturedProjectionMatrix = this->projectionMatrix;
+    this->capturedPosition = this->position;
+}
+
+void M_ToggleTexture::restorePosition()
+{
+    this->modelMatrix = this->capturedModelMatrix;
+    this->viewMatrix = this->capturedViewMatrix;
+    this->projectionMatrix = this->capturedProjectionMatrix;
+    this->position = this->capturedPosition;
+}
+
+void M_ToggleTexture::setVisibility(bool visible)
+{
+    this->visible = visible;
+}
+
+void M_ToggleTexture::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix)
+{
+    this->mutex.lock();
+    *modelMatrix = this->capturedModelMatrix - this->modelMatrix;
+    *viewMatrix = this->capturedViewMatrix - this->viewMatrix;
+    *projectionMatrix = this->capturedProjectionMatrix - this->projectionMatrix;
+    this->mutex.unlock();
+}
+
+glm::mat4 M_ToggleTexture::getModelMatrix()
+{
+    return this->modelMatrix;
+}
+
+glm::mat4 M_ToggleTexture::getViewMatrix()
+{
+    return this->viewMatrix;
+}
+
+glm::mat4 M_ToggleTexture::getProjectionMatrix()
+{
+    return this->projectionMatrix;
+}
+
+void M_ToggleTexture::setSelected(bool selected)
+{
+    this->selected = selected;
+}
+
+void M_ToggleTexture::setPosition(glm::vec2 position)
+{
+    this->position = position;
+}
+
+float M_ToggleTexture::getWidth() { return this->toggleWidth; }
 
 //////////////////////////////////////////////////////////////////////////////////////////
 

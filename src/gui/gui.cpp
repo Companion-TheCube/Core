@@ -199,6 +199,21 @@ void GUI::eventLoop()
     this->renderer->addSetupTask([&wifiMenu, addBackButton, addToParent]() {
         addBackButton(wifiMenu);
         ///////// Connections Menu - WiFi - Enable/Disable WiFi /////////
+        wifiMenu->addMenuEntry(
+            _("Enable/Disable WiFi"),
+            "WiFi_EnableDisable",
+            MENUS::EntryType::MENUENTRY_TYPE_TOGGLE,
+            [](void* data) {
+                CubeLog::info("WiFi - Enable/Disable WiFi clicked");
+                // GlobalSettings::setSetting(GlobalSettings::SettingType::WIFI_ENABLED, !GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::WIFI_ENABLED));
+                return 0;
+            },
+            [](void*) {
+                // return GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::WIFI_ENABLED);
+                int random0or1 = rand() % 2;
+                return random0or1;
+            },
+            nullptr);
         ///////// Connections Menu - WiFi - Current Network /////////
         wifiMenu->setup();
         addToParent(wifiMenu);

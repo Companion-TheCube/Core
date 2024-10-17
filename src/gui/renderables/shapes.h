@@ -306,6 +306,62 @@ public:
     float getWidth();
 };
 
+#define TOGGLE_INNER_OUTER_RATIO 0.8f
+#define TOGGLE_DOT_INNER_RATIO 0.75f
+
+class M_ToggleTexture : public MeshObject {
+private:
+    Shader* shader;
+    std::vector<Vertex> vertexData;
+    GLuint VAO, VBO;
+    GLuint textureSelected, textureUnselected;
+    glm::mat4 projectionMatrix;
+    glm::mat4 viewMatrix;
+    glm::mat4 modelMatrix;
+    bool selected;
+    float toggleWidth;
+    float toggleHeight;
+    unsigned int padding;
+    glm::vec3 color;
+    glm::vec2 position;
+    float scale_;
+    glm::mat4 capturedProjectionMatrix;
+    glm::mat4 capturedViewMatrix;
+    glm::mat4 capturedModelMatrix;
+    glm::vec2 capturedPosition;
+    bool visible = true;
+    std::mutex mutex;
+    unsigned char* selectedTextureBitmap;
+    unsigned char* unselectedTextureBitmap;
+
+public:
+    M_ToggleTexture(Shader* sh, float toggleWidth, float toggleHeight, unsigned int padding, glm::vec3 color, glm::vec2 position);
+    ~M_ToggleTexture();
+    void draw();
+    void setProjectionMatrix(glm::mat4 projectionMatrix);
+    void setViewMatrix(glm::vec3 viewMatrix);
+    void setViewMatrix(glm::mat4 viewMatrix);
+    void setModelMatrix(glm::mat4 modelMatrix);
+    glm::mat4 getModelMatrix();
+    glm::mat4 getViewMatrix();
+    glm::mat4 getProjectionMatrix();
+    void translate(glm::vec3 translation);
+    void rotate(float angle, glm::vec3 axis);
+    void scale(glm::vec3 scale);
+    void uniformScale(float scale);
+    void rotateAbout(float angle, glm::vec3 axis, glm::vec3 point);
+    void rotateAbout(float angle, glm::vec3 point);
+    glm::vec3 getCenterPoint();
+    std::vector<Vertex> getVertices();
+    void setPosition(glm::vec2 position);
+    void setSelected(bool selected);
+    void setVisibility(bool visible);
+    void capturePosition();
+    void restorePosition();
+    void getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix);
+    float getWidth();
+};
+
 #define CUBE_VERTICES_CONST 1.0f
 #define EDGE_VERTICES_OFFSET 0.02f
 #define BLACK_FLOATS 0.0f
