@@ -11,20 +11,20 @@
 #ifndef RENDERER_H
 #include "renderer.h"
 #endif
+#include <expected>
 #include <filesystem>
 #include <fstream>
 #include <functional>
 #include <iostream>
+#include <latch>
+#include <mutex>
+#include <nlohmann/json.hpp>
+#include <regex>
 #include <sstream>
 #include <string>
 #include <thread>
-#include <vector>
-#include <latch>
-#include <expected>
-#include <regex>
-#include <nlohmann/json.hpp>
-#include <mutex>
 #include <tuple>
+#include <vector>
 #ifndef MESSAGEBOX_H
 #include "messageBox/messageBox.h"
 #endif
@@ -42,13 +42,24 @@
 #include "globalSettings.h"
 #endif
 
+#ifdef __linux__
+#include <libintl.h>
+#include <locale.h>
+
+#define _(String) gettext(String)
+#define N_(String) String
+// TODO: verify this works
+#else
+#define _(String) (String)
+#endif
+
 typedef std::vector<std::tuple<std::string, nlohmann::json, std::string>> AddMenu_Data_t;
 
 bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry);
 bool breakJsonApart(nlohmann::json j, AddMenu_Data_t& data, std::string* menuName, std::string* thisUniqueID, std::string* parentID);
 
-struct GUI_Error{
-    enum ERROR_TYPES{
+struct GUI_Error {
+    enum ERROR_TYPES {
         GUI_NO_ERROR,
         GUI_PARENT_NOT_FOUND,
         GUI_MENU_NOT_FOUND,
@@ -65,8 +76,6 @@ struct GUI_Error{
     ERROR_TYPES errorType;
     std::string errorString;
 };
-
-
 
 class NotificationsManager : public I_API_Interface {
 public:
@@ -117,7 +126,7 @@ private:
     static CubeTextBox* fullScreenTextBox;
     // static NotificationBox* notificationBox;
     std::vector<MENUS::Menu*> menus;
-    std::vector<std::pair<std::function<bool()>,std::function<void(int)>>> drag_y_actions; // bool is visibility. if the item is not visible, do not call the action.
+    std::vector<std::pair<std::function<bool()>, std::function<void(int)>>> drag_y_actions; // bool is visibility. if the item is not visible, do not call the action.
     std::mutex addMenuMutex;
 };
 

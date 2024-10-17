@@ -146,7 +146,7 @@ void GUI::eventLoop()
     ///////// Main Menu /////////
     auto mainMenu = new MENUS::Menu(this->renderer, countingLatch);
     mainMenu->setAsMainMenu();
-    mainMenu->setMenuName("Main Menu");
+    mainMenu->setMenuName(_("Main Menu"));
     mainMenu->setUniqueMenuIdentifier("Main Menu");
     menus.push_back(mainMenu);
     drag_y_actions.push_back({ [&mainMenu]() { return mainMenu->getVisible(); }, [mainMenu](int y) { mainMenu->scrollVert(y); } });
@@ -187,7 +187,7 @@ void GUI::eventLoop()
 
     /////////
     ///////// Connections Menu /////////
-    auto connectionsMenu = createANewSubMenu("Connections", "Connections", mainMenu);
+    auto connectionsMenu = createANewSubMenu(_("Connections"), "Connections", mainMenu);
     this->renderer->addSetupTask([&connectionsMenu, addBackButton, addToParent]() {
         addBackButton(connectionsMenu);
         connectionsMenu->setup();
@@ -195,7 +195,7 @@ void GUI::eventLoop()
     });
 
     ///////// Connections Menu - WiFi /////////
-    auto wifiMenu = createANewSubMenu("WiFi", "WiFi", connectionsMenu);
+    auto wifiMenu = createANewSubMenu(_("WiFi"), "WiFi", connectionsMenu);
     this->renderer->addSetupTask([&wifiMenu, addBackButton, addToParent]() {
         addBackButton(wifiMenu);
         ///////// Connections Menu - WiFi - Enable/Disable WiFi /////////
@@ -210,7 +210,7 @@ void GUI::eventLoop()
     ///////// Connections Menu - WiFi - WiFi Networks - List available networks /////////
 
     ///////// Connections Menu - Bluetooth /////////
-    auto bluetoothMenu = createANewSubMenu("Bluetooth", "Bluetooth", connectionsMenu);
+    auto bluetoothMenu = createANewSubMenu(_("Bluetooth"), "Bluetooth", connectionsMenu);
     this->renderer->addSetupTask([&bluetoothMenu, addBackButton, addToParent]() {
         addBackButton(bluetoothMenu);
         ///////// Connections Menu - Bluetooth - Enable/Disable Bluetooth /////////
@@ -224,7 +224,7 @@ void GUI::eventLoop()
     // TODO: list all the bluetooth devices that have been paired with the cube
 
     ///////// Connections Menu - NFC /////////
-    auto nfcMenu = createANewSubMenu("NFC", "NFC", connectionsMenu);
+    auto nfcMenu = createANewSubMenu(_("NFC"), "NFC", connectionsMenu);
     this->renderer->addSetupTask([&nfcMenu, addBackButton, addToParent]() {
         addBackButton(nfcMenu);
         ///////// Connections Menu - NFC - Enable/Disable NFC /////////
@@ -234,7 +234,7 @@ void GUI::eventLoop()
     });
 
     ///////// Personality Menu /////////
-    auto personalityMenu = createANewSubMenu("Personality", "Personality", mainMenu);
+    auto personalityMenu = createANewSubMenu(_("Personality"), "Personality", mainMenu);
     this->renderer->addSetupTask([&personalityMenu, addBackButton, addToParent]() {
         addBackButton(personalityMenu);
         ///////// Personality Menu - Enable/Disable Personality /////////
@@ -247,7 +247,7 @@ void GUI::eventLoop()
     // TODO: list each attribute of the personality and provide a slider to adjust. 
 
     ///////// Sensors Menu /////////
-    auto sensorsMenu = createANewSubMenu("Sensors", "Sensors", mainMenu);
+    auto sensorsMenu = createANewSubMenu(_("Sensors"), "Sensors", mainMenu);
     this->renderer->addSetupTask([&sensorsMenu, addBackButton, addToParent]() {
         addBackButton(sensorsMenu);
         ///////// Sensors Menu - Microphone enable/disable /////////
@@ -257,7 +257,7 @@ void GUI::eventLoop()
     });
 
     ///////// Sound Menu /////////
-    auto soundMenu = createANewSubMenu("Sound", "Sound", mainMenu);
+    auto soundMenu = createANewSubMenu(_("Sound"), "Sound", mainMenu);
     this->renderer->addSetupTask([&soundMenu, addBackButton, addToParent]() {
         addBackButton(soundMenu);
         ///////// Sound Menu - Volume /////////
@@ -272,7 +272,7 @@ void GUI::eventLoop()
     ///////// Sound Menu - Voice Command Sound /////////
 
     ///////// Notifications Menu /////////
-    auto notificationsMenu = createANewSubMenu("Notifications", "Notifications", mainMenu);
+    auto notificationsMenu = createANewSubMenu(_("Notifications"), "Notifications", mainMenu);
     this->renderer->addSetupTask([&notificationsMenu, addBackButton, addToParent]() {
         addBackButton(notificationsMenu);
         notificationsMenu->setup();
@@ -283,7 +283,7 @@ void GUI::eventLoop()
     ///////// Notifications Menu - Recent Notifications /////////
 
     ///////// Display Menu /////////
-    auto displayMenu = createANewSubMenu("Display", "Display", mainMenu);
+    auto displayMenu = createANewSubMenu(_("Display"), "Display", mainMenu);
     this->renderer->addSetupTask([&displayMenu, addBackButton, addToParent]() {
         addBackButton(displayMenu);
         displayMenu->setup();
@@ -298,7 +298,7 @@ void GUI::eventLoop()
     ///////// Display Menu - Font /////////
 
     ///////// Privacy Menu /////////
-    auto privacyMenu = createANewSubMenu("Privacy", "Privacy", mainMenu);
+    auto privacyMenu = createANewSubMenu(_("Privacy"), "Privacy", mainMenu);
     this->renderer->addSetupTask([&privacyMenu, addBackButton, addToParent]() {
         addBackButton(privacyMenu);
         privacyMenu->setup();
@@ -310,7 +310,7 @@ void GUI::eventLoop()
     // also, telemetry stuff
 
     ///////// Accounts Menu /////////
-    auto accountsMenu = createANewSubMenu("Accounts", "Accounts", mainMenu);
+    auto accountsMenu = createANewSubMenu(_("Accounts"), "Accounts", mainMenu);
     this->renderer->addSetupTask([&accountsMenu, addBackButton, addToParent]() {
         addBackButton(accountsMenu);
         accountsMenu->setup();
@@ -330,7 +330,7 @@ void GUI::eventLoop()
     // TODO: add a button to add an account
 
     ///////// Apps Menu /////////
-    auto appsMenu = createANewSubMenu("Apps", "Apps", mainMenu);
+    auto appsMenu = createANewSubMenu(_("Apps"), "Apps", mainMenu);
     this->renderer->addSetupTask([&appsMenu, addBackButton, addToParent]() {
         addBackButton(appsMenu);
         appsMenu->setup();
@@ -358,7 +358,7 @@ void GUI::eventLoop()
     // TODO: List all the available apps here. each app gets an install button and a details button
 
     ///////// General Settings Menu /////////
-    auto generalSettingsMenu = createANewSubMenu("General Settings", "General Settings", mainMenu);
+    auto generalSettingsMenu = createANewSubMenu(_("General Settings"), "General Settings", mainMenu);
     this->renderer->addSetupTask([&generalSettingsMenu, addBackButton, addToParent]() {
         addBackButton(generalSettingsMenu);
         generalSettingsMenu->setup();
@@ -366,18 +366,18 @@ void GUI::eventLoop()
     });
 
     ///////// General Settings Menu - Date and Time /////////
-    auto generalSettingsDateTimeMenu = createANewSubMenu("Date and Time", "Date and Time", generalSettingsMenu);
+    auto generalSettingsDateTimeMenu = createANewSubMenu(_("Date and Time"), "Date and Time", generalSettingsMenu);
     this->renderer->addSetupTask([&generalSettingsDateTimeMenu, addBackButton, addToParent]() {
         addBackButton(generalSettingsDateTimeMenu);
         ///////// General Settings Menu - Date and Time - Set Date and Time /////////
         // generalSettingsDateTimeMenu->addMenuEntry(
-        //     "Set Date and Time",
+        //     _("Set Date and Time"),
         //     "Date_Time_Set_Date_Time",
         //     MENUS::EntryType::MENUENTRY_TYPE_TEXT_INPUT,
         //     [generalSettingsDateTimeMenu](void* data) {
         //         CubeLog::info("Set Date and Time clicked");
         //         std::vector<std::string> fields = { "Year", "Month", "Day", "Hour", "Minute" };
-        // GUI::showTextInput("Set Date and Time", fields, [generalSettingsDateTimeMenu](std::vector<std::string> textVector) {
+        // GUI::showTextInput(_("Set Date and Time"), fields, [generalSettingsDateTimeMenu](std::vector<std::string> textVector) {
         //     CubeLog::info("Set Date and Time: " + text);
         //     // do something with the text in the textVector
         //     generalSettingsDateTimeMenu->setVisible(true);
@@ -404,7 +404,7 @@ void GUI::eventLoop()
     // TODO: All the strings in the system should be in a language file that can be changed at runtime.
 
     ///////// Accessibility Menu /////////
-    auto accessibilityMenu = createANewSubMenu("Accessibility", "Accessibility", mainMenu);
+    auto accessibilityMenu = createANewSubMenu(_("Accessibility"), "Accessibility", mainMenu);
     this->renderer->addSetupTask([&accessibilityMenu, addBackButton, addToParent]() {
         addBackButton(accessibilityMenu);
         accessibilityMenu->setup();
@@ -415,7 +415,7 @@ void GUI::eventLoop()
     // TODO: figure out what should go here
 
     ///////// Updates Menu /////////
-    auto updatesMenu = createANewSubMenu("Updates", "Updates", mainMenu);
+    auto updatesMenu = createANewSubMenu(_("Updates"), "Updates", mainMenu);
     this->renderer->addSetupTask([&updatesMenu, addBackButton, addToParent]() {
         addBackButton(updatesMenu);
         ///////// Updates Menu - Check for Updates /////////
@@ -431,18 +431,18 @@ void GUI::eventLoop()
     });
 
     ///////// About Menu /////////
-    auto aboutMenu = createANewSubMenu("About", "About", mainMenu);
+    auto aboutMenu = createANewSubMenu(_("About"), "About", mainMenu);
     this->renderer->addSetupTask([&aboutMenu, addBackButton, addToParent]() {
         addBackButton(aboutMenu);
         ///////// About Menu - Serial Number /////////
         aboutMenu->addMenuEntry(
-            "Serial Number",
+            _("Serial Number"),
             "About_Serial_Number",
             MENUS::EntryType::MENUENTRY_TYPE_TEXT_INFO,
             [aboutMenu](void* data) {
                 CubeLog::info("Serial Number clicked");
                 // TODO: get the serial number from the hardware class
-                GUI::showTextBox("Serial Number", "Serial Number: 1234567890h", { 720, 720 }, { 0, 0 }, [aboutMenu]() {
+                GUI::showTextBox(_("Serial Number"), _("Serial Number: 1234567890h"), { 720, 720 }, { 0, 0 }, [aboutMenu]() {
                     aboutMenu->setVisible(true);
                     aboutMenu->setIsClickable(false);
                 });
@@ -456,12 +456,12 @@ void GUI::eventLoop()
             nullptr);
         ///////// About Menu - Hardware Version /////////
         aboutMenu->addMenuEntry(
-            "Hardware Version",
+            _("Hardware Version"),
             "About_Hardware_Version",
             MENUS::EntryType::MENUENTRY_TYPE_TEXT_INFO,
             [aboutMenu](void* data) {
                 CubeLog::info("Hardware Version clicked");
-                GUI::showTextBox("Hardware Version", "Hardware Version: 1.0.0", { 720, 720 }, { 0, 0 }, [aboutMenu]() {
+                GUI::showTextBox(_("Hardware Version"), _("Hardware Version: 1.0.0"), { 720, 720 }, { 0, 0 }, [aboutMenu]() {
                     aboutMenu->setVisible(true);
                     aboutMenu->setIsClickable(false);
                 });
@@ -479,7 +479,7 @@ void GUI::eventLoop()
     });
 
     ///////// About Menu - Software Information /////////
-    auto aboutSoftwareInformationMenu = createANewSubMenu("Software Information", "Software Information", aboutMenu);
+    auto aboutSoftwareInformationMenu = createANewSubMenu(_("Software Information"), "Software Information", aboutMenu);
     this->renderer->addSetupTask([&aboutSoftwareInformationMenu, addBackButton, addToParent]() {
         addBackButton(aboutSoftwareInformationMenu);
         ///////// About Menu - Software Information - TheCube-CORE /////////
@@ -539,12 +539,12 @@ void GUI::eventLoop()
     // TODO: Read in the privacy policy from a file and display it
 
     ///////// Developer Settings Menu /////////
-    auto developerSettingsMenu = createANewSubMenu("Developer Settings", "Developer Settings", mainMenu);
+    auto developerSettingsMenu = createANewSubMenu(_("Developer Settings"), "Developer Settings", mainMenu);
     this->renderer->addSetupTask([&developerSettingsMenu, addBackButton, addToParent]() {
         addBackButton(developerSettingsMenu);
         ///////// Developer Settings Menu - Developer Mode Enable /////////
         developerSettingsMenu->addMenuEntry(
-            "Developer Mode Enable",
+            _("Developer Mode Enable"),
             "Developer_Settings_Developer_Mode_Enable",
             MENUS::EntryType::MENUENTRY_TYPE_TOGGLE,
             [developerSettingsMenu](void* data) {
@@ -552,10 +552,10 @@ void GUI::eventLoop()
                 GlobalSettings::setSetting(
                     GlobalSettings::SettingType::DEVELOPER_MODE_ENABLED,
                     !GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::DEVELOPER_MODE_ENABLED));
-                std::string message = "Developer mode ";
-                message += (GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::DEVELOPER_MODE_ENABLED)) ? "enabled." : "disabled.";
-                message += "\nPlease reboot the system for changes to take effect.";
-                GUI::showMessageBox("Developer Mode", message, { 720, 720 }, { 0, 0 }, [developerSettingsMenu]() {
+                std::string message = _("Developer mode ");
+                message += _((GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::DEVELOPER_MODE_ENABLED)) ? "enabled." : "disabled.");
+                message += _("\nPlease reboot the system for changes to take effect.");
+                GUI::showMessageBox(_("Developer Mode"), message, { 720, 720 }, { 0, 0 }, [developerSettingsMenu]() {
                     developerSettingsMenu->setVisible(true);
                     developerSettingsMenu->setIsClickable(false);
                 });
@@ -569,13 +569,13 @@ void GUI::eventLoop()
             nullptr);
         ///////// Developer Settings Menu - Verify SSD Integrity /////////
         developerSettingsMenu->addMenuEntry(
-            "Verify SSD Integrity",
+            _("Verify SSD Integrity"),
             "Developer_Settings_Verify_SSD_Integrity",
             MENUS::EntryType::MENUENTRY_TYPE_ACTION,
             [developerSettingsMenu](void* data) {
                 CubeLog::info("Verify SSD Integrity clicked");
                 // TODO: call some method that checks the SSD integrity
-                GUI::showMessageBox("Verifying SSD Integrity", "SSD Integrity verification in process.\nYou will be notified when it is complete.", { 720, 720 }, { 0, 0 }, [developerSettingsMenu]() {
+                GUI::showMessageBox(_("Verifying SSD Integrity"), _("SSD Integrity verification in process.\nYou will be notified when it is complete."), { 720, 720 }, { 0, 0 }, [developerSettingsMenu]() {
                     developerSettingsMenu->setVisible(true);
                     developerSettingsMenu->setIsClickable(false);
                 });
@@ -589,13 +589,13 @@ void GUI::eventLoop()
             nullptr);
         ///////// Developer Settings Menu - Factory Reset /////////
         developerSettingsMenu->addMenuEntry(
-            "Factory Reset",
+            _("Factory Reset"),
             "Developer_Settings_Factory_Reset",
             MENUS::EntryType::MENUENTRY_TYPE_ACTION,
             [developerSettingsMenu](void* data) {
                 CubeLog::info("Factory Reset clicked");
                 // TODO: call some method that resets the system to factory settings
-                GUI::showMessageBox("Factory Reset", "Factory Reset in process.\nSystem will reboot when it is complete.", { 720, 720 }, { 0, 0 }, [developerSettingsMenu]() {});
+                GUI::showMessageBox(_("Factory Reset"), _("Factory Reset in process.\nSystem will reboot when it is complete."), { 720, 720 }, { 0, 0 }, [developerSettingsMenu]() {});
                 developerSettingsMenu->setVisible(false);
                 developerSettingsMenu->setIsClickable(true);
                 return 0;
@@ -606,13 +606,13 @@ void GUI::eventLoop()
             nullptr);
         ///////// Developer Settings Menu - Reboot /////////
         developerSettingsMenu->addMenuEntry(
-            "Reboot",
+            _("Reboot"),
             "Developer_Settings_Reboot",
             MENUS::EntryType::MENUENTRY_TYPE_ACTION,
             [developerSettingsMenu](void* data) {
                 CubeLog::info("Reboot clicked");
                 // TODO: trigger a reboot
-                GUI::showMessageBox("Reboot", "Rebooting the system.", { 720, 720 }, { 0, 0 }, [developerSettingsMenu]() {});
+                GUI::showMessageBox(_("Reboot"), _("Rebooting the system."), { 720, 720 }, { 0, 0 }, [developerSettingsMenu]() {});
                 developerSettingsMenu->setVisible(false);
                 developerSettingsMenu->setIsClickable(true);
                 return 0;
@@ -623,13 +623,13 @@ void GUI::eventLoop()
             nullptr);
         ///////// Developer Settings Menu - Shutdown /////////
         developerSettingsMenu->addMenuEntry(
-            "Shutdown",
+            _("Shutdown"),
             "Developer_Settings_Shutdown",
             MENUS::EntryType::MENUENTRY_TYPE_ACTION,
             [developerSettingsMenu](void* data) {
                 CubeLog::info("Shutdown clicked");
                 // TODO: trigger a shutdown
-                GUI::showMessageBox("Shutdown", "Shutting down the system.", { 720, 720 }, { 0, 0 }, [developerSettingsMenu]() {});
+                GUI::showMessageBox(_("Shutdown"), _("Shutting down the system."), { 720, 720 }, { 0, 0 }, [developerSettingsMenu]() {});
                 developerSettingsMenu->setVisible(false);
                 developerSettingsMenu->setIsClickable(true);
                 return 0;
@@ -1046,7 +1046,7 @@ HttpEndPointData_t GUI::getHttpEndpointData()
             },
             "messageBox",
             { "text", "title" },
-            "Show a message box with a title and message" });
+            _("Show a message box with a title and message") });
     actions.push_back(
         { PUBLIC_ENDPOINT | GET_ENDPOINT,
             [&](const httplib::Request& req, httplib::Response& res) {
@@ -1083,7 +1083,7 @@ HttpEndPointData_t GUI::getHttpEndpointData()
             },
             "textBox",
             { "text", "title", "size-x", "size-y", "position-x", "position-y" },
-            "Show a text box with a title and message of a specified size and position. Default values for size and position are 720x720 at 0,0." });
+            _("Show a text box with a title and message of a specified size and position. Default values for size and position are 720x720 at 0,0.") });
     actions.push_back(
         { PRIVATE_ENDPOINT | POST_ENDPOINT,
             [&](const httplib::Request& req, httplib::Response& res) {
@@ -1123,7 +1123,7 @@ HttpEndPointData_t GUI::getHttpEndpointData()
             },
             "addMenu",
             {},
-            "Add a menu to the GUI" });
+            _("Add a menu to the GUI") });
     return actions;
 }
 
@@ -2006,7 +2006,7 @@ HttpEndPointData_t NotificationsManager::getHttpEndpointData()
             },
             "showNotificationOkayWarningError",
             {},
-            "Show a notification with an optional callback" });
+            _("Show a notification with an optional callback") });
     actions.push_back(
         { PRIVATE_ENDPOINT | POST_ENDPOINT,
             [&](const httplib::Request& req, httplib::Response& res) {
@@ -2014,6 +2014,6 @@ HttpEndPointData_t NotificationsManager::getHttpEndpointData()
             },
             "showNotificationYesNo",
             {},
-            "Show a yes/no notification with two callbacks" });
+            _("Show a yes/no notification with two callbacks") });
     return actions;
 }

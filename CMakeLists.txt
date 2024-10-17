@@ -7,14 +7,6 @@ cmake_minimum_required(VERSION 3.25)
 # Project name and the language used
 project(CubeCore VERSION 1.0.0 LANGUAGES CXX)
 
-# # Read build number from file
-# file(READ "${CMAKE_SOURCE_DIR}/build_number.txt" BUILD_NUMBER)
-
-# # Define build number in your code
-# add_definitions(-DBUILD_NUMBER=${BUILD_NUMBER})
-
-# message(STATUS "Build Number: ${BUILD_NUMBER}")
-
 add_definitions(-DMAJOR_VERSION=${PROJECT_VERSION_MAJOR})
 add_definitions(-DMINOR_VERSION=${PROJECT_VERSION_MINOR})
 add_definitions(-DPATCH_VERSION=${PROJECT_VERSION_PATCH})
@@ -44,6 +36,8 @@ if(WIN32)
 else()
     find_package(GLEW REQUIRED)
 endif()
+
+find_package(Gettext REQUIRED)
 
 find_package(Freetype REQUIRED)
 
