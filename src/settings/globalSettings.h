@@ -68,6 +68,46 @@ struct GlobalSettings {
         if(!defaultFound){
             CubeLog::fatal("Default font not found.");
         }
+        // set the default log verbosity to TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE
+        GlobalSettings::setSetting(SettingType::LOG_VERBOSITY, Logger::LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE);
+        // set the default log level for printing to INFO
+        GlobalSettings::setSetting(SettingType::LOG_LEVEL_PRINT, Logger::LogLevel::LOGGER_INFO);
+        // set the default log level for writing to file to INFO
+        GlobalSettings::setSetting(SettingType::LOG_LEVEL_FILE, Logger::LogLevel::LOGGER_INFO);
+        // set the default developer mode to false
+        GlobalSettings::setSetting(SettingType::DEVELOPER_MODE_ENABLED, false);
+        // set the default CPU and memory display to false
+        GlobalSettings::setSetting(SettingType::CPU_AND_MEMORY_DISPLAY_ENABLED, false);
+        // set the default SSH to false
+        GlobalSettings::setSetting(SettingType::SSH_ENABLED, false);
+        // set the default WiFi to true
+        GlobalSettings::setSetting(SettingType::WIFI_ENABLED, true);
+        // set the default BT to true
+        GlobalSettings::setSetting(SettingType::BT_ENABLED, true);
+        // set the default idle animation to true
+        GlobalSettings::setSetting(SettingType::IDLE_ANIMATION_ENABLED, true);
+        // set the default screen brightness to 100
+        GlobalSettings::setSetting(SettingType::SCREEN_BRIGHTNESS, 100);
+        // set the default screen auto off to true
+        GlobalSettings::setSetting(SettingType::SCREEN_AUTO_OFF, true);
+        // set the default screen auto off time to 5 minutes
+        GlobalSettings::setSetting(SettingType::SCREEN_AUTO_OFF_TIME, 5);
+        // set the default notifications from network to true
+        GlobalSettings::setSetting(SettingType::NOTIFICATIONS_FROM_NETWORK_ENABLED, true);
+        // set the default system volume to 100
+        GlobalSettings::setSetting(SettingType::SYSTEM_VOLUME, 100);
+        // set the default notification sound to default
+        GlobalSettings::setSetting(SettingType::NOTIFICATION_SOUND, "default");
+        // set the default alarm sound to default
+        GlobalSettings::setSetting(SettingType::ALARM_SOUND, "default");
+        // set the default voice command sound to default
+        GlobalSettings::setSetting(SettingType::VOICE_COMMAND_SOUND, "default");
+        // set the default NFC to true
+        GlobalSettings::setSetting(SettingType::NFC_ENABLED, true);
+        // set the default microphone to true
+        GlobalSettings::setSetting(SettingType::MICROPHONE_ENABLED, true);
+        // set the default presence detection to true
+        GlobalSettings::setSetting(SettingType::PRESENCE_DETECTION_ENABLED, true);
     }
 
     static void setSettingCB(SettingType key, std::function<void()> callback){
