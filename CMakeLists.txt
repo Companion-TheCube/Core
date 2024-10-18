@@ -37,7 +37,9 @@ else()
     find_package(GLEW REQUIRED)
 endif()
 
-find_package(Gettext REQUIRED)
+if(UNIX)
+    find_package(Gettext REQUIRED)
+endif()
 
 find_package(Freetype REQUIRED)
 
@@ -232,6 +234,66 @@ else()
     )
 endif()
 
+# ##############################
+# Localization
+# ##############################
+if(UNIX)
+    set(LOCALE_DIR "${CMAKE_SOURCE_DIR}/locale")
+    set(LOCALE_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/locale")
+    set(PO_DIR "${CMAKE_SOURCE_DIR}/po")
+    set(MO_DIR "${CMAKE_SOURCE_DIR}/mo")
+
+    # Locales to install
+    set(LANGUAGES en_US es fr de it ja ko)
+
+    # Create the destination directory if it doesn't exist
+    file(MAKE_DIRECTORY ${LOCALE_DEST_DIR})
+
+    foreach(SRC ${SOURCE})
+        add_custom_command(
+            OUTPUT ${PO_DIR}/${SRC}.pot
+            COMMAND xgettext --keyword=_ --language=C++ --add-comments --sort-output --from-code=UTF-8 --package-name=CubeCore --package-version=1.0.0 -o ${PO_DIR}/${SRC}.pot ${SRC}
+            DEPENDS ${SRC}
+            COMMENT "Extracting strings from ${SRC}"
+        )
+    endforeach()
+
+    foreach(LANG ${LANGUAGES})
+        add_custom_command(
+            OUTPUT ${MO_DIR}/${LANG}/LC_MESSAGES/CubeCore.mo
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${MO_DIR}/${LANG}/LC_MESSAGES
+            COMMAND msgfmt -o ${MO_DIR}/${LANG}/LC_MESSAGES/CubeCore.mo ${PO_DIR}/${LANG}.po
+            DEPENDS ${PO_DIR}/${LANG}.po
+            COMMENT "Compiling ${LANG} translation"
+        )
+    endforeach()
+
+    # ###############################
+    # Copy the locale files to the output directory
+    # ###############################
+    foreach(LANG ${LANGUAGES})
+        add_custom_command(
+            TARGET CubeCore POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${MO_DIR}/${LANG}
+            ${LOCALE_DEST_DIR}/${LANG}
+            COMMENT "Copying ${LANG} locale files to output directory"
+        )
+    endforeach()
+
+    # Create a custom target to run all translation-related tasks
+    add_custom_target(update_translations ALL
+        foreach(LANG ${LANGUAGES})
+            DEPENDS ${MO_DIR}/${LANG}/LC_MESSAGES/CubeCore.mo
+        endforeach()
+        COMMENT "Updating and compiling translation files"
+    )
+endif()
+
+# ###############################
+# Copy data files to the output directory
+# ###############################
+
 # Add a custom command to copy the shaders directory
 add_custom_command(
     TARGET CubeCore POST_BUILD
@@ -306,8 +368,11 @@ add_definitions(-DBUILD_NUMBER=${BUILD_NUMBER})
 # Print the build number in the output
 message(STATUS "Build number: ${BUILD_NUMBER}")
 
-
 install(TARGETS CubeCore)
+
+# ###############################
+# Tests
+# ###############################
 
 # Add tests
 FetchContent_Declare(
@@ -343,6 +408,10 @@ target_link_libraries(CubeCoreTests PRIVATE
 
 enable_testing()
 add_test(NAME CubeCoreTests COMMAND CubeCoreTests)
+
+# ###############################
+# Benchmarks
+# ###############################
 
 # Add benchmarks if Google Benchmark is found
 find_package(benchmark QUIET)
