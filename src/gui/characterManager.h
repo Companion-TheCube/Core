@@ -19,6 +19,9 @@
 #ifndef CUBEDB_H
 #include <../database/cubeDB.h>
 #endif// CUBEDB_H
+#ifndef API_I_H
+#include "../api_i.h"
+#endif// API_I_H
 #include <iostream>
 #include <logger.h>
 #include <thread>
@@ -69,13 +72,11 @@ public:
     bool getVisible();
 };
 
-class CharacterManager {
+class CharacterManager : public I_API_Interface {
 private:
     std::vector<Character_generic*> characters;
     Character_generic* currentCharacter;
     Shader* shader;
-    
-    
     std::condition_variable animationCV;
     std::condition_variable expressionCV;
     bool exitThreads = false;
@@ -98,6 +99,8 @@ public:
     Character_generic* getCharacterByName(std::string name);
     std::vector<std::string> getCharacterNames();
     void triggerAnimationAndExpressionThreads();
+    std::string getInterfaceName() const override;
+    HttpEndPointData_t getHttpEndpointData() override;
 };
 
 

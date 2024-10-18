@@ -509,4 +509,7 @@ void Character_generic::triggerExpression(Expressions::ExpressionNames_enum e)
     }
 }
 
+// TODO: add API methods
+
+
 ////////////////////////////////////////////////////////////

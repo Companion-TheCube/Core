@@ -1,14 +1,14 @@
-//#pragma once
+// #pragma once
 #ifndef AUTHENTICATION_H
 #define AUTHENTICATION_H
+#include <expected>
+#include <filesystem>
 #include <iostream>
+#include <logger.h>
+#include <random>
+#include <sodium.h>
 #include <string>
 #include <vector>
-#include <filesystem>
-#include <logger.h>
-#include <sodium.h>
-#include <random>
-#include <expected>
 #ifndef CUBE_DB_H
 #include "./../database/cubeDB.h"
 #endif
@@ -18,7 +18,6 @@
 #ifndef GUI_H
 #include "./../gui/gui.h"
 #endif
-
 
 #define CUBE_APPS_ID_LENGTH 64
 
@@ -43,7 +42,7 @@ public:
     static std::string getLastError();
 
     // API Interface
-    std::string getIntefaceName() const;
+    std::string getInterfaceName() const;
     HttpEndPointData_t getHttpEndpointData();
     // std::vector<std::pair<std::string, std::vector<std::string>>> getHttpEndpointNamesAndParams();
 

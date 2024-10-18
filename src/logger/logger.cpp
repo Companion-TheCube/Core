@@ -700,7 +700,7 @@ bool CubeLog::hasUnreadEntries()
  *
  * @return std::string The name of the interface
  */
-std::string CubeLog::getIntefaceName() const
+std::string CubeLog::getInterfaceName() const
 {
     return "Logger";
 }

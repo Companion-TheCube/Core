@@ -62,7 +62,7 @@ typedef std::vector<HttpEndPointDataSinglet_t> HttpEndPointData_t;
 class I_API_Interface {
 public:
     virtual ~I_API_Interface() = default;
-    virtual std::string getIntefaceName() const = 0;
+    virtual std::string getInterfaceName() const = 0;
     /**
      * @brief Get the Endpoint Data object
      *

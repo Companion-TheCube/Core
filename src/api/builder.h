@@ -4,11 +4,11 @@
 #include "api.h"
 #endif
 #include <any>
+#include <filesystem>
 #include <logger.h>
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <unordered_map>
-#include <filesystem>
 
 class API_Builder {
 private:
@@ -23,8 +23,8 @@ public:
     template <typename T>
     void addInterface(std::shared_ptr<T> interface_object)
     {
-        CubeLog::info("Adding interface object: " + interface_object->getIntefaceName());
-        this->interface_objs[interface_object->getIntefaceName()] = interface_object.get();
+        CubeLog::info("Adding interface object: " + interface_object->getInterfaceName());
+        this->interface_objs[interface_object->getInterfaceName()] = interface_object.get();
     }
     template <typename T>
     std::shared_ptr<T> getInterface(const std::string& name)
@@ -33,4 +33,4 @@ public:
     }
 };
 
-#endif// BUILDER_H
+#endif // BUILDER_H

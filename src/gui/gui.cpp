@@ -259,7 +259,7 @@ void GUI::eventLoop()
     });
 
     ///////// Personality Menu - Personality Settings /////////
-    // TODO: list each attribute of the personality and provide a slider to adjust. 
+    // TODO: list each attribute of the personality and provide a slider to adjust.
 
     ///////// Sensors Menu /////////
     auto sensorsMenu = createANewSubMenu(_("Sensors"), "Sensors", mainMenu);
@@ -281,7 +281,6 @@ void GUI::eventLoop()
         addToParent(soundMenu);
     });
 
-    
     ///////// Sound Menu - Notification Sound /////////
     ///////// Sound Menu - Alarm Sound /////////
     ///////// Sound Menu - Voice Command Sound /////////
@@ -1161,7 +1160,7 @@ HttpEndPointData_t GUI::getHttpEndpointData()
  *
  * @return std::string the name of the interface
  */
-std::string GUI::getIntefaceName() const
+std::string GUI::getInterfaceName() const
 {
     return "GUI";
 }
@@ -2006,7 +2005,7 @@ void NotificationsManager::showNotificationWithCallback(std::string title, std::
     CubeLog::info("Notification shown with callback: " + title + " - " + message);
 }
 
-std::string NotificationsManager::getIntefaceName() const
+std::string NotificationsManager::getInterfaceName() const
 {
     return "Notifications";
 }

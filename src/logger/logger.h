@@ -162,7 +162,7 @@ public:
     static std::string getScreenMessage();
     static std::string getSizeOfCubeLog();
     // API Interface
-    std::string getIntefaceName() const;
+    std::string getInterfaceName() const;
     HttpEndPointData_t getHttpEndpointData();
     // std::vector<std::pair<std::string, std::vector<std::string>>> getHttpEndpointNamesAndParams();
 };

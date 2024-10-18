@@ -91,7 +91,7 @@ public:
     static void showNotification(std::string title, std::string message, NotificationType type);
     static void showNotificationWithCallback(std::string title, std::string message, NotificationType type, std::function<void()> callback);
     static void showNotificationWithCallback(std::string title, std::string message, NotificationType type, std::function<void()> callbackYes, std::function<void()> callbackNo);
-    std::string getIntefaceName() const override;
+    std::string getInterfaceName() const override;
     HttpEndPointData_t getHttpEndpointData() override;
 };
 
@@ -114,7 +114,7 @@ public:
     static void showTextInputBox(std::string title, std::string field, std::function<void(std::string&)> callback);
     // API Interface
     HttpEndPointData_t getHttpEndpointData();
-    std::string getIntefaceName() const;
+    std::string getInterfaceName() const;
 
 private:
     // GUI_Error addMenu(std::string menuName, std::string thisUniqueID, std::string parentName, std::vector<std::string> entryTexts, std::vector<std::string> endpoints, std::vector<std::string> uniqueIDs, CountingLatch &latch);
