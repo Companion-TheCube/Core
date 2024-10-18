@@ -774,25 +774,16 @@ void MenuEntry::draw()
     }
 
     switch (this->type) {
-    case EntryType::MENUENTRY_TYPE_ACTION: {
-        break;
-    }
+    case EntryType::MENUENTRY_TYPE_ACTION:
     case EntryType::MENUENTRY_TYPE_SUBMENU: {
         break;
     }
+    case EntryType::MENUENTRY_TYPE_TOGGLE:
     case EntryType::MENUENTRY_TYPE_RADIOBUTTON_GROUP: {
         if (this->statusReturnData == 1) {
             ((M_RadioButtonTexture*)this->xFixedObjects.at(0))->setSelected(true);
         } else {
             ((M_RadioButtonTexture*)this->xFixedObjects.at(0))->setSelected(false);
-        }
-        break;
-    }
-    case EntryType::MENUENTRY_TYPE_TOGGLE: {
-        if (this->statusReturnData == 1) {
-            ((M_ToggleTexture*)this->xFixedObjects.at(0))->setSelected(true);
-        } else {
-            ((M_ToggleTexture*)this->xFixedObjects.at(0))->setSelected(false);
         }
         break;
     }
