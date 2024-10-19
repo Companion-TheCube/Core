@@ -12,7 +12,7 @@ Hardware information includes:
 - nfc availability
 - imu availability
 
-Other info stored in EERPOM
+Other info stored in EERPOM (for factory reset):
 - Wifi creds that the user can use to configure the device in the event they do not have a BT device
 - SSH creds
 - Buildnumber

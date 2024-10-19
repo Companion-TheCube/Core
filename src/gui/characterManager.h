@@ -26,7 +26,33 @@
 #include <logger.h>
 #include <thread>
 #include <vector>
+#include <filesystem>
 
+struct CharacterSystemError : public std::exception {
+    static uint16_t errorCount;
+    std::string message;
+    enum ERROR_TYPES {
+        CHARACTER_NOT_FOUND,
+        CHARACTER_LOAD_ERROR,
+        CHARACTER_PART_NOT_FOUND,
+        CHARACTER_PART_LOAD_ERROR,
+        CHARACTER_ANIMATION_NOT_FOUND,
+        CHARACTER_ANIMATION_LOAD_ERROR,
+        CHARACTER_EXPRESSION_NOT_FOUND,
+        CHARACTER_EXPRESSION_LOAD_ERROR,
+
+        CHARACTER_ERROR_COUNT
+    };
+    CharacterSystemError(std::string message) : message(message) {
+        errorCount++;
+    }
+    const char* what() const noexcept override {
+        return message.c_str();
+    }
+    uint16_t getErrorCount() {
+        return errorCount;
+    }
+};
 
 struct CharacterPart {
     std::string name;
