@@ -1,6 +1,6 @@
+#include <utils.h>
 #include "../api/api_i.h"
 #include "audioOutput.h"
-#include <utils.h>
 
 class AudioManager : public I_API_Interface {
 public:

@@ -2,9 +2,9 @@
 #ifndef LOGGER_H
 #define LOGGER_H
 #define WIN32_LEAN_AND_MEAN
-#ifndef API_I_H
+// #ifndef API_I_H
 #include "../api/api_i.h"
-#endif
+// #endif
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
@@ -280,4 +280,4 @@ public:
 };
 } // namespace Color
 
-#endif
+#endif// LOGGER_H

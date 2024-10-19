@@ -237,7 +237,7 @@ endif()
 # ##############################
 # Localization
 # ##############################
-if(UNIX)
+if(UNIX AND TRANSLATE_ENABLED)
     set(LOCALE_DIR "${CMAKE_SOURCE_DIR}/locale")
     set(LOCALE_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/locale")
     set(PO_DIR "${CMAKE_SOURCE_DIR}/po")

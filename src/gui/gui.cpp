@@ -192,6 +192,7 @@ void GUI::eventLoop()
         addBackButton(connectionsMenu);
         connectionsMenu->setup();
         addToParent(connectionsMenu);
+        connectionsMenu->setChildrenClickables_isClickable(false);
     });
 
     ///////// Connections Menu - WiFi /////////
@@ -205,6 +206,7 @@ void GUI::eventLoop()
             MENUS::EntryType::MENUENTRY_TYPE_TOGGLE,
             [](void* data) {
                 CubeLog::info("WiFi - Enable/Disable WiFi clicked");
+                // TODO: make this actually enable/disable wifi. the settings should have a callback registered with the GlobalSettings class that will enable/disable wifi when the setting is changed.
                 // GlobalSettings::setSetting(GlobalSettings::SettingType::WIFI_ENABLED, !GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::WIFI_ENABLED));
                 return 0;
             },
@@ -217,26 +219,51 @@ void GUI::eventLoop()
         ///////// Connections Menu - WiFi - Current Network /////////
         wifiMenu->setup();
         addToParent(wifiMenu);
+        wifiMenu->setChildrenClickables_isClickable(false);
     });
 
     ///////// Connections Menu - WiFi - WiFi Networks /////////
     ///////// Connections Menu - WiFi - WiFi Networks - Specify SSID /////////
     ///////// Connections Menu - WiFi - WiFi Networks - Scan /////////
     ///////// Connections Menu - WiFi - WiFi Networks - List available networks /////////
+    ///////// Connections Menu - WiFi - About WiFi /////////
+    ///////// Connections Menu - WiFi - About WiFi - MAC Address /////////
+    ///////// Connections Menu - WiFi - About WiFi - IP Address /////////
+    ///////// Connections Menu - WiFi - About WiFi - Signal Strength /////////
+    ///////// Connections Menu - WiFi - About WiFi - Network Name /////////
+    ///////// Connections Menu - WiFi - About WiFi - Network Type /////////
+    ///////// Connections Menu - WiFi - About WiFi - Security Type /////////
+    ///////// Connections Menu - WiFi - About WiFi - Frequency /////////
+    ///////// Connections Menu - WiFi - About WiFi - Channel /////////
+    ///////// Connections Menu - WiFi - About WiFi - BSSID /////////
+    ///////// Connections Menu - WiFi - About WiFi - Subnet Mask /////////
+    ///////// Connections Menu - WiFi - About WiFi - Gateway /////////
+    ///////// Connections Menu - WiFi - About WiFi - DNS Servers /////////
+    ///////// Connections Menu - WiFi - About WiFi - DHCP Server /////////
+    ///////// Connections Menu - WiFi - About WiFi - Lease Time /////////
+    ///////// Connections Menu - WiFi - About WiFi - Connection Time /////////
+    ///////// Connections Menu - WiFi - About WiFi - Data Rate /////////
+    ///////// Connections Menu - WiFi - About WiFi - Link Quality /////////
+    ///////// Connections Menu - WiFi - About WiFi - TX Power /////////
+    ///////// Connections Menu - WiFi - About WiFi - RX Power /////////
+    ///////// Connections Menu - WiFi - About WiFi - TX Bytes /////////
+    ///////// Connections Menu - WiFi - About WiFi - RX Bytes /////////
 
     ///////// Connections Menu - Bluetooth /////////
     auto bluetoothMenu = createANewSubMenu(_("Bluetooth"), "Bluetooth", connectionsMenu);
     this->renderer->addSetupTask([&bluetoothMenu, addBackButton, addToParent]() {
         addBackButton(bluetoothMenu);
         ///////// Connections Menu - Bluetooth - Enable/Disable Bluetooth /////////
+        // Options below should be greyed out and not clickable if bluetooth is disabled
         ///////// Connections Menu - Bluetooth - Pairing Mode /////////
+        // TODO: when pairing mode is clicked, bluetooth should go into pairing mode and show a list of devices that can be paired with.
+        ///////// Connections Menu - Bluetooth - Known devices /////////
+        // TODO: list all the bluetooth devices that have been paired with the cube
         ///////// Connections Menu - Bluetooth - About Bluetooth /////////
         bluetoothMenu->setup();
         addToParent(bluetoothMenu);
+        bluetoothMenu->setChildrenClickables_isClickable(false);
     });
-
-    ///////// Connections Menu - Bluetooth - Bluetooth Devices /////////
-    // TODO: list all the bluetooth devices that have been paired with the cube
 
     ///////// Connections Menu - NFC /////////
     auto nfcMenu = createANewSubMenu(_("NFC"), "NFC", connectionsMenu);
@@ -246,6 +273,7 @@ void GUI::eventLoop()
         ///////// Connections Menu - NFC - About NFC /////////
         nfcMenu->setup();
         addToParent(nfcMenu);
+        nfcMenu->setChildrenClickables_isClickable(false);
     });
 
     ///////// Personality Menu /////////
@@ -256,6 +284,7 @@ void GUI::eventLoop()
         ///////// Personality Menu - Personality reset /////////
         personalityMenu->setup();
         addToParent(personalityMenu);
+        personalityMenu->setChildrenClickables_isClickable(false);
     });
 
     ///////// Personality Menu - Personality Settings /////////
@@ -269,6 +298,7 @@ void GUI::eventLoop()
         ///////// Sensors Menu - Presence Detection enable/disable /////////
         sensorsMenu->setup();
         addToParent(sensorsMenu);
+        sensorsMenu->setChildrenClickables_isClickable(false);
     });
 
     ///////// Sound Menu /////////
@@ -279,6 +309,7 @@ void GUI::eventLoop()
         // TODO: add a slider to control the volume
         soundMenu->setup();
         addToParent(soundMenu);
+        soundMenu->setChildrenClickables_isClickable(false);
     });
 
     ///////// Sound Menu - Notification Sound /////////
@@ -291,6 +322,7 @@ void GUI::eventLoop()
         addBackButton(notificationsMenu);
         notificationsMenu->setup();
         addToParent(notificationsMenu);
+        notificationsMenu->setChildrenClickables_isClickable(false);
     });
 
     ///////// Notifications Menu - Allow Notifications from Network Sources (Other cubes) /////////
@@ -302,6 +334,7 @@ void GUI::eventLoop()
         addBackButton(displayMenu);
         displayMenu->setup();
         addToParent(displayMenu);
+        displayMenu->setChildrenClickables_isClickable(false);
     });
 
     ///////// Display Menu - Animations /////////
@@ -317,6 +350,7 @@ void GUI::eventLoop()
         addBackButton(privacyMenu);
         privacyMenu->setup();
         addToParent(privacyMenu);
+        privacyMenu->setChildrenClickables_isClickable(false);
     });
 
     ///////// Privacy Menu - Privacy Settings /////////
@@ -329,6 +363,7 @@ void GUI::eventLoop()
         addBackButton(accountsMenu);
         accountsMenu->setup();
         addToParent(accountsMenu);
+        accountsMenu->setChildrenClickables_isClickable(false);
     });
 
     ///////// Accounts Menu - Account List /////////
@@ -349,6 +384,7 @@ void GUI::eventLoop()
         addBackButton(appsMenu);
         appsMenu->setup();
         addToParent(appsMenu);
+        appsMenu->setChildrenClickables_isClickable(false);
     });
 
     ///////// Apps Menu - Core Apps /////////
@@ -377,6 +413,7 @@ void GUI::eventLoop()
         addBackButton(generalSettingsMenu);
         generalSettingsMenu->setup();
         addToParent(generalSettingsMenu);
+        generalSettingsMenu->setChildrenClickables_isClickable(false);
     });
 
     ///////// General Settings Menu - Date and Time /////////
@@ -423,6 +460,7 @@ void GUI::eventLoop()
         addBackButton(accessibilityMenu);
         accessibilityMenu->setup();
         addToParent(accessibilityMenu);
+        accessibilityMenu->setChildrenClickables_isClickable(false);
     });
 
     ///////// Accessibility Menu - ??? /////////
@@ -442,6 +480,7 @@ void GUI::eventLoop()
         // TODO:
         updatesMenu->setup();
         addToParent(updatesMenu);
+        updatesMenu->setChildrenClickables_isClickable(false);
     });
 
     ///////// About Menu /////////
