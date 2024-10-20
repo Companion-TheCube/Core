@@ -32,6 +32,5 @@
 #include <utils.h>
 #include <functional>
 
-int saw(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData);
 bool supportsBasicColors();
 bool supportsExtendedColors();
