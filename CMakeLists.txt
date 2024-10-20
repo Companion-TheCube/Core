@@ -211,6 +211,7 @@ target_link_libraries(CubeCore PRIVATE
     sqlite3
     ${SODIUM_LIBRARIES}
 )
+
 target_compile_features(CubeCore PRIVATE cxx_std_17)
 
 # Include directories
@@ -284,7 +285,7 @@ if(UNIX AND TRANSLATE_ENABLED)
     # Create a custom target to run all translation-related tasks
     add_custom_target(update_translations ALL
         foreach(LANG ${LANGUAGES})
-            DEPENDS ${MO_DIR}/${LANG}/LC_MESSAGES/CubeCore.mo
+        DEPENDS ${MO_DIR}/${LANG}/LC_MESSAGES/CubeCore.mo
         endforeach()
         COMMENT "Updating and compiling translation files"
     )

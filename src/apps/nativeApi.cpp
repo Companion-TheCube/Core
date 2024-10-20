@@ -215,7 +215,7 @@ RunningApp* NativeAPI::startApp(std::string execPath, std::string execArgs, std:
     }
     char* argv[args.size() + 2];
     argv[0] = (char*)path;
-    for (int i = 0; i < args.size(); i++) {
+    for (size_t i = 0; i < args.size(); i++) {
         argv[i + 1] = (char*)args[i].c_str();
     }
     argv[args.size() + 1] = NULL;
@@ -244,7 +244,7 @@ RunningApp* NativeAPI::startApp(std::string execPath, std::string execArgs, std:
     temp->setStdInWrite(stdinPipe[1]);
     temp->setStdErrRead(stderrPipe[0]);
     temp->setStdErrWrite(stderrPipe[1]);
-    
+
     posix_spawn_file_actions_init(temp->getActions());
 
     posix_spawn_file_actions_adddup2(temp->getActions(), temp->getStdOutWrite(), STDOUT_FILENO);
@@ -254,7 +254,7 @@ RunningApp* NativeAPI::startApp(std::string execPath, std::string execArgs, std:
     posix_spawn_file_actions_addclose(temp->getActions(), temp->getStdOutRead());
     posix_spawn_file_actions_addclose(temp->getActions(), temp->getStdErrRead());
 
-    int status = posix_spawn(&pid, path_str.c_str(), temp->getActions(), NULL, const_cast<char *const *>(argv), environ);
+    int status = posix_spawn(&pid, path_str.c_str(), temp->getActions(), NULL, const_cast<char* const*>(argv), environ);
 
     if (status != 0) {
         CubeLog::error("Failed to start app: " + execPath + " " + execArgs);

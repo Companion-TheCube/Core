@@ -4,20 +4,20 @@
 
 /**
  * @brief Determine if the table name is one of the blobs table names
- * 
- * @param tableName 
- * @return true 
- * @return false 
+ *
+ * @param tableName
+ * @return true
+ * @return false
  */
-inline bool isInBlobsTableNames(std::string tableName){
-    return tableName == DB_NS::TableNames::APP_BLOBS || 
-        tableName == DB_NS::TableNames::CLIENT_BLOBS;
+inline bool isInBlobsTableNames(std::string tableName)
+{
+    return tableName == DB_NS::TableNames::APP_BLOBS || tableName == DB_NS::TableNames::CLIENT_BLOBS;
 }
 
 /**
  * @brief Construct a new Database object
- * 
- * @param dbPath 
+ *
+ * @param dbPath
  */
 Database::Database(std::string dbPath)
 {
@@ -37,7 +37,7 @@ Database::Database(std::string dbPath)
 
 /**
  * @brief Destroy the Database object
- * 
+ *
  */
 Database::~Database()
 {
@@ -47,16 +47,16 @@ Database::~Database()
 
 /**
  * @brief Create a table in the database
- * 
- * @param tableName 
+ *
+ * @param tableName
  * @param columnNames Size of columnNames and columnTypes must be equal
- * @param columnTypes 
- * @return true 
- * @return false 
+ * @param columnTypes
+ * @return true
+ * @return false
  */
 bool Database::createTable(std::string tableName, std::vector<std::string> columnNames, std::vector<std::string> columnTypes, std::vector<bool> uniqueColumns)
 {
-    if(columnNames.size() != columnTypes.size() || columnTypes.size() != uniqueColumns.size()){
+    if (columnNames.size() != columnTypes.size() || columnTypes.size() != uniqueColumns.size()) {
         this->lastError = "Column names, column types, and unique columns must have the same size";
         return false;
     }
@@ -66,11 +66,11 @@ bool Database::createTable(std::string tableName, std::vector<std::string> colum
     }
     CubeLog::info("Creating table: " + tableName);
     // Create a map of column names and unique columns
-    for(size_t col = 0; col < columnNames.size(); col++){
+    for (size_t col = 0; col < columnNames.size(); col++) {
         this->uniqueColumns[columnNames.at(col)] = uniqueColumns[col];
     }
     std::string query = "CREATE TABLE IF NOT EXISTS " + tableName + " (";
-    for (int i = 0; i < columnNames.size(); i++) {
+    for (size_t i = 0; i < columnNames.size(); i++) {
         query += columnNames[i] + " " + columnTypes[i];
         if (i < columnNames.size() - 1) {
             query += ", ";
@@ -90,12 +90,12 @@ bool Database::createTable(std::string tableName, std::vector<std::string> colum
 
 /**
  * @brief Insert blob data into a table
- * 
- * @param tableName 
+ *
+ * @param tableName
  * @param columnNames Size of columnNames and columnValues must be equal
- * @param columnValues 
- * @return true 
- * @return false 
+ * @param columnValues
+ * @return true
+ * @return false
  */
 long Database::insertData(std::string tableName, std::vector<std::string> columnNames, std::vector<std::string> columnValues)
 {
@@ -108,30 +108,30 @@ long Database::insertData(std::string tableName, std::vector<std::string> column
         return -1;
     }
     // Check if the column is unique
-    for(size_t col = 0; col < columnNames.size(); col++){
-        if(columnNames.at(col) == "blob"){
+    for (size_t col = 0; col < columnNames.size(); col++) {
+        if (columnNames.at(col) == "blob") {
             // skip the blob column
             continue;
         }
         CubeLog::debug("Checking column: " + columnNames.at(col));
-        if(this->uniqueColumns.find(columnNames.at(col)) != this->uniqueColumns.end() && this->uniqueColumns[columnNames.at(col)]){
+        if (this->uniqueColumns.find(columnNames.at(col)) != this->uniqueColumns.end() && this->uniqueColumns[columnNames.at(col)]) {
             CubeLog::debug("Column is marked as unique. Checking if the value already exists.");
             // check if the columnValue is empty, indicating that we should add this data with the next available value
-            if(columnValues.at(col) == ""){
+            if (columnValues.at(col) == "") {
                 CubeLog::debug("Column value is empty. Getting next available value.");
                 int id = 1;
-                while(this->rowExists(tableName, columnNames[col] + " = " + std::to_string(id))){
+                while (this->rowExists(tableName, columnNames[col] + " = " + std::to_string(id))) {
                     id++;
-                    if(id > 1000000){
+                    if (id > 1000000) {
                         this->lastError = "Unable to get unique value. Too many rows in the table.";
                         return -1;
                     }
                 }
                 CubeLog::debug("Next available value: " + std::to_string(id));
                 columnValues[col] = std::to_string(id);
-            }else{
+            } else {
                 CubeLog::debug("Column value is not empty. Checking if the value already exists.");
-                if(this->rowExists(tableName, columnNames.at(col) + " = '" + columnValues.at(col) + "'")){
+                if (this->rowExists(tableName, columnNames.at(col) + " = '" + columnValues.at(col) + "'")) {
                     this->lastError = "Unique column value already exists";
                     return -1;
                 }
@@ -141,8 +141,8 @@ long Database::insertData(std::string tableName, std::vector<std::string> column
 
     std::string query = "INSERT INTO " + tableName + " (";
     std::vector<int> blobColumns;
-    for (int i = 0; i < columnNames.size(); i++) {
-        if(columnNames.at(i) == "blob"){
+    for (size_t i = 0; i < columnNames.size(); i++) {
+        if (columnNames.at(i) == "blob") {
             blobColumns.push_back(i);
         }
         query += columnNames.at(i);
@@ -151,7 +151,7 @@ long Database::insertData(std::string tableName, std::vector<std::string> column
         }
     }
     query += ") VALUES (";
-    for (int i = 0; i < columnValues.size(); i++) {
+    for (size_t i = 0; i < columnValues.size(); i++) {
         query += "?";
         if (i < columnValues.size() - 1) {
             query += ", ";
@@ -160,11 +160,11 @@ long Database::insertData(std::string tableName, std::vector<std::string> column
     query += ");";
     try {
         SQLite::Statement stmt(*this->db, query);
-        for(int i = 0; i < columnNames.size(); i++){
-            if(std::find(blobColumns.begin(), blobColumns.end(), i) != blobColumns.end()){
+        for (size_t i = 0; i < columnNames.size(); i++) {
+            if (std::find(blobColumns.begin(), blobColumns.end(), i) != blobColumns.end()) {
                 // const char* blob = columnValues.at(i).c_str();
                 stmt.bind(i + 1, columnValues.at(i).c_str(), columnValues.at(i).size());
-            }else{
+            } else {
                 stmt.bind(i + 1, columnValues.at(i));
             }
         }
@@ -176,17 +176,15 @@ long Database::insertData(std::string tableName, std::vector<std::string> column
     }
 }
 
-
-
 /**
  * @brief Update data in a table
- * 
- * @param tableName 
+ *
+ * @param tableName
  * @param columnNames Size of columnNames and columnValues must be equal
- * @param columnValues 
- * @param whereClause 
- * @return true 
- * @return false 
+ * @param columnValues
+ * @param whereClause
+ * @return true
+ * @return false
  */
 bool Database::updateData(std::string tableName, std::vector<std::string> columnNames, std::vector<std::string> columnValues, std::string whereClause)
 {
@@ -199,7 +197,7 @@ bool Database::updateData(std::string tableName, std::vector<std::string> column
         return false;
     }
     std::string query = "UPDATE " + tableName + " SET ";
-    for (int i = 0; i < columnNames.size(); i++) {
+    for (size_t i = 0; i < columnNames.size(); i++) {
         query += columnNames[i] + " = '" + columnValues[i] + "'";
         if (i < columnNames.size() - 1) {
             query += ", ";
@@ -218,28 +216,28 @@ bool Database::updateData(std::string tableName, std::vector<std::string> column
 
 /**
  * @brief Set the unique columns for a table
- * 
- * @param tableName 
- * @param uniqueColumns 
+ *
+ * @param tableName
+ * @param uniqueColumns
  */
 void Database::setUniqueColumns(std::vector<std::string> columnNames, std::vector<bool> uniqueColumns)
 {
-    if(columnNames.size() != uniqueColumns.size()){
+    if (columnNames.size() != uniqueColumns.size()) {
         this->lastError = "Column names and unique columns do not match";
         return;
     }
-    for (int i = 0; i < uniqueColumns.size(); i++) {
+    for (size_t i = 0; i < uniqueColumns.size(); i++) {
         this->uniqueColumns[columnNames.at(i)] = uniqueColumns[i];
     }
 }
 
 /**
  * @brief Delete data from a table
- * 
- * @param tableName 
- * @param whereClause 
- * @return true 
- * @return false 
+ *
+ * @param tableName
+ * @param whereClause
+ * @return true
+ * @return false
  */
 bool Database::deleteData(std::string tableName, std::string whereClause)
 {
@@ -260,11 +258,11 @@ bool Database::deleteData(std::string tableName, std::string whereClause)
 
 /**
  * @brief Select data from a table. Selects specific columns from the table and specific rows in the table.
- * 
- * @param tableName 
- * @param columnNames 
- * @param whereClause 
- * @return std::vector<std::vector<std::string>> 
+ *
+ * @param tableName
+ * @param columnNames
+ * @param whereClause
+ * @return std::vector<std::vector<std::string>>
  */
 std::vector<std::vector<std::string>> Database::selectData(std::string tableName, std::vector<std::string> columnNames, std::string whereClause)
 {
@@ -273,7 +271,7 @@ std::vector<std::vector<std::string>> Database::selectData(std::string tableName
         return {};
     }
     std::string query = "SELECT ";
-    for (int i = 0; i < columnNames.size(); i++) {
+    for (size_t i = 0; i < columnNames.size(); i++) {
         query += columnNames[i];
         if (i < columnNames.size() - 1) {
             query += ", ";
@@ -285,7 +283,7 @@ std::vector<std::vector<std::string>> Database::selectData(std::string tableName
         std::vector<std::vector<std::string>> results;
         while (stmt.executeStep()) {
             std::vector<std::string> row;
-            for (int i = 0; i < columnNames.size(); i++) {
+            for (size_t i = 0; i < columnNames.size(); i++) {
                 row.push_back(stmt.getColumn(i).getText());
             }
             results.push_back(row);
@@ -299,10 +297,10 @@ std::vector<std::vector<std::string>> Database::selectData(std::string tableName
 
 /**
  * @brief Select data from a table. Selects specific columns from the table and all rows in the table.
- * 
- * @param tableName 
- * @param columnNames 
- * @return std::vector<std::vector<std::string>> 
+ *
+ * @param tableName
+ * @param columnNames
+ * @return std::vector<std::vector<std::string>>
  */
 std::vector<std::vector<std::string>> Database::selectData(std::string tableName, std::vector<std::string> columnNames)
 {
@@ -311,7 +309,7 @@ std::vector<std::vector<std::string>> Database::selectData(std::string tableName
         return {};
     }
     std::string query = "SELECT ";
-    for (int i = 0; i < columnNames.size(); i++) {
+    for (size_t i = 0; i < columnNames.size(); i++) {
         query += columnNames[i];
         if (i < columnNames.size() - 1) {
             query += ", ";
@@ -323,7 +321,7 @@ std::vector<std::vector<std::string>> Database::selectData(std::string tableName
         std::vector<std::vector<std::string>> results;
         while (stmt.executeStep()) {
             std::vector<std::string> row;
-            for (int i = 0; i < columnNames.size(); i++) {
+            for (size_t i = 0; i < columnNames.size(); i++) {
                 row.push_back(stmt.getColumn(i).getText());
             }
             results.push_back(row);
@@ -337,9 +335,9 @@ std::vector<std::vector<std::string>> Database::selectData(std::string tableName
 
 /**
  * @brief Select data from a table. Selects all columns from the table and all rows in the table
- * 
- * @param tableName 
- * @return std::vector<std::vector<std::string>> 
+ *
+ * @param tableName
+ * @return std::vector<std::vector<std::string>>
  */
 std::vector<std::vector<std::string>> Database::selectData(std::string tableName)
 {
@@ -353,7 +351,7 @@ std::vector<std::vector<std::string>> Database::selectData(std::string tableName
         std::vector<std::vector<std::string>> results;
         while (stmt.executeStep()) {
             std::vector<std::string> row;
-            for (int i = 0; i < stmt.getColumnCount(); i++) {
+            for (size_t i = 0; i < stmt.getColumnCount(); i++) {
                 row.push_back(stmt.getColumn(i).getText());
             }
             results.push_back(row);
@@ -367,10 +365,10 @@ std::vector<std::vector<std::string>> Database::selectData(std::string tableName
 
 /**
  * @brief Check if a table exists in the database
- * 
- * @param tableName 
- * @return true 
- * @return false 
+ *
+ * @param tableName
+ * @return true
+ * @return false
  */
 bool Database::tableExists(std::string tableName)
 {
@@ -394,11 +392,11 @@ bool Database::tableExists(std::string tableName)
 
 /**
  * @brief Check if a column exists in a table
- * 
- * @param tableName 
- * @param columnName 
- * @return true 
- * @return false 
+ *
+ * @param tableName
+ * @param columnName
+ * @return true
+ * @return false
  */
 bool Database::columnExists(std::string tableName, std::string columnName)
 {
@@ -423,11 +421,11 @@ bool Database::columnExists(std::string tableName, std::string columnName)
 
 /**
  * @brief Check if a row exists in a table
- * 
- * @param tableName 
- * @param whereClause 
- * @return true 
- * @return false 
+ *
+ * @param tableName
+ * @param whereClause
+ * @return true
+ * @return false
  */
 bool Database::rowExists(std::string tableName, std::string whereClause)
 {
@@ -451,9 +449,9 @@ bool Database::rowExists(std::string tableName, std::string whereClause)
 
 /**
  * @brief Open the database
- * 
- * @return true 
- * @return false 
+ *
+ * @return true
+ * @return false
  */
 bool Database::open()
 {
@@ -473,9 +471,9 @@ bool Database::open()
 
 /**
  * @brief Close the database
- * 
- * @return true 
- * @return false 
+ *
+ * @return true
+ * @return false
  */
 bool Database::close()
 {
@@ -495,9 +493,9 @@ bool Database::close()
 
 /**
  * @brief Check if the database is open
- * 
- * @return true 
- * @return false 
+ *
+ * @return true
+ * @return false
  */
 bool Database::isOpen()
 {
@@ -506,8 +504,8 @@ bool Database::isOpen()
 
 /**
  * @brief Get the path of the database
- * 
- * @return std::string 
+ *
+ * @return std::string
  */
 std::string Database::getDBPath()
 {
@@ -516,8 +514,8 @@ std::string Database::getDBPath()
 
 /**
  * @brief Get the name of the database
- * 
- * @return std::string 
+ *
+ * @return std::string
  */
 std::string Database::getDBName()
 {
@@ -526,8 +524,8 @@ std::string Database::getDBName()
 
 /**
  * @brief Get the last error message
- * 
- * @return std::string 
+ *
+ * @return std::string
  */
 std::string Database::getLastError()
 {
@@ -536,10 +534,10 @@ std::string Database::getLastError()
 
 /**
  * @brief Create a database
- * 
- * @param dbPath 
- * @return true 
- * @return false 
+ *
+ * @param dbPath
+ * @return true
+ * @return false
  */
 bool Database::createDB(std::string dbPath)
 {
@@ -560,12 +558,12 @@ bool Database::createDB(std::string dbPath)
 
 /**
  * @brief Select a blob from a table
- * 
- * @param tableName 
- * @param columnName 
- * @param whereClause 
+ *
+ * @param tableName
+ * @param columnName
+ * @param whereClause
  * @param size
- * @return char* 
+ * @return char*
  */
 char* Database::selectBlob(std::string tableName, std::string columnName, std::string whereClause, int& size)
 {
@@ -595,11 +593,11 @@ char* Database::selectBlob(std::string tableName, std::string columnName, std::s
 
 /**
  * @brief Select a blob from a table
- * 
- * @param tableName 
- * @param columnName 
- * @param whereClause 
- * @return std::string 
+ *
+ * @param tableName
+ * @param columnName
+ * @param whereClause
+ * @return std::string
  */
 std::string Database::selectBlobString(std::string tableName, std::string columnName, std::string whereClause)
 {
@@ -627,21 +625,21 @@ std::string Database::selectBlobString(std::string tableName, std::string column
  * @brief Construct a new CubeDatabaseManager object. This object creates the databases and tables defined in the dbDefs vector.
  * If the .db file does not exist, it will be created.
  * If the database or table already exists, it will not be created. If the table does not exist, it will be created.
- * 
+ *
  */
 CubeDatabaseManager::CubeDatabaseManager()
 {
-    for (int i = 0; i < DB_NS::dbDefs.size(); i++) {
+    for (size_t i = 0; i < DB_NS::dbDefs.size(); i++) {
         if (!Database(DB_NS::dbDefs[i].path).createDB(DB_NS::dbDefs[i].path)) {
             CubeLog::error("Failed to create database: " + DB_NS::dbDefs[i].path);
         }
         CubeLog::info("Database created or exists: " + DB_NS::dbDefs[i].path);
         // create the tables
-        for (int j = 0; j < DB_NS::dbDefs[i].tables.size(); j++) {
+        for (size_t j = 0; j < DB_NS::dbDefs[i].tables.size(); j++) {
             Database db(DB_NS::dbDefs[i].path);
             if (db.open()) {
                 CubeLog::info("Database opened: " + DB_NS::dbDefs[i].path);
-                for (int k = 0; k < DB_NS::dbDefs[i].tables[j].columnNames.size(); k++) {
+                for (size_t k = 0; k < DB_NS::dbDefs[i].tables[j].columnNames.size(); k++) {
                     if (db.tableExists(DB_NS::dbDefs[i].tables[j].name)) {
                         if (!db.columnExists(DB_NS::dbDefs[i].tables[j].name, DB_NS::dbDefs[i].tables[j].columnNames[k])) {
                             if (!db.createTable(DB_NS::dbDefs[i].tables[j].name, DB_NS::dbDefs[i].tables[j].columnNames, DB_NS::dbDefs[i].tables[j].columnTypes, DB_NS::dbDefs[i].tables[j].columnUnique)) {
@@ -679,7 +677,7 @@ CubeDatabaseManager::CubeDatabaseManager()
 
 /**
  * @brief Destroy the CubeDatabaseManager object. Closes all databases.
- * 
+ *
  */
 CubeDatabaseManager::~CubeDatabaseManager()
 {
@@ -692,8 +690,8 @@ CubeDatabaseManager::~CubeDatabaseManager()
 
 /**
  * @brief Add a database to the database manager
- * 
- * @param dbPath 
+ *
+ * @param dbPath
  */
 void CubeDatabaseManager::addDatabase(std::string dbPath)
 {
@@ -708,13 +706,13 @@ void CubeDatabaseManager::addDatabase(std::string dbPath)
 
 /**
  * @brief Get a database by name
- * 
- * @param dbName 
- * @return Database* 
+ *
+ * @param dbName
+ * @return Database*
  */
 Database* CubeDatabaseManager::getDatabase(std::string dbName)
 {
-    for (int i = 0; i < this->databases.size(); i++) {
+    for (size_t i = 0; i < this->databases.size(); i++) {
         if (this->databases[i]->getDBName() == dbName) {
             return this->databases[i];
         }
@@ -724,14 +722,14 @@ Database* CubeDatabaseManager::getDatabase(std::string dbName)
 
 /**
  * @brief Remove a database by name
- * 
- * @param dbName 
- * @return true 
- * @return false 
+ *
+ * @param dbName
+ * @return true
+ * @return false
  */
 bool CubeDatabaseManager::removeDatabase(std::string dbName)
 {
-    for (int i = 0; i < this->databases.size(); i++) {
+    for (size_t i = 0; i < this->databases.size(); i++) {
         if (this->databases[i]->getDBName() == dbName) {
             this->databases[i]->close();
             delete this->databases[i];
@@ -744,8 +742,8 @@ bool CubeDatabaseManager::removeDatabase(std::string dbName)
 
 /**
  * @brief Get all databases
- * 
- * @return std::vector<Database*> 
+ *
+ * @return std::vector<Database*>
  */
 std::vector<Database*> CubeDatabaseManager::getDatabases()
 {
@@ -754,11 +752,11 @@ std::vector<Database*> CubeDatabaseManager::getDatabases()
 
 /**
  * @brief Close all databases
- * 
+ *
  */
 void CubeDatabaseManager::closeAll()
 {
-    for (int i = 0; i < this->databases.size(); i++) {
+    for (size_t i = 0; i < this->databases.size(); i++) {
         this->databases[i]->close();
         delete this->databases[i];
     }
@@ -767,11 +765,11 @@ void CubeDatabaseManager::closeAll()
 
 /**
  * @brief Open all databases
- * 
+ *
  */
 void CubeDatabaseManager::openAll()
 {
-    for (int i = 0; i < this->databases.size(); i++) {
+    for (size_t i = 0; i < this->databases.size(); i++) {
         if (!this->databases[i]->isOpen()) {
             if (!this->databases[i]->open()) {
                 CubeLog::error("Failed to open database: " + this->databases[i]->getDBPath());
@@ -782,12 +780,12 @@ void CubeDatabaseManager::openAll()
 
 /**
  * @brief Close a database by name
- * 
- * @param dbName 
+ *
+ * @param dbName
  */
 void CubeDatabaseManager::closeDatabase(std::string dbName)
 {
-    for (int i = 0; i < this->databases.size(); i++) {
+    for (size_t i = 0; i < this->databases.size(); i++) {
         if (this->databases[i]->getDBName() == dbName) {
             this->databases[i]->close();
             delete this->databases[i];
@@ -799,14 +797,14 @@ void CubeDatabaseManager::closeDatabase(std::string dbName)
 
 /**
  * @brief Open a database by name
- * 
- * @param dbName 
- * @return true 
- * @return false 
+ *
+ * @param dbName
+ * @return true
+ * @return false
  */
 bool CubeDatabaseManager::openDatabase(std::string dbName)
 {
-    for (int i = 0; i < this->databases.size(); i++) {
+    for (size_t i = 0; i < this->databases.size(); i++) {
         if (this->databases[i]->getDBName() == dbName) {
             if (!this->databases[i]->isOpen()) {
                 if (!this->databases[i]->open()) {
@@ -828,13 +826,14 @@ bool CubeDatabaseManager::openDatabase(std::string dbName)
 
 void CubeDatabaseManager::dbWorker()
 {
-    while(true){
+    while (true) {
         while (this->dbQueue.size() > 0) {
             auto task = this->dbQueue.pop();
             task();
         }
         genericSleep(100);
-        if(dbStopToken.stop_requested()) break;
+        if (dbStopToken.stop_requested())
+            break;
     }
 }
 
@@ -853,9 +852,9 @@ bool CubeDatabaseManager::isDatabaseManagerReady()
 
 /**
  * @brief Construct a new BlobsManager object
- * 
- * @param dbManager 
- * @param dbPath 
+ *
+ * @param dbManager
+ * @param dbPath
  */
 BlobsManager::BlobsManager(std::shared_ptr<CubeDatabaseManager> dbManager, std::string dbPath)
 {
@@ -866,7 +865,7 @@ BlobsManager::BlobsManager(std::shared_ptr<CubeDatabaseManager> dbManager, std::
 
 /**
  * @brief Destroy the BlobsManager object
- * 
+ *
  */
 BlobsManager::~BlobsManager()
 {
@@ -875,23 +874,23 @@ BlobsManager::~BlobsManager()
 
 /**
  * @brief Add a blob to a table
- * 
- * @param tableName 
- * @param blob 
- * @param ownerID 
- * @return true 
- * @return false 
+ *
+ * @param tableName
+ * @param blob
+ * @param ownerID
+ * @return true
+ * @return false
  */
 int BlobsManager::addBlob(std::string tableName, std::string blob, std::string ownerID)
 {
-    if(!isInBlobsTableNames(tableName)){
+    if (!isInBlobsTableNames(tableName)) {
         CubeLog::error("Invalid table name: " + tableName);
         return -1;
     }
     Database* db = this->dbManager->getDatabase("blobs");
     if (db->open()) {
-        long id = db->insertData(tableName, {"blob", "owner_id"}, {blob, ownerID});
-        if ( id > -1) {
+        long id = db->insertData(tableName, { "blob", "owner_id" }, { blob, ownerID });
+        if (id > -1) {
             db->close();
             return id;
         } else {
@@ -903,23 +902,24 @@ int BlobsManager::addBlob(std::string tableName, std::string blob, std::string o
     } else {
         CubeLog::error("Failed to open database: blobs.db");
         CubeLog::error("Last error: " + db->getLastError());
-        if(db->getLastError() == "Database is already open") return true;
+        if (db->getLastError() == "Database is already open")
+            return true;
         return -1;
     }
 }
 
 /**
  * @brief Remove a blob from a table
- * 
- * @param tableName 
- * @param blob 
- * @param ownerID 
- * @return true 
- * @return false 
+ *
+ * @param tableName
+ * @param blob
+ * @param ownerID
+ * @return true
+ * @return false
  */
 bool BlobsManager::removeBlob(std::string tableName, std::string ownerID, int id)
 {
-    if(!isInBlobsTableNames(tableName)){
+    if (!isInBlobsTableNames(tableName)) {
         CubeLog::error("Invalid table name: " + tableName);
         return false;
     }
@@ -943,21 +943,21 @@ bool BlobsManager::removeBlob(std::string tableName, std::string ownerID, int id
 
 /**
  * @brief Get a blob from a table
- * 
- * @param tableName 
- * @param ownerID 
- * @param id 
- * @return std::string 
+ *
+ * @param tableName
+ * @param ownerID
+ * @param id
+ * @return std::string
  */
 std::string BlobsManager::getBlobString(std::string tableName, std::string ownerID, int id)
 {
-    if(!isInBlobsTableNames(tableName)){
+    if (!isInBlobsTableNames(tableName)) {
         CubeLog::error("Invalid table name: " + tableName);
         return "";
     }
     Database* db = this->dbManager->getDatabase("blobs.db");
     if (db->open()) {
-        std::vector<std::vector<std::string>> result = db->selectData(tableName, {"blob"}, "id = " + std::to_string(id) + " AND owner_id = '" + ownerID + "'");
+        std::vector<std::vector<std::string>> result = db->selectData(tableName, { "blob" }, "id = " + std::to_string(id) + " AND owner_id = '" + ownerID + "'");
         db->close();
         if (result.size() > 0) {
             return result[0][0];
@@ -973,27 +973,27 @@ std::string BlobsManager::getBlobString(std::string tableName, std::string owner
 
 /**
  * @brief Get a blob from a table
- * 
- * @param tableName 
- * @param ownerID 
- * @param id 
+ *
+ * @param tableName
+ * @param ownerID
+ * @param id
  * @param size
- * @return char* 
+ * @return char*
  */
 char* BlobsManager::getBlobChars(std::string tableName, std::string ownerID, int id, int& size)
 {
-    if(!isInBlobsTableNames(tableName)){
+    if (!isInBlobsTableNames(tableName)) {
         CubeLog::error("Invalid table name: " + tableName);
         return nullptr;
     }
     Database* db = this->dbManager->getDatabase("blobs.db");
     if (db->open()) {
-        std::vector<std::vector<std::string>> result = db->selectData(tableName, {"blob"}, "id = " + std::to_string(id) + " AND owner_id = '" + ownerID + "'");
+        std::vector<std::vector<std::string>> result = db->selectData(tableName, { "blob" }, "id = " + std::to_string(id) + " AND owner_id = '" + ownerID + "'");
         db->close();
         if (result.size() > 0) {
             size = result[0][0].size();
             char* blob = new char[size];
-            for (int i = 0; i < size; i++) {
+            for (size_t i = 0; i < size; i++) {
                 blob[i] = result[0][0][i];
             }
             return blob;
@@ -1011,23 +1011,23 @@ char* BlobsManager::getBlobChars(std::string tableName, std::string ownerID, int
 
 /**
  * @brief Update a blob in a table
- * 
- * @param tableName 
- * @param blob 
- * @param ownerID 
- * @param id 
- * @return true 
- * @return false 
+ *
+ * @param tableName
+ * @param blob
+ * @param ownerID
+ * @param id
+ * @return true
+ * @return false
  */
 bool BlobsManager::updateBlob(std::string tableName, std::string blob, std::string ownerID, int id)
 {
-    if(!isInBlobsTableNames(tableName)){
+    if (!isInBlobsTableNames(tableName)) {
         CubeLog::error("Invalid table name: " + tableName);
         return false;
     }
     Database* db = this->dbManager->getDatabase("blobs.db");
     if (db->open()) {
-        if (db->updateData(tableName, {"blob"}, {blob}, "id = " + std::to_string(id) + " AND owner_id = '" + ownerID + "'")) {
+        if (db->updateData(tableName, { "blob" }, { blob }, "id = " + std::to_string(id) + " AND owner_id = '" + ownerID + "'")) {
             db->close();
             return true;
         } else {
@@ -1045,26 +1045,26 @@ bool BlobsManager::updateBlob(std::string tableName, std::string blob, std::stri
 
 /**
  * @brief Add a blob to a table
- * 
- * @param tableName 
- * @param blob 
- * @param ownerID 
- * @return true 
- * @return false 
+ *
+ * @param tableName
+ * @param blob
+ * @param ownerID
+ * @return true
+ * @return false
  */
 bool BlobsManager::updateBlob(std::string tableName, char* blob, int size, std::string ownerID, int id)
 {
-    if(!isInBlobsTableNames(tableName)){
+    if (!isInBlobsTableNames(tableName)) {
         CubeLog::error("Invalid table name: " + tableName);
         return false;
     }
     Database* db = this->dbManager->getDatabase("blobs.db");
     if (db->open()) {
         std::string blobStr = "";
-        for (int i = 0; i < size; i++) {
+        for (size_t i = 0; i < size; i++) {
             blobStr += blob[i];
         }
-        if (db->updateData(tableName, {"blob"}, {blobStr}, "id = " + std::to_string(id) + " AND owner_id = '" + ownerID + "'")) {
+        if (db->updateData(tableName, { "blob" }, { blobStr }, "id = " + std::to_string(id) + " AND owner_id = '" + ownerID + "'")) {
             db->close();
             return true;
         } else {
@@ -1082,22 +1082,22 @@ bool BlobsManager::updateBlob(std::string tableName, char* blob, int size, std::
 
 /**
  * @brief Add a blob to a table
- * 
- * @param tableName 
- * @param blob 
- * @param ownerID 
+ *
+ * @param tableName
+ * @param blob
+ * @param ownerID
  * @return int -  the id of the blob
  */
 int BlobsManager::addBlob(std::string tableName, char* blob, int size, std::string ownerID)
 {
-    if(!isInBlobsTableNames(tableName)){
+    if (!isInBlobsTableNames(tableName)) {
         CubeLog::error("Invalid table name: " + tableName);
         return -1;
     }
     Database* db = this->dbManager->getDatabase("blobs.db");
     if (db->open()) {
-        long id = db->insertData(tableName, {"blob", "owner_id"}, {blob, ownerID});
-        if ( id > -1) {
+        long id = db->insertData(tableName, { "blob", "owner_id" }, { blob, ownerID });
+        if (id > -1) {
             db->close();
             return id;
         } else {
@@ -1123,46 +1123,8 @@ bool BlobsManager::isBlobsManagerReady()
 
 bool sanitizeString(std::string& str)
 {
-    if(
-        str.find("'") != std::string::npos  ||
-        str.find("\"") != std::string::npos ||
-        str.find("\\") != std::string::npos ||
-        str.find(";") != std::string::npos  ||
-        str.find("--") != std::string::npos ||
-        str.find("/*") != std::string::npos ||
-        str.find("*/") != std::string::npos ||
-        str.find("DROP") != std::string::npos ||
-        str.find("CREATE") != std::string::npos ||
-        str.find("ALTER") != std::string::npos ||
-        str.find("INSERT") != std::string::npos ||
-        str.find("UPDATE") != std::string::npos ||
-        str.find("DELETE") != std::string::npos ||
-        str.find("SELECT") != std::string::npos ||
-        str.find("FROM") != std::string::npos ||
-        str.find("WHERE") != std::string::npos ||
-        str.find("AND") != std::string::npos ||
-        str.find("OR") != std::string::npos ||
-        str.find("LIKE") != std::string::npos ||
-        str.find("IN") != std::string::npos ||
-        str.find("BETWEEN") != std::string::npos ||
-        str.find("IS") != std::string::npos ||
-        str.find("NULL") != std::string::npos ||
-        str.find("ORDER") != std::string::npos ||
-        str.find("BY") != std::string::npos ||
-        str.find("GROUP") != std::string::npos ||
-        str.find("HAVING") != std::string::npos ||
-        str.find("LIMIT") != std::string::npos ||
-        str.find("OFFSET") != std::string::npos ||
-        str.find("JOIN") != std::string::npos ||
-        str.find("INNER") != std::string::npos ||
-        str.find("LEFT") != std::string::npos ||
-        str.find("RIGHT") != std::string::npos ||
-        str.find("OUTER") != std::string::npos ||
-        str.find("FULL") != std::string::npos ||
-        str.find("UNION") != std::string::npos ||
-        str.find("INTERSECT") != std::string::npos ||
-        str.find("EXCEPT") != std::string::npos
-    )
+    if (
+        str.find("'") != std::string::npos || str.find("\"") != std::string::npos || str.find("\\") != std::string::npos || str.find(";") != std::string::npos || str.find("--") != std::string::npos || str.find("/*") != std::string::npos || str.find("*/") != std::string::npos || str.find("DROP") != std::string::npos || str.find("CREATE") != std::string::npos || str.find("ALTER") != std::string::npos || str.find("INSERT") != std::string::npos || str.find("UPDATE") != std::string::npos || str.find("DELETE") != std::string::npos || str.find("SELECT") != std::string::npos || str.find("FROM") != std::string::npos || str.find("WHERE") != std::string::npos || str.find("AND") != std::string::npos || str.find("OR") != std::string::npos || str.find("LIKE") != std::string::npos || str.find("IN") != std::string::npos || str.find("BETWEEN") != std::string::npos || str.find("IS") != std::string::npos || str.find("NULL") != std::string::npos || str.find("ORDER") != std::string::npos || str.find("BY") != std::string::npos || str.find("GROUP") != std::string::npos || str.find("HAVING") != std::string::npos || str.find("LIMIT") != std::string::npos || str.find("OFFSET") != std::string::npos || str.find("JOIN") != std::string::npos || str.find("INNER") != std::string::npos || str.find("LEFT") != std::string::npos || str.find("RIGHT") != std::string::npos || str.find("OUTER") != std::string::npos || str.find("FULL") != std::string::npos || str.find("UNION") != std::string::npos || str.find("INTERSECT") != std::string::npos || str.find("EXCEPT") != std::string::npos)
         return false;
     return true;
 }

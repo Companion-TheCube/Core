@@ -4,7 +4,7 @@
 
 /**
  * @brief Construct a new Renderer object
- * 
+ *
  * @param latch - a latch to synchronize the setup of the renderer
  */
 Renderer::Renderer(std::latch& latch)
@@ -15,7 +15,7 @@ Renderer::Renderer(std::latch& latch)
 
 /**
  * @brief Destroy the Renderer object. Stops the renderer thread and waits for it to join.
- * 
+ *
  */
 Renderer::~Renderer()
 {
@@ -27,7 +27,7 @@ Renderer::~Renderer()
 
 /**
  * @brief Stop the renderer thread
- * 
+ *
  */
 void Renderer::stop()
 {
@@ -36,8 +36,8 @@ void Renderer::stop()
 
 /**
  * @brief The main renderer thread. the thread will call all the setup tasks and loop tasks in the queue, along with drawing all objects.
- * 
- * @return int 
+ *
+ * @return int
  */
 int Renderer::thread()
 {
@@ -87,14 +87,17 @@ int Renderer::thread()
     CubeLog::info("Renderer initialized. Starting Loop...");
     this->ready = true;
     this->latch->count_down(); // Send a signal to the GUI that the renderer is ready
-    auto screenMessage = new M_Text(this->textShader, "", 12, {0,1,0}, {2, 2}); // Logger output for CubeLog::screen()
+    auto screenMessage = new M_Text(this->textShader, "", 12, { 0, 1, 0 }, { 2, 2 }); // Logger output for CubeLog::screen()
     while (running) {
-        for (auto event = sf::Event {}; this->window.pollEvent(event);) this->events.push_back(event);
-        if (this->running) this->setupTasksRun();
+        for (auto event = sf::Event {}; this->window.pollEvent(event);)
+            this->events.push_back(event);
+        if (this->running)
+            this->setupTasksRun();
         this->window.setActive();
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // Set clear color to black
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); // Clear the color buffer, the depth buffer and the stencil buffer
-        if (this->running) this->loopTasksRun();
+        if (this->running)
+            this->loopTasksRun();
         if (characterManager->getCharacter() != nullptr) {
             // hold here until the animation and expression threads are ready
             // TODO: replace this with a CountingLatch. This will be cleaner.
@@ -105,8 +108,9 @@ int Renderer::thread()
             characterManager->getCharacter()->draw();
             characterManager->triggerAnimationAndExpressionThreads();
         }
-        for (auto object : this->objects) object->draw();
-        if(CubeLog::getScreenMessage() != ""){
+        for (auto object : this->objects)
+            object->draw();
+        if (CubeLog::getScreenMessage() != "") {
             screenMessage->setText(CubeLog::getScreenMessage());
             screenMessage->draw();
         }
@@ -119,8 +123,8 @@ int Renderer::thread()
 
 /**
  * @brief Get the events from the event queue
- * 
- * @return std::vector<sf::Event> 
+ *
+ * @return std::vector<sf::Event>
  */
 std::vector<sf::Event> Renderer::getEvents()
 {
@@ -134,8 +138,8 @@ std::vector<sf::Event> Renderer::getEvents()
 
 /**
  * @brief Get the running status of the renderer
- * 
- * @return bool 
+ *
+ * @return bool
  */
 bool Renderer::getIsRunning()
 {
@@ -144,7 +148,7 @@ bool Renderer::getIsRunning()
 
 /**
  * @brief Add an object to the renderer
- * 
+ *
  * @param object - the object to add
  */
 void Renderer::addObject(Object* object)
@@ -154,8 +158,8 @@ void Renderer::addObject(Object* object)
 
 /**
  * @brief Get the general shader object
- * 
- * @return Shader* 
+ *
+ * @return Shader*
  */
 Shader* Renderer::getMeshShader()
 {
@@ -164,8 +168,8 @@ Shader* Renderer::getMeshShader()
 
 /**
  * @brief Get the stencil shader object
- * 
- * @return Shader* 
+ *
+ * @return Shader*
  */
 Shader* Renderer::getStencilShader()
 {
@@ -174,8 +178,8 @@ Shader* Renderer::getStencilShader()
 
 /**
  * @brief Get the text shader object
- * 
- * @return Shader* 
+ *
+ * @return Shader*
  */
 Shader* Renderer::getTextShader()
 {
@@ -184,7 +188,7 @@ Shader* Renderer::getTextShader()
 
 /**
  * @brief Add a task to the loop queue
- * 
+ *
  * @param task - the task to add
  */
 void Renderer::addLoopTask(std::function<void()> task)
@@ -194,7 +198,7 @@ void Renderer::addLoopTask(std::function<void()> task)
 
 /**
  * @brief Add a task to the setup queue
- * 
+ *
  * @param task - the task to add
  */
 void Renderer::addSetupTask(std::function<void()> task)
@@ -204,26 +208,29 @@ void Renderer::addSetupTask(std::function<void()> task)
 
 /**
  * @brief Run all the setup tasks in the queue
- * 
+ *
  */
 void Renderer::setupTasksRun()
 {
-    while (this->setupQueue.size() > 0) this->setupQueue.shift()();
+    while (this->setupQueue.size() > 0)
+        this->setupQueue.shift()();
 }
 
 /**
  * @brief Run all the loop tasks in the queue
- * 
+ *
  */
 void Renderer::loopTasksRun()
 {
-    if (this->loopQueue.size() == 0) return;
-    for(int i = 0; i < this->loopQueue.size(); i++) this->loopQueue.peek(i)(); // Run the task
+    if (this->loopQueue.size() == 0)
+        return;
+    for (size_t i = 0; i < this->loopQueue.size(); i++)
+        this->loopQueue.peek(i)(); // Run the task
 }
 
 /**
  * @brief Check if the renderer is ready
- * 
+ *
  * @return bool - true if the renderer is ready
  */
 bool Renderer::isReady()

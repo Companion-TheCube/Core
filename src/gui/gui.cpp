@@ -70,7 +70,7 @@ void GUI::eventLoop()
     /// TESTING FUNCTION TODO: remove this or move to utils
     ////////////////////////////////////////
     auto repeatChar = [](std::string& inOut, int n, std::string repeatChars) {
-        for (int i = 0; i < n; i++) {
+        for (size_t i = 0; i < n; i++) {
             inOut += repeatChars;
         }
         return inOut;
@@ -812,7 +812,7 @@ void GUI::eventLoop()
     CubeLog::info("Starting event handler loop...");
     while (this->renderer->getIsRunning()) {
         std::vector<sf::Event> events = this->renderer->getEvents();
-        for (int i = 0; i < events.size(); i++) {
+        for (size_t i = 0; i < events.size(); i++) {
             this->eventManager->triggerEvent(events[i].type, &events[i]);
             this->eventManager->triggerEvent(static_cast<SpecificEventTypes>(events[i].key.code), &events[i]);
             this->eventManager->triggerEvent(static_cast<SpecificEventTypes>(events[i].key.code), events[i].type, &events[i]);
@@ -837,7 +837,7 @@ GUI_Error GUI::addMenu(std::string menuName, std::string thisUniqueID, std::stri
 {
     CubeLog::debugSilly("Adding menu: " + menuName + " with parent: " + parentID);
     std::vector<std::string> uniqueIDs;
-    for (int i = 0; i < data.size(); i++) {
+    for (size_t i = 0; i < data.size(); i++) {
         uniqueIDs.push_back(std::get<2>(data.at(i)));
     }
     CubeLog::debugSilly("Locking addMenuMutex");
@@ -897,7 +897,7 @@ GUI_Error GUI::addMenu(std::string menuName, std::string thisUniqueID, std::stri
             nullptr);
         aNewMenu->addHorizontalRule();
         bool success = true;
-        for (int i = 0; i < data.size(); i++) {
+        for (size_t i = 0; i < data.size(); i++) {
             if (!parseJsonAndAddEntriesToMenu(std::get<1>(data[i]), aNewMenu)) {
                 CubeLog::error("Error parsing json and adding entries to menu: " + menuName);
                 success = false;
@@ -1057,7 +1057,7 @@ void GUI::showTextInputBox(std::string title, std::vector<std::string> fields, s
 {
     // TODO: show a text input box
     std::vector<std::string> textVector;
-    for (int i = 0; i < fields.size(); i++) {
+    for (size_t i = 0; i < fields.size(); i++) {
         textVector.push_back(fields[i]);
     }
     callback(textVector);

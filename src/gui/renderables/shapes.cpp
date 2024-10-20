@@ -245,7 +245,7 @@ void M_Text::rotateAbout(float angle, glm::vec3 axis, glm::vec3 point)
     tempMat = glm::translate(tempMat, point);
     tempMat = glm::rotate(tempMat, glm::radians(angle), glm::normalize(axis));
     tempMat = glm::translate(tempMat, -point);
-    for (int i = 0; i < this->vertexData.size(); i++) {
+    for (size_t i = 0; i < this->vertexData.size(); i++) {
         glm::vec4 point = tempMat * glm::vec4(this->vertexData[i].x, this->vertexData[i].y, this->vertexData[i].z, 1.0f);
         this->vertexData[i] = { point.x, point.y, point.z, 1.f };
     }
@@ -423,7 +423,7 @@ void M_PartCircle::rotate(float angle, glm::vec3 axis)
 {
     glm::mat4 tempMat = glm::mat4(1.0f);
     tempMat = glm::rotate(tempMat, glm::radians(angle), axis);
-    for (int i = 0; i < this->vertexData.size(); i++) {
+    for (size_t i = 0; i < this->vertexData.size(); i++) {
         glm::vec4 point = tempMat * glm::vec4(this->vertexData[i].x, this->vertexData[i].y, this->vertexData[i].z, 1.0f);
         this->vertexData[i] = { point.x, point.y, point.z, 1.f };
     }
@@ -436,7 +436,7 @@ void M_PartCircle::scale(glm::vec3 scale)
     // get the average of the scale
     float avgScale = (normalizedScale.x + normalizedScale.y + normalizedScale.z) / 3;
     // scale the circle
-    for (int i = 0; i < this->vertexData.size(); i++) {
+    for (size_t i = 0; i < this->vertexData.size(); i++) {
         this->vertexData[i].x *= avgScale;
         this->vertexData[i].y *= avgScale;
         this->vertexData[i].z *= avgScale;
@@ -445,7 +445,7 @@ void M_PartCircle::scale(glm::vec3 scale)
 
 void M_PartCircle::uniformScale(float scale)
 {
-    for (int i = 0; i < this->vertexData.size(); i++) {
+    for (size_t i = 0; i < this->vertexData.size(); i++) {
         this->vertexData[i].x *= scale;
         this->vertexData[i].y *= scale;
         this->vertexData[i].z *= scale;
@@ -459,7 +459,7 @@ void M_PartCircle::rotateAbout(float angle, glm::vec3 point)
     tempMat = glm::translate(tempMat, point);
     tempMat = glm::rotate(tempMat, glm::radians(angle), axis);
     tempMat = glm::translate(tempMat, -point);
-    for (int i = 0; i < this->vertexData.size(); i++) {
+    for (size_t i = 0; i < this->vertexData.size(); i++) {
         glm::vec4 point = tempMat * glm::vec4(this->vertexData[i].x, this->vertexData[i].y, this->vertexData[i].z, 1.0f);
         this->vertexData[i] = { point.x, point.y, point.z, 1.f };
     }
@@ -471,7 +471,7 @@ void M_PartCircle::rotateAbout(float angle, glm::vec3 axis, glm::vec3 point)
     tempMat = glm::translate(tempMat, point);
     tempMat = glm::rotate(tempMat, glm::radians(angle), axis);
     tempMat = glm::translate(tempMat, -point);
-    for (int i = 0; i < this->vertexData.size(); i++) {
+    for (size_t i = 0; i < this->vertexData.size(); i++) {
         glm::vec4 point = tempMat * glm::vec4(this->vertexData[i].x, this->vertexData[i].y, this->vertexData[i].z, 1.0f);
         this->vertexData[i] = { point.x, point.y, point.z, 1.f };
     }
@@ -562,7 +562,7 @@ unsigned char* createRadioButtonTexture(unsigned int size, unsigned int padding,
                     if (yIdx < 0 || yIdx >= overallWidthHeight || xIdx < 0 || xIdx >= overallWidthHeight) {
                         continue;
                     }
-                    if((((unsigned int)data[(unsigned int)((float)yIdx * overallWidthHeight + xIdx)]) + pixel_color / ((size * 0.2f) *(size * 0.2f))) > 255) {
+                    if ((((unsigned int)data[(unsigned int)((float)yIdx * overallWidthHeight + xIdx)]) + pixel_color / ((size * 0.2f) * (size * 0.2f))) > 255) {
                         data[(unsigned int)((float)yIdx * overallWidthHeight + xIdx)] = 255;
                     } else {
                         data[(unsigned int)((float)yIdx * overallWidthHeight + xIdx)] += pixel_color / ((size * 0.2f) * (size * 0.2f));
@@ -585,7 +585,7 @@ M_RadioButtonTexture::M_RadioButtonTexture(Shader* sh, float radioSize, unsigned
     this->scale_ = 1.0f;
     this->selectedTextureBitmap = createRadioButtonTexture(radioSize, padding, true);
     this->unselectedTextureBitmap = createRadioButtonTexture(radioSize, padding, false);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);   
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glGenTextures(1, &this->textureSelected);
     glBindTexture(GL_TEXTURE_2D, this->textureSelected);
     glTexImage2D(
@@ -826,10 +826,7 @@ unsigned char* createToggleTexture(unsigned int height, unsigned int width, unsi
             }
             // check if the pixel is in the top line or bottom line
             else if (
-                ((y >= centerR_y + circle_inner_radius && y <= centerR_y + circle_outer_radius) ||
-                (y <= centerR_y - circle_inner_radius && y >= centerR_y - circle_outer_radius)) &&
-                x <= centerR_x && x >= centerL_x
-            ) {
+                ((y >= centerR_y + circle_inner_radius && y <= centerR_y + circle_outer_radius) || (y <= centerR_y - circle_inner_radius && y >= centerR_y - circle_outer_radius)) && x <= centerR_x && x >= centerL_x) {
                 pixel_color = 255;
             }
             // check if the pixel is in the dot to the right
@@ -845,7 +842,7 @@ unsigned char* createToggleTexture(unsigned int height, unsigned int width, unsi
                 bool inInnerCircle = dist_R < circle_inner_radius || dist_L < circle_inner_radius;
                 bool betweenYVals = y >= centerR_y - circle_inner_radius && y <= centerR_y + circle_inner_radius;
                 bool betweenXVals = x <= centerR_x && x >= centerL_x;
-                if(inInnerCircle || (betweenYVals && betweenXVals)) {
+                if (inInnerCircle || (betweenYVals && betweenXVals)) {
                     pixel_color = 64;
                 }
             }
@@ -860,7 +857,7 @@ unsigned char* createToggleTexture(unsigned int height, unsigned int width, unsi
                     if (yIdx < 0 || yIdx >= overallHeight || xIdx < 0 || xIdx >= overallWidth) {
                         continue;
                     }
-                    if((((unsigned int)data[(unsigned int)((float)yIdx * overallWidth + xIdx)]) + pixel_color / ((height * 0.2f) *(height * 0.2f))) > 255) {
+                    if ((((unsigned int)data[(unsigned int)((float)yIdx * overallWidth + xIdx)]) + pixel_color / ((height * 0.2f) * (height * 0.2f))) > 255) {
                         data[(unsigned int)((float)yIdx * overallWidth + xIdx)] = 255;
                     } else {
                         data[(unsigned int)((float)yIdx * overallWidth + xIdx)] += pixel_color / ((height * 0.2f) * (height * 0.2f));
@@ -884,7 +881,7 @@ M_ToggleTexture::M_ToggleTexture(Shader* sh, float toggleWidth, float toggleHeig
     this->scale_ = 1.0f;
     this->selectedTextureBitmap = createToggleTexture(toggleHeight, toggleWidth, padding, true);
     this->unselectedTextureBitmap = createToggleTexture(toggleHeight, toggleWidth, padding, false);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);   
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glGenTextures(1, &this->textureSelected);
     glBindTexture(GL_TEXTURE_2D, this->textureSelected);
     glTexImage2D(
@@ -1177,7 +1174,7 @@ void M_Rect::setModelMatrix(glm::mat4 modelMatrix)
 
 void M_Rect::translate(glm::vec3 translation)
 {
-    // for (int i = 0; i < 4; i++) {
+    // for (size_t i = 0; i < 4; i++) {
     //     this->vertexDataFill[i].x += translation.x;
     //     this->vertexDataFill[i].y += translation.y;
     //     this->vertexDataFill[i].z += translation.z;
@@ -1192,7 +1189,7 @@ void M_Rect::rotate(float angle, glm::vec3 axis)
 {
     glm::mat4 tempMat = glm::mat4(1.0f);
     tempMat = glm::rotate(tempMat, glm::radians(angle), axis);
-    for (int i = 0; i < 4; i++) {
+    for (size_t i = 0; i < 4; i++) {
         glm::vec4 fill = tempMat * glm::vec4(this->vertexDataFill[i].x, this->vertexDataFill[i].y, this->vertexDataFill[i].z, 1.0f);
         glm::vec4 border = tempMat * glm::vec4(this->vertexDataBorder[i].x, this->vertexDataBorder[i].y, this->vertexDataBorder[i].z, 1.0f);
         this->vertexDataFill[i] = { fill.x, fill.y, fill.z, 1.f };
@@ -1207,7 +1204,7 @@ void M_Rect::scale(glm::vec3 scale)
     // get the average of the scale
     float avgScale = (normalizedScale.x + normalizedScale.y + normalizedScale.z) / 3;
     // scale the rectangle
-    for (int i = 0; i < 4; i++) {
+    for (size_t i = 0; i < 4; i++) {
         this->vertexDataFill[i].x *= avgScale;
         this->vertexDataFill[i].y *= avgScale;
         this->vertexDataFill[i].z *= avgScale;
@@ -1219,7 +1216,7 @@ void M_Rect::scale(glm::vec3 scale)
 
 void M_Rect::uniformScale(float scale)
 {
-    for (int i = 0; i < 4; i++) {
+    for (size_t i = 0; i < 4; i++) {
         this->vertexDataFill[i].x *= scale;
         this->vertexDataFill[i].y *= scale;
         this->vertexDataFill[i].z *= scale;
@@ -1236,7 +1233,7 @@ void M_Rect::rotateAbout(float angle, glm::vec3 point)
     tempMat = glm::translate(tempMat, point);
     tempMat = glm::rotate(tempMat, glm::radians(angle), axis);
     tempMat = glm::translate(tempMat, -point);
-    for (int i = 0; i < 4; i++) {
+    for (size_t i = 0; i < 4; i++) {
         glm::vec4 fill = tempMat * glm::vec4(this->vertexDataFill[i].x, this->vertexDataFill[i].y, this->vertexDataFill[i].z, 1.0f);
         glm::vec4 border = tempMat * glm::vec4(this->vertexDataBorder[i].x, this->vertexDataBorder[i].y, this->vertexDataBorder[i].z, 1.0f);
         this->vertexDataFill[i] = { fill.x, fill.y, fill.z, 1.f };
@@ -1250,7 +1247,7 @@ void M_Rect::rotateAbout(float angle, glm::vec3 axis, glm::vec3 point)
     tempMat = glm::translate(tempMat, point);
     tempMat = glm::rotate(tempMat, glm::radians(angle), axis);
     tempMat = glm::translate(tempMat, -point);
-    for (int i = 0; i < 4; i++) {
+    for (size_t i = 0; i < 4; i++) {
         glm::vec4 fill = tempMat * glm::vec4(this->vertexDataFill[i].x, this->vertexDataFill[i].y, this->vertexDataFill[i].z, 1.0f);
         glm::vec4 border = tempMat * glm::vec4(this->vertexDataBorder[i].x, this->vertexDataBorder[i].y, this->vertexDataBorder[i].z, 1.0f);
         this->vertexDataFill[i] = { fill.x, fill.y, fill.z, 1.f };
@@ -1699,7 +1696,7 @@ Cube::Cube(Shader* sh)
     glEnableVertexAttribArray(1);
     glBindVertexArray(0);
     Vertex face[4];
-    for (int i = 0; i < 6; i++) {
+    for (size_t i = 0; i < 6; i++) {
         face[0] = edgeVertices[i * 4];
         face[1] = edgeVertices[i * 4 + 1];
         face[2] = edgeVertices[i * 4 + 2];
@@ -1733,7 +1730,7 @@ void Cube::draw()
     // glDepthMask(GL_FALSE);
     glBindVertexArray(VAOs[0]);
     glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-    for (int i = 1; i <= 6; i++) {
+    for (size_t i = 1; i <= 6; i++) {
         glBindVertexArray(VAOs[i]);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     }
@@ -1836,7 +1833,7 @@ glm::vec3 Cube::getCenterPoint()
 std::vector<Vertex> Cube::getVertices()
 {
     std::vector<Vertex> vertices;
-    for (int i = 0; i < 8; i++) {
+    for (size_t i = 0; i < 8; i++) {
         vertices.push_back(cubeVertices[i]);
     }
     return vertices;
@@ -2025,7 +2022,7 @@ glm::vec3 OBJObject::getCenterPoint()
 {
     // get the center of the object by parsing the vertex data
     float x = 0, y = 0, z = 0;
-    for (int i = 0; i < this->vertexData.size(); i++) {
+    for (size_t i = 0; i < this->vertexData.size(); i++) {
         x += this->vertexData[i].x;
         y += this->vertexData[i].y;
         z += this->vertexData[i].z;
