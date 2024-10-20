@@ -418,7 +418,7 @@ std::vector<CUBE_LOG_ENTRY> CubeLog::getLogEntries(Logger::LogLevel level)
 {
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     std::vector<CUBE_LOG_ENTRY> logEntries;
-    for (int i = 0; i < this->logEntries.size(); i++) {
+    for (size_t i = 0; i < this->logEntries.size(); i++) {
         if (this->logEntries[i].level >= level)
             logEntries.push_back(this->logEntries[i]);
     }
@@ -435,7 +435,7 @@ std::vector<std::string> CubeLog::getLogEntriesAsStrings(bool fullMessages)
 {
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     std::vector<std::string> logEntriesAsStrings;
-    for (int i = 0; i < this->logEntries.size(); i++) {
+    for (size_t i = 0; i < this->logEntries.size(); i++) {
         if (fullMessages)
             logEntriesAsStrings.push_back(this->logEntries[i].getMessageFull());
         else
@@ -617,7 +617,7 @@ CUBE_LOG_ENTRY CubeLog::getLatestError()
 {
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     // find the latest error entry that is not in the readErrorIDs vector
-    for (int i = CubeLog::logEntries.size() - 1; i >= 0; i--) {
+    for (size_t i = CubeLog::logEntries.size() - 1; i >= 0; i--) {
         if (CubeLog::logEntries[i].level == Logger::LogLevel::LOGGER_ERROR && std::find(CubeLog::readErrorIDs.begin(), CubeLog::readErrorIDs.end(), CubeLog::logEntries[i].logEntryNumber) == CubeLog::readErrorIDs.end()) {
             CubeLog::readErrorIDs.push_back(CubeLog::logEntries[i].logEntryNumber);
             return CubeLog::logEntries[i];
@@ -635,7 +635,7 @@ CUBE_LOG_ENTRY CubeLog::getLatestLog()
 {
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     // find the latest log entry that is not an error and is not in the readLogIDs vector
-    for (int i = CubeLog::logEntries.size() - 1; i >= 0; i--) {
+    for (size_t i = CubeLog::logEntries.size() - 1; i >= 0; i--) {
         if (CubeLog::logEntries[i].level != Logger::LogLevel::LOGGER_ERROR && std::find(CubeLog::readLogIDs.begin(), CubeLog::readLogIDs.end(), CubeLog::logEntries[i].logEntryNumber) == CubeLog::readLogIDs.end()) {
             CubeLog::readLogIDs.push_back(CubeLog::logEntries[i].logEntryNumber);
             return CubeLog::logEntries[i];
@@ -667,7 +667,7 @@ bool CubeLog::hasUnreadErrors()
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     bool hasUnreadErrors = false;
     // determine if any of the errors in the logEntries vector that are Logger::LogLevel::LOGGER_ERROR are not in the readErrorIDs vector
-    for (int i = CubeLog::logEntries.size() - 1; i >= 0; i--) {
+    for (size_t i = CubeLog::logEntries.size() - 1; i >= 0; i--) {
         if (CubeLog::logEntries[i].level == Logger::LogLevel::LOGGER_ERROR && std::find(CubeLog::readErrorIDs.begin(), CubeLog::readErrorIDs.end(), CubeLog::logEntries[i].logEntryNumber) == CubeLog::readErrorIDs.end()) {
             hasUnreadErrors = true;
             break;
@@ -681,7 +681,7 @@ bool CubeLog::hasUnreadLogs()
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     bool hasUnreadLogs = false;
     // determine if any of the logs in the logEntries vector that are not Logger::LogLevel::LOGGER_ERROR are not in the readLogIDs vector
-    for (int i = CubeLog::logEntries.size() - 1; i >= 0; i--) {
+    for (size_t i = CubeLog::logEntries.size() - 1; i >= 0; i--) {
         if (CubeLog::logEntries[i].level != Logger::LogLevel::LOGGER_ERROR && std::find(CubeLog::readLogIDs.begin(), CubeLog::readLogIDs.end(), CubeLog::logEntries[i].logEntryNumber) == CubeLog::readLogIDs.end()) {
             hasUnreadLogs = true;
             break;
@@ -700,7 +700,7 @@ bool CubeLog::hasUnreadEntries()
  *
  * @return std::string The name of the interface
  */
-std::string CubeLog::getIntefaceName() const
+std::string CubeLog::getInterfaceName() const
 {
     return "Logger";
 }
@@ -708,7 +708,7 @@ std::string CubeLog::getIntefaceName() const
 const std::string sanitizeString(std::string str)
 {
     // iterate through the string and ensure utf-8 compliance
-    for (int i = 0; i < str.length(); i++) {
+    for (size_t i = 0; i < str.length(); i++) {
         if (str[i] < 0) {
             str[i] = '?';
         }

@@ -32,7 +32,7 @@ void API_Builder::start()
         I_API_Interface* i_face_obj = i_face.second;
         CubeLog::info("Building interface object: " + name);
         auto endpointData = i_face_obj->getHttpEndpointData();
-        for (int i = 0; i < endpointData.size(); i++) {
+        for (size_t i = 0; i < endpointData.size(); i++) {
             CubeLog::info("Adding endpoint: " + std::get<2>(endpointData.at(i)) + " at " + name + "/" + std::get<2>(endpointData.at(i)));
             std::string endpointPath = name + "-" + std::get<2>(endpointData.at(i));
             this->api->addEndpoint(endpointPath, "/" + endpointPath, std::get<0>(endpointData.at(i)), std::get<1>(endpointData.at(i)));

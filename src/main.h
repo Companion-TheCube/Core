@@ -21,6 +21,7 @@
 #include "logger/logger.h"
 #include "settings/loader.h"
 #include "audio/audioManager.h"
+#include "hardware/wifi.h"
 #include <cmath>
 #include <functional>
 #include <iostream>
@@ -31,6 +32,5 @@
 #include <utils.h>
 #include <functional>
 
-int saw(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData);
 bool supportsBasicColors();
 bool supportsExtendedColors();

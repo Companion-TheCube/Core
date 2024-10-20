@@ -2,6 +2,7 @@
 
 // TODO: Character manager needs some static methods that handle changing / triggering animations and expressions.
 // These methods should be called from the GUI and should be able to handle any character that is loaded.
+// TODO: scratch that todo above. we'll provide api endpoints for this stuff.
 /**
  * @brief Construct a new Character Manager object
  * 
@@ -102,7 +103,8 @@ void CharacterManager::setCharacter(Character_generic* character)
 bool CharacterManager::loadAppCharacters()
 {
     // TODO: This will need to interface with the list of registered apps and find the ones
-    // that have characters to load. Their character data should be stored in the database.
+    // that have characters to load. The metadata for these characters will be stored in the DB
+    // and the actual character data will be stored in meshes/AppID/Character_Name
     return false;
 }
 
@@ -114,12 +116,32 @@ bool CharacterManager::loadAppCharacters()
  */
 bool CharacterManager::loadBuiltInCharacters()
 {
-    // TODO: There should be a list of built in characters in the database that we can load.
+    // scan the meshes folder for character folders and load the characters from there.
+    // Character folders will be prefixed with "Character_".
+    std::vector<std::string> characterFolders;
+    for(auto& p: std::filesystem::directory_iterator("meshes")) {
+        if (p.is_directory()) {
+            std::string folderName = p.path().filename().string();
+            if (folderName.find("Character_") == 0) {
+                characterFolders.push_back(folderName);
+            }
+        }
+    }
     // Then, we load the characters and if one fails or is not found, we return false.
-    // For now, we will just load TheCube.
-    this->characters.push_back(new Character_generic(this->shader, "Character_TheCube"));
+    bool allSuccess = true;
+    Character_generic* temp;
+    for(auto folder : characterFolders) {
+        try{
+            temp = new Character_generic(this->shader, folder);
+            this->characters.push_back(temp);
+        } catch (CharacterSystemError& e) {
+            CubeLog::error("Failed to load character: " + e.message);
+            allSuccess = false;
+        }
+    }
+    // this->characters.push_back(new Character_generic(this->shader, "Character_TheCube"));
     // this->getCharacter()->triggerAnimation(Animations::NEUTRAL);
-    return true;
+    return allSuccess;
 }
 
 /**
@@ -167,6 +189,22 @@ void CharacterManager::triggerAnimationAndExpressionThreads()
     this->expressionCV.notify_one();
 }
 
+std::string CharacterManager::getInterfaceName() const
+{
+    return "CharacterManager";
+}
+
+HttpEndPointData_t CharacterManager::getHttpEndpointData()
+{
+    HttpEndPointData_t data;
+    // TODO: fill in the endpoints
+    // set current character by name
+    // trigger animation
+    // trigger expression
+    return data;
+}
+
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -188,36 +226,45 @@ Character_generic::Character_generic(Shader* sh, std::string folder)
     // Load character.json from the folder. This file should contain the list of objects, animations and expressions to load.
     std::ifstream file("meshes/" + folder + "/character.json");
     if (!file.is_open()) {
-        CubeLog::error("Failed to open " + folder + "/character.json");
+        throw new CharacterSystemError("Failed to open " + folder + "/character.json");
         return;
     }
     nlohmann::json characterData;
     try {
         file >> characterData;
     } catch (nlohmann::json::parse_error& e) {
-        CubeLog::error("Failed to parse " + folder + "/character.json");
-        CubeLog::error(e.what());
+        throw new CharacterSystemError("Failed to parse " + folder + "/character.json  --  JSON error: " + std::string(e.what()));
         return;
     }
 
     // The "objects" key should contain an array of object filenames to load
     std::vector<std::string> objectsToLoad;
-    for (auto object : characterData["objects"]) {
-        objectsToLoad.push_back(object);
-    }
-
-    // The "animations" key should contain an array of animation filenames to load
     std::vector<std::string> animationsToLoad;
-    for (auto animation : characterData["animations"]) {
-        animationsToLoad.push_back(animation);
-    }
-
-    // The "expressions" key should contain an array of expression filenames to load
     std::vector<std::string> expressionsToLoad;
-    for (auto expression : characterData["expressions"]) {
-        expressionsToLoad.push_back(expression);
+    try{
+        for (auto object : characterData["objects"]) {
+            objectsToLoad.push_back(object);
+        }
+
+        // The "animations" key should contain an array of animation filenames to load
+        for (auto animation : characterData["animations"]) {
+            animationsToLoad.push_back(animation);
+        }
+
+        // The "expressions" key should contain an array of expression filenames to load
+        for (auto expression : characterData["expressions"]) {
+            expressionsToLoad.push_back(expression);
+        }
+    }
+    catch (nlohmann::json::exception& e) {
+        throw new CharacterSystemError("Failed to load character data from file: " + folder + "/character.json  -- JSON ERROR: " + std::string(e.what()));
+    } catch (std::exception& e) {
+        throw new CharacterSystemError("Failed to load character data from file: " + folder + "/character.json  -- Other Error: " + std::string(e.what()));
     }
 
+    // TODO: move the actual loading of character data into a separate method so that we can call it
+    // when we want to change characters. This way we can dynamically load characters.
+    // TODO: also need way to unload a character.
     auto meshLoader = new MeshLoader(this->shader, folder, objectsToLoad);
 
     for (auto collection : meshLoader->collections) {
@@ -331,6 +378,11 @@ Character_generic::Character_generic(Shader* sh, std::string folder)
     CubeLog::info("Created character " + this->name);
 }
 
+Character_generic::Character_generic(Shader* sh, unsigned long id)
+{
+    // TODO: load character data from the database
+}
+
 Character_generic::~Character_generic()
 {
     for (auto object : this->objects) {
@@ -436,10 +488,17 @@ CharacterPart* Character_generic::getPartByName(std::string name)
     return nullptr;
 }
 
+/**
+ * @brief Set the visibility of the character.
+ * 
+ * @param visible 
+ * @return bool - the previous visibility state 
+ */
 bool Character_generic::setVisible(bool visible)
 {
+    bool temp = this->visible;
     this->visible = visible;
-    return this->visible;
+    return temp;
 }
 
 bool Character_generic::getVisible()
@@ -510,3 +569,5 @@ void Character_generic::triggerExpression(Expressions::ExpressionNames_enum e)
 }
 
 ////////////////////////////////////////////////////////////
+
+uint16_t CharacterSystemError::errorCount = 0;

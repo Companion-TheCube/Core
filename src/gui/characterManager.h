@@ -19,11 +19,40 @@
 #ifndef CUBEDB_H
 #include <../database/cubeDB.h>
 #endif// CUBEDB_H
+#ifndef API_I_H
+#include "../api_i.h"
+#endif// API_I_H
 #include <iostream>
 #include <logger.h>
 #include <thread>
 #include <vector>
+#include <filesystem>
 
+struct CharacterSystemError : public std::exception {
+    static uint16_t errorCount;
+    std::string message;
+    enum ERROR_TYPES {
+        CHARACTER_NOT_FOUND,
+        CHARACTER_LOAD_ERROR,
+        CHARACTER_PART_NOT_FOUND,
+        CHARACTER_PART_LOAD_ERROR,
+        CHARACTER_ANIMATION_NOT_FOUND,
+        CHARACTER_ANIMATION_LOAD_ERROR,
+        CHARACTER_EXPRESSION_NOT_FOUND,
+        CHARACTER_EXPRESSION_LOAD_ERROR,
+
+        CHARACTER_ERROR_COUNT
+    };
+    CharacterSystemError(std::string message) : message(message) {
+        errorCount++;
+    }
+    const char* what() const noexcept override {
+        return message.c_str();
+    }
+    uint16_t getErrorCount() {
+        return errorCount;
+    }
+};
 
 struct CharacterPart {
     std::string name;
@@ -69,13 +98,11 @@ public:
     bool getVisible();
 };
 
-class CharacterManager {
+class CharacterManager : public I_API_Interface {
 private:
     std::vector<Character_generic*> characters;
     Character_generic* currentCharacter;
     Shader* shader;
-    
-    
     std::condition_variable animationCV;
     std::condition_variable expressionCV;
     bool exitThreads = false;
@@ -98,6 +125,8 @@ public:
     Character_generic* getCharacterByName(std::string name);
     std::vector<std::string> getCharacterNames();
     void triggerAnimationAndExpressionThreads();
+    std::string getInterfaceName() const override;
+    HttpEndPointData_t getHttpEndpointData() override;
 };
 
 

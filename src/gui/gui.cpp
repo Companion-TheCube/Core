@@ -70,7 +70,7 @@ void GUI::eventLoop()
     /// TESTING FUNCTION TODO: remove this or move to utils
     ////////////////////////////////////////
     auto repeatChar = [](std::string& inOut, int n, std::string repeatChars) {
-        for (int i = 0; i < n; i++) {
+        for (size_t i = 0; i < n; i++) {
             inOut += repeatChars;
         }
         return inOut;
@@ -192,6 +192,7 @@ void GUI::eventLoop()
         addBackButton(connectionsMenu);
         connectionsMenu->setup();
         addToParent(connectionsMenu);
+        connectionsMenu->setChildrenClickables_isClickable(false);
     });
 
     ///////// Connections Menu - WiFi /////////
@@ -205,6 +206,7 @@ void GUI::eventLoop()
             MENUS::EntryType::MENUENTRY_TYPE_TOGGLE,
             [](void* data) {
                 CubeLog::info("WiFi - Enable/Disable WiFi clicked");
+                // TODO: make this actually enable/disable wifi. the settings should have a callback registered with the GlobalSettings class that will enable/disable wifi when the setting is changed.
                 // GlobalSettings::setSetting(GlobalSettings::SettingType::WIFI_ENABLED, !GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::WIFI_ENABLED));
                 return 0;
             },
@@ -217,26 +219,51 @@ void GUI::eventLoop()
         ///////// Connections Menu - WiFi - Current Network /////////
         wifiMenu->setup();
         addToParent(wifiMenu);
+        wifiMenu->setChildrenClickables_isClickable(false);
     });
 
     ///////// Connections Menu - WiFi - WiFi Networks /////////
     ///////// Connections Menu - WiFi - WiFi Networks - Specify SSID /////////
     ///////// Connections Menu - WiFi - WiFi Networks - Scan /////////
     ///////// Connections Menu - WiFi - WiFi Networks - List available networks /////////
+    ///////// Connections Menu - WiFi - About WiFi /////////
+    ///////// Connections Menu - WiFi - About WiFi - MAC Address /////////
+    ///////// Connections Menu - WiFi - About WiFi - IP Address /////////
+    ///////// Connections Menu - WiFi - About WiFi - Signal Strength /////////
+    ///////// Connections Menu - WiFi - About WiFi - Network Name /////////
+    ///////// Connections Menu - WiFi - About WiFi - Network Type /////////
+    ///////// Connections Menu - WiFi - About WiFi - Security Type /////////
+    ///////// Connections Menu - WiFi - About WiFi - Frequency /////////
+    ///////// Connections Menu - WiFi - About WiFi - Channel /////////
+    ///////// Connections Menu - WiFi - About WiFi - BSSID /////////
+    ///////// Connections Menu - WiFi - About WiFi - Subnet Mask /////////
+    ///////// Connections Menu - WiFi - About WiFi - Gateway /////////
+    ///////// Connections Menu - WiFi - About WiFi - DNS Servers /////////
+    ///////// Connections Menu - WiFi - About WiFi - DHCP Server /////////
+    ///////// Connections Menu - WiFi - About WiFi - Lease Time /////////
+    ///////// Connections Menu - WiFi - About WiFi - Connection Time /////////
+    ///////// Connections Menu - WiFi - About WiFi - Data Rate /////////
+    ///////// Connections Menu - WiFi - About WiFi - Link Quality /////////
+    ///////// Connections Menu - WiFi - About WiFi - TX Power /////////
+    ///////// Connections Menu - WiFi - About WiFi - RX Power /////////
+    ///////// Connections Menu - WiFi - About WiFi - TX Bytes /////////
+    ///////// Connections Menu - WiFi - About WiFi - RX Bytes /////////
 
     ///////// Connections Menu - Bluetooth /////////
     auto bluetoothMenu = createANewSubMenu(_("Bluetooth"), "Bluetooth", connectionsMenu);
     this->renderer->addSetupTask([&bluetoothMenu, addBackButton, addToParent]() {
         addBackButton(bluetoothMenu);
         ///////// Connections Menu - Bluetooth - Enable/Disable Bluetooth /////////
+        // Options below should be greyed out and not clickable if bluetooth is disabled
         ///////// Connections Menu - Bluetooth - Pairing Mode /////////
+        // TODO: when pairing mode is clicked, bluetooth should go into pairing mode and show a list of devices that can be paired with.
+        ///////// Connections Menu - Bluetooth - Known devices /////////
+        // TODO: list all the bluetooth devices that have been paired with the cube
         ///////// Connections Menu - Bluetooth - About Bluetooth /////////
         bluetoothMenu->setup();
         addToParent(bluetoothMenu);
+        bluetoothMenu->setChildrenClickables_isClickable(false);
     });
-
-    ///////// Connections Menu - Bluetooth - Bluetooth Devices /////////
-    // TODO: list all the bluetooth devices that have been paired with the cube
 
     ///////// Connections Menu - NFC /////////
     auto nfcMenu = createANewSubMenu(_("NFC"), "NFC", connectionsMenu);
@@ -246,6 +273,7 @@ void GUI::eventLoop()
         ///////// Connections Menu - NFC - About NFC /////////
         nfcMenu->setup();
         addToParent(nfcMenu);
+        nfcMenu->setChildrenClickables_isClickable(false);
     });
 
     ///////// Personality Menu /////////
@@ -256,10 +284,11 @@ void GUI::eventLoop()
         ///////// Personality Menu - Personality reset /////////
         personalityMenu->setup();
         addToParent(personalityMenu);
+        personalityMenu->setChildrenClickables_isClickable(false);
     });
 
     ///////// Personality Menu - Personality Settings /////////
-    // TODO: list each attribute of the personality and provide a slider to adjust. 
+    // TODO: list each attribute of the personality and provide a slider to adjust.
 
     ///////// Sensors Menu /////////
     auto sensorsMenu = createANewSubMenu(_("Sensors"), "Sensors", mainMenu);
@@ -269,6 +298,7 @@ void GUI::eventLoop()
         ///////// Sensors Menu - Presence Detection enable/disable /////////
         sensorsMenu->setup();
         addToParent(sensorsMenu);
+        sensorsMenu->setChildrenClickables_isClickable(false);
     });
 
     ///////// Sound Menu /////////
@@ -279,9 +309,9 @@ void GUI::eventLoop()
         // TODO: add a slider to control the volume
         soundMenu->setup();
         addToParent(soundMenu);
+        soundMenu->setChildrenClickables_isClickable(false);
     });
 
-    
     ///////// Sound Menu - Notification Sound /////////
     ///////// Sound Menu - Alarm Sound /////////
     ///////// Sound Menu - Voice Command Sound /////////
@@ -292,6 +322,7 @@ void GUI::eventLoop()
         addBackButton(notificationsMenu);
         notificationsMenu->setup();
         addToParent(notificationsMenu);
+        notificationsMenu->setChildrenClickables_isClickable(false);
     });
 
     ///////// Notifications Menu - Allow Notifications from Network Sources (Other cubes) /////////
@@ -303,6 +334,7 @@ void GUI::eventLoop()
         addBackButton(displayMenu);
         displayMenu->setup();
         addToParent(displayMenu);
+        displayMenu->setChildrenClickables_isClickable(false);
     });
 
     ///////// Display Menu - Animations /////////
@@ -318,6 +350,7 @@ void GUI::eventLoop()
         addBackButton(privacyMenu);
         privacyMenu->setup();
         addToParent(privacyMenu);
+        privacyMenu->setChildrenClickables_isClickable(false);
     });
 
     ///////// Privacy Menu - Privacy Settings /////////
@@ -330,6 +363,7 @@ void GUI::eventLoop()
         addBackButton(accountsMenu);
         accountsMenu->setup();
         addToParent(accountsMenu);
+        accountsMenu->setChildrenClickables_isClickable(false);
     });
 
     ///////// Accounts Menu - Account List /////////
@@ -350,6 +384,7 @@ void GUI::eventLoop()
         addBackButton(appsMenu);
         appsMenu->setup();
         addToParent(appsMenu);
+        appsMenu->setChildrenClickables_isClickable(false);
     });
 
     ///////// Apps Menu - Core Apps /////////
@@ -378,6 +413,7 @@ void GUI::eventLoop()
         addBackButton(generalSettingsMenu);
         generalSettingsMenu->setup();
         addToParent(generalSettingsMenu);
+        generalSettingsMenu->setChildrenClickables_isClickable(false);
     });
 
     ///////// General Settings Menu - Date and Time /////////
@@ -424,6 +460,7 @@ void GUI::eventLoop()
         addBackButton(accessibilityMenu);
         accessibilityMenu->setup();
         addToParent(accessibilityMenu);
+        accessibilityMenu->setChildrenClickables_isClickable(false);
     });
 
     ///////// Accessibility Menu - ??? /////////
@@ -443,6 +480,7 @@ void GUI::eventLoop()
         // TODO:
         updatesMenu->setup();
         addToParent(updatesMenu);
+        updatesMenu->setChildrenClickables_isClickable(false);
     });
 
     ///////// About Menu /////////
@@ -774,7 +812,7 @@ void GUI::eventLoop()
     CubeLog::info("Starting event handler loop...");
     while (this->renderer->getIsRunning()) {
         std::vector<sf::Event> events = this->renderer->getEvents();
-        for (int i = 0; i < events.size(); i++) {
+        for (size_t i = 0; i < events.size(); i++) {
             this->eventManager->triggerEvent(events[i].type, &events[i]);
             this->eventManager->triggerEvent(static_cast<SpecificEventTypes>(events[i].key.code), &events[i]);
             this->eventManager->triggerEvent(static_cast<SpecificEventTypes>(events[i].key.code), events[i].type, &events[i]);
@@ -799,7 +837,7 @@ GUI_Error GUI::addMenu(std::string menuName, std::string thisUniqueID, std::stri
 {
     CubeLog::debugSilly("Adding menu: " + menuName + " with parent: " + parentID);
     std::vector<std::string> uniqueIDs;
-    for (int i = 0; i < data.size(); i++) {
+    for (size_t i = 0; i < data.size(); i++) {
         uniqueIDs.push_back(std::get<2>(data.at(i)));
     }
     CubeLog::debugSilly("Locking addMenuMutex");
@@ -859,7 +897,7 @@ GUI_Error GUI::addMenu(std::string menuName, std::string thisUniqueID, std::stri
             nullptr);
         aNewMenu->addHorizontalRule();
         bool success = true;
-        for (int i = 0; i < data.size(); i++) {
+        for (size_t i = 0; i < data.size(); i++) {
             if (!parseJsonAndAddEntriesToMenu(std::get<1>(data[i]), aNewMenu)) {
                 CubeLog::error("Error parsing json and adding entries to menu: " + menuName);
                 success = false;
@@ -1019,7 +1057,7 @@ void GUI::showTextInputBox(std::string title, std::vector<std::string> fields, s
 {
     // TODO: show a text input box
     std::vector<std::string> textVector;
-    for (int i = 0; i < fields.size(); i++) {
+    for (size_t i = 0; i < fields.size(); i++) {
         textVector.push_back(fields[i]);
     }
     callback(textVector);
@@ -1161,7 +1199,7 @@ HttpEndPointData_t GUI::getHttpEndpointData()
  *
  * @return std::string the name of the interface
  */
-std::string GUI::getIntefaceName() const
+std::string GUI::getInterfaceName() const
 {
     return "GUI";
 }
@@ -2006,7 +2044,7 @@ void NotificationsManager::showNotificationWithCallback(std::string title, std::
     CubeLog::info("Notification shown with callback: " + title + " - " + message);
 }
 
-std::string NotificationsManager::getIntefaceName() const
+std::string NotificationsManager::getInterfaceName() const
 {
     return "Notifications";
 }
