@@ -49,7 +49,11 @@ int Renderer::thread()
     this->window.create(sf::VideoMode(720, 720), "TheCube", sf::Style::None, settings);
     this->window.setVerticalSyncEnabled(true);
     this->window.setFramerateLimit(30);
+    
     // TODO: maybe one day, support a second window that renders on the second screen.
+    // this->window.setPosition(sf::Vector2i(0, 0));
+
+    // TODO: figure out how to pause rendering and close the window when the emulator starts up.
     glewExperimental = GL_TRUE; // Enable full GLEW functionality
     if (GLEW_OK != glewInit()) {
         CubeLog::error("Failed to initialize GLEW");

@@ -49,6 +49,7 @@ WifiManager::~WifiManager()
 {
     std::unique_lock<std::mutex> lock(mutex);
     running = false;
+    lock.unlock();
     loopThread.join();
 }
 
@@ -304,6 +305,7 @@ bool WifiManager::setVPN(const IP_Address& ip, const std::string& port, const st
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
+#ifdef __linux__
 static std::string executeCommand(const std::string& command) {
     std::array<char, 256> buffer;
     std::string result;
@@ -324,6 +326,29 @@ static std::string executeCommand(const std::string& command) {
 
     return result;
 }
+#endif
+#ifdef _WIN32
+static std::string executeCommand(const std::string& command) {
+    std::array<char, 256> buffer;
+    std::string result;
+
+    // Open pipe to file
+    std::shared_ptr<FILE> pipe(_popen(command.c_str(), "r"), _pclose);
+    if (!pipe) {
+        std::cerr << "popen() failed!" << std::endl;
+        return "";
+    }
+
+    // Read till end of process
+    while (!feof(pipe.get())) {
+        if (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+            result += buffer.data();
+        }
+    }
+
+    return result;
+}
+#endif
 
 static std::string sanitizeInput(const std::string& input) {
     std::string sanitized = input;
@@ -345,3 +370,4 @@ static void stringTrim(std::string& str) {
         return !std::isspace(ch);
     }).base(), str.end());
 }
+
