@@ -8,6 +8,7 @@
 #include <functional>
 #include <vector>
 #include <list>
+#include <sstream>
 
 
 struct IP_Address {
@@ -54,6 +55,9 @@ struct WifiInfo {
     IP_Address dns1;
     IP_Address dns2;
     IP_Address dns3;
+    IP_Address dhcp;
+    unsigned long dhcpLease = 0;
+    std::string hostname = "";
     std::string signalStrength = "";
     std::string securityType = "";
     std::string frequency = "";
@@ -97,10 +101,12 @@ private:
     static std::jthread loopThread;
     static std::mutex mutex;
     static bool running;
+    static WifiInfo currentNetwork;
 
 };
 
 static std::string executeCommand(const std::string& command);
 static std::string sanitizeInput(const std::string& input);
+
 
 #endif // WIFI_H

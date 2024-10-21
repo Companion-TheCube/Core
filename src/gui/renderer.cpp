@@ -49,6 +49,7 @@ int Renderer::thread()
     this->window.create(sf::VideoMode(720, 720), "TheCube", sf::Style::None, settings);
     this->window.setVerticalSyncEnabled(true);
     this->window.setFramerateLimit(30);
+    // TODO: maybe one day, support a second window that renders on the second screen.
     glewExperimental = GL_TRUE; // Enable full GLEW functionality
     if (GLEW_OK != glewInit()) {
         CubeLog::error("Failed to initialize GLEW");
@@ -72,7 +73,11 @@ int Renderer::thread()
     this->window.setMouseCursorVisible(true);
 #endif
 #ifdef __linux__
-    this->window.setMouseCursorVisible(true); // TODO: change this to false for production
+#ifdef PRODUCTION_BUILD
+    this->window.setMouseCursorVisible(false);
+#else
+    this->window.setMouseCursorVisible(true);
+#endif
 #endif
     Shader edgesShader("./shaders/edges.vs", "./shaders/edges.fs");
     Shader textureShader("./shaders/text.vs", "./shaders/text.fs");
