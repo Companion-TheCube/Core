@@ -1,42 +1,27 @@
 #include "wifi.h"
 
-static void stringTrim(std::string& str);
+static std::string stringTrim(std::string& str);
+static std::string executeCommand(const std::string& command);
+static std::string sanitizeInput(const std::string& input);
+static std::string findDevice();
 
 std::vector<WifiInfo> WifiManager::networks = std::vector<WifiInfo>();
 std::jthread WifiManager::loopThread;
 std::mutex WifiManager::mutex;
 bool WifiManager::running = true;
 WifiInfo WifiManager::currentNetwork = WifiInfo();
+std::string WifiManager::devName = "";
+std::mutex WifiManager::commandMutex;
 
 // TODO: finish implementing the WifiManager class
 WifiManager::WifiManager()
 {
+    devName = findDevice();
     loopThread = std::jthread([&]() {
         while(true){
             // Do stuff
             if(WifiManager::networks.size() == 0){
                 WifiManager::getNetworks(true);
-                for(auto net: networks){
-                    CubeLog::info("=====================================");
-                    CubeLog::info("SSID: " + net.ssid);
-                    CubeLog::info("Signal Strength: " + net.signalStrength);
-                    CubeLog::info("Security Type: " + net.securityType);
-                    CubeLog::info(net.connected?"Connected":"Not Connected");
-                    CubeLog::info("IP: " + net.ip.toString());
-                    CubeLog::info("Subnet: " + net.subnet.toString());
-                    CubeLog::info("Gateway: " + net.gateway.toString());
-                    CubeLog::info("DNS1: " + net.dns1.toString());
-                    CubeLog::info("DNS2: " + net.dns2.toString());
-                    CubeLog::info("DNS3: " + net.dns3.toString());
-                    CubeLog::info("MAC: " + net.mac);
-                    CubeLog::info("Frequency: " + net.frequency);
-                    CubeLog::info("Channel: " + net.channel);
-                    CubeLog::info("Bitrate: " + net.bitrate);
-                    CubeLog::info("DHCP: " + net.dhcp.toString());
-                    CubeLog::info("DHCP Lease: " + std::to_string(net.dhcpLease));
-                    CubeLog::info("Hostname: " + net.hostname);
-                    CubeLog::info("=====================================");
-                }
             }
             std::unique_lock<std::mutex> lock(mutex);
             if (!running) break;
@@ -77,6 +62,12 @@ bool WifiManager::disable()
 
 bool WifiManager::scan()
 {
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        devName = findDevice();
+    }
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        return false;
+    }
     networks.clear();
     executeCommand("nmcli device wifi rescan 2>&1");
     genericSleep(500);
@@ -137,7 +128,7 @@ bool WifiManager::scan()
             }
         }
         if(network.connected){
-            std::string ipOutput = executeCommand("nmcli -f IP4,DHCP4 device show wlan0 2>&1");
+            std::string ipOutput = executeCommand("nmcli -f IP4,DHCP4 device show " + devName + " 2>&1");
             std::istringstream ipIss(ipOutput);
             std::string ipLine;
             while (std::getline(ipIss, ipLine)) {
@@ -214,99 +205,335 @@ bool WifiManager::disconnect()
 
 bool WifiManager::isConnected()
 {
-
+    std::string output = executeCommand("nmcli -f SSID,IN-USE device wifi list 2>&1");
+    std::istringstream iss(output);
+    std::string line;
+    while (std::getline(iss, line)) {
+        if (line.empty()) continue;
+        if (line.find("*") != std::string::npos) return true;
+    }
     return false;
 }
 
+// TODO: many of the functions below use the same boilerplate code, consider refactoring.
+
 IP_Address WifiManager::getIP()
 {
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        devName = findDevice();
+    }
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        return false;
+    }
+    std::string output = executeCommand("nmcli -f IP4 device show " + devName + " 2>&1");
+    std::istringstream iss(output);
+    std::string line;
+    while (std::getline(iss, line)) {
+        if (line.empty()) continue;
+        if (line.find("IP4.ADDRESS") != std::string::npos) {
+            auto str = line.substr(line.find(":") + 1);
+            str = str.substr(0, str.find("/"));
+            return IP_Address(stringTrim(str));
+        }
+    }
     return 0;
 }
 
 IP_Address WifiManager::getSubnet()
 {
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        devName = findDevice();
+    }
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        return false;
+    }
+    std::string output = executeCommand("nmcli -f IP4 device show " + devName + " 2>&1");
+    std::istringstream iss(output);
+    std::string line;
+    while (std::getline(iss, line)) {
+        if (line.empty()) continue;
+        if (line.find("IP4.ADDRESS") != std::string::npos) {
+            auto str = line.substr(line.find(":") + 1);
+            str = str.substr(str.find("/") + 1);
+            return IP_Address(stringTrim(str));
+        }
+    }
     return 0;
 }
 
 IP_Address WifiManager::getGateway()
 {
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        devName = findDevice();
+    }
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        return false;
+    }
+    std::string output = executeCommand("nmcli -f IP4.GATEWAY device show " + devName + " 2>&1");
+    std::istringstream iss(output);
+    std::string line;
+    while (std::getline(iss, line)) {
+        if (line.empty()) continue;
+        if (line.find("IP4.GATEWAY") != std::string::npos) {
+            auto str = line.substr(line.find(":") + 1);
+            return IP_Address(stringTrim(str));
+        }
+    }
     return 0;
 }
 
 std::vector<IP_Address> WifiManager::getDNS()
 {
-    return std::vector<IP_Address>();
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        devName = findDevice();
+    }
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        return std::vector<IP_Address>();
+    }
+    std::string output = executeCommand("nmcli -f IP4.DNS device show " + devName + " 2>&1");
+    std::istringstream iss(output);
+    std::string line;
+    std::vector<IP_Address> dnsList;
+    while (std::getline(iss, line)) {
+        if (line.empty()) continue;
+        if (line.find("IP4.DNS") != std::string::npos) {
+            dnsList.push_back(IP_Address(line.substr(line.find(":") + 1)));
+            stringTrim(dnsList.back().ip);
+        }
+    }
+    return dnsList;
 }
 
-std::string WifiManager::getMAC()
+std::string WifiManager::getAP_MAC() // TODO: not working
 {
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        devName = findDevice();
+    }
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        return "";
+    }
+    std::string output = executeCommand("nmcli -f BSSID device wifi list 2>&1");
+    std::istringstream iss(output);
+    std::string line;
+    while (std::getline(iss, line)) {
+        if (line.empty()) continue;
+        if (line.find("BSSID") != std::string::npos) {
+            auto str = line.substr(line.find(":") + 1);
+            return stringTrim(str);
+        }
+    }
     return "";
 }
 
-std::string WifiManager::getSSID()
+std::string WifiManager::getLocalMAC() // TODO: not working
 {
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        devName = findDevice();
+    }
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        return "";
+    }
+    std::string output = executeCommand("nmcli -f GENERAL device show " + devName + " 2>&1");
+    std::istringstream iss(output);
+    std::string line;
+    while (std::getline(iss, line)) {
+        if (line.empty()) continue;
+        if (line.find("DEVICE") != std::string::npos) {
+            auto str = line.substr(line.find(":") + 1);
+            return stringTrim(str);
+        }
+    }
+    return "";
+}
+
+std::string WifiManager::getSSID() // TODO: not working
+{
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        devName = findDevice();
+    }
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        return "";
+    }
+    std::string output = executeCommand("nmcli -f AP device show " + devName + " 2>&1");
+    std::istringstream iss(output);
+    std::string line;
+    while (std::getline(iss, line)) {
+        if (line.empty()) continue;
+        if (line.find("SSID") != std::string::npos) {
+            auto str = line.substr(line.find(":") + 1);
+            return stringTrim(str);
+        }
+    }
     return "";
 }
 
 std::string WifiManager::getSignalStrength()
 {
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        devName = findDevice();
+    }
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        return "";
+    }
+    std::string output = executeCommand("nmcli -f AP device show " + devName + " 2>&1");
+    std::istringstream iss(output);
+    std::string line;
+    while (std::getline(iss, line)) {
+        if (line.empty()) continue;
+        if (line.find("SIGNAL") != std::string::npos) {
+            auto str = line.substr(line.find(":") + 1);
+            return stringTrim(str);
+        }
+    }
     return "";
 }
 
 std::string WifiManager::getSecurityType()
 {
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        devName = findDevice();
+    }
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        return "";
+    }
+    std::string output = executeCommand("nmcli -f AP device show " + devName + " 2>&1");
+    std::istringstream iss(output);
+    std::string line;
+    while (std::getline(iss, line)) {
+        if (line.empty()) continue;
+        if (line.find("SECURITY") != std::string::npos) {
+            auto str = line.substr(line.find(":") + 1);
+            return stringTrim(str);
+        }
+    }
     return "";
 }
 
-std::string WifiManager::getFrequency()
+std::string WifiManager::getFrequency() // TODO: not working
 {
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        devName = findDevice();
+    }
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        return "";
+    }
+    std::string output = executeCommand("nmcli -f FREQ device wifi list 2>&1");
+    std::istringstream iss(output);
+    std::string line;
+    while (std::getline(iss, line)) {
+        if (line.empty()) continue;
+        if (line.find("*") != std::string::npos) {
+            auto str = line.substr(line.find(" ") + 1);
+            return stringTrim(str);
+        }
+    }
     return "";
 }
 
 std::string WifiManager::getChannel()
 {
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        devName = findDevice();
+    }
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        return "";
+    }
+    std::string output = executeCommand("nmcli -f AP device show " + devName + " 2>&1");
+    std::istringstream iss(output);
+    std::string line;
+    while (std::getline(iss, line)) {
+        if (line.empty()) continue;
+        if (line.find("CHAN") != std::string::npos) {
+            auto str = line.substr(line.find(":") + 1);
+            return stringTrim(str);
+        }
+    }
     return "";
 }
 
 bool WifiManager::setProxy(const IP_Address& ip, const std::string& port)
 {
+
     return false;
 }
 
 bool WifiManager::setDNS(const IP_Address& dns)
 {
-    return false;
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        devName = findDevice();
+    }
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        return false;
+    }
+    std::string result = executeCommand("nmcli connection modify " + devName + " ipv4.dns \"" + dns.ip + "\" 2>&1");
+    return result.empty();
 }
 
 bool WifiManager::setIP(const IP_Address& ip, const IP_Address& subnet, const IP_Address& gateway)
 {
-    return false;
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        devName = findDevice();
+    }
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        return false;
+    }
+    std::string result = executeCommand("nmcli connection modify " + devName + " ipv4.method manual ipv4.addresses \"" + ip.ip + "/" + subnet.ip + "\" ipv4.gateway \"" + gateway.ip + "\" 2>&1");
+    return result.empty();
 }
 
 bool WifiManager::setHostname(const std::string& hostname)
 {
-    return false;
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        devName = findDevice();
+    }
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        return false;
+    }
+    std::string result = executeCommand("nmcli connection modify " + devName + " connection.autoconnect-priority 0 2>&1");
+    return result.empty();
 }
 
 bool WifiManager::setDHCP(bool enable)
 {
-    return false;
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        devName = findDevice();
+    }
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        return false;
+    }
+    std::string result = executeCommand("nmcli connection modify " + devName + " connection.autoconnect-priority 0 2>&1");
+    return result.empty();
 }
 
 bool WifiManager::setDNS(const IP_Address& dns1, const IP_Address& dns2)
 {
-    return false;
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        devName = findDevice();
+    }
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        return false;
+    }
+    std::string result = executeCommand("nmcli connection modify " + devName + " ipv4.dns \"" + dns1.ip + " " + dns2.ip + "\" 2>&1");
+    return result.empty();
 }
 
 bool WifiManager::setVPN(const IP_Address& ip, const std::string& port, const std::string& user, const std::string& pass)
 {
-    return false;
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        devName = findDevice();
+    }
+    if(WifiManager::devName.empty() || WifiManager::devName == ""){
+        return false;
+    }
+    std::string result = executeCommand("nmcli connection modify " + devName + " vpn.data \"gateway=" + ip.ip + " port=" + port + " user=" + user + " password=" + pass + "\" 2>&1");
+    return result.empty();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
 #ifdef __linux__
 static std::string executeCommand(const std::string& command) {
+    std::unique_lock<std::mutex> lock(WifiManager::commandMutex); // Prevent concurrent execution
     std::array<char, 256> buffer;
     std::string result;
 
@@ -362,12 +589,31 @@ static std::string sanitizeInput(const std::string& input) {
     return sanitized;
 }
 
-static void stringTrim(std::string& str) {
+static std::string stringTrim(std::string& str) {
     str.erase(str.begin(), std::find_if(str.begin(), str.end(), [](int ch) {
         return !std::isspace(ch);
     }));
     str.erase(std::find_if(str.rbegin(), str.rend(), [](int ch) {
         return !std::isspace(ch);
     }).base(), str.end());
+    return str;
 }
 
+static std::string findDevice(){
+    std::string output = executeCommand("nmcli device show 2>&1");
+    std::istringstream iss(output);
+    std::string line;
+    std::string dev;
+    while (std::getline(iss, line)) {
+        if (line.empty()) continue;
+        if (line.find("GENERAL.DEVICE") != std::string::npos) {
+            dev = line.substr(line.find(":") + 1);
+            stringTrim(dev);
+        }
+        std::string devType;
+        if(line.find("GENERAL.TYPE") != std::string::npos && line.find("wifi") != std::string::npos){
+            return dev;
+        }
+    }
+    return "";
+}

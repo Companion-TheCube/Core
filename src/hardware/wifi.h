@@ -82,7 +82,8 @@ public:
     static IP_Address getSubnet();
     static IP_Address getGateway();
     static std::vector<IP_Address> getDNS();
-    static std::string getMAC();
+    static std::string getAP_MAC();
+    static std::string getLocalMAC();
     static std::string getSSID();
     static std::string getSignalStrength();
     static std::string getSecurityType();
@@ -95,6 +96,7 @@ public:
     static bool setDHCP(bool enable);
     static bool setDNS(const IP_Address& dns1, const IP_Address& dns2);
     static bool setVPN(const IP_Address& ip, const std::string& port, const std::string& user, const std::string& pass);
+    static std::mutex commandMutex;
 
 private:
     static std::vector<WifiInfo> networks;
@@ -102,11 +104,11 @@ private:
     static std::mutex mutex;
     static bool running;
     static WifiInfo currentNetwork;
-
+    static std::string devName;
+    
 };
 
-static std::string executeCommand(const std::string& command);
-static std::string sanitizeInput(const std::string& input);
+
 
 
 #endif // WIFI_H
