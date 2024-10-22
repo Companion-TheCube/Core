@@ -96,6 +96,7 @@ public:
     static bool setDHCP(bool enable);
     static bool setDNS(const IP_Address& dns1, const IP_Address& dns2);
     static bool setVPN(const IP_Address& ip, const std::string& port, const std::string& user, const std::string& pass);
+    static std::vector<WifiInfo> getSavedNetworks();
     static std::mutex commandMutex;
 
 private:

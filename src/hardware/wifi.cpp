@@ -1,3 +1,6 @@
+// TODO: all of te nmcli commands can use the -t flag to get a terse version of the output. This is easier to parse and has fewer spaces. This should make it faster(?).
+// TODO: refactor all the nmcli commands so that the function that use it can have a more reusable version.
+
 #include "wifi.h"
 
 static std::string stringTrim(std::string& str);
@@ -22,6 +25,9 @@ WifiManager::WifiManager()
             // Do stuff
             if(WifiManager::networks.size() == 0){
                 WifiManager::getNetworks(true);
+                for(auto n : getSavedNetworks()){
+                    CubeLog::debugSilly("Saved network: " + n.ssid);
+                }
             }
             std::unique_lock<std::mutex> lock(mutex);
             if (!running) break;
@@ -527,6 +533,26 @@ bool WifiManager::setVPN(const IP_Address& ip, const std::string& port, const st
     }
     std::string result = executeCommand("nmcli connection modify " + devName + " vpn.data \"gateway=" + ip.ip + " port=" + port + " user=" + user + " password=" + pass + "\" 2>&1");
     return result.empty();
+}
+
+std::vector<WifiInfo> WifiManager::getSavedNetworks()
+{
+    std::vector<WifiInfo> networks;
+    std::string output = executeCommand("nmcli c 2>&1");
+    std::istringstream iss(output);
+    std::string line;
+    std::getline(iss, line);
+    int UUID_index = line.find("UUID");
+    while (std::getline(iss, line)) {
+        if (line.empty()) continue;
+        if (line.find("wifi") != std::string::npos) {
+            WifiInfo network;
+            auto str = line.substr(0, UUID_index);;
+            network.ssid = stringTrim(str);
+            networks.push_back(network);
+        }
+    }
+    return networks;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
