@@ -46,6 +46,13 @@ make
 * [SQLite](https://www.sqlite.org/index.html) - A small, fast, self-contained, high-reliability, full-featured, SQL database engine. 
 * [SQLiteCpp](https://github.com/SRombauts/SQLiteCpp) - C++ wrapper around SQLite.
 * [Cpp-Base64](https://github.com/ReneNyffenegger/cpp-base64) - Base64 encoding and decoding with c++. **Currently using a version based on code from [here](https://renenyffenegger.ch/notes/development/Base64/Encoding-and-decoding-base-64-with-cpp)**
+* [GetText](https://www.gnu.org/software/gettext/) - GNU `gettext` for internationalization.
+* [spdlog] ?
+* [fmt] ?
+* [doctest] ?
+* [Catch2] ?
+* [GoogleTest] ?
+* [GoogleBenchmark] ?
 
 The following fonts are used in the application and have been obtained from [Google Fonts](https://fonts.google.com/):
 * [Roboto](https://fonts.google.com/specimen/Roboto)
