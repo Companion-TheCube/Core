@@ -10,6 +10,49 @@
 #include <list>
 #include <sstream>
 
+struct CIDR_Subnet{
+    CIDR_Subnet(){
+        this->mask = "";
+        this->cidr = 0;
+    };
+    CIDR_Subnet(std::string mask, uint8_t cidr)
+        : mask(mask)
+        , cidr(cidr){};
+    CIDR_Subnet(std::string mask)
+    {
+        this->mask = mask;
+        this->cidr = 0;
+
+    };
+    CIDR_Subnet(uint8_t cidr){
+        this->cidr = cidr;
+        //convert cidr to string mask
+        uint32_t mask = 0xFFFFFFFF << (32 - cidr);
+        uint8_t mask1 = (mask >> 24) & 0xFF;
+        uint8_t mask2 = (mask >> 16) & 0xFF;
+        uint8_t mask3 = (mask >> 8) & 0xFF;
+        uint8_t mask4 = mask & 0xFF;
+        this->mask = std::to_string(mask1) + "." + std::to_string(mask2) + "." + std::to_string(mask3) + "." + std::to_string(mask4);
+    };
+    std::string mask;
+    uint8_t cidr;
+    std::string toString()
+    {
+        return this->mask;
+    };
+
+    uint32_t CIDR_uint32()
+    {
+        uint32_t mask = 0xFFFFFFFF << (32 - this->cidr);
+        return mask;
+    };
+
+    uint32_t CIDR_uint32(uint8_t cidr)
+    {
+        uint32_t mask = 0xFFFFFFFF << (32 - cidr);
+        return mask;
+    };
+};
 
 struct IP_Address {
     IP_Address(){
@@ -50,7 +93,7 @@ struct WifiInfo {
     std::string password = "";
     std::string mac = "";
     IP_Address ip;
-    IP_Address subnet;
+    CIDR_Subnet subnet;
     IP_Address gateway;
     IP_Address dns1;
     IP_Address dns2;
@@ -64,6 +107,28 @@ struct WifiInfo {
     std::string channel = "";
     std::string bitrate = "";
     bool connected = false;
+    std::string to_string(){
+        std::string output = "";
+        output += "SSID: " + ssid + "\n";
+        output += "Password: " + password + "\n";
+        output += "MAC: " + mac + "\n";
+        output += "IP: " + ip.toString() + "\n";
+        output += "Subnet: " + subnet.toString() + "\n";
+        output += "Gateway: " + gateway.toString() + "\n";
+        output += "DNS1: " + dns1.toString() + "\n";
+        output += "DNS2: " + dns2.toString() + "\n";
+        output += "DNS3: " + dns3.toString() + "\n";
+        output += "DHCP: " + dhcp.toString() + "\n";
+        output += "DHCP Lease: " + std::to_string(dhcpLease) + "\n";
+        output += "Hostname: " + hostname + "\n";
+        output += "Signal Strength: " + signalStrength + "\n";
+        output += "Security Type: " + securityType + "\n";
+        output += "Frequency: " + frequency + "\n";
+        output += "Channel: " + channel + "\n";
+        output += "Bitrate: " + bitrate + "\n";
+        output += "Connected: " + std::to_string(connected) + "\n";
+        return output;
+    };
 };
 
 class WifiManager {
@@ -79,7 +144,7 @@ public:
     static bool disconnect();
     static bool isConnected();
     static IP_Address getIP();
-    static IP_Address getSubnet();
+    static CIDR_Subnet getSubnet();
     static IP_Address getGateway();
     static std::vector<IP_Address> getDNS();
     static std::string getAP_MAC();
