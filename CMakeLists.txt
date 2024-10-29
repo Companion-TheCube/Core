@@ -41,6 +41,7 @@ if(UNIX)
     find_package(Gettext REQUIRED)
     find_package(PkgConfig REQUIRED)
     pkg_search_module(GLIB REQUIRED glib-2.0)
+    include_directories(${GLIB_INCLUDE_DIRS})
 endif()
 
 find_package(Freetype REQUIRED)
@@ -202,6 +203,8 @@ file(MAKE_DIRECTORY ${HTTP_DEST_DIR})
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/**/*.cpp" "src/**/**/*.cpp")
 add_executable(CubeCore ${SOURCES})
 
+link_directories(${GLIB_LIBRARY_DIRS})
+
 # Link libraries
 target_link_libraries(CubeCore PRIVATE
     sfml-graphics
@@ -216,7 +219,7 @@ target_link_libraries(CubeCore PRIVATE
     SQLiteCpp
     sqlite3
     ${SODIUM_LIBRARIES}
-    ${GLIB_LIBRARIES}
+    ${GLIB_LDFLAGS}
 )
 
 target_compile_features(CubeCore PRIVATE cxx_std_17)

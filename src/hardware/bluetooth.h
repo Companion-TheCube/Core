@@ -1,6 +1,7 @@
 #ifndef BLUETOOTH_H
 #define BLUETOOTH_H
 #include <gio/gio.h>
+#include <glib.h>
 #include <vector>
 #include <string>
 #include <thread>

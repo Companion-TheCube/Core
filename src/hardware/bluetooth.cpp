@@ -150,7 +150,7 @@ BTControl::BTControl()
         &error);
 
     if (error) {
-        g_printerr("Failed to register characteristic object: %s\n", error->message);
+        CubeLog::error("Failed to register characteristic object");
         g_error_free(error);
         return;
     }
