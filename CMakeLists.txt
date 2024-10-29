@@ -39,9 +39,6 @@ endif()
 
 if(UNIX)
     find_package(Gettext REQUIRED)
-    find_package(PkgConfig REQUIRED)
-    pkg_search_module(GLIB REQUIRED glib-2.0)
-    include_directories(${GLIB_INCLUDE_DIRS})
 endif()
 
 find_package(Freetype REQUIRED)
@@ -144,10 +141,6 @@ include_directories(${CMAKE_SOURCE_DIR}/src/logger)
 include_directories(${CMAKE_SOURCE_DIR}/libraries)
 include_directories(${CMAKE_SOURCE_DIR}/src/settings)
 
-if(UNIX)
-    include_directories(${GLIB_INCLUDE_DIRS})
-endif()
-
 if(WIN32)
     include_directories("C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.39.33519/include")
 endif()
@@ -203,8 +196,6 @@ file(MAKE_DIRECTORY ${HTTP_DEST_DIR})
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/**/*.cpp" "src/**/**/*.cpp")
 add_executable(CubeCore ${SOURCES})
 
-link_directories(${GLIB_LIBRARY_DIRS})
-
 # Link libraries
 target_link_libraries(CubeCore PRIVATE
     sfml-graphics
@@ -219,7 +210,6 @@ target_link_libraries(CubeCore PRIVATE
     SQLiteCpp
     sqlite3
     ${SODIUM_LIBRARIES}
-    ${GLIB_LDFLAGS}
 )
 
 target_compile_features(CubeCore PRIVATE cxx_std_17)
