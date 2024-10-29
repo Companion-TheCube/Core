@@ -186,6 +186,7 @@ int main(int argc, char* argv[])
         auto blobs = std::make_shared<BlobsManager>(db_cube, "data/blobs.db");
         auto cubeDB = std::make_shared<CubeDB>(db_cube, blobs);
         auto wifiManager = std::make_shared<WifiManager>();
+        auto btManager = std::make_shared<BTManager>();
         long blobID = CubeDB::getBlobsManager()->addBlob("client_blobs", "test blob", "1");
         CubeLog::info("Blob ID: " + std::to_string(blobID));
         bool allInsertionsSuccess = true;
@@ -210,6 +211,8 @@ int main(int argc, char* argv[])
         api_builder.addInterface(logger);
         api_builder.addInterface(audioManager);
         api_builder.addInterface(auth);
+        // api_builder.addInterface(wifiManager);
+        api_builder.addInterface(btManager);
         api_builder.start();
         CubeLog::info("Entering main loop...");
         while (true) {

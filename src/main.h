@@ -22,6 +22,7 @@
 #include "settings/loader.h"
 #include "audio/audioManager.h"
 #include "hardware/wifi.h"
+#include "hardware/bluetooth.h"
 #include <cmath>
 #include <functional>
 #include <iostream>

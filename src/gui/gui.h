@@ -130,4 +130,4 @@ private:
     std::mutex addMenuMutex;
 };
 
-#endif
+#endif// GUI_H

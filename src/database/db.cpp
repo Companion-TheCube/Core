@@ -41,7 +41,7 @@ Database::Database(std::string dbPath)
  */
 Database::~Database()
 {
-    CubeLog::info("Database closing: " + this->dbPath);
+    // CubeLog::info("Database closing: " + this->dbPath);
     this->close();
 }
 

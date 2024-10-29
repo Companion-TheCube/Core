@@ -1,0 +1,278 @@
+{
+    "events":[
+        {
+            "name":"device_connected",
+            "type":"bt_control",
+            "endpoint":"device_connected",
+            "description":"Event triggered when a device is connected to the bluetooth module",
+            "data":[
+                {
+                    "name":"device",
+                    "type":"string",
+                    "description":"The device that was connected"
+                },
+                {
+                    "name":"mac",
+                    "type":"string",
+                    "description":"The address of the device that was connected"
+                },
+                {
+                    "name":"rssi",
+                    "type":"int",
+                    "description":"The signal strength of the connected device"
+                },
+                {
+                    "name":"paired",
+                    "type":"bool",
+                    "description":"Whether the device is paired or not"
+                }
+            ]
+        },
+        {
+            "name":"device_disconnected",
+            "type":"bt_control",
+            "endpoint":"device_disconnected",
+            "description":"Event triggered when a device is disconnected from the bluetooth module",
+            "data":[
+                {
+                    "name":"device",
+                    "type":"string",
+                    "description":"The device that was disconnected"
+                },
+                {
+                    "name":"mac",
+                    "type":"string",
+                    "description":"The address of the device that was disconnected"
+                }
+            ]
+        },
+        {
+            "name":"device_paired",
+            "type":"bt_control",
+            "endpoint":"device_paired",
+            "description":"Event triggered when a device is successfully paired",
+            "data":[
+                {
+                    "name":"device",
+                    "type":"string",
+                    "description":"The device that was paired"
+                },
+                {
+                    "name":"mac",
+                    "type":"string",
+                    "description":"The address of the device that was paired"
+                }
+            ]
+        },
+        {
+            "name":"device_unpaired",
+            "type":"bt_control",
+            "endpoint":"device_unpaired",
+            "description":"Event triggered when a device is unpaired",
+            "data":[
+                {
+                    "name":"device",
+                    "type":"string",
+                    "description":"The device that was unpaired"
+                },
+                {
+                    "name":"mac",
+                    "type":"string",
+                    "description":"The address of the device that was unpaired"
+                }
+            ]
+        },
+        {
+            "name":"device_discovered",
+            "type":"bt_control",
+            "endpoint":"device_discovered",
+            "description":"Event triggered when a device is discovered during a scan",
+            "data":[
+                {
+                    "name":"device",
+                    "type":"string",
+                    "description":"The device that was discovered"
+                },
+                {
+                    "name":"mac",
+                    "type":"string",
+                    "description":"The address of the device that was discovered"
+                },
+                {
+                    "name":"rssi",
+                    "type":"int",
+                    "description":"The signal strength of the discovered device"
+                }
+            ]
+        },
+        {
+            "name":"connection_error",
+            "type":"bt_control",
+            "endpoint":"connection_error",
+            "description":"Event triggered when there is an error in the Bluetooth connection",
+            "data":[
+                {
+                    "name":"error",
+                    "type":"string",
+                    "description":"The error message"
+                }
+            ]
+        },
+        {
+            "name":"pairing_request",
+            "type":"bt_control",
+            "endpoint":"pairing_request",
+            "description":"Event triggered when a pairing request is received from a Bluetooth device",
+            "data":[
+                {
+                    "name":"device",
+                    "type":"string",
+                    "description":"The device requesting pairing"
+                },
+                {
+                    "name":"mac",
+                    "type":"string",
+                    "description":"The address of the device requesting pairing"
+                },
+                {
+                    "name":"passkey",
+                    "type":"string",
+                    "description":"The passkey for pairing"
+                },
+                {
+                    "pin":"string",
+                    "type":"string",
+                    "description":"The pin for pairing"
+                }
+            ]
+        },
+        {
+            "name":"pairing_success",
+            "type":"bt_control",
+            "endpoint":"pairing_success",
+            "description":"Event triggered when a pairing process completes successfully",
+            "data":[
+                {
+                    "name":"device",
+                    "type":"string",
+                    "description":"The device that was paired"
+                },
+                {
+                    "name":"mac",
+                    "type":"string",
+                    "description":"The address of the device that was paired"
+                }
+            ]
+        },
+        {
+            "name":"pairing_failure",
+            "type":"bt_control",
+            "endpoint":"pairing_failure",
+            "description":"Event triggered when a pairing process fails",
+            "data":[
+                {
+                    "name":"device",
+                    "type":"string",
+                    "description":"The device that failed to pair"
+                },
+                {
+                    "name":"mac",
+                    "type":"string",
+                    "description":"The address of the device that failed to pair"
+                },
+                {
+                    "name":"error",
+                    "type":"string",
+                    "description":"The error message"
+                }
+            ]
+        },
+        {
+            "name":"bluetooth_enabled",
+            "type":"bt_control",
+            "endpoint":"bluetooth_enabled",
+            "description":"Event triggered when Bluetooth is enabled on the device",
+            "data":[]
+        },
+        {
+            "name":"bluetooth_disabled",
+            "type":"bt_control",
+            "endpoint":"bluetooth_disabled",
+            "description":"Event triggered when Bluetooth is disabled on the device",
+            "data":[]
+        },
+        {
+            "name":"scan_started",
+            "type":"bt_control",
+            "endpoint":"scan_started",
+            "description":"Event triggered when a Bluetooth scan starts",
+            "data":[]
+        },
+        {
+            "name":"scan_stopped",
+            "type":"bt_control",
+            "endpoint":"scan_stopped",
+            "description":"Event triggered when a Bluetooth scan stops",
+            "data":[]
+        },
+        {
+            "name":"bonding_started",
+            "type":"bt_control",
+            "endpoint":"bonding_started",
+            "description":"Event triggered when the bonding process starts with a Bluetooth device",
+            "data":[
+                {
+                    "name":"device",
+                    "type":"string",
+                    "description":"The device with which bonding started"
+                },
+                {
+                    "name":"mac",
+                    "type":"string",
+                    "description":"The address of the device with which bonding started"
+                }
+            ]
+        },
+        {
+            "name":"bonding_completed",
+            "type":"bt_control",
+            "endpoint":"bonding_completed",
+            "description":"Event triggered when the bonding process completes with a Bluetooth device",
+            "data":[
+                {
+                    "name":"device",
+                    "type":"string",
+                    "description":"The device with which bonding completed"
+                },
+                {
+                    "name":"mac",
+                    "type":"string",
+                    "description":"The address of the device with which bonding completed"
+                }
+            ]
+        },
+        {
+            "name":"bonding_failed",
+            "type":"bt_control",
+            "endpoint":"bonding_failed",
+            "description":"Event triggered when the bonding process fails with a Bluetooth device",
+            "data":[
+                {
+                    "name":"device",
+                    "type":"string",
+                    "description":"The device with which bonding failed"
+                },
+                {
+                    "name":"mac",
+                    "type":"string",
+                    "description":"The address of the device with which bonding failed"
+                },
+                {
+                    "name":"error",
+                    "type":"string",
+                    "description":"The error message"
+                }
+            ]
+        }
+    ]
+}

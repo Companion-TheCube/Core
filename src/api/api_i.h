@@ -75,7 +75,6 @@ public:
      * authenticated clients.
      **/
     virtual HttpEndPointData_t getHttpEndpointData() = 0;
-    // virtual std::vector<std::pair<std::string, std::vector<std::string>>> getHttpEndpointNamesAndParams() = 0;
 };
 
 #endif

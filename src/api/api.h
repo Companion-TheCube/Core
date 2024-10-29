@@ -81,7 +81,6 @@ private:
     CubeHttpServer *server;
     CubeHttpServer *serverIPC;
     std::vector<std::pair<std::string, bool>> endpointTriggers;
-    // CubeAuth *auth;
     void httpApiThreadFn();
 public:
     API();
