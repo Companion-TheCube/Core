@@ -4,14 +4,14 @@
 #ifndef UTILS_H
 #include "utils.h"
 #endif
-#include <logger.h>
-#include <nlohmann/json.hpp>
 #include <filesystem>
+#include <logger.h>
 #include <mutex>
+#include <nlohmann/json.hpp>
 #include <vector>
 
 struct GlobalSettings {
-    enum SettingType {
+    enum class SettingType : int {
         LOG_VERBOSITY,
         SELECTED_FONT_PATH,
         LOG_LEVEL_PRINT,
@@ -60,25 +60,26 @@ struct GlobalSettings {
     /**
      * @brief Convert a SettingType to a string
      */
-    static std::unordered_map <SettingType, std::string> settingTypeStringMap;
+    static std::unordered_map<SettingType, std::string> settingTypeStringMap;
 
     /**
      * @brief Convert a string to a SettingType
      */
-    static std::unordered_map <std::string, SettingType> stringSettingTypeMap;
+    static std::unordered_map<std::string, SettingType> stringSettingTypeMap;
 
-    GlobalSettings(){
+    GlobalSettings()
+    {
         std::unique_lock<std::mutex> lock(settingChangeMutex);
         bool defaultFound = false;
-        for(auto fontPath : loadFontPaths()){
+        for (auto fontPath : loadFontPaths()) {
             // set the default font to Roboto-Regular.ttf
-            if(fontPath.find("Roboto-Regular.ttf") != std::string::npos){
+            if (fontPath.find("Roboto-Regular.ttf") != std::string::npos) {
                 lock.unlock();
                 GlobalSettings::setSetting(SettingType::SELECTED_FONT_PATH, fontPath);
                 defaultFound = true;
             }
         }
-        if(!defaultFound){
+        if (!defaultFound) {
             CubeLog::fatal("Default font not found.");
         }
         // set the default log verbosity to TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE
@@ -123,142 +124,149 @@ struct GlobalSettings {
         GlobalSettings::setSetting(SettingType::PRESENCE_DETECTION_ENABLED, true);
     }
 
-    static void setSettingCB(SettingType key, std::function<void()> callback){
-        settingChangeCallbacks.push_back({key, callback});
+    static void setSettingCB(SettingType key, std::function<void()> callback)
+    {
+        settingChangeCallbacks.push_back({ key, callback });
     }
 
-    static void callSettingCB(SettingType key){
-        CubeLog::debug("Calling setting change callback for " + key);
-        for(auto &[settingKey, cb] : settingChangeCallbacks){
-            if(settingKey == key){
+    static void callSettingCB(SettingType key)
+    {
+        CubeLog::debug("Calling setting change callback for " + std::to_string((int)key));
+        for (auto& [settingKey, cb] : settingChangeCallbacks) {
+            if (settingKey == key) {
                 cb();
             }
         }
     }
 
-    static bool setSetting(SettingType key, nlohmann::json::value_type value){
+    static bool setSetting(SettingType key, nlohmann::json::value_type value)
+    {
         std::unique_lock<std::mutex> lock(settingChangeMutex);
         settings[settingTypeStringMap[key]] = value;
         callSettingCB(key);
         return true;
     }
-    static nlohmann::json getSettings(){
+    static nlohmann::json getSettings()
+    {
         std::unique_lock<std::mutex> lock(settingChangeMutex);
         return settings;
     }
-    static nlohmann::json::value_type getSetting(SettingType key){
+    static nlohmann::json::value_type getSetting(SettingType key)
+    {
         std::unique_lock<std::mutex> lock(settingChangeMutex);
         return settings[settingTypeStringMap[key]];
     }
     template <typename T>
-    static T getSettingOfType(SettingType key){
+    static T getSettingOfType(SettingType key)
+    {
         std::unique_lock<std::mutex> lock(settingChangeMutex);
         T s;
-        try{
+        try {
             s = settings[settingTypeStringMap[key]];
-        }catch(nlohmann::json::exception e){
+        } catch (nlohmann::json::exception e) {
             CubeLog::error("Error getting setting of type " + settingTypeStringMap[key] + ": " + e.what());
             return T();
         }
         return s;
     }
-    static std::vector<std::string> getSettingsNames(){
+    static std::vector<std::string> getSettingsNames()
+    {
         std::vector<std::string> settingNames;
-        for(auto it = settings.begin(); it != settings.end(); it++){
+        for (auto it = settings.begin(); it != settings.end(); it++) {
             settingNames.push_back(it.key());
         }
         return settingNames;
     }
 
-    
-    static std::string toString(){
+    static std::string toString()
+    {
         std::string output = "";
-        switch(GlobalSettings::getSettingOfType<Logger::LogVerbosity>(SettingType::LOG_VERBOSITY)){
-            case Logger::LogVerbosity::MINIMUM:
-                output += "Log Verbosity: Message only\n";
-                break;
-            case Logger::LogVerbosity::TIMESTAMP:
-                output += "Log Verbosity: Timestamp and message\n";
-                break;
-            case Logger::LogVerbosity::TIMESTAMP_AND_LEVEL:
-                output += "Log Verbosity: Timestamp, log level, and message\n";
-                break;
-            case Logger::LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE:
-                output += "Log Verbosity: Timestamp, log level, source file, and message\n";
-                break;
-            case Logger::LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE:
-                output += "Log Verbosity: Timestamp, log level, source file, line number, and message\n";
-                break;
-            case Logger::LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE_AND_FUNCTION:
-                output += "Log Verbosity: Timestamp, log level, source file, line number, function name, and message\n";
-                break;
-            case Logger::LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE_AND_FUNCTION_AND_NUMBEROFLOGS:
-                output += "Log Verbosity: Timestamp, log level, source file, line number, function name, number of logs, and message\n";
-                break;
-            default:
-                output += "Log Verbosity: UNKNOWN\n";
+        switch (GlobalSettings::getSettingOfType<Logger::LogVerbosity>(SettingType::LOG_VERBOSITY)) {
+        case Logger::LogVerbosity::MINIMUM:
+            output += "Log Verbosity: Message only\n";
+            break;
+        case Logger::LogVerbosity::TIMESTAMP:
+            output += "Log Verbosity: Timestamp and message\n";
+            break;
+        case Logger::LogVerbosity::TIMESTAMP_AND_LEVEL:
+            output += "Log Verbosity: Timestamp, log level, and message\n";
+            break;
+        case Logger::LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE:
+            output += "Log Verbosity: Timestamp, log level, source file, and message\n";
+            break;
+        case Logger::LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE:
+            output += "Log Verbosity: Timestamp, log level, source file, line number, and message\n";
+            break;
+        case Logger::LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE_AND_FUNCTION:
+            output += "Log Verbosity: Timestamp, log level, source file, line number, function name, and message\n";
+            break;
+        case Logger::LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE_AND_FUNCTION_AND_NUMBEROFLOGS:
+            output += "Log Verbosity: Timestamp, log level, source file, line number, function name, number of logs, and message\n";
+            break;
+        default:
+            output += "Log Verbosity: UNKNOWN\n";
         }
-        switch(GlobalSettings::getSettingOfType<Logger::LogLevel>(SettingType::LOG_LEVEL_PRINT)){
-            case Logger::LogLevel::LOGGER_MORE_INFO:
-                output += "Log Level for printing: MORE INFO\n";
-                break;
-            case Logger::LogLevel::LOGGER_INFO:
-                output += "Log Level for printing: INFO\n";
-                break;
-            case Logger::LogLevel::LOGGER_WARNING:
-                output += "Log Level for printing: WARNING\n";
-                break;
-            case Logger::LogLevel::LOGGER_ERROR:
-                output += "Log Level for printing: ERROR\n";
-                break;
-            case Logger::LogLevel::LOGGER_CRITICAL:
-                output += "Log Level for printing: CRITICAL\n";
-                break;
-            case Logger::LogLevel::LOGGER_FATAL:
-                output += "Log Level for printing: FATAL\n";
-                break;
-            case Logger::LogLevel::LOGGER_OFF:
-                output += "Log Level for printing: OFF\n";
-                break;
-            case Logger::LogLevel::LOGGER_DEBUG:
-                output += "Log Level for printing: DEBUG\n";
-                break;
-            case Logger::LogLevel::LOGGER_DEBUG_SILLY:
-                output += "Log Level for printing: DEBUG SILLY\n";
-                break;
-            default:
-                output += "Log Level for printing: UNKNOWN\n";
+        switch (GlobalSettings::getSettingOfType<Logger::LogLevel>(SettingType::LOG_LEVEL_PRINT)) {
+        case Logger::LogLevel::LOGGER_MORE_INFO:
+            output += "Log Level for printing: MORE INFO\n";
+            break;
+        case Logger::LogLevel::LOGGER_INFO:
+            output += "Log Level for printing: INFO\n";
+            break;
+        case Logger::LogLevel::LOGGER_WARNING:
+            output += "Log Level for printing: WARNING\n";
+            break;
+        case Logger::LogLevel::LOGGER_ERROR:
+            output += "Log Level for printing: ERROR\n";
+            break;
+        case Logger::LogLevel::LOGGER_CRITICAL:
+            output += "Log Level for printing: CRITICAL\n";
+            break;
+        case Logger::LogLevel::LOGGER_FATAL:
+            output += "Log Level for printing: FATAL\n";
+            break;
+        case Logger::LogLevel::LOGGER_OFF:
+            output += "Log Level for printing: OFF\n";
+            break;
+        case Logger::LogLevel::LOGGER_DEBUG:
+            output += "Log Level for printing: DEBUG\n";
+            break;
+        case Logger::LogLevel::LOGGER_DEBUG_SILLY:
+            output += "Log Level for printing: DEBUG SILLY\n";
+            break;
+        default:
+            output += "Log Level for printing: UNKNOWN\n";
         }
-        switch(GlobalSettings::getSettingOfType<Logger::LogLevel>(SettingType::LOG_LEVEL_FILE)){
-            case Logger::LogLevel::LOGGER_MORE_INFO:
-                output += "Log Level for log file: MORE INFO\n";
-                break;
-            case Logger::LogLevel::LOGGER_INFO:
-                output += "Log Level for log file: INFO\n";
-                break;
-            case Logger::LogLevel::LOGGER_WARNING:
-                output += "Log Level for log file: WARNING\n";
-                break;
-            case Logger::LogLevel::LOGGER_ERROR:
-                output += "Log Level for log file: ERROR\n";
-                break;
-            case Logger::LogLevel::LOGGER_CRITICAL:
-                output += "Log Level for log file: CRITICAL\n";
-                break;
-            case Logger::LogLevel::LOGGER_FATAL:
-                output += "Log Level for log file: FATAL\n";
-                break;
-            case Logger::LogLevel::LOGGER_OFF:
-                output += "Log Level for log file: OFF\n";
-                break;
-            case Logger::LogLevel::LOGGER_DEBUG:
-                output += "Log Level for log file: DEBUG\n";
-                break;
-            case Logger::LogLevel::LOGGER_DEBUG_SILLY:
-                output += "Log Level for log file: DEBUG SILLY\n";
-                break;
-            default:
-                output += "Log Level for log file: UNKNOWN\n";
+        switch (GlobalSettings::getSettingOfType<Logger::LogLevel>(SettingType::LOG_LEVEL_FILE)) {
+        case Logger::LogLevel::LOGGER_MORE_INFO:
+            output += "Log Level for log file: MORE INFO\n";
+            break;
+        case Logger::LogLevel::LOGGER_INFO:
+            output += "Log Level for log file: INFO\n";
+            break;
+        case Logger::LogLevel::LOGGER_WARNING:
+            output += "Log Level for log file: WARNING\n";
+            break;
+        case Logger::LogLevel::LOGGER_ERROR:
+            output += "Log Level for log file: ERROR\n";
+            break;
+        case Logger::LogLevel::LOGGER_CRITICAL:
+            output += "Log Level for log file: CRITICAL\n";
+            break;
+        case Logger::LogLevel::LOGGER_FATAL:
+            output += "Log Level for log file: FATAL\n";
+            break;
+        case Logger::LogLevel::LOGGER_OFF:
+            output += "Log Level for log file: OFF\n";
+            break;
+        case Logger::LogLevel::LOGGER_DEBUG:
+            output += "Log Level for log file: DEBUG\n";
+            break;
+        case Logger::LogLevel::LOGGER_DEBUG_SILLY:
+            output += "Log Level for log file: DEBUG SILLY\n";
+            break;
+        default:
+            output += "Log Level for log file: UNKNOWN\n";
         }
         auto fontpath = std::filesystem::path(GlobalSettings::getSettingOfType<std::string>(SettingType::SELECTED_FONT_PATH));
         output += "Selected Font: " + std::string(fontpath.filename().string()) + "\n";
@@ -271,12 +279,13 @@ private:
     static std::mutex settingChangeMutex;
     static nlohmann::json settings;
 
-    static std::vector<std::string> loadFontPaths(std::filesystem::path fontPath = "./fonts"){
+    static std::vector<std::string> loadFontPaths(std::filesystem::path fontPath = "./fonts")
+    {
         std::vector<std::string> fontPaths = {};
-        for (const auto & entry : std::filesystem::directory_iterator(fontPath)){
-            if(entry.is_regular_file() && entry.path().extension() == ".ttf"){
-                fontPaths.push_back(entry.path().string()); 
-            }else if(entry.is_directory()){
+        for (const auto& entry : std::filesystem::directory_iterator(fontPath)) {
+            if (entry.is_regular_file() && entry.path().extension() == ".ttf") {
+                fontPaths.push_back(entry.path().string());
+            } else if (entry.is_directory()) {
                 auto subPaths = loadFontPaths(entry.path());
                 fontPaths.insert(fontPaths.end(), subPaths.begin(), subPaths.end());
             }

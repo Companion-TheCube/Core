@@ -33,19 +33,19 @@ CUBE_LOG_ENTRY::CUBE_LOG_ENTRY(const std::string& message, CustomSourceLocation*
         this->messageFull = this->getTimestamp() + ": " + message;
         break;
     case Logger::LogVerbosity::TIMESTAMP_AND_LEVEL:
-        this->messageFull = this->getTimestamp() + ": " + message + " (" + Logger::logLevelStrings[level] + ")";
+        this->messageFull = this->getTimestamp() + ": " + message + " (" + Logger::logLevelStrings[(int)level] + ")";
         break;
     case Logger::LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE:
-        this->messageFull = this->getTimestamp() + ": " + fileName + ": " + message + " (" + Logger::logLevelStrings[level] + ")";
+        this->messageFull = this->getTimestamp() + ": " + fileName + ": " + message + " (" + Logger::logLevelStrings[(int)level] + ")";
         break;
     case Logger::LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE:
-        this->messageFull = this->getTimestamp() + ": " + fileName + "(" + std::to_string(location->line) + "): " + message + " (" + Logger::logLevelStrings[level] + ")";
+        this->messageFull = this->getTimestamp() + ": " + fileName + "(" + std::to_string(location->line) + "): " + message + " (" + Logger::logLevelStrings[(int)level] + ")";
         break;
     case Logger::LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE_AND_FUNCTION:
-        this->messageFull = this->getTimestamp() + ": " + fileName + "(" + std::to_string(location->line) + "): " + location->function_name + ": " + message + " (" + Logger::logLevelStrings[level] + ")";
+        this->messageFull = this->getTimestamp() + ": " + fileName + "(" + std::to_string(location->line) + "): " + location->function_name + ": " + message + " (" + Logger::logLevelStrings[(int)level] + ")";
         break;
     default:
-        this->messageFull = this->getTimestamp() + ": " + fileName + "(" + std::to_string(location->line) + "): " + location->function_name + ": " + message + " (" + std::to_string(CUBE_LOG_ENTRY::logEntryCount) + ")" + " (" + Logger::logLevelStrings[level] + ")";
+        this->messageFull = this->getTimestamp() + ": " + fileName + "(" + std::to_string(location->line) + "): " + location->function_name + ": " + message + " (" + std::to_string(CUBE_LOG_ENTRY::logEntryCount) + ")" + " (" + Logger::logLevelStrings[(int)level] + ")";
         break;
     }
 }
@@ -554,7 +554,7 @@ void CubeLog::writeOutLogs()
  */
 void CubeLog::setVerbosity(Logger::LogVerbosity verbosity)
 {
-    this->log("Setting verbosity to " + std::to_string(verbosity), true);
+    this->log("Setting verbosity to " + std::to_string((int)verbosity), true);
     CubeLog::staticVerbosity = verbosity;
 }
 
@@ -755,8 +755,8 @@ HttpEndPointData_t CubeLog::getHttpEndpointData()
                 int level_int;
                 try {
                     level_int = std::stoi(level);
-                    if (level_int < 0 || level_int > Logger::LogLevel::LOGGER_LOGLEVELCOUNT - 1)
-                        throw std::invalid_argument("Log level out of range. Must be between 0 and " + std::to_string(Logger::LogLevel::LOGGER_LOGLEVELCOUNT - 1) + ", inclusive.");
+                    if (level_int < 0 || level_int > (int)Logger::LogLevel::LOGGER_LOGLEVELCOUNT - 1)
+                        throw std::invalid_argument("Log level out of range. Must be between 0 and " + std::to_string((int)Logger::LogLevel::LOGGER_LOGLEVELCOUNT - 1) + ", inclusive.");
                 } catch (std::invalid_argument e) {
                     CubeLog::error(e.what());
                     // create json object with error message and return success = false
@@ -797,7 +797,7 @@ HttpEndPointData_t CubeLog::getHttpEndpointData()
                 nlohmann::json entryJson;
                 entryJson["timestamp"] = sanitizeString(entry.getTimestamp());
                 entryJson["message"] = sanitizeString(entry.getMessageFull());
-                entryJson["level"] = sanitizeString(Logger::logLevelStrings[entry.level]);
+                entryJson["level"] = sanitizeString(Logger::logLevelStrings[(int)entry.level]);
                 j["entries"].push_back(entryJson);
             }
             res.set_content(j.dump(), "application/json");

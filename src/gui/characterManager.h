@@ -31,7 +31,7 @@
 struct CharacterSystemError : public std::exception {
     static uint16_t errorCount;
     std::string message;
-    enum ERROR_TYPES {
+    enum class ERROR_TYPES {
         CHARACTER_NOT_FOUND,
         CHARACTER_LOAD_ERROR,
         CHARACTER_PART_NOT_FOUND,

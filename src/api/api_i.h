@@ -22,7 +22,7 @@
 #include <nlohmann/json.hpp>
 
 struct EndpointError {
-    enum ERROR_TYPES {
+    enum class ERROR_TYPES {
         ENDPOINT_NO_ERROR,
         ENDPOINT_INVALID_REQUEST,
         ENDPOINT_INVALID_PARAMS,

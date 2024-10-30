@@ -60,7 +60,7 @@ namespace MENUS {
 
 class MenuStencil;
 
-enum EntryType {
+enum class EntryType {
     MENUENTRY_TYPE_SUBMENU,
     MENUENTRY_TYPE_ACTION,
     MENUENTRY_TYPE_RADIOBUTTON_GROUP,
@@ -74,19 +74,19 @@ enum EntryType {
 };
 
 const std::unordered_map<std::string, EntryType> entryTypeMap = {
-    { "MENUENTRY_TYPE_SUBMENU", MENUENTRY_TYPE_SUBMENU },
-    { "MENUENTRY_TYPE_ACTION", MENUENTRY_TYPE_ACTION },
-    { "MENUENTRY_TYPE_RADIOBUTTON_GROUP", MENUENTRY_TYPE_RADIOBUTTON_GROUP },
-    { "MENUENTRY_TYPE_CHECKBOX", MENUENTRY_TYPE_CHECKBOX },
-    { "MENUENTRY_TYPE_TOGGLE", MENUENTRY_TYPE_TOGGLE },
-    { "MENUENTRY_TYPE_TEXT_INFO", MENUENTRY_TYPE_TEXT_INFO },
-    { "MENUENTRY_TYPE_TEXT_INPUT", MENUENTRY_TYPE_TEXT_INPUT },
-    { "MENUENTRY_TYPE_SLIDER", MENUENTRY_TYPE_SLIDER }
+    { "MENUENTRY_TYPE_SUBMENU", EntryType::MENUENTRY_TYPE_SUBMENU },
+    { "MENUENTRY_TYPE_ACTION", EntryType::MENUENTRY_TYPE_ACTION },
+    { "MENUENTRY_TYPE_RADIOBUTTON_GROUP", EntryType::MENUENTRY_TYPE_RADIOBUTTON_GROUP },
+    { "MENUENTRY_TYPE_CHECKBOX", EntryType::MENUENTRY_TYPE_CHECKBOX },
+    { "MENUENTRY_TYPE_TOGGLE", EntryType::MENUENTRY_TYPE_TOGGLE },
+    { "MENUENTRY_TYPE_TEXT_INFO", EntryType::MENUENTRY_TYPE_TEXT_INFO },
+    { "MENUENTRY_TYPE_TEXT_INPUT", EntryType::MENUENTRY_TYPE_TEXT_INPUT },
+    { "MENUENTRY_TYPE_SLIDER", EntryType::MENUENTRY_TYPE_SLIDER }
 };
 
 class MenuEntry : public Clickable {
 private:
-    enum ScrollingDirection {
+    enum class ScrollingDirection {
         NOT_SCROLLING,
         SCROLL_LEFT,
         SCROLL_RIGHT
@@ -107,13 +107,13 @@ private:
     glm::vec2 position;
     ClickableArea clickArea;
     glm::vec2 size;
-    ScrollingDirection scrolling = NOT_SCROLLING;
+    ScrollingDirection scrolling = ScrollingDirection::NOT_SCROLLING;
     float visibleWidth = 0;
     float scrollPositionLeft = 0;
     float scrollPositionRight = 0;
     float scrollWait = 0;
     glm::vec4 originalPosition;
-    EntryType type = MENUENTRY_TYPE_ACTION;
+    EntryType type = EntryType::MENUENTRY_TYPE_ACTION;
     void setVisibleWidth(float width);
     static unsigned int menuEntryCount;
     unsigned int menuEntryIndex;

@@ -58,7 +58,7 @@
 typedef std::vector<std::tuple<nlohmann::json, std::string>> AddMenu_Data_t;
 
 struct GUI_Error {
-    enum ERROR_TYPES {
+    enum class ERROR_TYPES {
         GUI_NO_ERROR,
         GUI_PARENT_NOT_FOUND,
         GUI_MENU_NOT_FOUND,
@@ -78,7 +78,7 @@ struct GUI_Error {
 
 class NotificationsManager : public I_API_Interface {
 public:
-    enum NotificationType {
+    enum class NotificationType {
         NOTIFICATION_OKAY,
         NOTIFICATION_WARNING,
         NOTIFICATION_ERROR,

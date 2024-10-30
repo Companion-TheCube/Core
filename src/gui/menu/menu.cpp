@@ -797,19 +797,19 @@ void MenuEntry::draw()
         this->clickArea.xMax = this->clickArea.xMin + this->size.x;
         this->setVisibleWidth(this->visibleWidth);
     }
-    if (this->scrolling == SCROLL_LEFT && this->scrollWait++ > 60) {
+    if (this->scrolling == ScrollingDirection::SCROLL_LEFT && this->scrollWait++ > 60) {
         this->scrollPositionLeft += MENU_ITEM_SCROLL_LEFT_SPEED;
         for (auto object : this->scrollObjects) {
             object->translate({ -MENU_ITEM_SCROLL_LEFT_SPEED, 0.f, 0.f });
         }
         if (this->scrollPositionLeft >= this->size.x - this->visibleWidth) {
             for (auto object : this->scrollObjects) {
-                this->scrolling = SCROLL_RIGHT;
+                this->scrolling = ScrollingDirection::SCROLL_RIGHT;
             }
             this->scrollWait = 0;
         }
     }
-    if (this->scrolling == SCROLL_RIGHT && this->scrollWait++ > 60) {
+    if (this->scrolling == ScrollingDirection::SCROLL_RIGHT && this->scrollWait++ > 60) {
         this->scrollPositionRight += MENU_ITEM_SCROLL_RIGHT_SPEED;
         const float amount = this->scrollPositionRight < this->scrollPositionLeft ? MENU_ITEM_SCROLL_RIGHT_SPEED : MENU_ITEM_SCROLL_RIGHT_SPEED - this->scrollPositionRight + this->scrollPositionLeft;
         for (auto object : this->scrollObjects) {
@@ -817,7 +817,7 @@ void MenuEntry::draw()
         }
         if (this->scrollPositionRight > this->scrollPositionLeft) {
             for (auto object : this->scrollObjects) {
-                this->scrolling = SCROLL_LEFT;
+                this->scrolling = ScrollingDirection::SCROLL_LEFT;
             }
             this->scrollPositionRight = 0;
             this->scrollPositionLeft = 0;
@@ -854,17 +854,17 @@ void MenuEntry::setVisibleWidth(float width)
 {
     this->visibleWidth = width;
     if (width < this->size.x) {
-        this->scrolling = SCROLL_LEFT;
+        this->scrolling = ScrollingDirection::SCROLL_LEFT;
     } else {
-        this->scrolling = NOT_SCROLLING;
+        this->scrolling = ScrollingDirection::NOT_SCROLLING;
     }
 }
 
 void MenuEntry::resetScroll()
 {
-    if (this->scrolling == NOT_SCROLLING)
+    if (this->scrolling == ScrollingDirection::NOT_SCROLLING)
         return;
-    this->scrolling = SCROLL_LEFT;
+    this->scrolling = ScrollingDirection::SCROLL_LEFT;
     this->scrollPositionLeft = 0;
     this->scrollPositionRight = 0;
     this->scrollWait = 0;

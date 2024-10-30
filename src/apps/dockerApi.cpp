@@ -69,7 +69,7 @@ std::expected<std::string, DockerError> DockerAPI::getContainers_json()
     if (res && res->status == 200) {
         return res->body;
     } else {
-        return std::unexpected(DockerError("Error: Unable to list containers", DockerError::CONTAINER_LIST_ERROR));
+        return std::unexpected(DockerError("Error: Unable to list containers", DockerError::ErrorCodes::CONTAINER_LIST_ERROR));
     }
 }
 
@@ -88,7 +88,7 @@ std::expected<std::vector<std::string>, DockerError> DockerAPI::getContainers_ve
         return container_ids;
     } catch (nlohmann::json::parse_error& e) {
         CubeLog::error("Error parsing json: " + std::string(e.what()));
-        return std::unexpected(DockerError("Error parsing json", DockerError::JSON_PARSE_ERROR));
+        return std::unexpected(DockerError("Error parsing json", DockerError::ErrorCodes::JSON_PARSE_ERROR));
     }
 }
 
@@ -98,7 +98,7 @@ std::expected<std::string, DockerError> DockerAPI::getImages_json()
     if (res && res->status == 200) {
         return res->body;
     } else {
-        return std::unexpected(DockerError("Error: Unable to list images", DockerError::IMAGE_LIST_ERROR));
+        return std::unexpected(DockerError("Error: Unable to list images", DockerError::ErrorCodes::IMAGE_LIST_ERROR));
     }
 }
 
@@ -124,7 +124,7 @@ std::expected<std::vector<std::string>, DockerError> DockerAPI::getImages_vec()
         return image_ids;
     } catch (nlohmann::json::parse_error& e) {
         CubeLog::error("Error parsing json: " + std::string(e.what()));
-        return std::unexpected(DockerError("Error parsing json", DockerError::JSON_PARSE_ERROR));
+        return std::unexpected(DockerError("Error parsing json", DockerError::ErrorCodes::JSON_PARSE_ERROR));
     }
 }
 
@@ -135,7 +135,7 @@ std::expected<std::string, DockerError> DockerAPI::startContainer(const std::str
     if (res && res->status == 204) {
         return "Container started successfully";
     } else {
-        return std::unexpected(DockerError("Error: Unable to start container", DockerError::CONTAINER_START_ERROR));
+        return std::unexpected(DockerError("Error: Unable to start container", DockerError::ErrorCodes::CONTAINER_START_ERROR));
     }
 }
 
@@ -146,7 +146,7 @@ std::expected<std::string, DockerError> DockerAPI::stopContainer(const std::stri
     if (res && res->status == 204) {
         return "Container stopped successfully";
     } else {
-        return std::unexpected(DockerError("Error: Unable to stop container", DockerError::CONTAINER_STOP_ERROR));
+        return std::unexpected(DockerError("Error: Unable to stop container", DockerError::ErrorCodes::CONTAINER_STOP_ERROR));
     }
 }
 
@@ -157,7 +157,7 @@ std::expected<std::string, DockerError> DockerAPI::inspectContainer_json(const s
     if (res && res->status == 200) {
         return res->body;
     } else {
-        return std::unexpected(DockerError("Error: Unable to inspect container", DockerError::CONTAINER_INSPECT_ERROR));
+        return std::unexpected(DockerError("Error: Unable to inspect container", DockerError::ErrorCodes::CONTAINER_INSPECT_ERROR));
     }
 }
 
@@ -172,7 +172,7 @@ std::expected<bool, DockerError> DockerAPI::isContainerRunning(const std::string
         return container_json["State"]["Running"];
     } catch (nlohmann::json::parse_error& e) {
         CubeLog::error("Error parsing json: " + std::string(e.what()));
-        return std::unexpected(DockerError("Error parsing json", DockerError::JSON_PARSE_ERROR));
+        return std::unexpected(DockerError("Error parsing json", DockerError::ErrorCodes::JSON_PARSE_ERROR));
     }
 }
 
@@ -183,7 +183,7 @@ std::expected<std::string, DockerError> DockerAPI::killContainer(const std::stri
     if (res && res->status == 204) {
         return "Container killed successfully";
     } else {
-        return std::unexpected(DockerError("Error: Unable to kill container", DockerError::CONTAINER_KILL_ERROR));
+        return std::unexpected(DockerError("Error: Unable to kill container", DockerError::ErrorCodes::CONTAINER_KILL_ERROR));
     }
 }
 

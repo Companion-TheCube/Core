@@ -217,10 +217,10 @@ Character_generic::Character_generic(Shader* sh, const std::string& folder)
     this->shader = sh;
     this->visible = false;
     this->animationFrame = 0;
-    this->currentExpression = Expressions::NEUTRAL;
+    this->currentExpression = Expressions::ExpressionNames_enum::NEUTRAL;
     this->currentExpressionDef = { Expressions::ExpressionNames_enum::COUNT, "", {}, {} };
     this->currentAnimation = { Animations::AnimationNames_enum::COUNT, "", {} };
-    this->currentAnimationName = Animations::NEUTRAL;
+    this->currentAnimationName = Animations::AnimationNames_enum::NEUTRAL;
 
     // Load character.json from the folder. This file should contain the list of objects, animations and expressions to load.
     std::ifstream file("meshes/" + folder + "/character.json");
@@ -415,31 +415,31 @@ void Character_generic::animate()
             double fn2_eased = keyframe.easingFunction(f2_normal);
             double calcValue = (double)keyframe.value * (fn_eased - fn2_eased);
             switch (keyframe.type) {
-            case Animations::TRANSLATE: {
+            case Animations::AnimationType::TRANSLATE: {
                 this->translate(keyframe.axis.x * calcValue, keyframe.axis.y * calcValue, keyframe.axis.z * calcValue);
                 break;
             }
-            case Animations::ROTATE: {
+            case Animations::AnimationType::ROTATE: {
                 this->rotate(calcValue, keyframe.axis.x, keyframe.axis.y, keyframe.axis.z);
                 break;
             }
-            case Animations::SCALE_XYZ: {
+            case Animations::AnimationType::SCALE_XYZ: {
                 calcValue = calcValue + 1.f;
                 this->scale((keyframe.axis.x > 0 ? 1 * calcValue : 1), (keyframe.axis.y > 0 ? 1 * calcValue : 1), (keyframe.axis.z > 0 ? 1 * calcValue : 1));
                 break;
             }
-            case Animations::UNIFORM_SCALE: {
+            case Animations::AnimationType::UNIFORM_SCALE: {
                 calcValue = calcValue + 1.f;
                 this->scale(calcValue, calcValue, calcValue);
                 break;
             }
-            case Animations::ROTATE_ABOUT: {
+            case Animations::AnimationType::ROTATE_ABOUT: {
                 for (auto object : this->objects) {
                     object->rotateAbout(calcValue, keyframe.axis, keyframe.point);
                 }
                 break;
             }
-            case Animations::RETURN_HOME: {
+            case Animations::AnimationType::RETURN_HOME: {
                 glm::mat4 modelDiff, projectionDiff, viewDiff;
                 glm::mat4 calcValueMat4 = glm::mat4(calcValue);
                 for (auto object : this->objects) {
@@ -460,7 +460,7 @@ void Character_generic::animate()
     }
     this->animationFrame++;
     if (!foundKeyframe) {
-        this->triggerAnimation(Animations::NEUTRAL);
+        this->triggerAnimation(Animations::AnimationNames_enum::NEUTRAL);
         this->animationFrame = 0;
         for (auto object : this->objects) {
             object->restorePosition();

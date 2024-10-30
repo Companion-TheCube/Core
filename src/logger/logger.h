@@ -25,7 +25,7 @@
 #endif
 
 namespace Logger {
-enum LogVerbosity {
+enum class LogVerbosity: int {
     MINIMUM,
     TIMESTAMP,
     TIMESTAMP_AND_LEVEL,
@@ -36,7 +36,7 @@ enum LogVerbosity {
     LOGVERBOSITYCOUNT
 };
 
-enum LogLevel {
+enum class LogLevel : int {
 #ifdef LOGGER_TRACE_ENABLED
     LOGGER_TRACE,
 #endif

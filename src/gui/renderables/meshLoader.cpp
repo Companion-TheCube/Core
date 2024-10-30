@@ -365,22 +365,22 @@ Animation AnimationLoader::loadAnimation(const std::string& fileName)
     try {
         std::string name = jsonObject["name"]; // the name of the animation
         static const std::unordered_map<std::string, Animations::AnimationNames_enum> nameToAnimation = {
-            { "neutral", Animations::NEUTRAL },
-            { "jump_right_through_wall", Animations::JUMP_RIGHT_THROUGH_WALL },
-            { "jump_left_through_wall", Animations::JUMP_LEFT_THROUGH_WALL },
-            { "jump_up_through_ceiling", Animations::JUMP_UP_THROUGH_CEILING },
-            { "jump_right", Animations::JUMP_RIGHT },
-            { "jump_left", Animations::JUMP_LEFT },
-            { "jump_up", Animations::JUMP_UP },
-            { "jump_down", Animations::JUMP_DOWN },
-            { "jump_forward", Animations::JUMP_FORWARD },
-            { "jump_backward", Animations::JUMP_BACKWARD },
-            { "funny_index", Animations::FUNNY_INDEX },
-            { "funny_bounce", Animations::FUNNY_BOUNCE },
-            { "funny_spin", Animations::FUNNY_SPIN },
-            { "funny_shrink", Animations::FUNNY_SHRINK },
-            { "funny_expand", Animations::FUNNY_EXPAND },
-            { "funny_jump", Animations::FUNNY_JUMP },
+            { "neutral", Animations::AnimationNames_enum::NEUTRAL },
+            { "jump_right_through_wall", Animations::AnimationNames_enum::JUMP_RIGHT_THROUGH_WALL },
+            { "jump_left_through_wall", Animations::AnimationNames_enum::JUMP_LEFT_THROUGH_WALL },
+            { "jump_up_through_ceiling", Animations::AnimationNames_enum::JUMP_UP_THROUGH_CEILING },
+            { "jump_right", Animations::AnimationNames_enum::JUMP_RIGHT },
+            { "jump_left", Animations::AnimationNames_enum::JUMP_LEFT },
+            { "jump_up", Animations::AnimationNames_enum::JUMP_UP },
+            { "jump_down", Animations::AnimationNames_enum::JUMP_DOWN },
+            { "jump_forward", Animations::AnimationNames_enum::JUMP_FORWARD },
+            { "jump_backward", Animations::AnimationNames_enum::JUMP_BACKWARD },
+            { "funny_index", Animations::AnimationNames_enum::FUNNY_INDEX },
+            { "funny_bounce", Animations::AnimationNames_enum::FUNNY_BOUNCE },
+            { "funny_spin", Animations::AnimationNames_enum::FUNNY_SPIN },
+            { "funny_shrink", Animations::AnimationNames_enum::FUNNY_SHRINK },
+            { "funny_expand", Animations::AnimationNames_enum::FUNNY_EXPAND },
+            { "funny_jump", Animations::AnimationNames_enum::FUNNY_JUMP },
         };
         auto it = nameToAnimation.find(name);
         if (it == nameToAnimation.end()) {
@@ -449,12 +449,12 @@ Animation AnimationLoader::loadAnimation(const std::string& fileName)
 AnimationKeyframe AnimationLoader::loadKeyframe(nlohmann::json keyframe)
 {
     static const std::unordered_map<std::string, Animations::AnimationType> nameToAnimType = {
-        { "TRANSLATE", Animations::TRANSLATE },
-        { "ROTATE", Animations::ROTATE },
-        { "SCALE_XYZ", Animations::SCALE_XYZ },
-        { "UNIFORM_SCALE", Animations::UNIFORM_SCALE },
-        { "ROTATE_ABOUT", Animations::ROTATE_ABOUT },
-        { "RETURN_HOME", Animations::RETURN_HOME },
+        { "TRANSLATE", Animations::AnimationType::TRANSLATE },
+        { "ROTATE", Animations::AnimationType::ROTATE },
+        { "SCALE_XYZ", Animations::AnimationType::SCALE_XYZ },
+        { "UNIFORM_SCALE", Animations::AnimationType::UNIFORM_SCALE },
+        { "ROTATE_ABOUT", Animations::AnimationType::ROTATE_ABOUT },
+        { "RETURN_HOME", Animations::AnimationType::RETURN_HOME },
     };
     std::string type;
     try {
@@ -529,22 +529,22 @@ AnimationKeyframe AnimationLoader::loadKeyframe(nlohmann::json keyframe)
 std::vector<std::string> AnimationLoader::getAnimationNames()
 {
     static const std::unordered_map<Animations::AnimationNames_enum, std::string> animToName = {
-        { Animations::NEUTRAL, "NEUTRAL" },
-        { Animations::JUMP_RIGHT_THROUGH_WALL, "JUMP_RIGHT_THROUGH_WALL" },
-        { Animations::JUMP_LEFT_THROUGH_WALL, "JUMP_LEFT_THROUGH_WALL" },
-        { Animations::JUMP_UP_THROUGH_CEILING, "JUMP_UP_THROUGH_CEILING" },
-        { Animations::JUMP_RIGHT, "JUMP_RIGHT" },
-        { Animations::JUMP_LEFT, "JUMP_LEFT" },
-        { Animations::JUMP_UP, "JUMP_UP" },
-        { Animations::JUMP_DOWN, "JUMP_DOWN" },
-        { Animations::JUMP_FORWARD, "JUMP_FORWARD" },
-        { Animations::JUMP_BACKWARD, "JUMP_BACKWARD" },
-        { Animations::FUNNY_INDEX, "FUNNY_INDEX" },
-        { Animations::FUNNY_BOUNCE, "FUNNY_BOUNCE" },
-        { Animations::FUNNY_SPIN, "FUNNY_SPIN" },
-        { Animations::FUNNY_SHRINK, "FUNNY_SHRINK" },
-        { Animations::FUNNY_EXPAND, "FUNNY_EXPAND" },
-        { Animations::FUNNY_JUMP, "FUNNY_JUMP" },
+        { Animations::AnimationNames_enum::NEUTRAL, "NEUTRAL" },
+        { Animations::AnimationNames_enum::JUMP_RIGHT_THROUGH_WALL, "JUMP_RIGHT_THROUGH_WALL" },
+        { Animations::AnimationNames_enum::JUMP_LEFT_THROUGH_WALL, "JUMP_LEFT_THROUGH_WALL" },
+        { Animations::AnimationNames_enum::JUMP_UP_THROUGH_CEILING, "JUMP_UP_THROUGH_CEILING" },
+        { Animations::AnimationNames_enum::JUMP_RIGHT, "JUMP_RIGHT" },
+        { Animations::AnimationNames_enum::JUMP_LEFT, "JUMP_LEFT" },
+        { Animations::AnimationNames_enum::JUMP_UP, "JUMP_UP" },
+        { Animations::AnimationNames_enum::JUMP_DOWN, "JUMP_DOWN" },
+        { Animations::AnimationNames_enum::JUMP_FORWARD, "JUMP_FORWARD" },
+        { Animations::AnimationNames_enum::JUMP_BACKWARD, "JUMP_BACKWARD" },
+        { Animations::AnimationNames_enum::FUNNY_INDEX, "FUNNY_INDEX" },
+        { Animations::AnimationNames_enum::FUNNY_BOUNCE, "FUNNY_BOUNCE" },
+        { Animations::AnimationNames_enum::FUNNY_SPIN, "FUNNY_SPIN" },
+        { Animations::AnimationNames_enum::FUNNY_SHRINK, "FUNNY_SHRINK" },
+        { Animations::AnimationNames_enum::FUNNY_EXPAND, "FUNNY_EXPAND" },
+        { Animations::AnimationNames_enum::FUNNY_JUMP, "FUNNY_JUMP" },
     };
     std::vector<std::string> names;
     for (auto& [key, value] : animToName) {
@@ -580,22 +580,22 @@ Animation AnimationLoader::getAnimationByName(std::string name)
 
     // Map from string to Animations enum
     static const std::unordered_map<std::string, Animations::AnimationNames_enum> nameToAnimation = {
-        { "neutral", Animations::NEUTRAL },
-        { "jump_right_through_wall", Animations::JUMP_RIGHT_THROUGH_WALL },
-        { "jump_left_through_wall", Animations::JUMP_LEFT_THROUGH_WALL },
-        { "jump_up_through_ceiling", Animations::JUMP_UP_THROUGH_CEILING },
-        { "jump_right", Animations::JUMP_RIGHT },
-        { "jump_left", Animations::JUMP_LEFT },
-        { "jump_up", Animations::JUMP_UP },
-        { "jump_down", Animations::JUMP_DOWN },
-        { "jump_forward", Animations::JUMP_FORWARD },
-        { "jump_backward", Animations::JUMP_BACKWARD },
-        { "funny_index", Animations::FUNNY_INDEX },
-        { "funny_bounce", Animations::FUNNY_BOUNCE },
-        { "funny_spin", Animations::FUNNY_SPIN },
-        { "funny_shrink", Animations::FUNNY_SHRINK },
-        { "funny_expand", Animations::FUNNY_EXPAND },
-        { "funny_jump", Animations::FUNNY_JUMP },
+        { "neutral", Animations::AnimationNames_enum::NEUTRAL },
+        { "jump_right_through_wall", Animations::AnimationNames_enum::JUMP_RIGHT_THROUGH_WALL },
+        { "jump_left_through_wall", Animations::AnimationNames_enum::JUMP_LEFT_THROUGH_WALL },
+        { "jump_up_through_ceiling", Animations::AnimationNames_enum::JUMP_UP_THROUGH_CEILING },
+        { "jump_right", Animations::AnimationNames_enum::JUMP_RIGHT },
+        { "jump_left", Animations::AnimationNames_enum::JUMP_LEFT },
+        { "jump_up", Animations::AnimationNames_enum::JUMP_UP },
+        { "jump_down", Animations::AnimationNames_enum::JUMP_DOWN },
+        { "jump_forward", Animations::AnimationNames_enum::JUMP_FORWARD },
+        { "jump_backward", Animations::AnimationNames_enum::JUMP_BACKWARD },
+        { "funny_index", Animations::AnimationNames_enum::FUNNY_INDEX },
+        { "funny_bounce", Animations::AnimationNames_enum::FUNNY_BOUNCE },
+        { "funny_spin", Animations::AnimationNames_enum::FUNNY_SPIN },
+        { "funny_shrink", Animations::AnimationNames_enum::FUNNY_SHRINK },
+        { "funny_expand", Animations::AnimationNames_enum::FUNNY_EXPAND },
+        { "funny_jump", Animations::AnimationNames_enum::FUNNY_JUMP },
     };
 
     // Find the animation in the map
@@ -607,7 +607,7 @@ Animation AnimationLoader::getAnimationByName(std::string name)
     }
 
     // Default return neutral animation if no match is found
-    return animationsMap[Animations::NEUTRAL];
+    return animationsMap[Animations::AnimationNames_enum::NEUTRAL];
 }
 
 /**
@@ -717,33 +717,33 @@ ExpressionDefinition ExpressionLoader::getExpressionByName(std::string name)
 
     // Map from string to Expressions enum
     static const std::unordered_map<std::string, Expressions::ExpressionNames_enum> nameToExpression = {
-        { "neutral", Expressions::NEUTRAL },
-        { "default", Expressions::NEUTRAL },
-        { "happy", Expressions::HAPPY },
-        { "sad", Expressions::SAD },
-        { "angry", Expressions::ANGRY },
-        { "surprised", Expressions::SURPRISED },
-        { "disgusted", Expressions::DISGUSTED },
-        { "scared", Expressions::SCARED },
-        { "confused", Expressions::CONFUSED },
-        { "dizzy", Expressions::DIZZY },
-        { "sick", Expressions::SICK },
-        { "sleepy", Expressions::SLEEPY },
-        { "confused", Expressions::CONFUSED },
-        { "shocked", Expressions::SHOCKED },
-        { "injured", Expressions::INJURED },
-        { "dead", Expressions::DEAD },
-        { "screaming", Expressions::SCREAMING },
-        { "talking", Expressions::TALKING },
-        { "listening", Expressions::LISTENING },
-        { "sleeping", Expressions::SLEEPING },
-        { "dead", Expressions::DEAD },
-        { "funny_index", Expressions::FUNNY_INDEX },
-        { "funny_bounce", Expressions::FUNNY_BOUNCE },
-        { "funny_spin", Expressions::FUNNY_SPIN },
-        { "funny_shrink", Expressions::FUNNY_SHRINK },
-        { "funny_expand", Expressions::FUNNY_EXPAND },
-        { "funny_jump", Expressions::FUNNY_JUMP },
+        { "neutral", Expressions::ExpressionNames_enum::NEUTRAL },
+        { "default", Expressions::ExpressionNames_enum::NEUTRAL },
+        { "happy", Expressions::ExpressionNames_enum::HAPPY },
+        { "sad", Expressions::ExpressionNames_enum::SAD },
+        { "angry", Expressions::ExpressionNames_enum::ANGRY },
+        { "surprised", Expressions::ExpressionNames_enum::SURPRISED },
+        { "disgusted", Expressions::ExpressionNames_enum::DISGUSTED },
+        { "scared", Expressions::ExpressionNames_enum::SCARED },
+        { "confused", Expressions::ExpressionNames_enum::CONFUSED },
+        { "dizzy", Expressions::ExpressionNames_enum::DIZZY },
+        { "sick", Expressions::ExpressionNames_enum::SICK },
+        { "sleepy", Expressions::ExpressionNames_enum::SLEEPY },
+        { "confused", Expressions::ExpressionNames_enum::CONFUSED },
+        { "shocked", Expressions::ExpressionNames_enum::SHOCKED },
+        { "injured", Expressions::ExpressionNames_enum::INJURED },
+        { "dead", Expressions::ExpressionNames_enum::DEAD },
+        { "screaming", Expressions::ExpressionNames_enum::SCREAMING },
+        { "talking", Expressions::ExpressionNames_enum::TALKING },
+        { "listening", Expressions::ExpressionNames_enum::LISTENING },
+        { "sleeping", Expressions::ExpressionNames_enum::SLEEPING },
+        { "dead", Expressions::ExpressionNames_enum::DEAD },
+        { "funny_index", Expressions::ExpressionNames_enum::FUNNY_INDEX },
+        { "funny_bounce", Expressions::ExpressionNames_enum::FUNNY_BOUNCE },
+        { "funny_spin", Expressions::ExpressionNames_enum::FUNNY_SPIN },
+        { "funny_shrink", Expressions::ExpressionNames_enum::FUNNY_SHRINK },
+        { "funny_expand", Expressions::ExpressionNames_enum::FUNNY_EXPAND },
+        { "funny_jump", Expressions::ExpressionNames_enum::FUNNY_JUMP },
     };
 
     // Find the expression in the map
@@ -753,7 +753,7 @@ ExpressionDefinition ExpressionLoader::getExpressionByName(std::string name)
     }
 
     // Default return value if no match is found
-    return { Expressions::NEUTRAL, "", {}, {} };
+    return { Expressions::ExpressionNames_enum::NEUTRAL, "", {}, {} };
 }
 
 ExpressionDefinition ExpressionLoader::getExpressionByEnum(Expressions::ExpressionNames_enum name)

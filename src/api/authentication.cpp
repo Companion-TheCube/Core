@@ -102,36 +102,36 @@ CubeAuth::~CubeAuth()
  * @param privateKey
  * @param app_id
  * @param encrypted_auth_code
- * @return int CubeAuth::AUTH_CODES
+ * @return int CubeAuth::AUTH_CODE
  */
-int CubeAuth::checkAuth(const std::string& privateKey, const std::string& app_id, const std::string& encrypted_auth_code)
+CubeAuth::AUTH_CODE CubeAuth::checkAuth(const std::string &privateKey, const std::string &app_id, const std::string &encrypted_auth_code)
 {
     if (!CubeAuth::available) {
         CubeLog::error("Authentication module not available.");
         CubeAuth::lastError = "Authentication module not available.";
-        return CubeAuth::AUTH_FAIL_UNKNOWN;
+        return AUTH_CODE::AUTH_FAIL_UNKNOWN;
     }
     if (privateKey.length() != 64) {
         CubeLog::error("Invalid private key length.");
         CubeAuth::lastError = "Invalid private key length.";
-        return CubeAuth::AUTH_FAIL_INVALID_PRIVATE_KEY;
+        return AUTH_CODE::AUTH_FAIL_INVALID_PRIVATE_KEY;
     }
     if (app_id.length() != CUBE_APPS_ID_LENGTH) {
         CubeLog::error("Invalid app id length.");
         CubeAuth::lastError = "Invalid app id length.";
-        return CubeAuth::AUTH_FAIL_INVALID_APP_ID_LEN;
+        return AUTH_CODE::AUTH_FAIL_INVALID_APP_ID_LEN;
     }
     Database* db = CubeDB::getDBManager()->getDatabase("auth");
     if (!db->isOpen()) {
         CubeLog::error("Database not open.");
         CubeAuth::lastError = "Database not open.";
-        return CubeAuth::AUTH_FAIL_DB_NOT_OPEN;
+        return AUTH_CODE::AUTH_FAIL_DB_NOT_OPEN;
     }
     // check to see if the app_id exists
     if (!db->rowExists(DB_NS::TableNames::APPS, "app_id = '" + app_id + "'")) {
         CubeLog::error("App id not found.");
         CubeAuth::lastError = "App id not found.";
-        return CubeAuth::AUTH_FAIL_INVALID_APP_ID;
+        return AUTH_CODE::AUTH_FAIL_INVALID_APP_ID;
     }
     // get the public key
     std::vector<std::vector<std::string>> pub_key = db->selectData(DB_NS::TableNames::APPS, { "public_key" }, "app_id = '" + app_id + "'");
@@ -147,23 +147,23 @@ int CubeAuth::checkAuth(const std::string& privateKey, const std::string& app_id
     if (crypto_box_beforenm(key, public_key_ptr, private_key_ptr) != 0) {
         CubeLog::error("Failed to generate key.");
         CubeAuth::lastError = "Failed to generate key.";
-        return CubeAuth::AUTH_FAIL_KEY_GEN;
+        return AUTH_CODE::AUTH_FAIL_KEY_GEN;
     }
     memcpy(nonce, encrypted_auth_code_ptr, crypto_secretbox_NONCEBYTES);
     memcpy(decrypted_auth_code, encrypted_auth_code_ptr + crypto_secretbox_NONCEBYTES, crypto_secretbox_MACBYTES + 6);
     if (crypto_secretbox_open_easy(decrypted_auth_code + crypto_secretbox_MACBYTES, decrypted_auth_code, crypto_secretbox_MACBYTES + 6, nonce, key) != 0) {
         CubeLog::error("Failed to decrypt auth code.");
         CubeAuth::lastError = "Failed to decrypt auth code.";
-        return CubeAuth::AUTH_FAIL_DECRYPT;
+        return AUTH_CODE::AUTH_FAIL_DECRYPT;
     }
     std::string decrypted_auth_code_str((char*)decrypted_auth_code + crypto_secretbox_MACBYTES);
     // compare the decrypted auth code with the auth code in the database
     if (decrypted_auth_code_str != auth_code[0][0]) {
         CubeLog::error("Auth code mismatch.");
         CubeAuth::lastError = "Auth code mismatch.";
-        return CubeAuth::AUTH_FAIL_CODE_MISMATCH;
+        return AUTH_CODE::AUTH_FAIL_CODE_MISMATCH;
     }
-    return CubeAuth::AUTH_SUCCESS;
+    return AUTH_CODE::AUTH_SUCCESS;
 }
 
 /**

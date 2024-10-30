@@ -14,7 +14,7 @@
 #include <tuple>
 #include <vector>
 
-enum SpecificEventTypes : unsigned int {
+enum class SpecificEventTypes : unsigned int {
     KEYPRESS_A,
     KEYPRESS_B,
     KEYPRESS_C,
@@ -146,7 +146,7 @@ private:
     std::string name;
     sf::Event::EventType eventType;
     SpecificEventTypes specificEventType;
-    // ClickableArea* clickableArea;
+
 public:
     EventHandler();
     ~EventHandler();
@@ -156,10 +156,8 @@ public:
     void setName(const std::string& name);
     sf::Event::EventType getEventType();
     void setEventType(sf::Event::EventType eventType);
-    // void setEventType(sf::Event::EventType eventType, ClickableArea* cl_Area);
     void setSpecificEventType(SpecificEventTypes specificEventType);
     SpecificEventTypes getSpecificEventType();
-    // ClickableArea* getClickableArea();
 };
 
 class EventManager {

@@ -31,7 +31,18 @@ class CubeAuth : public I_API_Interface {
 public:
     CubeAuth();
     ~CubeAuth();
-    static int checkAuth(const std::string& privateKey, const std::string& app_id, const std::string& encrypted_auth_code);
+    enum class AUTH_CODE {
+        AUTH_FAIL_UNKNOWN = -1,
+        AUTH_SUCCESS = 0,
+        AUTH_FAIL_INVALID_PRIVATE_KEY = 1,
+        AUTH_FAIL_INVALID_APP_ID_LEN = 2,
+        AUTH_FAIL_DB_NOT_OPEN = 3,
+        AUTH_FAIL_INVALID_APP_ID = 4,
+        AUTH_FAIL_KEY_GEN = 5,
+        AUTH_FAIL_DECRYPT = 6,
+        AUTH_FAIL_CODE_MISMATCH = 7
+    };
+    static AUTH_CODE checkAuth(const std::string& privateKey, const std::string& app_id, const std::string& encrypted_auth_code);
     static bool isAuthorized_authHeader(const std::string& authHeader);
     static std::string generateAuthCode();
     static std::pair<std::string, std::string> generateKeyPair();
@@ -44,19 +55,6 @@ public:
     // API Interface
     std::string getInterfaceName() const;
     HttpEndPointData_t getHttpEndpointData();
-    // std::vector<std::pair<std::string, std::vector<std::string>>> getHttpEndpointNamesAndParams();
-
-    enum AUTH_CODES {
-        AUTH_FAIL_UNKNOWN = -1,
-        AUTH_SUCCESS = 0,
-        AUTH_FAIL_INVALID_PRIVATE_KEY = 1,
-        AUTH_FAIL_INVALID_APP_ID_LEN = 2,
-        AUTH_FAIL_DB_NOT_OPEN = 3,
-        AUTH_FAIL_INVALID_APP_ID = 4,
-        AUTH_FAIL_KEY_GEN = 5,
-        AUTH_FAIL_DECRYPT = 6,
-        AUTH_FAIL_CODE_MISMATCH = 7
-    };
 };
 
 #endif

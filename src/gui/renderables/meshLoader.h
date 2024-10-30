@@ -36,7 +36,7 @@ public:
 };
 
 namespace Expressions {
-enum ExpressionNames_enum {
+enum class ExpressionNames_enum {
     NEUTRAL,
     HAPPY,
     SAD,
@@ -69,7 +69,7 @@ enum ExpressionNames_enum {
 }
 
 namespace Animations {
-enum AnimationNames_enum {
+enum class AnimationNames_enum {
     NEUTRAL,
     JUMP_RIGHT_THROUGH_WALL,
     JUMP_LEFT_THROUGH_WALL,
@@ -93,7 +93,7 @@ enum AnimationNames_enum {
     COUNT
 };
 
-enum AnimationType {
+enum class AnimationType {
     TRANSLATE, // uses type, value, axis, and time
     ROTATE, // uses type, value, axis, and time
     SCALE_XYZ, // uses type, value, axis, and time
