@@ -7,7 +7,7 @@ Because of how the HDMI output works, we will have to have a constant output and
 
 UserData AudioOutput::userData = { 0.0, 0.0, false };
 bool AudioOutput::audioStarted = false;
-RtAudio* AudioOutput::dac = nullptr;
+std::unique_ptr<RtAudio> AudioOutput::dac = nullptr;
 
 AudioOutput::AudioOutput()
 {
@@ -17,7 +17,7 @@ AudioOutput::AudioOutput()
 #elif _WIN32
     RtAudio::Api api = RtAudio::RtAudio::WINDOWS_DS;
 #endif
-    dac = new RtAudio(api);
+    dac = std::make_unique<RtAudio>(api);
     std::vector<unsigned int> deviceIds = dac->getDeviceIds();
     std::vector<std::string> deviceNames = dac->getDeviceNames();
     if (deviceIds.size() < 1) {
@@ -29,7 +29,7 @@ AudioOutput::AudioOutput()
         CubeLog::moreInfo("Device: " + device);
     }
 
-    parameters = new RtAudio::StreamParameters();
+    parameters = std::make_unique<RtAudio::StreamParameters>();
     CubeLog::info("Setting up audio stream with default audio device.");
     parameters->deviceId = dac->getDefaultOutputDevice();
     // find the device name for the audio device id
@@ -41,7 +41,7 @@ AudioOutput::AudioOutput()
     userData.data[1] = 0;
     userData.soundOn = false;
 
-    if (dac->openStream(parameters, NULL, RTAUDIO_FLOAT64, 48000, &bufferFrames, &saw, (void*)&userData)) {
+    if (dac->openStream(parameters.get(), NULL, RTAUDIO_FLOAT64, 48000, &bufferFrames, &saw, (void*)&userData)) {
         CubeLog::fatal(dac->getErrorText() + " Exiting.");
         exit(0); // problem with device settings
     }
@@ -50,7 +50,6 @@ AudioOutput::AudioOutput()
 AudioOutput::~AudioOutput()
 {
     stop();
-    // delete dac;
 }
 
 void AudioOutput::start()

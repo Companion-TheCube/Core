@@ -16,8 +16,8 @@ private:
     std::stop_token workerThreadStopToken;
     void appsManagerThreadFn();
     void addWorkerTask(std::function<void()> task);
-    std::map<std::string, RunningApp*> runningApps;
-    std::vector<std::string> appIDs;
+    std::map<std::string, std::shared_ptr<RunningApp>> runningApps;
+    std::vector<std::string> appIDs = {};
     bool killAbandonedContainers();
     bool killAbandonedProcesses();
     static bool consoleLoggingEnabled;

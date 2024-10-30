@@ -57,10 +57,10 @@ public:
 
 class CubeHttpServer {
 private:
-    httplib::Server* server;
+    std::shared_ptr<httplib::Server> server;
     std::string address;
     int port;
-    std::jthread* serverThread;
+    std::unique_ptr<std::jthread> serverThread;
 
 public:
     CubeHttpServer(const std::string& address, int port);
@@ -72,16 +72,16 @@ public:
     void removeEndpoint(const std::string& path);
     void setPort(int port);
     int getPort();
-    httplib::Server* getServer();
+    std::shared_ptr<httplib::Server> getServer();
 };
 
 class API {
 private:
-    std::vector<Endpoint*> endpoints;
+    std::vector<std::shared_ptr<Endpoint>> endpoints = {};
     std::jthread listenerThread;
-    CubeHttpServer* server;
-    CubeHttpServer* serverIPC;
-    std::vector<std::pair<std::string, bool>> endpointTriggers;
+    std::unique_ptr<CubeHttpServer> server;
+    std::unique_ptr<CubeHttpServer> serverIPC;
+    std::vector<std::pair<std::string, bool>> endpointTriggers = {};
     void httpApiThreadFn();
 
 public:
@@ -91,8 +91,8 @@ public:
     void stop();
     void restart();
     void addEndpoint(const std::string& name, const std::string& path, int endpointType, EndpointAction_t action);
-    std::vector<Endpoint*> getEndpoints();
-    Endpoint* getEndpointByName(const std::string& name);
+    std::vector<std::shared_ptr<Endpoint>> getEndpoints();
+    std::shared_ptr<Endpoint> getEndpointByName(const std::string& name);
     bool removeEndpoint(const std::string& name);
 };
 

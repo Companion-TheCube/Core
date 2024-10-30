@@ -305,7 +305,7 @@ bool AppsManager::startApp(const std::string& appID)
         auto container_id = this->dockerApi->startContainer(appID);
         if (container_id) {
             CubeLog::info("Docker container started successfully. Container ID: " + container_id.value() + ". App_id: " + appID + ". App name: " + appName);
-            this->runningApps[appID] = new RunningApp(0, appID, appName, execPath, execArgs, appSource, updatePath, role, "", "", "", "", std::stol(container_id.value()));
+            this->runningApps[appID] = std::make_shared<RunningApp>(0, appID, appName, execPath, execArgs, appSource, updatePath, role, "", "", "", "", std::stol(container_id.value()));
             return true;
         } else {
             CubeLog::error("Error starting docker container. App_id: " + appID + ". App name: " + appName);
@@ -314,12 +314,10 @@ bool AppsManager::startApp(const std::string& appID)
         }
     } else {
         CubeLog::info("Starting native app: " + appID);
-        RunningApp* temp = NativeAPI::startApp(execPath, execArgs, appID, appName, appSource, updatePath);
+        auto temp = NativeAPI::startApp(execPath, execArgs, appID, appName, appSource, updatePath);
         if (temp) {
             CubeLog::info("Native app started successfully. App_id: " + appID + ". App name: " + appName + ". PID: " + std::to_string(temp->getPID()));
-            if (this->runningApps[appID] != nullptr)
-                delete (this->runningApps[appID]);
-            this->runningApps[appID] = temp;
+            this->runningApps[appID] = std::move(temp);
             return true;
         } else {
             CubeLog::error("Error starting native app. App_id: " + appID + ". App name: " + appName);
@@ -371,7 +369,7 @@ bool AppsManager::stopApp(const std::string& appID)
         }
     } else {
         CubeLog::info("Stopping native app: " + appID + ". App name: " + appName);
-        RunningApp* temp = this->runningApps[appID];
+        auto temp = this->runningApps[appID];
         if (temp) {
             bool pidStop = NativeAPI::stopApp(temp->getPID());
             if (!pidStop) {

@@ -27,9 +27,9 @@ public:
 
 private:
     static bool audioStarted;
-    static RtAudio* dac;
+    static std::unique_ptr<RtAudio> dac;
     static UserData userData;
-    RtAudio::StreamParameters* parameters;
+    std::unique_ptr<RtAudio::StreamParameters> parameters;
     unsigned int bufferFrames = 256; // 256 sample frames
 };
 

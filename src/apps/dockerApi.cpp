@@ -42,7 +42,7 @@ void DockerAPI::printDockerInfo()
 
 DockerAPI::DockerAPI(const std::string& base_url)
 {
-    client = new httplib::Client(base_url);
+    client = std::make_unique<httplib::Client>(base_url);
     if (base_url.find("/var/run/docker.sock") != std::string::npos) {
         client->set_address_family(AF_UNIX);
         client->set_default_headers({ { "Host", "localhost" } });
@@ -59,7 +59,7 @@ DockerAPI::DockerAPI()
 
 DockerAPI::~DockerAPI()
 {
-    delete client;
+    client.release();
     CubeLog::info("DockerAPI destroyed");
 }
 

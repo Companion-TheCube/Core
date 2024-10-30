@@ -28,7 +28,7 @@
 
 class NativeAPI {
 public:
-    static RunningApp* startApp(const std::string& execPath, const std::string& execArgs, const std::string& appID, const std::string& appName, const std::string& appSource, const std::string& updatePath);
+    static std::unique_ptr<RunningApp> startApp(const std::string& execPath, const std::string& execArgs, const std::string& appID, const std::string& appName, const std::string& appSource, const std::string& updatePath);
     static bool stopApp(const std::string& execPath);
     static bool stopApp(long pid);
     static long getPID(const std::string& execPath);

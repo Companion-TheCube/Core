@@ -6,7 +6,7 @@
  */
 API::API()
 {
-    this->endpoints = std::vector<Endpoint*>();
+    // this->endpoints = std::vector<Endpoint*>();
     // TODO: // TESTING AUTHENTICATION ////
     std::pair<std::string, std::string> keys = CubeAuth::generateKeyPair();
     CubeLog::info("Public key: " + keys.first);
@@ -25,9 +25,9 @@ API::API()
  */
 API::~API()
 {
-    for (auto endpoint : this->endpoints) {
-        delete endpoint;
-    }
+    // for (auto endpoint : this->endpoints) {
+    //     delete endpoint;
+    // }
     this->stop();
 }
 
@@ -54,8 +54,8 @@ void API::stop()
     this->server->stop();
     this->serverIPC->stop();
     this->listenerThread.join();
-    delete this->server;
-    this->server = nullptr;
+    // delete this->server;
+    // this->server = nullptr;
     CubeLog::info("API stopped");
 }
 
@@ -83,7 +83,7 @@ void API::addEndpoint(const std::string& name, const std::string& path, int endp
 {
     // add an endpoint
     CubeLog::info("Adding endpoint: " + name + " at " + path);
-    Endpoint* endpoint = new Endpoint(endpointType, name, path);
+    auto endpoint = std::make_shared<Endpoint>(endpointType, name, path);
     endpoint->setAction(action);
     this->endpoints.push_back(endpoint);
 }
@@ -93,7 +93,7 @@ void API::addEndpoint(const std::string& name, const std::string& path, int endp
  *
  * @return std::vector<Endpoint*> a vector of all endpoints
  */
-std::vector<Endpoint*> API::getEndpoints()
+std::vector<std::shared_ptr<Endpoint>> API::getEndpoints()
 {
     // get all endpoints
     return this->endpoints;
@@ -105,7 +105,7 @@ std::vector<Endpoint*> API::getEndpoints()
  * @param name the name of the endpoint
  * @return Endpoint* the endpoint
  */
-Endpoint* API::getEndpointByName(const std::string& name)
+std::shared_ptr<Endpoint> API::getEndpointByName(const std::string& name)
 {
     // get an endpoint by name
     for (auto endpoint : this->endpoints) {
@@ -128,7 +128,6 @@ bool API::removeEndpoint(const std::string& name)
     for (auto endpoint : this->endpoints) {
         if (endpoint->getName() == name) {
             this->endpoints.erase(std::remove(this->endpoints.begin(), this->endpoints.end(), endpoint), this->endpoints.end());
-            delete endpoint;
             return true;
         }
     }
@@ -144,9 +143,9 @@ void API::httpApiThreadFn()
 {
     CubeLog::info("API listener thread starting...");
     try {
-        this->server = new CubeHttpServer("0.0.0.0", 55280); // listen on all interfaces
+        this->server = std::make_unique<CubeHttpServer>("0.0.0.0", 55280); // listen on all interfaces
         unlink(CUBE_SOCKET_PATH);
-        this->serverIPC = new CubeHttpServer(CUBE_SOCKET_PATH, 0);
+        this->serverIPC = std::make_unique<CubeHttpServer>(CUBE_SOCKET_PATH, 0);
         // TODO: set up authentication // Done?
         for (size_t i = 0; i < this->endpoints.size(); i++) {
             // Public endpoints are accessible by any device on the
@@ -371,7 +370,7 @@ CubeHttpServer::CubeHttpServer(const std::string& address, int port)
 {
     this->address = address;
     this->port = port;
-    this->server = new httplib::Server();
+    this->server = std::make_shared<httplib::Server>();
 }
 
 /**
@@ -380,7 +379,7 @@ CubeHttpServer::CubeHttpServer(const std::string& address, int port)
  */
 CubeHttpServer::~CubeHttpServer()
 {
-    delete this->server;
+    // delete this->server;
 }
 
 /**
@@ -406,7 +405,7 @@ void CubeHttpServer::start()
         CubeLog::error("HTTP server: " + req.method + " " + req.path + " " + std::to_string(res.status));
     });
     CubeLog::debugSilly("HTTP server set error handler");
-    serverThread = new std::jthread([&] {
+    serverThread = std::make_unique<std::jthread>([&] {
         if (this->port > 0)
             this->server->listen_after_bind();
         else
@@ -498,7 +497,7 @@ int CubeHttpServer::getPort()
  *
  * @return httplib::Server* the server object
  */
-httplib::Server* CubeHttpServer::getServer()
+std::shared_ptr<httplib::Server> CubeHttpServer::getServer()
 {
     return this->server;
 }

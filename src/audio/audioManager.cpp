@@ -1,13 +1,12 @@
 #include "audioManager.h"
-
+// TODO: this whole thing, basically
 AudioManager::AudioManager()
 {
-    audioOutput = new AudioOutput();
+    audioOutput = std::make_unique<AudioOutput>();
 }
 
 AudioManager::~AudioManager()
 {
-    delete audioOutput;
     stop();
 }
 
@@ -70,13 +69,3 @@ HttpEndPointData_t AudioManager::getHttpEndpointData()
         "setSound", { "soundOn" }, "Set sound to boolean state. \"true\" is on." });
     return data;
 }
-
-// std::vector<std::pair<std::string, std::vector<std::string>>> AudioManager::getHttpEndpointNamesAndParams()
-// {
-//     return {
-//         { "start", {} },
-//         { "stop", {} },
-//         { "toggleSound", {} },
-//         { "setSound", { "soundOn" } }
-//     };
-// }

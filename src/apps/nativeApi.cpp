@@ -105,7 +105,7 @@ bool NativeAPI::isProcessRunning(long pid)
 }
 #endif
 
-RunningApp* NativeAPI::startApp(const std::string& execPath, const std::string& execArgs, const std::string& appID, const std::string& appName, const std::string& appSource, const std::string& updatePath)
+std::unique_ptr<RunningApp> NativeAPI::startApp(const std::string& execPath, const std::string& execArgs, const std::string& appID, const std::string& appName, const std::string& appSource, const std::string& updatePath)
 {
     CubeLog::info("Starting app: " + execPath + " " + execArgs);
     std::string cwd = std::filesystem::current_path().string();
@@ -120,7 +120,7 @@ RunningApp* NativeAPI::startApp(const std::string& execPath, const std::string& 
     }
     std::string command = execPath + " " + execArgs;
 
-    RunningApp* temp = new RunningApp(0, appID, appName, execPath, execArgs, appSource, updatePath, "native", "", "", "", "", 0);
+    auto temp = std::make_unique<RunningApp>(0, appID, appName, execPath, execArgs, appSource, updatePath, "native", "", "", "", "", 0);
 #ifdef _WIN32
     SECURITY_ATTRIBUTES saAttr;
     saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
@@ -191,14 +191,8 @@ RunningApp* NativeAPI::startApp(const std::string& execPath, const std::string& 
         return nullptr;
     } else {
         temp->setPID(pi.dwProcessId);
-        // while(true){
-        //     genericSleep(100);
-        // };
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
-        // CloseHandle(temp->getStdOutWriteHandle());
-        // CloseHandle(temp->getStdErrWriteHandle());
-
         return temp;
     }
 #endif
