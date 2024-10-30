@@ -18,7 +18,7 @@ unsigned int CUBE_LOG_ENTRY::logEntryCount = 0;
  * @param verbosity
  * @param level The log level of the message
  */
-CUBE_LOG_ENTRY::CUBE_LOG_ENTRY(std::string message, CustomSourceLocation* location, Logger::LogVerbosity verbosity, Logger::LogLevel level)
+CUBE_LOG_ENTRY::CUBE_LOG_ENTRY(const std::string& message, CustomSourceLocation* location, Logger::LogVerbosity verbosity, Logger::LogLevel level)
 {
     this->timestamp = std::chrono::system_clock::now();
     this->logEntryNumber = ++CUBE_LOG_ENTRY::logEntryCount;
@@ -131,7 +131,7 @@ int CubeLog::advancedColorsEnabled = 0;
  * @param level The log level of the message
  * @param location The source location of the log message. If not provided, the location will be automatically determined.
  */
-void CubeLog::log(std::string message, bool print, Logger::LogLevel level, CustomSourceLocation location)
+void CubeLog::log(const std::string& message, bool print, Logger::LogLevel level, CustomSourceLocation location)
 {
     CUBE_LOG_ENTRY entry = CUBE_LOG_ENTRY(message, &location, CubeLog::staticVerbosity, level);
     CubeLog::logEntries.push_back(entry);
@@ -195,7 +195,7 @@ std::chrono::system_clock::time_point CubeLog::lastScreenMessageTime = std::chro
  * @param level The log level of the message
  * @param location The source location of the log message. If not provided, the location will be automatically determined.
  */
-void CubeLog::screen(std::string message, Logger::LogLevel level, CustomSourceLocation location)
+void CubeLog::screen(const std::string& message, Logger::LogLevel level, CustomSourceLocation location)
 {
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     CubeLog::log("Screen Message: " + message, true, level, location);
@@ -220,7 +220,7 @@ std::string CubeLog::getScreenMessage()
  * @param message The message to log
  * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
  */
-void CubeLog::debugSilly(std::string message, CustomSourceLocation location)
+void CubeLog::debugSilly(const std::string& message, CustomSourceLocation location)
 {
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     CubeLog::log(message, true, Logger::LogLevel::LOGGER_DEBUG_SILLY, location);
@@ -232,7 +232,7 @@ void CubeLog::debugSilly(std::string message, CustomSourceLocation location)
  * @param message The message to log
  * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
  */
-void CubeLog::debug(std::string message, CustomSourceLocation location)
+void CubeLog::debug(const std::string& message, CustomSourceLocation location)
 {
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     CubeLog::log(message, true, Logger::LogLevel::LOGGER_DEBUG, location);
@@ -244,7 +244,7 @@ void CubeLog::debug(std::string message, CustomSourceLocation location)
  * @param message The message to log
  * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
  */
-void CubeLog::error(std::string message, CustomSourceLocation location)
+void CubeLog::error(const std::string& message, CustomSourceLocation location)
 {
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     CubeLog::log(message, true, Logger::LogLevel::LOGGER_ERROR, location);
@@ -256,7 +256,7 @@ void CubeLog::error(std::string message, CustomSourceLocation location)
  * @param message The message to log
  * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
  */
-void CubeLog::info(std::string message, CustomSourceLocation location)
+void CubeLog::info(const std::string& message, CustomSourceLocation location)
 {
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     CubeLog::log(message, true, Logger::LogLevel::LOGGER_INFO, location);
@@ -268,7 +268,7 @@ void CubeLog::info(std::string message, CustomSourceLocation location)
  * @param message The message to log
  * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
  */
-void CubeLog::warning(std::string message, CustomSourceLocation location)
+void CubeLog::warning(const std::string& message, CustomSourceLocation location)
 {
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     CubeLog::log(message, true, Logger::LogLevel::LOGGER_WARNING, location);
@@ -280,7 +280,7 @@ void CubeLog::warning(std::string message, CustomSourceLocation location)
  * @param message The message to log
  * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
  */
-void CubeLog::critical(std::string message, CustomSourceLocation location)
+void CubeLog::critical(const std::string& message, CustomSourceLocation location)
 {
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     CubeLog::log(message, true, Logger::LogLevel::LOGGER_CRITICAL, location);
@@ -292,7 +292,7 @@ void CubeLog::critical(std::string message, CustomSourceLocation location)
  * @param message The message to log
  * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
  */
-void CubeLog::moreInfo(std::string message, CustomSourceLocation location)
+void CubeLog::moreInfo(const std::string& message, CustomSourceLocation location)
 {
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     CubeLog::log(message, true, Logger::LogLevel::LOGGER_MORE_INFO, location);
@@ -304,7 +304,7 @@ void CubeLog::moreInfo(std::string message, CustomSourceLocation location)
  * @param message The message to log
  * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
  */
-void CubeLog::fatal(std::string message, CustomSourceLocation location)
+void CubeLog::fatal(const std::string& message, CustomSourceLocation location)
 {
     std::lock_guard<std::mutex> lock(CubeLog::logMutex);
     CubeLog::log(message, true, Logger::LogLevel::LOGGER_FATAL, location);
@@ -580,7 +580,7 @@ std::string convertTimestampToString(std::chrono::time_point<std::chrono::system
  * @param path The path to get the file name from
  * @return std::string The file name
  */
-std::string getFileNameFromPath(std::string path)
+std::string getFileNameFromPath(const std::string& path)
 {
     std::filesystem::path p(path);
     return p.filename().string();

@@ -35,16 +35,12 @@ BTControl::BTControl()
 #endif
 
     nlohmann::json config;
-#ifdef _WIN32
-    std::string configPath = std::filesystem::current_path().string() + "\\data\\bt_control.json";
-#else
-    std::string configPath = std::filesystem::current_path().string() + "/data/bt_control.json";
-#endif
+    std::filesystem::path configPath = std::filesystem::current_path() / "data" / "bt_control.json";
     std::ifstream file(configPath);
     if (file.good()) {
         file >> config;
     } else {
-        CubeLog::error("Error opening file: " + configPath);
+        CubeLog::error("Error opening file: " + configPath.string());
         file.close();
         // TODO: create a default config for basic functionality in the event the file is not found
     }
@@ -58,9 +54,9 @@ BTControl::BTControl()
     httplib::Result res = this->client->Post("/setup", config.dump(), "application/json");
     if (!res) {
         CubeLog::error("Error getting response: " + std::string(BT_MANAGER_ADDRESS) + "/setup");
-    }else if (res->status != 200) {
+    } else if (res->status != 200) {
         CubeLog::error("Response code: " + std::to_string(res->status));
-    }else{
+    } else {
         CubeLog::info("Response: " + res->body + "From: " + std::string(BT_MANAGER_ADDRESS) + "/setup");
         this->client_id = res->body;
     }
@@ -532,7 +528,7 @@ BTControl::BTControl()
         nlohmann::json j;
         while (!st.stop_requested()) {
             genericSleep(10 * 1000);
-            if(this->client_id == "none"){
+            if (this->client_id == "none") {
                 CubeLog::info("Client id not set. Attempting to get client id.");
                 httplib::Result res = this->client->Post("/setup", config.dump(), "application/json");
                 if (!res) {
@@ -804,7 +800,7 @@ std::vector<BTDevice> BTControl::getAvailableDevices()
 
 int BTService::_port = 55291;
 
-BTService::BTService(std::string serviceName)
+BTService::BTService(const std::string& serviceName)
 {
     // If we are on windows, the http server for this service will use the port as normal.
     // If we are on Linux, the http server will use a unix socket and will append the port number to the address
@@ -861,7 +857,7 @@ void BTService::start()
         nlohmann::json j;
         while (!st.stop_requested()) {
             genericSleep(10 * 1000);
-            if(this->client_id == "none"){
+            if (this->client_id == "none") {
                 CubeLog::info("Client id not set. Attempting to get client id.");
                 httplib::Result res = this->client->Post("/setup", this->config.dump(), "application/json");
                 if (!res) {
@@ -897,7 +893,7 @@ void BTService::start()
     });
 }
 
-void BTService::addCharacteristic(std::string name, std::function<void(std::string)> callback)
+void BTService::addCharacteristic(const std::string& name, std::function<void(std::string)> callback)
 {
     if (this->characteristicsLocked) {
         CubeLog::error("Characteristics are locked. Cannot add characteristic.");

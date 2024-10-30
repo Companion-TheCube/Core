@@ -68,7 +68,7 @@ struct GUI_Error {
         GUI_JSON_ERROR,
         GUI_INTERNAL_ERROR
     };
-    GUI_Error(ERROR_TYPES errorType, std::string errorString)
+    GUI_Error(ERROR_TYPES errorType, const std::string& errorString)
         : errorType(errorType)
         , errorString(errorString)
     {
@@ -88,9 +88,9 @@ public:
     };
     NotificationsManager();
     ~NotificationsManager();
-    static void showNotification(std::string title, std::string message, NotificationType type);
-    static void showNotificationWithCallback(std::string title, std::string message, NotificationType type, std::function<void()> callback);
-    static void showNotificationWithCallback(std::string title, std::string message, NotificationType type, std::function<void()> callbackYes, std::function<void()> callbackNo);
+    static void showNotification(const std::string& title, const std::string& message, NotificationType type);
+    static void showNotificationWithCallback(const std::string& title, const std::string& message, NotificationType type, std::function<void()> callback);
+    static void showNotificationWithCallback(const std::string& title, const std::string& message, NotificationType type, std::function<void()> callbackYes, std::function<void()> callbackNo);
     std::string getInterfaceName() const override;
     HttpEndPointData_t getHttpEndpointData() override;
 };
@@ -101,24 +101,24 @@ public:
     ~GUI();
     void eventLoop();
     void stop();
-    static void showMessageBox(std::string title, std::string message);
-    static void showMessageBox(std::string title, std::string message, glm::vec2 size, glm::vec2 position);
-    static void showMessageBox(std::string title, std::string message, glm::vec2 size, glm::vec2 position, std::function<void()> callback);
-    static void showTextBox(std::string title, std::string message);
-    static void showTextBox(std::string title, std::string message, glm::vec2 size, glm::vec2 position);
-    static void showTextBox(std::string title, std::string message, glm::vec2 size, glm::vec2 position, std::function<void()> callback);
-    static void showNotification(std::string title, std::string message, NotificationsManager::NotificationType type);
-    static void showNotificationWithCallback(std::string title, std::string message, NotificationsManager::NotificationType type, std::function<void()> callback);
-    static void showNotificationWithCallback(std::string title, std::string message, NotificationsManager::NotificationType type, std::function<void()> callbackYes, std::function<void()> callbackNo);
-    static void showTextInputBox(std::string title, std::vector<std::string> fields, std::function<void(std::vector<std::string>&)> callback);
-    static void showTextInputBox(std::string title, std::string field, std::function<void(std::string&)> callback);
+    static void showMessageBox(const std::string& title, const std::string& message);
+    static void showMessageBox(const std::string& title, const std::string& message, glm::vec2 size, glm::vec2 position);
+    static void showMessageBox(const std::string& title, const std::string& message, glm::vec2 size, glm::vec2 position, std::function<void()> callback);
+    static void showTextBox(const std::string& title, const std::string& message);
+    static void showTextBox(const std::string& title, const std::string& message, glm::vec2 size, glm::vec2 position);
+    static void showTextBox(const std::string& title, const std::string& message, glm::vec2 size, glm::vec2 position, std::function<void()> callback);
+    static void showNotification(const std::string& title, const std::string& message, NotificationsManager::NotificationType type);
+    static void showNotificationWithCallback(const std::string& title, const std::string& message, NotificationsManager::NotificationType type, std::function<void()> callback);
+    static void showNotificationWithCallback(const std::string& title, const std::string& message, NotificationsManager::NotificationType type, std::function<void()> callbackYes, std::function<void()> callbackNo);
+    static void showTextInputBox(const std::string& title, std::vector<std::string> fields, std::function<void(std::vector<std::string>&)> callback);
+    static void showTextInputBox(const std::string& title, const std::string& field, std::function<void(std::string&)> callback);
     // API Interface
     HttpEndPointData_t getHttpEndpointData();
     std::string getInterfaceName() const;
 
 private:
-    // GUI_Error addMenu(std::string menuName, std::string thisUniqueID, std::string parentName, std::vector<std::string> entryTexts, std::vector<std::string> endpoints, std::vector<std::string> uniqueIDs, CountingLatch &latch);
-    GUI_Error addMenu(std::string menuName, std::string thisUniqueID, std::string parentID, AddMenu_Data_t data);
+    // GUI_Error addMenu(const std::string& menuName, const std::string& thisUniqueID, const std::string& parentName, std::vector<std::string> entryTexts, std::vector<std::string> endpoints, std::vector<std::string> uniqueIDs, CountingLatch &latch);
+    GUI_Error addMenu(const std::string& menuName, const std::string& thisUniqueID, const std::string& parentID, AddMenu_Data_t data);
     Renderer* renderer;
     std::jthread eventLoopThread;
     EventManager* eventManager;
@@ -130,4 +130,4 @@ private:
     std::mutex addMenuMutex;
 };
 
-#endif// GUI_H
+#endif // GUI_H

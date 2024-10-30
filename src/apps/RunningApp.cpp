@@ -1,6 +1,6 @@
 #include "RunningApp.h"
 
-RunningApp::RunningApp(unsigned long pid, std::string appID, std::string appName, std::string execPath, std::string execArgs, std::string appSource, std::string updatePath, std::string role, std::string updateLastCheck, std::string updateLastUpdate, std::string updateLastFail, std::string updateLastFailReason, long containerID)
+RunningApp::RunningApp(unsigned long pid, const std::string& appID, const std::string& appName, const std::string& execPath, const std::string& execArgs, const std::string& appSource, const std::string& updatePath, const std::string& role, const std::string& updateLastCheck, const std::string& updateLastUpdate, const std::string& updateLastFail, const std::string& updateLastFailReason, long containerID)
 {
     this->pid = pid;
     this->appID = appID;
@@ -64,11 +64,11 @@ std::string RunningApp::getExecPath()
 std::string RunningApp::getExecName()
 {
     std::string execName = this->execPath;
-    if(execName.empty()) {
+    if (execName.empty()) {
         return "";
     }
-    if(execPath.find_last_of("\\") != std::string::npos) {
-        if(execName.back() == '\\') {
+    if (execPath.find_last_of("\\") != std::string::npos) {
+        if (execName.back() == '\\') {
             execName.pop_back();
         }
         size_t pos = execName.find_last_of("\\");
@@ -77,7 +77,7 @@ std::string RunningApp::getExecName()
         }
         return execName;
     } else {
-        if(execName.back() == '/') {
+        if (execName.back() == '/') {
             execName.pop_back();
         }
         size_t pos = execName.find_last_of("/");
@@ -143,22 +143,22 @@ void RunningApp::setVersion(long version)
     this->version = version;
 }
 
-void RunningApp::setUpdateLastCheck(std::string updateLastCheck)
+void RunningApp::setUpdateLastCheck(const std::string& updateLastCheck)
 {
     this->updateLastCheck = updateLastCheck;
 }
 
-void RunningApp::setUpdateLastUpdate(std::string updateLastUpdate)
+void RunningApp::setUpdateLastUpdate(const std::string& updateLastUpdate)
 {
     this->updateLastUpdate = updateLastUpdate;
 }
 
-void RunningApp::setUpdateLastFail(std::string updateLastFail)
+void RunningApp::setUpdateLastFail(const std::string& updateLastFail)
 {
     this->updateLastFail = updateLastFail;
 }
 
-void RunningApp::setUpdateLastFailReason(std::string updateLastFailReason)
+void RunningApp::setUpdateLastFailReason(const std::string& updateLastFailReason)
 {
     this->updateLastFailReason = updateLastFailReason;
 }

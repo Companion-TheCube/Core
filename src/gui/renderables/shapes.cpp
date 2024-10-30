@@ -14,7 +14,7 @@ FT_Library M_Text::ft;
 FT_Face M_Text::face;
 bool M_Text::faceInitialized = false;
 
-M_Text::M_Text(Shader* sh, std::string text, float fontSize, glm::vec3 color, glm::vec2 position)
+M_Text::M_Text(Shader* sh, const std::string& text, float fontSize, glm::vec3 color, glm::vec2 position)
 {
     this->shader = sh;
     this->text = text;
@@ -267,7 +267,7 @@ void M_Text::setPosition(glm::vec2 position)
     this->position = position;
 }
 
-void M_Text::setText(std::string text)
+void M_Text::setText(const std::string& text)
 {
     for (unsigned char c = 0; c < 128; c++) {
         glDeleteTextures(1, &this->characters[c].textureID);

@@ -13,16 +13,17 @@
 #include <windows.h>
 #endif
 #endif
+#include <expected>
+#include <iostream>
 #include <logger.h>
-#include <utils.h>
 #include <nlohmann/json.hpp>
 #include <string>
-#include <iostream>
+#include <utils.h>
 #include <vector>
-#include <expected>
 
 class DockerError {
     static unsigned long errorCounter;
+
 public:
     enum ErrorCodes {
         CONTAINER_NOT_FOUND = 1,
@@ -54,37 +55,37 @@ public:
         JSON_PARSE_ERROR = 27
     };
     const std::map<ErrorCodes, std::string> ErrorCodeMap = {
-        {CONTAINER_NOT_FOUND, "CONTAINER_NOT_FOUND"},
-        {CONTAINER_ALREADY_RUNNING, "CONTAINER_ALREADY_RUNNING"},
-        {CONTAINER_NOT_RUNNING, "CONTAINER_NOT_RUNNING"},
-        {CONTAINER_KILL_ERROR, "CONTAINER_KILL_ERROR"},
-        {CONTAINER_STOP_ERROR, "CONTAINER_STOP_ERROR"},
-        {CONTAINER_START_ERROR, "CONTAINER_START_ERROR"},
-        {CONTAINER_INSPECT_ERROR, "CONTAINER_INSPECT_ERROR"},
-        {CONTAINER_IS_RUNNING_ERROR, "CONTAINER_IS_RUNNING_ERROR"},
-        {CONTAINER_NOT_FOUND_ERROR, "CONTAINER_NOT_FOUND_ERROR"},
-        {CONTAINER_LIST_ERROR, "CONTAINER_LIST_ERROR"},
-        {IMAGE_LIST_ERROR, "IMAGE_LIST_ERROR"},
-        {IMAGE_NOT_FOUND, "IMAGE_NOT_FOUND"},
-        {IMAGE_PULL_ERROR, "IMAGE_PULL_ERROR"},
-        {IMAGE_REMOVE_ERROR, "IMAGE_REMOVE_ERROR"},
-        {IMAGE_INSPECT_ERROR, "IMAGE_INSPECT_ERROR"},
-        {IMAGE_HISTORY_ERROR, "IMAGE_HISTORY_ERROR"},
-        {IMAGE_BUILD_ERROR, "IMAGE_BUILD_ERROR"},
-        {IMAGE_TAG_ERROR, "IMAGE_TAG_ERROR"},
-        {IMAGE_PUSH_ERROR, "IMAGE_PUSH_ERROR"},
-        {IMAGE_SAVE_ERROR, "IMAGE_SAVE_ERROR"},
-        {IMAGE_LOAD_ERROR, "IMAGE_LOAD_ERROR"},
-        {IMAGE_EXPORT_ERROR, "IMAGE_EXPORT_ERROR"},
-        {IMAGE_IMPORT_ERROR, "IMAGE_IMPORT_ERROR"},
-        {IMAGE_PRUNE_ERROR, "IMAGE_PRUNE_ERROR"},
-        {NETWORK_LIST_ERROR, "NETWORK_LIST_ERROR"},
-        {NETWORK_CREATE_ERROR, "NETWORK_CREATE_ERROR"},
-        {JSON_PARSE_ERROR, "JSON_PARSE_ERROR"}
+        { CONTAINER_NOT_FOUND, "CONTAINER_NOT_FOUND" },
+        { CONTAINER_ALREADY_RUNNING, "CONTAINER_ALREADY_RUNNING" },
+        { CONTAINER_NOT_RUNNING, "CONTAINER_NOT_RUNNING" },
+        { CONTAINER_KILL_ERROR, "CONTAINER_KILL_ERROR" },
+        { CONTAINER_STOP_ERROR, "CONTAINER_STOP_ERROR" },
+        { CONTAINER_START_ERROR, "CONTAINER_START_ERROR" },
+        { CONTAINER_INSPECT_ERROR, "CONTAINER_INSPECT_ERROR" },
+        { CONTAINER_IS_RUNNING_ERROR, "CONTAINER_IS_RUNNING_ERROR" },
+        { CONTAINER_NOT_FOUND_ERROR, "CONTAINER_NOT_FOUND_ERROR" },
+        { CONTAINER_LIST_ERROR, "CONTAINER_LIST_ERROR" },
+        { IMAGE_LIST_ERROR, "IMAGE_LIST_ERROR" },
+        { IMAGE_NOT_FOUND, "IMAGE_NOT_FOUND" },
+        { IMAGE_PULL_ERROR, "IMAGE_PULL_ERROR" },
+        { IMAGE_REMOVE_ERROR, "IMAGE_REMOVE_ERROR" },
+        { IMAGE_INSPECT_ERROR, "IMAGE_INSPECT_ERROR" },
+        { IMAGE_HISTORY_ERROR, "IMAGE_HISTORY_ERROR" },
+        { IMAGE_BUILD_ERROR, "IMAGE_BUILD_ERROR" },
+        { IMAGE_TAG_ERROR, "IMAGE_TAG_ERROR" },
+        { IMAGE_PUSH_ERROR, "IMAGE_PUSH_ERROR" },
+        { IMAGE_SAVE_ERROR, "IMAGE_SAVE_ERROR" },
+        { IMAGE_LOAD_ERROR, "IMAGE_LOAD_ERROR" },
+        { IMAGE_EXPORT_ERROR, "IMAGE_EXPORT_ERROR" },
+        { IMAGE_IMPORT_ERROR, "IMAGE_IMPORT_ERROR" },
+        { IMAGE_PRUNE_ERROR, "IMAGE_PRUNE_ERROR" },
+        { NETWORK_LIST_ERROR, "NETWORK_LIST_ERROR" },
+        { NETWORK_CREATE_ERROR, "NETWORK_CREATE_ERROR" },
+        { JSON_PARSE_ERROR, "JSON_PARSE_ERROR" }
     };
     std::string message;
     ErrorCodes code;
-    DockerError(std::string message, ErrorCodes code);
+    DockerError(const std::string& message, ErrorCodes code);
     unsigned long getErrorCounter();
 };
 
@@ -93,6 +94,7 @@ private:
     httplib::Client* client;
     std::string base_url;
     void printDockerInfo();
+
 public:
     DockerAPI(const std::string& base_url);
     DockerAPI();

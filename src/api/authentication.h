@@ -31,14 +31,14 @@ class CubeAuth : public I_API_Interface {
 public:
     CubeAuth();
     ~CubeAuth();
-    static int checkAuth(std::string privateKey, std::string app_id, std::string encrypted_auth_code);
-    static bool isAuthorized_authHeader(std::string authHeader);
+    static int checkAuth(const std::string& privateKey, const std::string& app_id, const std::string& encrypted_auth_code);
+    static bool isAuthorized_authHeader(const std::string& authHeader);
     static std::string generateAuthCode();
     static std::pair<std::string, std::string> generateKeyPair();
-    static std::string encryptAuthCode(std::string auth_code, std::string public_key);
-    static std::string decryptAuthCode(std::string auth_code, std::string private_key);
-    static std::string encryptData(std::string data, std::string public_key);
-    static std::string decryptData(std::string data, std::string private_key, size_t length);
+    static std::string encryptAuthCode(const std::string& auth_code, const std::string& public_key);
+    static std::string decryptAuthCode(const std::string& auth_code, const std::string& private_key);
+    static std::string encryptData(const std::string& data, const std::string& public_key);
+    static std::string decryptData(const std::string& data, const std::string& private_key, size_t length);
     static std::string getLastError();
 
     // API Interface

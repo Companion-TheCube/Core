@@ -85,7 +85,7 @@ Menu::~Menu()
  * @param text The text to display
  * @param action The action to take when the menu entry is clicked
  */
-unsigned int Menu::addMenuEntry(std::string text, std::string uniqueID, MENUS::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> statusAction, void* statusActionData)
+unsigned int Menu::addMenuEntry(const std::string& text, const std::string& uniqueID, MENUS::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> statusAction, void* statusActionData)
 {
     // TODO: add the ability to have an entry be fixed to the top of the menu. This will need a stencil so that other entries can be scrolled under it.
     // TODO: add icon support
@@ -123,7 +123,7 @@ unsigned int Menu::addMenuEntry(std::string text, std::string uniqueID, MENUS::E
  * @param action The action to take when the menu entry is clicked
  * @param rightAction The action to take when the menu entry is right clicked
  */
-unsigned int Menu::addMenuEntry(std::string text, std::string uniqueID, MENUS::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> rightAction, std::function<unsigned int(void*)> statusAction, void* statusActionData)
+unsigned int Menu::addMenuEntry(const std::string& text, const std::string& uniqueID, MENUS::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> rightAction, std::function<unsigned int(void*)> statusAction, void* statusActionData)
 {
     unsigned int t = this->addMenuEntry(text, uniqueID, type, action, statusAction, statusActionData);
     this->childrenClickables.at(this->childrenClickables.size() - 1)->setOnRightClick(rightAction);
@@ -211,7 +211,7 @@ Menu* Menu::getParentMenu()
 /**
  * @brief Set the name of the menu. This is used to identify the menu in JSON menu configuration files and API calls
  */
-void Menu::setMenuName(std::string name)
+void Menu::setMenuName(const std::string& name)
 {
     this->menuName = name;
 }
@@ -229,7 +229,7 @@ std::string Menu::getMenuName()
  *
  * @param uniqueMenuIdentifier the unique identifier for this menu
  */
-void Menu::setUniqueMenuIdentifier(std::string uniqueMenuIdentifier)
+void Menu::setUniqueMenuIdentifier(const std::string& uniqueMenuIdentifier)
 {
     this->uniqueMenuIdentifier = uniqueMenuIdentifier;
 }
@@ -346,7 +346,8 @@ bool Menu::setIsClickable(bool isClickable)
 
 bool Menu::setChildrenClickables_isClickable(bool isClickable)
 {
-    if(this->childrenClickables.size() == 0) return false;
+    if (this->childrenClickables.size() == 0)
+        return false;
     for (auto clickable : this->childrenClickables) {
         clickable->setIsClickable(isClickable);
     }
@@ -456,7 +457,8 @@ ClickableArea* Menu::getClickableArea()
 
 bool Menu::getIsClickable()
 {
-    if(this->isMainMenu) return this->isClickable;
+    if (this->isMainMenu)
+        return this->isClickable;
     return this->isClickable && this->visible;
 }
 
@@ -588,7 +590,7 @@ unsigned int MenuEntry::menuEntryCount = 0;
  * @param logger a CubeLog object
  * @param text the text to display
  */
-MenuEntry::MenuEntry(Shader* t_shader, Shader* m_shader, std::string text, glm::vec2 position, float size, float visibleWidth, EntryType type, std::function<unsigned int(void*)> statusAction, void* statusActionArg)
+MenuEntry::MenuEntry(Shader* t_shader, Shader* m_shader, const std::string& text, glm::vec2 position, float size, float visibleWidth, EntryType type, std::function<unsigned int(void*)> statusAction, void* statusActionArg)
 {
     this->menuEntryIndex = MenuEntry::menuEntryCount++;
     this->textShader = t_shader;
@@ -636,7 +638,7 @@ MenuEntry::MenuEntry(Shader* t_shader, Shader* m_shader, std::string text, glm::
         this->allObjects.push_back(tempRB);
         break;
     }
-    case EntryType::MENUENTRY_TYPE_TOGGLE:{
+    case EntryType::MENUENTRY_TYPE_TOGGLE: {
         CubeLog::moreInfo("Creating toggle button");
         float posX = this->position.x + (this->visibleWidth - (size * 2.f - 10.f));
         float posY = this->position.y + size;
@@ -650,7 +652,7 @@ MenuEntry::MenuEntry(Shader* t_shader, Shader* m_shader, std::string text, glm::
         this->allObjects.push_back(tempTB);
         break;
     }
-    // TODO: add the rest of the MENU_ENTRY_TYPEs
+        // TODO: add the rest of the MENU_ENTRY_TYPEs
     }
     // this->textStencil = new MenuStencil({ position.x, position.y - 2 }, { this->visibleWidth, size + 4 });
     CubeLog::info("MenuEntry created with text: " + text + " with click area: " + std::to_string(this->clickArea.xMin) + "x" + std::to_string(this->clickArea.yMin) + " to " + std::to_string(this->clickArea.xMax) + "x" + std::to_string(this->clickArea.yMax));
@@ -676,7 +678,8 @@ MenuEntry::~MenuEntry()
  */
 void MenuEntry::onClick(void* data)
 {
-    if(!this->isClickable) return;
+    if (!this->isClickable)
+        return;
     CubeLog::info("MenuEntry clicked");
     if (this->actions.size() == 0)
         return;
@@ -691,7 +694,7 @@ void MenuEntry::onClick(void* data)
 void MenuEntry::onRelease(void* data)
 {
     // CubeLog::debugSilly("MenuEntry released");
-    this->textObject->setColor({1.f, 1.f, 1.f});
+    this->textObject->setColor({ 1.f, 1.f, 1.f });
 }
 
 void MenuEntry::onMouseDown(void* data)
@@ -1066,7 +1069,7 @@ MenuHorizontalRule::MenuHorizontalRule(glm::vec2 position, float size, Shader* s
     glm::vec2 pos = { posX, posY };
     // convert size to screen relative size
     float sizeX = mapRange(size, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X, SCREEN_RELATIVE_MIN_WIDTH, SCREEN_RELATIVE_MAX_WIDTH);
-    this->objects.push_back(new M_Line(shader, { pos, Z_DISTANCE + MenuBox::index + 0.0001f }, { pos.x + sizeX, pos.y, Z_DISTANCE + MenuBox::index  + 0.0001f }));
+    this->objects.push_back(new M_Line(shader, { pos, Z_DISTANCE + MenuBox::index + 0.0001f }, { pos.x + sizeX, pos.y, Z_DISTANCE + MenuBox::index + 0.0001f }));
     MenuBox::index += 0.000001f;
     this->objects.at(0)->type = "MenuHorizontalRule";
     // this->stencil = new MenuStencil({ position.x, position.y }, { size, 4 });

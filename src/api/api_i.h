@@ -31,7 +31,7 @@ struct EndpointError {
         ENDPOINT_NOT_AUTHORIZED,
         ENDPOINT_NOT_FOUND,
     };
-    EndpointError(ERROR_TYPES errorType, std::string errorString)
+    EndpointError(ERROR_TYPES errorType, const std::string& errorString)
         : errorType(errorType)
         , errorString(errorString)
     {

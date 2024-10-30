@@ -1,10 +1,10 @@
 #ifndef BLUETOOTH_H
 #define BLUETOOTH_H
-#include <vector>
+#include <logger.h>
+#include <mutex>
 #include <string>
 #include <thread>
-#include <mutex>
-#include <logger.h>
+#include <vector>
 #ifndef HTTPLIB_INCLUDED
 #define HTTPLIB_INCLUDED
 #include <httplib.h>
@@ -32,9 +32,9 @@
 
 /**
  * @brief An object to hold information about a Bluetooth device
- * 
+ *
  */
-struct BTDevice{
+struct BTDevice {
     std::string mac;
     std::string name;
     std::string alias;
@@ -48,9 +48,9 @@ struct BTDevice{
 
 /**
  * @brief Control the Bluetooth hardware (turn on/off, scan for devices, connect to devices)
- * 
+ *
  */
-class BTControl{
+class BTControl {
     std::vector<BTDevice> devices; // maintains a list of all devices, connected, pair or otherwise
     std::vector<BTDevice> pairedDevices; // maintains a list of paired devices
     std::vector<BTDevice> connectedDevices; // maintains a list of connected devices
@@ -64,6 +64,7 @@ class BTControl{
     std::jthread* heartbeatThread;
     std::mutex m;
     std::condition_variable cv;
+
 public:
     BTControl();
     ~BTControl();
@@ -79,20 +80,19 @@ public:
     std::vector<BTDevice> getAvailableDevices();
 };
 
-struct BTCharacteristic{
+struct BTCharacteristic {
     std::string name;
     std::function<void(std::string)> callback;
     std::function<std::string()> getCallback;
     std::function<void(std::string, std::string)> setCallback;
     std::function<std::string(std::string)> setGetCallback;
-
 };
 
 /**
  * @brief Communicate with mobile devices over Bluetooth
- * 
+ *
  */
-class BTService{
+class BTService {
     static int _port;
     httplib::Server* server;
     httplib::Client* client;
@@ -105,22 +105,22 @@ class BTService{
     std::string serviceName;
     std::string client_id = "";
     nlohmann::json config;
+
 public:
-    BTService(std::string serviceName);
+    BTService(const std::string& serviceName);
     ~BTService();
     void start();
-    void addCharacteristic(std::string name, std::function<void(std::string)> callback);
-    void addCharacteristic(std::string name, std::function<std::string()> callback);
-    void addCharacteristic(std::string name, std::function<void(std::string, std::string)> callback);
-    void addCharacteristic(std::string name, std::function<std::string(std::string)> callback);
-
+    void addCharacteristic(const std::string& name, std::function<void(std::string)> callback);
+    void addCharacteristic(const std::string& name, std::function<std::string()> callback);
+    void addCharacteristic(const std::string& name, std::function<void(std::string, std::string)> callback);
+    void addCharacteristic(const std::string& name, std::function<std::string(std::string)> callback);
 };
 
 /**
  * @brief Manager for all things Bluetooth
- * 
+ *
  */
-class BTManager: public I_API_Interface{
+class BTManager : public I_API_Interface {
     BTControl* control;
     std::vector<BTService*> services;
     std::mutex mut;
@@ -136,7 +136,7 @@ public:
     std::string getUserName();
     std::string getUserEmail();
     std::string getCubeName();
-    void setCubeName(std::string name);
+    void setCubeName(const std::string& name);
     std::string getIdToken();
     std::string getAccessToken();
     std::string getRefreshToken();
@@ -145,4 +145,4 @@ public:
     std::string getInterfaceName() const;
 };
 
-#endif// BLUETOOTH_H
+#endif // BLUETOOTH_H

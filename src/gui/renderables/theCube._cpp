@@ -240,7 +240,7 @@ void TheCube::scale(float x, float y, float z)
     }
 }
 
-CharacterPart* TheCube::getPartByName(std::string name)
+CharacterPart* TheCube::getPartByName(const std::string& name)
 {
     for (auto part : this->parts) {
         if (part->name == name) {

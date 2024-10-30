@@ -1,32 +1,33 @@
 #ifndef WIFI_H
 #define WIFI_H
-#include <utils.h>
 #include "globalSettings.h"
 #include <cstdint>
-#include <iostream>
-#include <string>
 #include <functional>
-#include <vector>
+#include <iostream>
 #include <list>
 #include <sstream>
+#include <string>
+#include <utils.h>
+#include <vector>
 
-struct CIDR_Subnet{
-    CIDR_Subnet(){
+struct CIDR_Subnet {
+    CIDR_Subnet()
+    {
         this->mask = "";
         this->cidr = 0;
     };
-    CIDR_Subnet(std::string mask, uint8_t cidr)
+    CIDR_Subnet(const std::string& mask, uint8_t cidr)
         : mask(mask)
-        , cidr(cidr){};
-    CIDR_Subnet(std::string mask)
+        , cidr(cidr) {};
+    CIDR_Subnet(const std::string& mask)
     {
         this->mask = mask;
         this->cidr = 0;
-
     };
-    CIDR_Subnet(uint8_t cidr){
+    CIDR_Subnet(uint8_t cidr)
+    {
         this->cidr = cidr;
-        //convert cidr to string mask
+        // convert cidr to string mask
         uint32_t mask = 0xFFFFFFFF << (32 - cidr);
         uint8_t mask1 = (mask >> 24) & 0xFF;
         uint8_t mask2 = (mask >> 16) & 0xFF;
@@ -55,10 +56,11 @@ struct CIDR_Subnet{
 };
 
 struct IP_Address {
-    IP_Address(){
+    IP_Address()
+    {
         this->ip = "";
     };
-    IP_Address(std::string ip)
+    IP_Address(const std::string& ip)
         : ip(ip) {};
     IP_Address(uint32_t ip)
     {
@@ -84,11 +86,11 @@ struct IP_Address {
 };
 
 struct WifiInfo {
-    WifiInfo(){}; // default constructor
-    WifiInfo(std::string ssid, std::string password)
+    WifiInfo() {}; // default constructor
+    WifiInfo(const std::string& ssid, const std::string& password)
         : ssid(ssid)
         , password(password)
-        , connected(false){};
+        , connected(false) {};
     std::string ssid = "";
     std::string password = "";
     std::string mac = "";
@@ -107,7 +109,8 @@ struct WifiInfo {
     std::string channel = "";
     std::string bitrate = "";
     bool connected = false;
-    std::string to_string(){
+    std::string to_string()
+    {
         std::string output = "";
         output += "SSID: " + ssid + "\n";
         output += "Password: " + password + "\n";
@@ -171,10 +174,6 @@ private:
     static bool running;
     static WifiInfo currentNetwork;
     static std::string devName;
-    
 };
-
-
-
 
 #endif // WIFI_H

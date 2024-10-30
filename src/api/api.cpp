@@ -79,7 +79,7 @@ void API::restart()
  * @param publicEndpoint whether the endpoint is public or not
  * @param action the action to take when the endpoint is called
  */
-void API::addEndpoint(std::string name, std::string path, int endpointType, EndpointAction_t action)
+void API::addEndpoint(const std::string& name, const std::string& path, int endpointType, EndpointAction_t action)
 {
     // add an endpoint
     CubeLog::info("Adding endpoint: " + name + " at " + path);
@@ -105,7 +105,7 @@ std::vector<Endpoint*> API::getEndpoints()
  * @param name the name of the endpoint
  * @return Endpoint* the endpoint
  */
-Endpoint* API::getEndpointByName(std::string name)
+Endpoint* API::getEndpointByName(const std::string& name)
 {
     // get an endpoint by name
     for (auto endpoint : this->endpoints) {
@@ -122,7 +122,7 @@ Endpoint* API::getEndpointByName(std::string name)
  * @param name the name of the endpoint
  * @return true if the endpoint was removed, false otherwise
  */
-bool API::removeEndpoint(std::string name)
+bool API::removeEndpoint(const std::string& name)
 {
     // remove an endpoint by name
     for (auto endpoint : this->endpoints) {
@@ -271,7 +271,7 @@ void API::httpApiThreadFn()
  * @param name
  * @param path
  */
-Endpoint::Endpoint(int endpointType, std::string name, std::string path)
+Endpoint::Endpoint(int endpointType, const std::string& name, const std::string& path)
 {
     this->endpointType = endpointType;
     this->name = name;
@@ -367,7 +367,7 @@ EndpointAction_t Endpoint::getAction()
  * @param address the address to bind the server to
  * @param port the port to bind the server to. 0 for unix sockets.
  */
-CubeHttpServer::CubeHttpServer(std::string address, int port)
+CubeHttpServer::CubeHttpServer(const std::string& address, int port)
 {
     this->address = address;
     this->port = port;
@@ -445,7 +445,7 @@ void CubeHttpServer::restart()
  * @param path the path of the endpoint
  * @param action the action to take when the endpoint is called
  */
-void CubeHttpServer::addEndpoint(bool isGetType, std::string path, std::function<void(const httplib::Request&, httplib::Response&)> action)
+void CubeHttpServer::addEndpoint(bool isGetType, const std::string& path, std::function<void(const httplib::Request&, httplib::Response&)> action)
 {
     // add an endpoint
     if (isGetType) {
@@ -462,7 +462,7 @@ void CubeHttpServer::addEndpoint(bool isGetType, std::string path, std::function
  *
  * @param path the path of the endpoint
  */
-void CubeHttpServer::removeEndpoint(std::string path)
+void CubeHttpServer::removeEndpoint(const std::string& path)
 {
     // remove an endpoint
     auto action = [](const httplib::Request& req, httplib::Response& res) {

@@ -47,7 +47,7 @@ private:
     std::mutex mutex;
 
 public:
-    M_Text(Shader* sh, std::string text, float fontSize, glm::vec3 color, glm::vec2 position);
+    M_Text(Shader* sh, const std::string& text, float fontSize, glm::vec3 color, glm::vec2 position);
     ~M_Text();
     void draw();
     void setProjectionMatrix(glm::mat4 projectionMatrix);
@@ -66,7 +66,7 @@ public:
     glm::vec3 getCenterPoint();
     std::vector<Vertex> getVertices();
     void setPosition(glm::vec2 position);
-    void setText(std::string text);
+    void setText(const std::string& text);
     float getWidth();
     void reloadFont();
     void capturePosition();

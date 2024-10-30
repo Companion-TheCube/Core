@@ -45,7 +45,7 @@ DockerAPI::DockerAPI(const std::string& base_url)
     client = new httplib::Client(base_url);
     if (base_url.find("/var/run/docker.sock") != std::string::npos) {
         client->set_address_family(AF_UNIX);
-        client->set_default_headers({{ "Host", "localhost" }});
+        client->set_default_headers({ { "Host", "localhost" } });
     }
     this->base_url = base_url;
     CubeLog::info("DockerAPI created with base_url: " + base_url);
@@ -191,7 +191,7 @@ std::expected<std::string, DockerError> DockerAPI::killContainer(const std::stri
 
 unsigned long DockerError::errorCounter = 0;
 
-DockerError::DockerError(std::string message, ErrorCodes code)
+DockerError::DockerError(const std::string& message, ErrorCodes code)
     : message(message)
     , code(code)
 {

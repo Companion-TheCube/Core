@@ -4,7 +4,7 @@
 
 #define M_PI 3.14159265358979323846
 
-MeshLoader::MeshLoader(Shader* shdr, std::string folderName, std::vector<std::string> toLoad)
+MeshLoader::MeshLoader(Shader* shdr, const std::string& folderName, std::vector<std::string> toLoad)
 {
     this->folderName = folderName;
     this->shader = shdr;
@@ -170,7 +170,7 @@ std::vector<std::string> MeshLoader::getFileNames()
     return names;
 }
 
-std::vector<MeshObject*> MeshLoader::loadMesh(std::string path)
+std::vector<MeshObject*> MeshLoader::loadMesh(const std::string& path)
 {
     std::vector<MeshObject*> objects;
     std::ifstream file(path);
@@ -286,7 +286,7 @@ std::vector<MeshObject*> MeshLoader::loadMesh(std::string path)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-AnimationLoader::AnimationLoader(std::string folderName, std::vector<std::string> animationFileNames)
+AnimationLoader::AnimationLoader(const std::string& folderName, std::vector<std::string> animationFileNames)
 {
     this->folderName = folderName;
     // cross reference the animation names with the files in the folder
@@ -344,7 +344,7 @@ void AnimationLoader::loadAnimations(std::vector<std::string> fileNames)
     }
 }
 
-Animation AnimationLoader::loadAnimation(std::string fileName)
+Animation AnimationLoader::loadAnimation(const std::string& fileName)
 {
     Animation animation;
     // use lohmann json to load the file
@@ -365,22 +365,22 @@ Animation AnimationLoader::loadAnimation(std::string fileName)
     try {
         std::string name = jsonObject["name"]; // the name of the animation
         static const std::unordered_map<std::string, Animations::AnimationNames_enum> nameToAnimation = {
-            {"neutral", Animations::NEUTRAL},
-            {"jump_right_through_wall", Animations::JUMP_RIGHT_THROUGH_WALL},
-            {"jump_left_through_wall", Animations::JUMP_LEFT_THROUGH_WALL},
-            {"jump_up_through_ceiling", Animations::JUMP_UP_THROUGH_CEILING},
-            {"jump_right", Animations::JUMP_RIGHT},
-            {"jump_left", Animations::JUMP_LEFT},
-            {"jump_up", Animations::JUMP_UP},
-            {"jump_down", Animations::JUMP_DOWN},
-            {"jump_forward", Animations::JUMP_FORWARD},
-            {"jump_backward", Animations::JUMP_BACKWARD},
-            {"funny_index", Animations::FUNNY_INDEX},
-            {"funny_bounce", Animations::FUNNY_BOUNCE},
-            {"funny_spin", Animations::FUNNY_SPIN},
-            {"funny_shrink", Animations::FUNNY_SHRINK},
-            {"funny_expand", Animations::FUNNY_EXPAND},
-            {"funny_jump", Animations::FUNNY_JUMP},
+            { "neutral", Animations::NEUTRAL },
+            { "jump_right_through_wall", Animations::JUMP_RIGHT_THROUGH_WALL },
+            { "jump_left_through_wall", Animations::JUMP_LEFT_THROUGH_WALL },
+            { "jump_up_through_ceiling", Animations::JUMP_UP_THROUGH_CEILING },
+            { "jump_right", Animations::JUMP_RIGHT },
+            { "jump_left", Animations::JUMP_LEFT },
+            { "jump_up", Animations::JUMP_UP },
+            { "jump_down", Animations::JUMP_DOWN },
+            { "jump_forward", Animations::JUMP_FORWARD },
+            { "jump_backward", Animations::JUMP_BACKWARD },
+            { "funny_index", Animations::FUNNY_INDEX },
+            { "funny_bounce", Animations::FUNNY_BOUNCE },
+            { "funny_spin", Animations::FUNNY_SPIN },
+            { "funny_shrink", Animations::FUNNY_SHRINK },
+            { "funny_expand", Animations::FUNNY_EXPAND },
+            { "funny_jump", Animations::FUNNY_JUMP },
         };
         auto it = nameToAnimation.find(name);
         if (it == nameToAnimation.end()) {
@@ -442,22 +442,22 @@ Animation AnimationLoader::loadAnimation(std::string fileName)
 
 /**
  * @brief Parse a json object into an AnimationKeyframe object
- * 
+ *
  * @param keyframe - The json object to parse
  * @return AnimationKeyframe - The parsed keyframe
  */
 AnimationKeyframe AnimationLoader::loadKeyframe(nlohmann::json keyframe)
 {
     static const std::unordered_map<std::string, Animations::AnimationType> nameToAnimType = {
-        {"TRANSLATE", Animations::TRANSLATE},
-        {"ROTATE", Animations::ROTATE},
-        {"SCALE_XYZ", Animations::SCALE_XYZ},
-        {"UNIFORM_SCALE", Animations::UNIFORM_SCALE},
-        {"ROTATE_ABOUT", Animations::ROTATE_ABOUT},
-        {"RETURN_HOME", Animations::RETURN_HOME},
+        { "TRANSLATE", Animations::TRANSLATE },
+        { "ROTATE", Animations::ROTATE },
+        { "SCALE_XYZ", Animations::SCALE_XYZ },
+        { "UNIFORM_SCALE", Animations::UNIFORM_SCALE },
+        { "ROTATE_ABOUT", Animations::ROTATE_ABOUT },
+        { "RETURN_HOME", Animations::RETURN_HOME },
     };
     std::string type;
-    try{
+    try {
         type = keyframe["type"];
     } catch (nlohmann::json::exception& e) {
         throw AnimationLoaderException("Keyframe missing type");
@@ -501,10 +501,10 @@ AnimationKeyframe AnimationLoader::loadKeyframe(nlohmann::json keyframe)
     }
     newKeyFrame.point = point;
     static const std::unordered_map<std::string, std::function<double(double)>> easingFunctions = {
-        {"linear", [](double t) { return t; }},
-        {"easeIn", [](double t) { return t * t; }},
-        {"easeOut", [](double t) { return t * (2 - t); }},
-        {"easeInOut", [](double t) { return 0.5f * (1 - cos(M_PI * t)); }},
+        { "linear", [](double t) { return t; } },
+        { "easeIn", [](double t) { return t * t; } },
+        { "easeOut", [](double t) { return t * (2 - t); } },
+        { "easeInOut", [](double t) { return 0.5f * (1 - cos(M_PI * t)); } },
     };
     std::string easing;
     try {
@@ -523,28 +523,28 @@ AnimationKeyframe AnimationLoader::loadKeyframe(nlohmann::json keyframe)
 
 /**
  * @brief Get the names of all loaded animations
- * 
- * @return std::vector<std::string> 
+ *
+ * @return std::vector<std::string>
  */
 std::vector<std::string> AnimationLoader::getAnimationNames()
 {
     static const std::unordered_map<Animations::AnimationNames_enum, std::string> animToName = {
-        {Animations::NEUTRAL, "NEUTRAL"},
-        {Animations::JUMP_RIGHT_THROUGH_WALL, "JUMP_RIGHT_THROUGH_WALL"},
-        {Animations::JUMP_LEFT_THROUGH_WALL, "JUMP_LEFT_THROUGH_WALL"},
-        {Animations::JUMP_UP_THROUGH_CEILING, "JUMP_UP_THROUGH_CEILING"},
-        {Animations::JUMP_RIGHT, "JUMP_RIGHT"},
-        {Animations::JUMP_LEFT, "JUMP_LEFT"},
-        {Animations::JUMP_UP, "JUMP_UP"},
-        {Animations::JUMP_DOWN, "JUMP_DOWN"},
-        {Animations::JUMP_FORWARD, "JUMP_FORWARD"},
-        {Animations::JUMP_BACKWARD, "JUMP_BACKWARD"},
-        {Animations::FUNNY_INDEX, "FUNNY_INDEX"},
-        {Animations::FUNNY_BOUNCE, "FUNNY_BOUNCE"},
-        {Animations::FUNNY_SPIN, "FUNNY_SPIN"},
-        {Animations::FUNNY_SHRINK, "FUNNY_SHRINK"},
-        {Animations::FUNNY_EXPAND, "FUNNY_EXPAND"},
-        {Animations::FUNNY_JUMP, "FUNNY_JUMP"},
+        { Animations::NEUTRAL, "NEUTRAL" },
+        { Animations::JUMP_RIGHT_THROUGH_WALL, "JUMP_RIGHT_THROUGH_WALL" },
+        { Animations::JUMP_LEFT_THROUGH_WALL, "JUMP_LEFT_THROUGH_WALL" },
+        { Animations::JUMP_UP_THROUGH_CEILING, "JUMP_UP_THROUGH_CEILING" },
+        { Animations::JUMP_RIGHT, "JUMP_RIGHT" },
+        { Animations::JUMP_LEFT, "JUMP_LEFT" },
+        { Animations::JUMP_UP, "JUMP_UP" },
+        { Animations::JUMP_DOWN, "JUMP_DOWN" },
+        { Animations::JUMP_FORWARD, "JUMP_FORWARD" },
+        { Animations::JUMP_BACKWARD, "JUMP_BACKWARD" },
+        { Animations::FUNNY_INDEX, "FUNNY_INDEX" },
+        { Animations::FUNNY_BOUNCE, "FUNNY_BOUNCE" },
+        { Animations::FUNNY_SPIN, "FUNNY_SPIN" },
+        { Animations::FUNNY_SHRINK, "FUNNY_SHRINK" },
+        { Animations::FUNNY_EXPAND, "FUNNY_EXPAND" },
+        { Animations::FUNNY_JUMP, "FUNNY_JUMP" },
     };
     std::vector<std::string> names;
     for (auto& [key, value] : animToName) {
@@ -555,8 +555,8 @@ std::vector<std::string> AnimationLoader::getAnimationNames()
 
 /**
  * @brief Get all loaded animations as a vector
- * 
- * @return std::vector<Animation> 
+ *
+ * @return std::vector<Animation>
  */
 std::vector<Animation> AnimationLoader::getAnimationsVector()
 {
@@ -569,7 +569,7 @@ std::vector<Animation> AnimationLoader::getAnimationsVector()
 
 /**
  * @brief Get an animation by name
- * 
+ *
  * @param name - The name of the animation
  * @return Animation - The animation
  */
@@ -580,29 +580,29 @@ Animation AnimationLoader::getAnimationByName(std::string name)
 
     // Map from string to Animations enum
     static const std::unordered_map<std::string, Animations::AnimationNames_enum> nameToAnimation = {
-        {"neutral", Animations::NEUTRAL},
-        {"jump_right_through_wall", Animations::JUMP_RIGHT_THROUGH_WALL},
-        {"jump_left_through_wall", Animations::JUMP_LEFT_THROUGH_WALL},
-        {"jump_up_through_ceiling", Animations::JUMP_UP_THROUGH_CEILING},
-        {"jump_right", Animations::JUMP_RIGHT},
-        {"jump_left", Animations::JUMP_LEFT},
-        {"jump_up", Animations::JUMP_UP},
-        {"jump_down", Animations::JUMP_DOWN},
-        {"jump_forward", Animations::JUMP_FORWARD},
-        {"jump_backward", Animations::JUMP_BACKWARD},
-        {"funny_index", Animations::FUNNY_INDEX},
-        {"funny_bounce", Animations::FUNNY_BOUNCE},
-        {"funny_spin", Animations::FUNNY_SPIN},
-        {"funny_shrink", Animations::FUNNY_SHRINK},
-        {"funny_expand", Animations::FUNNY_EXPAND},
-        {"funny_jump", Animations::FUNNY_JUMP},
+        { "neutral", Animations::NEUTRAL },
+        { "jump_right_through_wall", Animations::JUMP_RIGHT_THROUGH_WALL },
+        { "jump_left_through_wall", Animations::JUMP_LEFT_THROUGH_WALL },
+        { "jump_up_through_ceiling", Animations::JUMP_UP_THROUGH_CEILING },
+        { "jump_right", Animations::JUMP_RIGHT },
+        { "jump_left", Animations::JUMP_LEFT },
+        { "jump_up", Animations::JUMP_UP },
+        { "jump_down", Animations::JUMP_DOWN },
+        { "jump_forward", Animations::JUMP_FORWARD },
+        { "jump_backward", Animations::JUMP_BACKWARD },
+        { "funny_index", Animations::FUNNY_INDEX },
+        { "funny_bounce", Animations::FUNNY_BOUNCE },
+        { "funny_spin", Animations::FUNNY_SPIN },
+        { "funny_shrink", Animations::FUNNY_SHRINK },
+        { "funny_expand", Animations::FUNNY_EXPAND },
+        { "funny_jump", Animations::FUNNY_JUMP },
     };
 
     // Find the animation in the map
     auto it = nameToAnimation.find(name);
     if (it != nameToAnimation.end()) {
         return animationsMap[it->second];
-    }else{
+    } else {
         CubeLog::error("AnimationLoader: Animation not found: " + name);
     }
 
@@ -612,7 +612,7 @@ Animation AnimationLoader::getAnimationByName(std::string name)
 
 /**
  * @brief Get an animation by Animations::AnimationNames_enum
- * 
+ *
  * @param name - The enum of the animation
  * @return Animation - The animation
  */
@@ -623,8 +623,8 @@ Animation AnimationLoader::getAnimationByEnum(Animations::AnimationNames_enum na
 
 /**
  * @brief Get all loaded animations as a map
- * 
- * @return std::map<Animations::AnimationNames_enum, Animation> 
+ *
+ * @return std::map<Animations::AnimationNames_enum, Animation>
  */
 std::map<Animations::AnimationNames_enum, Animation> AnimationLoader::getAnimations()
 {
@@ -633,7 +633,7 @@ std::map<Animations::AnimationNames_enum, Animation> AnimationLoader::getAnimati
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-ExpressionLoader::ExpressionLoader(std::string folderName, std::vector<std::string> expressionFileNames)
+ExpressionLoader::ExpressionLoader(const std::string& folderName, std::vector<std::string> expressionFileNames)
 {
     this->folderName = folderName;
     std::vector<std::string> fileNames = this->getFileNames();
@@ -642,7 +642,6 @@ ExpressionLoader::ExpressionLoader(std::string folderName, std::vector<std::stri
             CubeLog::warning("ExpressionLoader: Expression file not found: " + name);
         }
         // if the filename is not in the expressionFilesNames list, remove it from fileNames
-
     }
     this->loadExpressions(fileNames);
 }
@@ -659,7 +658,7 @@ std::vector<std::string> ExpressionLoader::getFileNames()
             continue;
         }
         // check that the file is a .json file and starts with "expr_" (expression file)
-        if(p.path().has_extension() && p.path().extension() == ".json" && p.path().filename().string().find("expr_") == 0){
+        if (p.path().has_extension() && p.path().extension() == ".json" && p.path().filename().string().find("expr_") == 0) {
             CubeLog::info("ExpressionLoader: Found file: " + p.path().string());
             names.push_back(p.path().string());
         }
@@ -718,33 +717,33 @@ ExpressionDefinition ExpressionLoader::getExpressionByName(std::string name)
 
     // Map from string to Expressions enum
     static const std::unordered_map<std::string, Expressions::ExpressionNames_enum> nameToExpression = {
-        {"neutral", Expressions::NEUTRAL},
-        {"default", Expressions::NEUTRAL},
-        {"happy", Expressions::HAPPY},
-        {"sad", Expressions::SAD},
-        {"angry", Expressions::ANGRY},
-        {"surprised", Expressions::SURPRISED},
-        {"disgusted", Expressions::DISGUSTED},
-        {"scared", Expressions::SCARED},
-        {"confused", Expressions::CONFUSED},
-        {"dizzy", Expressions::DIZZY},
-        {"sick", Expressions::SICK},
-        {"sleepy", Expressions::SLEEPY},
-        {"confused", Expressions::CONFUSED},
-        {"shocked", Expressions::SHOCKED},
-        {"injured", Expressions::INJURED},
-        {"dead", Expressions::DEAD},
-        {"screaming", Expressions::SCREAMING},
-        {"talking", Expressions::TALKING},
-        {"listening", Expressions::LISTENING},
-        {"sleeping", Expressions::SLEEPING},
-        {"dead", Expressions::DEAD},
-        {"funny_index", Expressions::FUNNY_INDEX},
-        {"funny_bounce", Expressions::FUNNY_BOUNCE},
-        {"funny_spin", Expressions::FUNNY_SPIN},
-        {"funny_shrink", Expressions::FUNNY_SHRINK},
-        {"funny_expand", Expressions::FUNNY_EXPAND},
-        {"funny_jump", Expressions::FUNNY_JUMP},
+        { "neutral", Expressions::NEUTRAL },
+        { "default", Expressions::NEUTRAL },
+        { "happy", Expressions::HAPPY },
+        { "sad", Expressions::SAD },
+        { "angry", Expressions::ANGRY },
+        { "surprised", Expressions::SURPRISED },
+        { "disgusted", Expressions::DISGUSTED },
+        { "scared", Expressions::SCARED },
+        { "confused", Expressions::CONFUSED },
+        { "dizzy", Expressions::DIZZY },
+        { "sick", Expressions::SICK },
+        { "sleepy", Expressions::SLEEPY },
+        { "confused", Expressions::CONFUSED },
+        { "shocked", Expressions::SHOCKED },
+        { "injured", Expressions::INJURED },
+        { "dead", Expressions::DEAD },
+        { "screaming", Expressions::SCREAMING },
+        { "talking", Expressions::TALKING },
+        { "listening", Expressions::LISTENING },
+        { "sleeping", Expressions::SLEEPING },
+        { "dead", Expressions::DEAD },
+        { "funny_index", Expressions::FUNNY_INDEX },
+        { "funny_bounce", Expressions::FUNNY_BOUNCE },
+        { "funny_spin", Expressions::FUNNY_SPIN },
+        { "funny_shrink", Expressions::FUNNY_SHRINK },
+        { "funny_expand", Expressions::FUNNY_EXPAND },
+        { "funny_jump", Expressions::FUNNY_JUMP },
     };
 
     // Find the expression in the map
@@ -771,7 +770,7 @@ std::map<Expressions::ExpressionNames_enum, ExpressionDefinition> ExpressionLoad
 
 int AnimationLoaderException::count = 0;
 
-AnimationLoaderException::AnimationLoaderException(std::string message)
+AnimationLoaderException::AnimationLoaderException(const std::string& message)
 {
     AnimationLoaderException::count++;
     this->message = "Error Count: " + std::to_string(AnimationLoaderException::count) + "\n" + message;

@@ -37,7 +37,7 @@ public:
     bool animateJumpRightThroughWall();
     void expression(ExpressionNames_enum);
     std::string getName();
-    CharacterPart* getPartByName(std::string name);
+    CharacterPart* getPartByName(const std::string& name);
     bool setVisible(bool visible);
     bool getVisible();
 };

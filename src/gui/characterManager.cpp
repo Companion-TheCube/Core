@@ -5,7 +5,7 @@
 // TODO: scratch that todo above. we'll provide api endpoints for this stuff.
 /**
  * @brief Construct a new Character Manager object
- * 
+ *
  * @param sh - The shader to use
  */
 CharacterManager::CharacterManager(Shader* sh)
@@ -57,7 +57,7 @@ CharacterManager::CharacterManager(Shader* sh)
 
 /**
  * @brief Destroy the Character Manager object. This will delete all characters and stop the threads that handle animations and expressions.
- * 
+ *
  */
 CharacterManager::~CharacterManager()
 {
@@ -76,8 +76,8 @@ CharacterManager::~CharacterManager()
 
 /**
  * @brief Get the Character object currently being managed
- * 
- * @return Character_generic* 
+ *
+ * @return Character_generic*
  */
 Character_generic* CharacterManager::getCharacter()
 {
@@ -86,7 +86,7 @@ Character_generic* CharacterManager::getCharacter()
 
 /**
  * @brief Set the Character object to manage
- * 
+ *
  * @param character - The character to manage
  */
 void CharacterManager::setCharacter(Character_generic* character)
@@ -96,7 +96,7 @@ void CharacterManager::setCharacter(Character_generic* character)
 
 /**
  * @brief Load App characters from the database
- * 
+ *
  * @return true - if characters were loaded
  * @return false - if no characters were loaded
  */
@@ -110,7 +110,7 @@ bool CharacterManager::loadAppCharacters()
 
 /**
  * @brief Load built-in characters
- * 
+ *
  * @return true - if characters were loaded
  * @return false - if no characters were loaded
  */
@@ -119,7 +119,7 @@ bool CharacterManager::loadBuiltInCharacters()
     // scan the meshes folder for character folders and load the characters from there.
     // Character folders will be prefixed with "Character_".
     std::vector<std::string> characterFolders;
-    for(auto& p: std::filesystem::directory_iterator("meshes")) {
+    for (auto& p : std::filesystem::directory_iterator("meshes")) {
         if (p.is_directory()) {
             std::string folderName = p.path().filename().string();
             if (folderName.find("Character_") == 0) {
@@ -130,8 +130,8 @@ bool CharacterManager::loadBuiltInCharacters()
     // Then, we load the characters and if one fails or is not found, we return false.
     bool allSuccess = true;
     Character_generic* temp;
-    for(auto folder : characterFolders) {
-        try{
+    for (auto folder : characterFolders) {
+        try {
             temp = new Character_generic(this->shader, folder);
             this->characters.push_back(temp);
         } catch (CharacterSystemError& e) {
@@ -146,17 +146,17 @@ bool CharacterManager::loadBuiltInCharacters()
 
 /**
  * @brief Set the character to manage by name
- * 
+ *
  * @param name - The name of the character to manage
  * @return true - if the character was found and set
  * @return false - if the character was not found
  */
-bool CharacterManager::setCharacterByName(std::string name)
+bool CharacterManager::setCharacterByName(const std::string& name)
 {
     return false;
 }
 
-Character_generic* CharacterManager::getCharacterByName(std::string name)
+Character_generic* CharacterManager::getCharacterByName(const std::string& name)
 {
     for (auto character : this->characters) {
         if (character->getName().compare(name) == 0) {
@@ -204,7 +204,6 @@ HttpEndPointData_t CharacterManager::getHttpEndpointData()
     return data;
 }
 
-
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -213,7 +212,7 @@ HttpEndPointData_t CharacterManager::getHttpEndpointData()
  * @param sh The shader to use
  * @param folder The folder to load the character from
  */
-Character_generic::Character_generic(Shader* sh, std::string folder)
+Character_generic::Character_generic(Shader* sh, const std::string& folder)
 {
     this->shader = sh;
     this->visible = false;
@@ -241,7 +240,7 @@ Character_generic::Character_generic(Shader* sh, std::string folder)
     std::vector<std::string> objectsToLoad;
     std::vector<std::string> animationsToLoad;
     std::vector<std::string> expressionsToLoad;
-    try{
+    try {
         for (auto object : characterData["objects"]) {
             objectsToLoad.push_back(object);
         }
@@ -255,8 +254,7 @@ Character_generic::Character_generic(Shader* sh, std::string folder)
         for (auto expression : characterData["expressions"]) {
             expressionsToLoad.push_back(expression);
         }
-    }
-    catch (nlohmann::json::exception& e) {
+    } catch (nlohmann::json::exception& e) {
         throw new CharacterSystemError("Failed to load character data from file: " + folder + "/character.json  -- JSON ERROR: " + std::string(e.what()));
     } catch (std::exception& e) {
         throw new CharacterSystemError("Failed to load character data from file: " + folder + "/character.json  -- Other Error: " + std::string(e.what()));
@@ -478,7 +476,7 @@ void Character_generic::expression()
     // TODO: do the stuff that needs to be done to change the expression of the character based on the currentExpression
 }
 
-CharacterPart* Character_generic::getPartByName(std::string name)
+CharacterPart* Character_generic::getPartByName(const std::string& name)
 {
     for (auto part : this->parts) {
         if (part->name.compare(name) == 0) {
@@ -490,9 +488,9 @@ CharacterPart* Character_generic::getPartByName(std::string name)
 
 /**
  * @brief Set the visibility of the character.
- * 
- * @param visible 
- * @return bool - the previous visibility state 
+ *
+ * @param visible
+ * @return bool - the previous visibility state
  */
 bool Character_generic::setVisible(bool visible)
 {

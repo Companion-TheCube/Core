@@ -69,7 +69,7 @@ void GUI::eventLoop()
     ////////////////////////////////////////
     /// TESTING FUNCTION TODO: remove this or move to utils
     ////////////////////////////////////////
-    auto repeatChar = [](std::string& inOut, int n, std::string repeatChars) {
+    auto repeatChar = [](std::string& inOut, int n, const std::string& repeatChars) {
         for (size_t i = 0; i < n; i++) {
             inOut += repeatChars;
         }
@@ -127,7 +127,7 @@ void GUI::eventLoop()
     };
 
     // Helper function to create a new submenu
-    auto createANewSubMenu = [&](std::string name, std::string u_id, MENUS::Menu* parent) -> MENUS::Menu* {
+    auto createANewSubMenu = [&](const std::string& name, const std::string& u_id, MENUS::Menu* parent) -> MENUS::Menu* {
         auto m = new MENUS::Menu(this->renderer, countingLatch, 0, 0, 0, 0);
         m->setMenuName(name);
         m->setUniqueMenuIdentifier(u_id);
@@ -833,7 +833,7 @@ void GUI::eventLoop()
  * @param parentName the name of the parent menu
  * @param data a vector of tuples containing the text, json data, and unique identifier for the menu entries
  */
-GUI_Error GUI::addMenu(std::string menuName, std::string thisUniqueID, std::string parentID, AddMenu_Data_t data)
+GUI_Error GUI::addMenu(const std::string& menuName, const std::string& thisUniqueID, const std::string& parentID, AddMenu_Data_t data)
 {
     CubeLog::debugSilly("Adding menu: " + menuName + " with parent: " + parentID);
     std::vector<std::string> uniqueIDs;
@@ -970,7 +970,7 @@ void GUI::stop()
  * @param title
  * @param message
  */
-void GUI::showMessageBox(std::string title, std::string message)
+void GUI::showMessageBox(const std::string& title, const std::string& message)
 {
     // check that messageBox is not null pointer
     if (messageBox == nullptr) {
@@ -981,7 +981,7 @@ void GUI::showMessageBox(std::string title, std::string message)
     messageBox->setVisible(true);
 }
 
-void GUI::showMessageBox(std::string title, std::string message, glm::vec2 size, glm::vec2 position)
+void GUI::showMessageBox(const std::string& title, const std::string& message, glm::vec2 size, glm::vec2 position)
 {
     // check that messageBox is not null pointer
     if (messageBox == nullptr) {
@@ -993,7 +993,7 @@ void GUI::showMessageBox(std::string title, std::string message, glm::vec2 size,
     showMessageBox(title, message);
 }
 
-void GUI::showMessageBox(std::string title, std::string message, glm::vec2 size, glm::vec2 position, std::function<void()> callback)
+void GUI::showMessageBox(const std::string& title, const std::string& message, glm::vec2 size, glm::vec2 position, std::function<void()> callback)
 {
     // check that messageBox is not null pointer
     if (messageBox == nullptr) {
@@ -1004,7 +1004,7 @@ void GUI::showMessageBox(std::string title, std::string message, glm::vec2 size,
     showMessageBox(title, message, size, position);
 }
 
-void GUI::showTextBox(std::string title, std::string message)
+void GUI::showTextBox(const std::string& title, const std::string& message)
 {
     // check that fullScreenTextBox is not null pointer
     if (fullScreenTextBox == nullptr) {
@@ -1015,7 +1015,7 @@ void GUI::showTextBox(std::string title, std::string message)
     fullScreenTextBox->setVisible(true);
 }
 
-void GUI::showTextBox(std::string title, std::string message, glm::vec2 size, glm::vec2 position)
+void GUI::showTextBox(const std::string& title, const std::string& message, glm::vec2 size, glm::vec2 position)
 {
     // check that fullScreenTextBox is not null pointer
     if (fullScreenTextBox == nullptr) {
@@ -1027,7 +1027,7 @@ void GUI::showTextBox(std::string title, std::string message, glm::vec2 size, gl
     showTextBox(title, message);
 }
 
-void GUI::showTextBox(std::string title, std::string message, glm::vec2 size, glm::vec2 position, std::function<void()> callback)
+void GUI::showTextBox(const std::string& title, const std::string& message, glm::vec2 size, glm::vec2 position, std::function<void()> callback)
 {
     // check that fullScreenTextBox is not null pointer
     if (fullScreenTextBox == nullptr) {
@@ -1038,22 +1038,22 @@ void GUI::showTextBox(std::string title, std::string message, glm::vec2 size, gl
     showTextBox(title, message, size, position);
 }
 
-void GUI::showNotification(std::string title, std::string message, NotificationsManager::NotificationType type)
+void GUI::showNotification(const std::string& title, const std::string& message, NotificationsManager::NotificationType type)
 {
     // TODO: show a notification
 }
 
-void GUI::showNotificationWithCallback(std::string title, std::string message, NotificationsManager::NotificationType type, std::function<void()> callback)
+void GUI::showNotificationWithCallback(const std::string& title, const std::string& message, NotificationsManager::NotificationType type, std::function<void()> callback)
 {
     // TODO: show a notification with a callback
 }
 
-void GUI::showNotificationWithCallback(std::string title, std::string message, NotificationsManager::NotificationType type, std::function<void()> callbackYes, std::function<void()> cancelNo)
+void GUI::showNotificationWithCallback(const std::string& title, const std::string& message, NotificationsManager::NotificationType type, std::function<void()> callbackYes, std::function<void()> cancelNo)
 {
     // TODO: show a notification with a callback for yes and no
 }
 
-void GUI::showTextInputBox(std::string title, std::vector<std::string> fields, std::function<void(std::vector<std::string>&)> callback)
+void GUI::showTextInputBox(const std::string& title, std::vector<std::string> fields, std::function<void(std::vector<std::string>&)> callback)
 {
     // TODO: show a text input box
     std::vector<std::string> textVector;
@@ -2029,17 +2029,17 @@ NotificationsManager::~NotificationsManager()
     CubeLog::info("Notifications destroyed");
 }
 
-void NotificationsManager::showNotification(std::string title, std::string message, NotificationType type)
+void NotificationsManager::showNotification(const std::string& title, const std::string& message, NotificationType type)
 {
     CubeLog::info("Notification shown: " + title + " - " + message);
 }
 
-void NotificationsManager::showNotificationWithCallback(std::string title, std::string message, NotificationType type, std::function<void()> callback)
+void NotificationsManager::showNotificationWithCallback(const std::string& title, const std::string& message, NotificationType type, std::function<void()> callback)
 {
     CubeLog::info("Notification shown with callback: " + title + " - " + message);
 }
 
-void NotificationsManager::showNotificationWithCallback(std::string title, std::string message, NotificationType type, std::function<void()> callbackYes, std::function<void()> callbackNo)
+void NotificationsManager::showNotificationWithCallback(const std::string& title, const std::string& message, NotificationType type, std::function<void()> callbackYes, std::function<void()> callbackNo)
 {
     CubeLog::info("Notification shown with callback: " + title + " - " + message);
 }

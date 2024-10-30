@@ -1,11 +1,11 @@
-//#pragma once
+// #pragma once
 #ifndef API_H
 #define API_H
-#include <string>
-#include <vector>
 #include <functional>
 #include <logger.h>
+#include <string>
 #include <thread>
+#include <vector>
 #ifndef HTTPLIB_INCLUDED
 #define HTTPLIB_INCLUDED
 #include <httplib.h>
@@ -23,8 +23,8 @@
 #endif
 #endif
 #include <iostream>
-#include <memory>
 #include <latch>
+#include <memory>
 #ifndef AUTHENTICATION_H
 #include "authentication.h"
 #endif
@@ -39,19 +39,19 @@ class Endpoint {
 private:
     std::string name;
     std::string path;
-    
-    EndpointAction_t action;
-public:
 
-int endpointType;
-    Endpoint(int endpointType, std::string name, std::string path);
+    EndpointAction_t action;
+
+public:
+    int endpointType;
+    Endpoint(int endpointType, const std::string& name, const std::string& path);
     ~Endpoint();
     std::string getName();
     std::string getPath();
     bool isPublic() const;
     bool isGetType() const;
     void setAction(EndpointAction_t action);
-    EndpointError doAction(const httplib::Request &req, httplib::Response &res);
+    EndpointError doAction(const httplib::Request& req, httplib::Response& res);
     EndpointAction_t getAction();
 };
 
@@ -61,14 +61,15 @@ private:
     std::string address;
     int port;
     std::jthread* serverThread;
+
 public:
-    CubeHttpServer(std::string address, int port);
+    CubeHttpServer(const std::string& address, int port);
     ~CubeHttpServer();
     void start();
     void stop();
     void restart();
-    void addEndpoint(bool isGetType, std::string path, std::function<void(const httplib::Request&, httplib::Response&)> action);
-    void removeEndpoint(std::string path);
+    void addEndpoint(bool isGetType, const std::string& path, std::function<void(const httplib::Request&, httplib::Response&)> action);
+    void removeEndpoint(const std::string& path);
     void setPort(int port);
     int getPort();
     httplib::Server* getServer();
@@ -78,20 +79,21 @@ class API {
 private:
     std::vector<Endpoint*> endpoints;
     std::jthread listenerThread;
-    CubeHttpServer *server;
-    CubeHttpServer *serverIPC;
+    CubeHttpServer* server;
+    CubeHttpServer* serverIPC;
     std::vector<std::pair<std::string, bool>> endpointTriggers;
     void httpApiThreadFn();
+
 public:
     API();
     ~API();
     void start();
     void stop();
     void restart();
-    void addEndpoint(std::string name, std::string path, int endpointType, EndpointAction_t action);
+    void addEndpoint(const std::string& name, const std::string& path, int endpointType, EndpointAction_t action);
     std::vector<Endpoint*> getEndpoints();
-    Endpoint* getEndpointByName(std::string name);
-    bool removeEndpoint(std::string name);
+    Endpoint* getEndpointByName(const std::string& name);
+    bool removeEndpoint(const std::string& name);
 };
 
-#endif// API_H
+#endif // API_H

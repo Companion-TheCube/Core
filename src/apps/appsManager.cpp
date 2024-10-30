@@ -276,7 +276,7 @@ void AppsManager::addWorkerTask(std::function<void()> task)
  * @param appID - std::string The app ID to start.
  * @return bool - true if the app was started successfully, false otherwise.
  */
-bool AppsManager::startApp(std::string appID)
+bool AppsManager::startApp(const std::string& appID)
 {
     // TODO: check that app is enabled before starting
     CubeLog::info("Starting app: " + appID);
@@ -334,7 +334,7 @@ bool AppsManager::startApp(std::string appID)
  * @param appID - std::string The app ID to stop.
  * @return bool - true if the app was stopped successfully, false otherwise.
  */
-bool AppsManager::stopApp(std::string appID)
+bool AppsManager::stopApp(const std::string& appID)
 {
     CubeLog::info("Stopping app: " + appID);
     std::string execPath = this->getAppExecPath(appID);
@@ -405,7 +405,7 @@ bool AppsManager::stopApp(std::string appID)
  * @param appID - std::string The app ID to update.
  * @return bool - true if the app was updated successfully, false otherwise.
  */
-bool AppsManager::updateApp(std::string appID)
+bool AppsManager::updateApp(const std::string& appID)
 {
     CubeLog::info("Updating app: " + appID);
     std::string execPath = this->getAppExecPath(appID);
@@ -450,7 +450,7 @@ bool AppsManager::updateApp(std::string appID)
  * @param updatePath - std::string The update path to add.
  * @return bool - true if the app was added successfully, false otherwise.
  */
-bool AppsManager::addApp(std::string appID, std::string appName, std::string execPath, std::string execArgs, std::string appSource, std::string updatePath)
+bool AppsManager::addApp(const std::string& appID, const std::string& appName, const std::string& execPath, const std::string& execArgs, const std::string& appSource, const std::string& updatePath)
 {
     CubeLog::info("Adding app: " + appID);
     std::vector<std::string> columnNames = { "app_id", "app_name", "exec_path", "exec_args", "app_source", "update_path" };
@@ -472,7 +472,7 @@ bool AppsManager::addApp(std::string appID, std::string appName, std::string exe
  * @param appID - std::string The app ID to remove.
  * @return bool - true if the app was removed successfully, false otherwise.
  */
-bool AppsManager::removeApp(std::string appID)
+bool AppsManager::removeApp(const std::string& appID)
 {
     CubeLog::info("Removing app: " + appID);
     std::string appName = this->getAppName(appID);
@@ -501,7 +501,7 @@ bool AppsManager::removeApp(std::string appID)
  * @param appSource - std::string The app source to update.
  * @return bool - true if the app source was updated successfully, false otherwise.
  */
-bool AppsManager::updateAppSource(std::string appID, std::string appSource)
+bool AppsManager::updateAppSource(const std::string& appID, const std::string& appSource)
 {
     CubeLog::info("Updating app source: " + appID);
     std::string appName = this->getAppName(appID);
@@ -527,7 +527,7 @@ bool AppsManager::updateAppSource(std::string appID, std::string appSource)
  * @param updatePath - std::string The update path to update.
  * @return bool - true if the update path was updated successfully, false otherwise.
  */
-bool AppsManager::updateAppUpdatePath(std::string appID, std::string updatePath)
+bool AppsManager::updateAppUpdatePath(const std::string& appID, const std::string& updatePath)
 {
     CubeLog::info("Updating app update path: " + appID);
     std::string appName = this->getAppName(appID);
@@ -553,7 +553,7 @@ bool AppsManager::updateAppUpdatePath(std::string appID, std::string updatePath)
  * @param execPath - std::string The executable path to update.
  * @return bool - true if the executable path was updated successfully, false otherwise.
  */
-bool AppsManager::updateAppExecPath(std::string appID, std::string execPath)
+bool AppsManager::updateAppExecPath(const std::string& appID, const std::string& execPath)
 {
     CubeLog::info("Updating app exec path: " + appID);
     std::string appName = this->getAppName(appID);
@@ -579,7 +579,7 @@ bool AppsManager::updateAppExecPath(std::string appID, std::string execPath)
  * @param appName - std::string The app name to update.
  * @return bool - true if the app name was updated successfully, false otherwise.
  */
-bool AppsManager::updateAppExecArgs(std::string appID, std::string execArgs)
+bool AppsManager::updateAppExecArgs(const std::string& appID, const std::string& execArgs)
 {
     CubeLog::info("Updating app exec args: " + appID);
     std::string appName = this->getAppName(appID);
@@ -605,7 +605,7 @@ bool AppsManager::updateAppExecArgs(std::string appID, std::string execArgs)
  * @param updateLastCheck - std::string Time/date string of the last update check.
  * @return bool - true if the app data was updated successfully, false otherwise.
  */
-bool AppsManager::updateAppUpdateLastCheck(std::string appID, std::string updateLastCheck)
+bool AppsManager::updateAppUpdateLastCheck(const std::string& appID, const std::string& updateLastCheck)
 {
     CubeLog::info("Updating app update last check: " + appID);
     std::string appName = this->getAppName(appID);
@@ -631,7 +631,7 @@ bool AppsManager::updateAppUpdateLastCheck(std::string appID, std::string update
  * @param updateLastUpdate - std::string Time/date string of the last update.
  * @return bool - true if the app data was updated successfully, false otherwise.
  */
-bool AppsManager::updateAppUpdateLastUpdate(std::string appID, std::string updateLastUpdate)
+bool AppsManager::updateAppUpdateLastUpdate(const std::string& appID, const std::string& updateLastUpdate)
 {
     CubeLog::info("Updating app update last update: " + appID);
     std::string appName = this->getAppName(appID);
@@ -657,7 +657,7 @@ bool AppsManager::updateAppUpdateLastUpdate(std::string appID, std::string updat
  * @param updateLastFail - std::string Time/date string of the last update fail.
  * @return bool - true if the app data was updated successfully, false otherwise.
  */
-bool AppsManager::updateAppUpdateLastFail(std::string appID, std::string updateLastFail)
+bool AppsManager::updateAppUpdateLastFail(const std::string& appID, const std::string& updateLastFail)
 {
     CubeLog::info("Updating app update last fail: " + appID);
     std::string appName = this->getAppName(appID);
@@ -683,7 +683,7 @@ bool AppsManager::updateAppUpdateLastFail(std::string appID, std::string updateL
  * @param updateLastFailReason - std::string The reason for the last update fail.
  * @return bool - true if the app data was updated successfully, false otherwise.
  */
-bool AppsManager::updateAppUpdateLastFailReason(std::string appID, std::string updateLastFailReason)
+bool AppsManager::updateAppUpdateLastFailReason(const std::string& appID, const std::string& updateLastFailReason)
 {
     CubeLog::info("Updating app update last fail reason: " + appID);
     std::string appName = this->getAppName(appID);
@@ -708,7 +708,7 @@ bool AppsManager::updateAppUpdateLastFailReason(std::string appID, std::string u
  * @param   appID - std::string The app ID to get the name for.
  * @return std::string - The app name.
  */
-std::string AppsManager::getAppName(std::string appID)
+std::string AppsManager::getAppName(const std::string& appID)
 {
     if (AppsManager::consoleLoggingEnabled)
         CubeLog::debug("Getting app name for appID: " + appID);
@@ -731,7 +731,7 @@ std::string AppsManager::getAppName(std::string appID)
  * @param   appID - std::string The app ID to get the role for.
  * @return std::string - The app's execpath
  */
-std::string AppsManager::getAppExecPath(std::string appID)
+std::string AppsManager::getAppExecPath(const std::string& appID)
 {
     if (AppsManager::consoleLoggingEnabled)
         CubeLog::debug("Getting app exec path for appID: " + appID);
@@ -754,7 +754,7 @@ std::string AppsManager::getAppExecPath(std::string appID)
  * @param appID - std::string The app ID to get the role for.
  * @return std::string - The app's execution arguments.
  */
-std::string AppsManager::getAppExecArgs(std::string appID)
+std::string AppsManager::getAppExecArgs(const std::string& appID)
 {
     if (AppsManager::consoleLoggingEnabled)
         CubeLog::debug("Getting app exec args for appID: " + appID);
@@ -777,7 +777,7 @@ std::string AppsManager::getAppExecArgs(std::string appID)
  * @param appID - std::string The app ID to get the role for.
  * @return std::string - The app's source.
  */
-std::string AppsManager::getAppSource(std::string appID)
+std::string AppsManager::getAppSource(const std::string& appID)
 {
     if (AppsManager::consoleLoggingEnabled)
         CubeLog::debug("Getting app source for appID: " + appID);
@@ -800,7 +800,7 @@ std::string AppsManager::getAppSource(std::string appID)
  * @param appID - std::string The app ID to get the role for.
  * @return std::string - The app's update path.
  */
-std::string AppsManager::getAppUpdatePath(std::string appID)
+std::string AppsManager::getAppUpdatePath(const std::string& appID)
 {
     if (AppsManager::consoleLoggingEnabled)
         CubeLog::debug("Getting app update path for appID: " + appID);
@@ -823,7 +823,7 @@ std::string AppsManager::getAppUpdatePath(std::string appID)
  * @param appID - std::string The app ID to get the role for.
  * @return std::string - The app's update last check time.
  */
-std::string AppsManager::getAppUpdateLastCheck(std::string appID)
+std::string AppsManager::getAppUpdateLastCheck(const std::string& appID)
 {
     if (AppsManager::consoleLoggingEnabled)
         CubeLog::debug("Getting app update last check for appID: " + appID);
@@ -846,7 +846,7 @@ std::string AppsManager::getAppUpdateLastCheck(std::string appID)
  * @param appID - std::string The app ID to get the role for.
  * @return std::string - The app's update last update time.
  */
-std::string AppsManager::getAppUpdateLastUpdate(std::string appID)
+std::string AppsManager::getAppUpdateLastUpdate(const std::string& appID)
 {
     if (AppsManager::consoleLoggingEnabled)
         CubeLog::debug("Getting app update last update for appID: " + appID);
@@ -863,7 +863,7 @@ std::string AppsManager::getAppUpdateLastUpdate(std::string appID)
     }
 }
 
-std::string AppsManager::getAppUpdateLastFail(std::string appID)
+std::string AppsManager::getAppUpdateLastFail(const std::string& appID)
 {
     if (AppsManager::consoleLoggingEnabled)
         CubeLog::debug("Getting app update last fail for appID: " + appID);
@@ -880,7 +880,7 @@ std::string AppsManager::getAppUpdateLastFail(std::string appID)
     }
 }
 
-std::string AppsManager::getAppUpdateLastFailReason(std::string appID)
+std::string AppsManager::getAppUpdateLastFailReason(const std::string& appID)
 {
     if (AppsManager::consoleLoggingEnabled)
         CubeLog::debug("Getting app update last fail reason for appID: " + appID);
@@ -897,7 +897,7 @@ std::string AppsManager::getAppUpdateLastFailReason(std::string appID)
     }
 }
 
-std::string AppsManager::getAppRole(std::string appID)
+std::string AppsManager::getAppRole(const std::string& appID)
 {
     if (AppsManager::consoleLoggingEnabled)
         CubeLog::debug("Getting app role for appID: " + appID);
@@ -914,7 +914,7 @@ std::string AppsManager::getAppRole(std::string appID)
     }
 }
 
-bool AppsManager::updateAppRole(std::string appID, std::string role)
+bool AppsManager::updateAppRole(const std::string& appID, const std::string& role)
 {
     if (AppsManager::consoleLoggingEnabled)
         CubeLog::info("Updating app role: " + appID);
@@ -936,7 +936,7 @@ bool AppsManager::updateAppRole(std::string appID, std::string role)
     }
 }
 
-bool AppsManager::addAppRole(std::string appID, std::string role)
+bool AppsManager::addAppRole(const std::string& appID, const std::string& role)
 {
     if (AppsManager::consoleLoggingEnabled)
         CubeLog::info("Adding app role: " + appID);
@@ -958,7 +958,7 @@ bool AppsManager::addAppRole(std::string appID, std::string role)
     }
 }
 
-bool AppsManager::removeAppRole(std::string appID)
+bool AppsManager::removeAppRole(const std::string& appID)
 {
     if (AppsManager::consoleLoggingEnabled)
         CubeLog::info("Removing app role: " + appID);
@@ -980,7 +980,7 @@ bool AppsManager::removeAppRole(std::string appID)
     }
 }
 
-bool AppsManager::isAppRunning(std::string appID)
+bool AppsManager::isAppRunning(const std::string& appID)
 {
     if (AppsManager::consoleLoggingEnabled)
         CubeLog::info("Checking if app is running: " + appID);
@@ -1069,7 +1069,7 @@ bool AppsManager::startAllApps()
     return true;
 }
 
-bool AppsManager::isAppInstalled(std::string appID)
+bool AppsManager::isAppInstalled(const std::string& appID)
 {
     if (AppsManager::consoleLoggingEnabled)
         CubeLog::info("Checking if app is installed: " + appID);
@@ -1133,7 +1133,7 @@ bool AppsManager::isAppInstalled(std::string appID)
     return true;
 }
 
-bool AppsManager::isAppUpdateAvailable(std::string appID)
+bool AppsManager::isAppUpdateAvailable(const std::string& appID)
 {
     CubeLog::info("Checking if app update is available: " + appID);
     std::string appName = this->getAppName(appID);
@@ -1146,7 +1146,7 @@ bool AppsManager::isAppUpdateAvailable(std::string appID)
     return false;
 }
 
-bool AppsManager::isAppUpdateRequired(std::string appID)
+bool AppsManager::isAppUpdateRequired(const std::string& appID)
 {
     CubeLog::info("Checking if app update is required: " + appID);
     std::string appName = this->getAppName(appID);
@@ -1159,7 +1159,7 @@ bool AppsManager::isAppUpdateRequired(std::string appID)
     return false;
 }
 
-bool AppsManager::isAppUpdateFailed(std::string appID)
+bool AppsManager::isAppUpdateFailed(const std::string& appID)
 {
     CubeLog::info("Checking if app update failed: " + appID);
     std::string appName = this->getAppName(appID);
@@ -1172,7 +1172,7 @@ bool AppsManager::isAppUpdateFailed(std::string appID)
     return false;
 }
 
-bool AppsManager::isAppUpdateCheckOverdue(std::string appID)
+bool AppsManager::isAppUpdateCheckOverdue(const std::string& appID)
 {
     CubeLog::info("Checking if app update check is overdue: " + appID);
     std::string appName = this->getAppName(appID);
@@ -1226,14 +1226,14 @@ std::vector<std::string> AppsManager::getAppNames()
     return appNames;
 }
 
-long AppsManager::getAppMemoryUsage(std::string appID)
+long AppsManager::getAppMemoryUsage(const std::string& appID)
 {
     CubeLog::info("Getting app memory usage: " + appID);
     // TODO: Implement getting app memory usage
     return 0;
 }
 
-long AppsManager::getAppVersion(std::string appID)
+long AppsManager::getAppVersion(const std::string& appID)
 {
     CubeLog::info("Getting app version: " + appID);
     // TODO: Implement getting app version

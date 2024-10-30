@@ -104,7 +104,7 @@ CubeAuth::~CubeAuth()
  * @param encrypted_auth_code
  * @return int CubeAuth::AUTH_CODES
  */
-int CubeAuth::checkAuth(std::string privateKey, std::string app_id, std::string encrypted_auth_code)
+int CubeAuth::checkAuth(const std::string& privateKey, const std::string& app_id, const std::string& encrypted_auth_code)
 {
     if (!CubeAuth::available) {
         CubeLog::error("Authentication module not available.");
@@ -197,7 +197,7 @@ std::pair<std::string, std::string> CubeAuth::generateKeyPair()
  * @param public_key
  * @return std::string
  */
-std::string CubeAuth::encryptAuthCode(std::string auth_code, std::string public_key)
+std::string CubeAuth::encryptAuthCode(const std::string& auth_code, const std::string& public_key)
 {
     CubeLog::debug("Encrypting auth code.");
     unsigned char nonce[crypto_secretbox_NONCEBYTES];
@@ -229,7 +229,7 @@ std::string CubeAuth::encryptAuthCode(std::string auth_code, std::string public_
  * @param private_key
  * @return std::string
  */
-std::string CubeAuth::decryptAuthCode(std::string auth_code, std::string private_key)
+std::string CubeAuth::decryptAuthCode(const std::string& auth_code, const std::string& private_key)
 {
     CubeLog::debug("Decrypting auth code.");
     unsigned char decrypted_auth_code[6];
@@ -259,7 +259,7 @@ std::string CubeAuth::decryptAuthCode(std::string auth_code, std::string private
  * @param public_key
  * @return std::string
  */
-std::string CubeAuth::encryptData(std::string data, std::string public_key)
+std::string CubeAuth::encryptData(const std::string& data, const std::string& public_key)
 {
     CubeLog::debug("Encrypting data. Length: " + std::to_string(data.length()) + " bytes.");
     if (data.length() > 65535) {
@@ -300,7 +300,7 @@ std::string CubeAuth::encryptData(std::string data, std::string public_key)
  * @param length
  * @return std::string
  */
-std::string CubeAuth::decryptData(std::string data, std::string private_key, size_t length)
+std::string CubeAuth::decryptData(const std::string& data, const std::string& private_key, size_t length)
 {
     CubeLog::debug("Decrypting data. Length: " + std::to_string(length) + " bytes.");
 
@@ -344,7 +344,7 @@ std::string CubeAuth::getLastError()
  * @param authHeader
  * @return bool
  */
-bool CubeAuth::isAuthorized_authHeader(std::string authHeader)
+bool CubeAuth::isAuthorized_authHeader(const std::string& authHeader)
 {
     // check the db for the auth code
     Database* db = CubeDB::getDBManager()->getDatabase("auth");

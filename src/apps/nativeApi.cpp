@@ -105,7 +105,7 @@ bool NativeAPI::isProcessRunning(long pid)
 }
 #endif
 
-RunningApp* NativeAPI::startApp(std::string execPath, std::string execArgs, std::string appID, std::string appName, std::string appSource, std::string updatePath)
+RunningApp* NativeAPI::startApp(const std::string& execPath, const std::string& execArgs, const std::string& appID, const std::string& appName, const std::string& appSource, const std::string& updatePath)
 {
     CubeLog::info("Starting app: " + execPath + " " + execArgs);
     std::string cwd = std::filesystem::current_path().string();
@@ -277,7 +277,7 @@ RunningApp* NativeAPI::startApp(std::string execPath, std::string execArgs, std:
 #endif
 }
 
-bool NativeAPI::stopApp(std::string execPath)
+bool NativeAPI::stopApp(const std::string& execPath)
 {
     CubeLog::info("Stopping app: " + execPath);
 #ifdef __linux__
@@ -334,7 +334,7 @@ bool NativeAPI::stopApp(long pid)
 }
 
 #ifdef __linux__
-long NativeAPI::getPID(std::string execPath)
+long NativeAPI::getPID(const std::string& execPath)
 {
     CubeLog::info("Getting PID for app: " + execPath);
     if (isProcessRunning(execPath)) {
@@ -350,7 +350,7 @@ long NativeAPI::getPID(std::string execPath)
 #endif
 
 #ifdef _WIN32
-long NativeAPI::getPID(std::string execPath)
+long NativeAPI::getPID(const std::string& execPath)
 {
     CubeLog::info("Getting PID for app: " + execPath);
     if (isProcessRunning(execPath)) {
@@ -382,7 +382,7 @@ long NativeAPI::getPID(std::string execPath)
 }
 #endif
 
-bool NativeAPI::isExecutableInstalled(std::string execPath)
+bool NativeAPI::isExecutableInstalled(const std::string& execPath)
 {
 #ifdef __linux__
     execPath = std::regex_replace(execPath, std::regex("\\\\"), "/");

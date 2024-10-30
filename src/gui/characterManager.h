@@ -3,30 +3,30 @@
 #define CHARACTERMANAGER_H
 #ifndef OBJECTS_H
 #include "objects.h"
-#endif// OBJECTS_H
+#endif // OBJECTS_H
 #ifndef MESHLOADER_H
 #include "renderables/meshLoader.h"
-#endif// MESHLOADER_H
+#endif // MESHLOADER_H
 #ifndef MESHOBJECT_H
 #include "renderables/meshObject.h"
-#endif// MESHOBJECT_H
+#endif // MESHOBJECT_H
 #ifndef SHAPES_H
 #include "renderables/shapes.h"
-#endif// SHAPES_H
+#endif // SHAPES_H
 #ifndef SHADER_H
 #include "shader.h"
-#endif// SHADER_H
+#endif // SHADER_H
 #ifndef CUBEDB_H
 #include <../database/cubeDB.h>
-#endif// CUBEDB_H
+#endif // CUBEDB_H
 #ifndef API_I_H
 #include "../api_i.h"
-#endif// API_I_H
+#endif // API_I_H
+#include <filesystem>
 #include <iostream>
 #include <logger.h>
 #include <thread>
 #include <vector>
-#include <filesystem>
 
 struct CharacterSystemError : public std::exception {
     static uint16_t errorCount;
@@ -43,13 +43,17 @@ struct CharacterSystemError : public std::exception {
 
         CHARACTER_ERROR_COUNT
     };
-    CharacterSystemError(std::string message) : message(message) {
+    CharacterSystemError(const std::string& message)
+        : message(message)
+    {
         errorCount++;
     }
-    const char* what() const noexcept override {
+    const char* what() const noexcept override
+    {
         return message.c_str();
     }
-    uint16_t getErrorCount() {
+    uint16_t getErrorCount()
+    {
         return errorCount;
     }
 };
@@ -83,8 +87,9 @@ private:
     ExpressionDefinition nextExpressionDef;
     std::mutex currentMutex;
     std::mutex nextMutex;
+
 public:
-    Character_generic(Shader* sh, std::string folder); // load character data from folder
+    Character_generic(Shader* sh, const std::string& folder); // load character data from folder
     Character_generic(Shader* sh, unsigned long id); // load character data from database
     ~Character_generic();
     void draw();
@@ -93,7 +98,7 @@ public:
     void triggerExpression(Expressions::ExpressionNames_enum);
     void triggerAnimation(Animations::AnimationNames_enum);
     std::string getName();
-    CharacterPart* getPartByName(std::string name);
+    CharacterPart* getPartByName(const std::string& name);
     bool setVisible(bool visible);
     bool getVisible();
 };
@@ -108,6 +113,7 @@ private:
     bool exitThreads = false;
     bool animationThreadReady = false;
     bool expressionThreadReady = false;
+
 public:
     std::mutex animationMutex;
     std::mutex expressionMutex;
@@ -121,13 +127,12 @@ public:
     void setCharacter(Character_generic*);
     bool loadAppCharacters();
     bool loadBuiltInCharacters();
-    bool setCharacterByName(std::string name);
-    Character_generic* getCharacterByName(std::string name);
+    bool setCharacterByName(const std::string& name);
+    Character_generic* getCharacterByName(const std::string& name);
     std::vector<std::string> getCharacterNames();
     void triggerAnimationAndExpressionThreads();
     std::string getInterfaceName() const override;
     HttpEndPointData_t getHttpEndpointData() override;
 };
 
-
-#endif// CHARACTERMANAGER_H
+#endif // CHARACTERMANAGER_H

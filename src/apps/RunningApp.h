@@ -1,10 +1,10 @@
 #pragma once
-#include <string>
-#include <iostream>
-#include <vector>
-#include <sstream>
-#include <fstream>
 #include <algorithm>
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <vector>
 #ifdef __linux__
 #include <spawn.h>
 #endif
@@ -50,7 +50,7 @@ class RunningApp {
     posix_spawn_file_actions_t g_actions;
 #endif
 public:
-    RunningApp(unsigned long pid, std::string appID, std::string appName, std::string execPath, std::string execArgs, std::string appSource, std::string updatePath, std::string role, std::string updateLastCheck, std::string updateLastUpdate, std::string updateLastFail, std::string updateLastFailReason, long containerID);
+    RunningApp(unsigned long pid, const std::string& appID, const std::string& appName, const std::string& execPath, const std::string& execArgs, const std::string& appSource, const std::string& updatePath, const std::string& role, const std::string& updateLastCheck, const std::string& updateLastUpdate, const std::string& updateLastFail, const std::string& updateLastFailReason, long containerID);
     ~RunningApp();
     unsigned long getPID();
     long getVersion();
@@ -66,13 +66,13 @@ public:
     std::string getUpdatePath();
     std::string getRole();
     std::string getUpdateLastCheck();
-    void setUpdateLastCheck(std::string updateLastCheck);
+    void setUpdateLastCheck(const std::string& updateLastCheck);
     std::string getUpdateLastUpdate();
-    void setUpdateLastUpdate(std::string updateLastUpdate);
+    void setUpdateLastUpdate(const std::string& updateLastUpdate);
     std::string getUpdateLastFail();
-    void setUpdateLastFail(std::string updateLastFail);
+    void setUpdateLastFail(const std::string& updateLastFail);
     std::string getUpdateLastFailReason();
-    void setUpdateLastFailReason(std::string updateLastFailReason);
+    void setUpdateLastFailReason(const std::string& updateLastFailReason);
 #ifdef _WIN32
     HANDLE* getStdOutRead();
     HANDLE* getStdOutWrite();

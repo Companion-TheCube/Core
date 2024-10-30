@@ -3,10 +3,10 @@
 #define MESHLOADER_H
 #ifndef MESHOBJECT_H
 #include "meshObject.h"
-#endif// MESHOBJECT_H
+#endif // MESHOBJECT_H
 #ifndef SHAPES_H
 #include "shapes.h"
-#endif// SHAPES_H
+#endif // SHAPES_H
 #include <algorithm>
 #include <fstream>
 #include <iostream>
@@ -27,9 +27,9 @@ private:
 public:
     std::vector<ObjectCollection*> collections;
     Shader* shader;
-    MeshLoader(Shader* shdr, std::string folderName, std::vector<std::string> toLoad);
+    MeshLoader(Shader* shdr, const std::string& folderName, std::vector<std::string> toLoad);
     ~MeshLoader();
-    std::vector<MeshObject*> loadMesh(std::string path);
+    std::vector<MeshObject*> loadMesh(const std::string& path);
     std::vector<std::string> getFileNames();
     std::vector<MeshObject*> getObjects();
     std::vector<ObjectCollection*> getCollections();
@@ -124,12 +124,12 @@ private:
     std::map<Animations::AnimationNames_enum, Animation> animationsMap;
     std::vector<std::string> getFileNames();
     void loadAnimations(std::vector<std::string> fileNames);
-    Animation loadAnimation(std::string fileName);
+    Animation loadAnimation(const std::string& fileName);
     AnimationKeyframe loadKeyframe(nlohmann::json keyframe);
     std::string folderName;
 
 public:
-    AnimationLoader(std::string folderName, std::vector<std::string> animationFileNames);
+    AnimationLoader(const std::string& folderName, std::vector<std::string> animationFileNames);
     ~AnimationLoader();
     std::vector<Animation> getAnimationsVector();
     Animation getAnimationByName(std::string name);
@@ -144,7 +144,7 @@ private:
     std::string message;
 
 public:
-    AnimationLoaderException(std::string message);
+    AnimationLoaderException(const std::string& message);
     const char* what() const throw();
 };
 
@@ -164,7 +164,7 @@ private:
     std::string folderName;
 
 public:
-    ExpressionLoader(std::string folderName, std::vector<std::string> expressionFileNames);
+    ExpressionLoader(const std::string& folderName, std::vector<std::string> expressionFileNames);
     ~ExpressionLoader();
     std::vector<ExpressionDefinition> getExpressionsVector();
     std::map<Expressions::ExpressionNames_enum, ExpressionDefinition> getExpressions();

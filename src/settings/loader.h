@@ -1,21 +1,21 @@
 #pragma once
-#include <fstream>
-#include <nlohmann/json.hpp>
-#include <logger.h>
-#include <filesystem>
 #include "globalSettings.h"
+#include <filesystem>
+#include <fstream>
+#include <logger.h>
+#include <nlohmann/json.hpp>
 
-
-class SettingsLoader{
+class SettingsLoader {
 private:
     nlohmann::json settings;
     std::string settingsFile;
-    GlobalSettings *globalSettings;
+    GlobalSettings* globalSettings;
+
 public:
-    SettingsLoader(GlobalSettings *globalSettings);
+    SettingsLoader(GlobalSettings* globalSettings);
     ~SettingsLoader();
     bool loadSettings();
     bool saveSettings();
-    bool setSetting(std::string key, std::string value);
-    std::string getSetting(std::string key);
+    bool setSetting(const std::string& key, const std::string& value);
+    std::string getSetting(const std::string& key);
 };

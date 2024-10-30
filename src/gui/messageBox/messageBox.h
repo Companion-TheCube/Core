@@ -61,7 +61,7 @@ public:
     void setPosition(glm::vec2 position);
     void setSize(glm::vec2 size);
     std::vector<MeshObject*> getObjects();
-    void setText(std::string text, std::string title);
+    void setText(const std::string& text, const std::string& title);
     void setCallback(std::function<void()> callback);
     void call_callback()
     {
@@ -103,7 +103,7 @@ public:
     void setSize(glm::vec2 size);
     void setTextSize(float size);
     std::vector<MeshObject*> getObjects();
-    void setText(std::string text, std::string title);
+    void setText(const std::string& text, const std::string& title);
     void setCallback(std::function<void()> callback);
     void call_callback()
     {
@@ -145,7 +145,7 @@ public:
     void setSize(glm::vec2 size);
     void setTextSize(float size);
     std::vector<MeshObject*> getObjects();
-    void setText(std::string text, std::string title);
+    void setText(const std::string& text, const std::string& title);
     void setCallbackYes(std::function<void()> callback);
     void setCallbackNo(std::function<void()> callback);
     void call_callback()
@@ -192,7 +192,7 @@ public:
     void restorePosition() override {};
     void resetScroll() override {};
     std::vector<MeshObject*> getObjects() override { return object->getObjects(); };
-    void draw() override { };
+    void draw() override {};
     bool setVisible(bool visible) override { return object->setVisible(visible); };
     bool getVisible() override { return object->getVisible(); };
     bool setIsClickable(bool isClickable) override { return object->getVisible(); };

@@ -100,7 +100,7 @@ public:
     unsigned int logEntryNumber;
     Logger::LogLevel level;
     static unsigned int logEntryCount;
-    CUBE_LOG_ENTRY(std::string message, CustomSourceLocation* location, Logger::LogVerbosity verbosity, Logger::LogLevel level = Logger::LogLevel::LOGGER_INFO);
+    CUBE_LOG_ENTRY(const std::string& message, CustomSourceLocation* location, Logger::LogVerbosity verbosity, Logger::LogLevel level = Logger::LogLevel::LOGGER_INFO);
     ~CUBE_LOG_ENTRY();
     std::string getMessage();
     std::string getTimestamp();
@@ -128,21 +128,21 @@ private:
     static bool hasUnreadErrors_b, hasUnreadLogs_b;
     static std::string screenMessage;
     static std::vector<unsigned int> readErrorIDs, readLogIDs;
-    static void log(std::string message, bool print, Logger::LogLevel level = Logger::LogLevel::LOGGER_INFO, CustomSourceLocation location = CustomSourceLocation::current());
+    static void log(const std::string& message, bool print, Logger::LogLevel level = Logger::LogLevel::LOGGER_INFO, CustomSourceLocation location = CustomSourceLocation::current());
     std::jthread* resetThread;
     static std::chrono::system_clock::time_point lastScreenMessageTime;
     static int advancedColorsEnabled;
 
 public:
-    static void screen(std::string message, Logger::LogLevel level = Logger::LogLevel::LOGGER_INFO, CustomSourceLocation location = CustomSourceLocation::current());
-    static void debugSilly(std::string message, CustomSourceLocation location = CustomSourceLocation::current());
-    static void debug(std::string message, CustomSourceLocation location = CustomSourceLocation::current());
-    static void error(std::string message, CustomSourceLocation location = CustomSourceLocation::current());
-    static void info(std::string message, CustomSourceLocation location = CustomSourceLocation::current());
-    static void warning(std::string message, CustomSourceLocation location = CustomSourceLocation::current());
-    static void critical(std::string message, CustomSourceLocation location = CustomSourceLocation::current());
-    static void moreInfo(std::string message, CustomSourceLocation location = CustomSourceLocation::current());
-    static void fatal(std::string message, CustomSourceLocation location = CustomSourceLocation::current());
+    static void screen(const std::string& message, Logger::LogLevel level = Logger::LogLevel::LOGGER_INFO, CustomSourceLocation location = CustomSourceLocation::current());
+    static void debugSilly(const std::string& message, CustomSourceLocation location = CustomSourceLocation::current());
+    static void debug(const std::string& message, CustomSourceLocation location = CustomSourceLocation::current());
+    static void error(const std::string& message, CustomSourceLocation location = CustomSourceLocation::current());
+    static void info(const std::string& message, CustomSourceLocation location = CustomSourceLocation::current());
+    static void warning(const std::string& message, CustomSourceLocation location = CustomSourceLocation::current());
+    static void critical(const std::string& message, CustomSourceLocation location = CustomSourceLocation::current());
+    static void moreInfo(const std::string& message, CustomSourceLocation location = CustomSourceLocation::current());
+    static void fatal(const std::string& message, CustomSourceLocation location = CustomSourceLocation::current());
     std::vector<CUBE_LOG_ENTRY> getLogEntries(Logger::LogLevel level = Logger::LogLevel(0));
     std::vector<std::string> getLogEntriesAsStrings(bool fullMessages = true);
     std::vector<std::string> getErrorsAsStrings(bool fullMessages = true);
@@ -168,7 +168,7 @@ public:
 };
 
 std::string convertTimestampToString(std::chrono::time_point<std::chrono::system_clock> timestamp);
-std::string getFileNameFromPath(std::string path);
+std::string getFileNameFromPath(const std::string& path);
 
 namespace Color {
 enum Code {
@@ -280,4 +280,4 @@ public:
 };
 } // namespace Color
 
-#endif// LOGGER_H
+#endif // LOGGER_H

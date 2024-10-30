@@ -7,14 +7,14 @@
 #include <windows.h>
 #endif
 #endif
+#include "../objects.h"
+#include <SFML/Graphics.hpp>
 #include <functional>
-#include <vector>
 #include <logger.h>
 #include <tuple>
-#include <SFML/Graphics.hpp>
-#include "../objects.h"
+#include <vector>
 
-enum SpecificEventTypes: unsigned int{
+enum SpecificEventTypes : unsigned int {
     KEYPRESS_A,
     KEYPRESS_B,
     KEYPRESS_C,
@@ -140,7 +140,7 @@ enum SpecificEventTypes: unsigned int{
     NULL_EVENT
 };
 
-class EventHandler{
+class EventHandler {
 private:
     std::function<void(void*)> action;
     std::string name;
@@ -153,7 +153,7 @@ public:
     bool triggerEvent(void* data = nullptr);
     void setAction(std::function<void(void*)> action);
     std::string getName();
-    void setName(std::string name);
+    void setName(const std::string& name);
     sf::Event::EventType getEventType();
     void setEventType(sf::Event::EventType eventType);
     // void setEventType(sf::Event::EventType eventType, ClickableArea* cl_Area);
@@ -162,29 +162,28 @@ public:
     // ClickableArea* getClickableArea();
 };
 
-class EventManager{
+class EventManager {
 private:
     std::vector<EventHandler*> events;
     std::vector<ClickableArea*> clickableAreas;
     bool checkClickableAreas(sf::Event event);
     std::tuple<int, int> mouseDownPosition;
+
 public:
     EventManager();
     ~EventManager();
-    int createEvent(std::string eventName); // returns index of the event
+    int createEvent(const std::string& eventName); // returns index of the event
     bool removeEvent(EventHandler* event); // removes event from the list
     bool removeEvent(int index); // removes event from the list
-    bool removeEvent(std::string eventName); // removes event from the list
+    bool removeEvent(const std::string& eventName); // removes event from the list
     EventHandler* getEvent(int index); // returns event by index
-    EventHandler* getEvent(std::string eventName); // returns event by name
+    EventHandler* getEvent(const std::string& eventName); // returns event by name
     bool triggerEvent(sf::Event event, void* data); // triggers event by sf::Event
     bool triggerEvent(int index, void* data); // triggers event by index
-    bool triggerEvent(std::string eventName, void* data); // triggers event by name
+    bool triggerEvent(const std::string& eventName, void* data); // triggers event by name
     bool triggerEvent(sf::Event::EventType eventType, void* data); // triggers event by sf::Event::EventType
     bool triggerEvent(SpecificEventTypes specificEventType, void* data); // triggers event by SpecificEventTypes
     bool triggerEvent(SpecificEventTypes specificEventType, sf::Event::EventType eventType, void* data); // triggers event by SpecificEventTypes
     std::vector<EventHandler*> getEvents();
     void addClickableArea(ClickableArea* clickableArea);
-
 };
-

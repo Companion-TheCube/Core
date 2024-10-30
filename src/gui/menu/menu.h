@@ -122,7 +122,7 @@ private:
     bool isClickable = false;
 
 public:
-    MenuEntry(Shader* t_shader, Shader* m_shader, std::string text, glm::vec2 position, float size, float visibleWidth, EntryType type, std::function<unsigned int(void*)> statusAction, void* statusActionArg);
+    MenuEntry(Shader* t_shader, Shader* m_shader, const std::string& text, glm::vec2 position, float size, float visibleWidth, EntryType type, std::function<unsigned int(void*)> statusAction, void* statusActionArg);
     ~MenuEntry();
     void onClick(void*);
     void onRelease(void*);
@@ -199,15 +199,15 @@ public:
     bool isReady();
     void draw();
     std::vector<ClickableArea*> getClickableAreas();
-    unsigned int addMenuEntry(std::string text, std::string uniqueID, MENUS::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> statusAction, void* statusActionData);
-    unsigned int addMenuEntry(std::string text, std::string uniqueID, MENUS::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> rightAction, std::function<unsigned int(void*)> statusAction, void* statusActionData);
+    unsigned int addMenuEntry(const std::string& text, const std::string& uniqueID, MENUS::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> statusAction, void* statusActionData);
+    unsigned int addMenuEntry(const std::string& text, const std::string& uniqueID, MENUS::EntryType type, std::function<unsigned int(void*)> action, std::function<unsigned int(void*)> rightAction, std::function<unsigned int(void*)> statusAction, void* statusActionData);
     void setParentMenu(Menu* parentMenu);
     Menu* getParentMenu();
-    void setMenuName(std::string name);
+    void setMenuName(const std::string& name);
     void setAsMainMenu();
     bool setIsClickable(bool isClickable);
     std::string getMenuName();
-    void setUniqueMenuIdentifier(std::string uniqueMenuIdentifier);
+    void setUniqueMenuIdentifier(const std::string& uniqueMenuIdentifier);
     std::string getUniqueMenuIdentifier();
     void addHorizontalRule();
     void scrollVert(int y);
@@ -227,7 +227,6 @@ private:
     glm::vec2 size;
     std::vector<MeshObject*> objects;
     bool visible;
-    
 
 public:
     static float index;

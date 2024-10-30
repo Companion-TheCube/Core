@@ -72,7 +72,7 @@ std::string EventHandler::getName()
  *
  * @param name std::string
  */
-void EventHandler::setName(std::string name)
+void EventHandler::setName(const std::string& name)
 {
     this->name = name;
 }
@@ -147,7 +147,7 @@ EventManager::~EventManager()
  * @param eventName std::string
  * @return int index of the event
  */
-int EventManager::createEvent(std::string eventName)
+int EventManager::createEvent(const std::string& eventName)
 {
     EventHandler* event = new EventHandler();
     event->setName(eventName);
@@ -184,7 +184,7 @@ bool EventManager::removeEvent(int index)
     return true;
 }
 
-bool EventManager::removeEvent(std::string eventName)
+bool EventManager::removeEvent(const std::string& eventName)
 {
     for (size_t i = 0; i < this->events.size(); i++) {
         if (this->events[i]->getName() == eventName) {
@@ -223,7 +223,7 @@ std::vector<EventHandler*> EventManager::getEvents()
  * @param eventName
  * @return EventHandler*
  */
-EventHandler* EventManager::getEvent(std::string eventName)
+EventHandler* EventManager::getEvent(const std::string& eventName)
 {
     for (size_t i = 0; i < this->events.size(); i++) {
         if (this->events[i]->getName() == eventName) {
@@ -281,7 +281,7 @@ bool EventManager::triggerEvent(int index, void* data)
  * @return true if event was triggered
  * @return false if event was not triggered
  */
-bool EventManager::triggerEvent(std::string eventName, void* data)
+bool EventManager::triggerEvent(const std::string& eventName, void* data)
 {
     if (checkClickableAreas(*((sf::Event*)data))) {
         return true;

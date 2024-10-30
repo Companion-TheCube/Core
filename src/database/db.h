@@ -124,28 +124,28 @@ class Database {
     std::map<std::string, bool> uniqueColumns;
 
 public:
-    Database(std::string dbPath);
+    Database(const std::string& dbPath);
     ~Database();
-    bool createTable(std::string tableName, std::vector<std::string> columnNames, std::vector<std::string> columnTypes, std::vector<bool> uniqueColumns);
-    long insertData(std::string tableName, std::vector<std::string> columnNames, std::vector<std::string> columnValues);
-    bool updateData(std::string tableName, std::vector<std::string> columnNames, std::vector<std::string> columnValues, std::string whereClause);
+    bool createTable(const std::string& tableName, std::vector<std::string> columnNames, std::vector<std::string> columnTypes, std::vector<bool> uniqueColumns);
+    long insertData(const std::string& tableName, std::vector<std::string> columnNames, std::vector<std::string> columnValues);
+    bool updateData(const std::string& tableName, std::vector<std::string> columnNames, std::vector<std::string> columnValues, const std::string& whereClause);
     void setUniqueColumns(std::vector<std::string> columnNames, std::vector<bool> uniqueColumns);
-    bool deleteData(std::string tableName, std::string whereClause);
-    std::vector<std::vector<std::string>> selectData(std::string tableName, std::vector<std::string> columnNames, std::string whereClause);
-    std::vector<std::vector<std::string>> selectData(std::string tableName, std::vector<std::string> columnNames);
-    std::vector<std::vector<std::string>> selectData(std::string tableName);
-    char* selectBlob(std::string tableName, std::string columnName, std::string whereClause, int& size);
-    std::string selectBlobString(std::string tableName, std::string columnName, std::string whereClause);
-    bool tableExists(std::string tableName);
-    bool columnExists(std::string tableName, std::string columnName);
-    bool rowExists(std::string tableName, std::string whereClause);
+    bool deleteData(const std::string& tableName, const std::string& whereClause);
+    std::vector<std::vector<std::string>> selectData(const std::string& tableName, std::vector<std::string> columnNames, const std::string& whereClause);
+    std::vector<std::vector<std::string>> selectData(const std::string& tableName, std::vector<std::string> columnNames);
+    std::vector<std::vector<std::string>> selectData(const std::string& tableName);
+    char* selectBlob(const std::string& tableName, const std::string& columnName, const std::string& whereClause, int& size);
+    std::string selectBlobString(const std::string& tableName, const std::string& columnName, const std::string& whereClause);
+    bool tableExists(const std::string& tableName);
+    bool columnExists(const std::string& tableName, const std::string& columnName);
+    bool rowExists(const std::string& tableName, const std::string& whereClause);
     bool open();
     bool close();
     bool isOpen();
     std::string getDBPath();
     std::string getDBName();
     std::string getLastError();
-    bool createDB(std::string dbPath);
+    bool createDB(const std::string& dbPath);
 };
 
 class CubeDatabaseManager {
@@ -160,14 +160,14 @@ class CubeDatabaseManager {
 public:
     CubeDatabaseManager();
     ~CubeDatabaseManager();
-    void addDatabase(std::string dbPath);
-    Database* getDatabase(std::string dbName);
-    bool removeDatabase(std::string dbName);
+    void addDatabase(const std::string& dbPath);
+    Database* getDatabase(const std::string& dbName);
+    bool removeDatabase(const std::string& dbName);
     std::vector<Database*> getDatabases();
     void closeAll();
     void openAll();
-    void closeDatabase(std::string dbName);
-    bool openDatabase(std::string dbName);
+    void closeDatabase(const std::string& dbName);
+    bool openDatabase(const std::string& dbName);
     void addDbTask(std::function<void()> task);
     bool isDatabaseManagerReady();
 };
@@ -178,19 +178,19 @@ class BlobsManager {
     bool isReady = false;
 
 public:
-    BlobsManager(std::shared_ptr<CubeDatabaseManager> dbManager, std::string dbPath);
+    BlobsManager(std::shared_ptr<CubeDatabaseManager> dbManager, const std::string& dbPath);
     ~BlobsManager();
-    int addBlob(std::string tableName, std::string blob, std::string ownerID);
-    int addBlob(std::string tableName, char* blob, int size, std::string ownerID);
-    bool removeBlob(std::string tableName, std::string ownerID, int id);
-    std::string getBlobString(std::string tableName, std::string ownerID, int id);
-    char* getBlobChars(std::string tableName, std::string ownerID, int id, int& size);
-    bool updateBlob(std::string tableName, std::string blob, std::string ownerID, int id);
-    bool updateBlob(std::string tableName, char* blob, int size, std::string ownerID, int id);
+    int addBlob(const std::string& tableName, const std::string& blob, const std::string& ownerID);
+    int addBlob(const std::string& tableName, char* blob, int size, const std::string& ownerID);
+    bool removeBlob(const std::string& tableName, const std::string& ownerID, int id);
+    std::string getBlobString(const std::string& tableName, const std::string& ownerID, int id);
+    char* getBlobChars(const std::string& tableName, const std::string& ownerID, int id, int& size);
+    bool updateBlob(const std::string& tableName, const std::string& blob, const std::string& ownerID, int id);
+    bool updateBlob(const std::string& tableName, char* blob, int size, const std::string& ownerID, int id);
     bool isBlobsManagerReady();
 };
 
 // TODO: make sure all the data is sanitized before being inserted into the database.
 bool sanitizeString(std::string& str);
 
-#endif// DB_H
+#endif // DB_H
