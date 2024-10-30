@@ -41,6 +41,7 @@ struct EndpointError {
 };
 
 typedef std::function<EndpointError(const httplib::Request& req, httplib::Response& res)> EndpointAction_t;
+
 // Type: HttpEndPointDataSinglet_t - A tuple containing the following elements:
 // 1. unsigned int - The type of endpoint. This is a bitwise OR of the following values:
 //      PUBLIC_ENDPOINT - The endpoint is public and can be accessed by any client on the network.
@@ -52,6 +53,17 @@ typedef std::function<EndpointError(const httplib::Request& req, httplib::Respon
 // 4. std::vector<std::string> - The parameters that the endpoint accepts.
 // 5. std::string - A description of the endpoint.
 typedef std::tuple<unsigned int, EndpointAction_t, std::string, std::vector<std::string>, std::string> HttpEndPointDataSinglet_t;
+
+
+// Type: HttpEndPointData_t - A vector of HttpEndPointDataSinglet_t's
+// Each element of the vector is a tuple containing the following elements:
+// 1. unsigned int - The type of endpoint. This is a bitwise OR of the following values:
+//   PUBLIC_ENDPOINT or PRIVATE_ENDPOINT - Private endpoints are only accessible by authenticated or local clients.
+//   GET_ENDPOINT or POST_ENDPOINT - Http method that the endpoint accepts.
+// 2. EndpointAction_t - The action to be executed when the endpoint is hit. This function should return as soon as possible and should be thread safe.
+// 3. std::string - The name of the endpoint.
+// 4. std::vector<std::string> - The parameters that the endpoint accepts.
+// 5. std::string - A description of the endpoint.
 typedef std::vector<HttpEndPointDataSinglet_t> HttpEndPointData_t;
 
 #define PUBLIC_ENDPOINT (int)1

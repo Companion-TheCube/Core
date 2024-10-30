@@ -58,10 +58,10 @@ HttpEndPointData_t AudioManager::getHttpEndpointData()
     data.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
             std::string p = "no param";
-            for (auto param : req.params) {
-                if (param.first == "soundOn") {
-                    this->setSound(param.second == "true");
-                    p = param.second;
+            for (auto &[paramName, paramValue] : req.params) {
+                if (paramName == "soundOn") {
+                    this->setSound(paramValue == "true");
+                    p = paramValue;
                 }
             }
             CubeLog::info("Endpoint set sound called with param: " + p);

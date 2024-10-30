@@ -129,9 +129,9 @@ struct GlobalSettings {
 
     static void callSettingCB(SettingType key){
         CubeLog::debug("Calling setting change callback for " + key);
-        for(auto cb : settingChangeCallbacks){
-            if(cb.first == key){
-                cb.second();
+        for(auto &[settingKey, cb] : settingChangeCallbacks){
+            if(settingKey == key){
+                cb();
             }
         }
     }

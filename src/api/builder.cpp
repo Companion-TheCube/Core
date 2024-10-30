@@ -27,9 +27,7 @@ void API_Builder::start()
     // Start the API
     CubeLog::info("API Builder begin build process.");
     // Using all the components that are passed in, build the API endpoints
-    for (auto i_face : this->interface_objs) {
-        std::string name = i_face.first;
-        I_API_Interface* i_face_obj = i_face.second;
+    for (auto &[name, i_face_obj] : this->interface_objs) {
         CubeLog::info("Building interface object: " + name);
         auto endpointData = i_face_obj->getHttpEndpointData();
         for (size_t i = 0; i < endpointData.size(); i++) {
@@ -42,9 +40,7 @@ void API_Builder::start()
     CubeLog::info("Adding endpoint: getEndpoints at /getEndpoints");
     this->api->addEndpoint("getEndpoints", "/getEndpoints", PUBLIC_ENDPOINT | GET_ENDPOINT, [&](const httplib::Request& req, httplib::Response& res) {
         nlohmann::json j;
-        for (auto i_face : this->interface_objs) {
-            std::string name = i_face.first;
-            I_API_Interface* i_face_obj = i_face.second;
+        for (auto &[name, i_face_obj] : this->interface_objs) {
             auto endpointData = i_face_obj->getHttpEndpointData();
             for (size_t i = 0; i < endpointData.size(); i++) {
                 nlohmann::json endpoint_json;

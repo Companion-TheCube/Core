@@ -2,7 +2,12 @@
 // TODO: we should monitor the CubeLog for errors and display them in the status bar. This will require a way to get the last error message from the CubeLog. <- this is done in CubeLog
 // TODO: setup notifications that pop up with a CubeMessageBox. this will need to have notifications.cpp fleshed out.
 
+//#define _ENABLE_LAMBDAS
+
 #include "./gui.h"
+
+bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry);
+bool breakJsonApart(nlohmann::json j, AddMenu_Data_t& data, std::string* menuName, std::string* thisUniqueID, std::string* parentID);
 
 CubeMessageBox* GUI::messageBox = nullptr;
 CubeTextBox* GUI::fullScreenTextBox = nullptr;
@@ -81,6 +86,9 @@ void GUI::eventLoop()
     ////////////////////////////////////////
     CountingLatch countingLatch(22); // this value must be equal to count of "new MENUS::Menu()" calls in this method + 2 (for the message box and text box)
 
+// This ifdef is part of a hack to make intellisense play well with the lambda functions. This is defined in cmakelists.txt so that when we compile, the lambdas are enabled.
+// Intellisense struggles with lots of lambdas, so this is a workaround. Uncomment the define at the top of this file to enable intellisense to see the lambdas.
+#ifdef _ENABLE_LAMBDAS
     // Helper function to add a back button to a menu with a horizontal rule
     auto addBackButton = [](auto* menu) {
         menu->addMenuEntry(
@@ -726,6 +734,8 @@ void GUI::eventLoop()
         // TODO:
     }
 
+#endif // ENABLE_LAMBDAS
+
     ////////////////////////////////////////
     /// Set up the event handlers
     ////////////////////////////////////////
@@ -750,9 +760,9 @@ void GUI::eventLoop()
             touchChange = true;
         }
         if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left) && lastMouseY > INT_MIN) {
-            for (auto action : drag_y_actions) {
-                if (action.first() && !touchChange) {
-                    action.second(-(event->mouseMove.y - lastMouseY));
+            for (auto &[isVisible, action] : drag_y_actions) {
+                if (isVisible() && !touchChange) {
+                    action(-(event->mouseMove.y - lastMouseY));
                 }
             }
         }
@@ -811,7 +821,7 @@ void GUI::eventLoop()
 
     CubeLog::info("Starting event handler loop...");
     while (this->renderer->getIsRunning()) {
-        std::vector<sf::Event> events = this->renderer->getEvents();
+        std::vector<sf::Event> events = this->renderer->getEvents(); // TODO: change this to be a reference
         for (size_t i = 0; i < events.size(); i++) {
             this->eventManager->triggerEvent(events[i].type, &events[i]);
             this->eventManager->triggerEvent(static_cast<SpecificEventTypes>(events[i].key.code), &events[i]);
@@ -824,21 +834,26 @@ void GUI::eventLoop()
         delete menu;
     }
     delete messageBox;
+    delete fullScreenTextBox;
+    CubeLog::info("GUI stopped");
 }
 
 /**
  * @brief Add a menu to the GUI
  *
  * @param menuName the name of the menu
- * @param parentName the name of the parent menu
- * @param data a vector of tuples containing the text, json data, and unique identifier for the menu entries
+ * @param thisUniqueID the unique identifier for this menu
+ * @param parentID the unique identifier of the parent menu
+ * @param data the data to add to the menu
+ * @return GUI_Error
  */
 GUI_Error GUI::addMenu(const std::string& menuName, const std::string& thisUniqueID, const std::string& parentID, AddMenu_Data_t data)
 {
     CubeLog::debugSilly("Adding menu: " + menuName + " with parent: " + parentID);
     std::vector<std::string> uniqueIDs;
+    uniqueIDs.reserve(data.size());
     for (size_t i = 0; i < data.size(); i++) {
-        uniqueIDs.push_back(std::get<2>(data.at(i)));
+        uniqueIDs.push_back(std::get<1>(data.at(i)));
     }
     CubeLog::debugSilly("Locking addMenuMutex");
     std::unique_lock<std::mutex> lock(this->addMenuMutex);
@@ -898,7 +913,7 @@ GUI_Error GUI::addMenu(const std::string& menuName, const std::string& thisUniqu
         aNewMenu->addHorizontalRule();
         bool success = true;
         for (size_t i = 0; i < data.size(); i++) {
-            if (!parseJsonAndAddEntriesToMenu(std::get<1>(data[i]), aNewMenu)) {
+            if (!parseJsonAndAddEntriesToMenu(std::get<0>(data[i]), aNewMenu)) {
                 CubeLog::error("Error parsing json and adding entries to menu: " + menuName);
                 success = false;
             }
@@ -1057,6 +1072,7 @@ void GUI::showTextInputBox(const std::string& title, std::vector<std::string> fi
 {
     // TODO: show a text input box
     std::vector<std::string> textVector;
+    textVector.reserve(fields.size());
     for (size_t i = 0; i < fields.size(); i++) {
         textVector.push_back(fields[i]);
     }
@@ -1079,21 +1095,21 @@ HttpEndPointData_t GUI::getHttpEndpointData()
     HttpEndPointData_t actions;
     actions.push_back(
         { PUBLIC_ENDPOINT | GET_ENDPOINT,
-            [&](const httplib::Request& req, httplib::Response& res) {
+            [](const httplib::Request& req, httplib::Response& res) {
                 // TODO: anything that gets displayed needs to be logged in the DB->notifications
                 std::string mes = "";
                 std::string title = "";
-                for (auto param : req.params) {
-                    if (param.first == "text") {
-                        mes = param.second;
-                    } else if (param.first == "title") {
-                        title = param.second;
+                for (auto &[paramName, paramValue] : req.params) {
+                    if (paramName == "text") {
+                        mes = paramValue;
+                    } else if (paramName == "title") {
+                        title = paramValue;
                     }
                 }
                 if (title == "" || mes == "")
                     messageBox->setVisible(false);
                 else
-                    showMessageBox(title, mes);
+                    GUI::showMessageBox(title, mes);
                 CubeLog::info("Endpoint stop called and message set to: " + mes + " with title: " + title);
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Message set to: " + mes);
             },
@@ -1143,11 +1159,11 @@ HttpEndPointData_t GUI::getHttpEndpointData()
                 // ge the json data from the request
                 nlohmann::json j;
                 nlohmann::json response;
+                response["success"] = false;
                 try {
                     j = nlohmann::json::parse(req.body);
                 } catch (nlohmann::json::exception& e) {
                     CubeLog::error("Error parsing json: " + std::string(e.what()));
-                    response["success"] = false;
                     response["message"] = "Error parsing json: " + std::string(e.what());
                     res.set_content(response.dump(), "application/json");
                     return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Error parsing json: " + std::string(e.what()));
@@ -1156,7 +1172,6 @@ HttpEndPointData_t GUI::getHttpEndpointData()
                 std::string menuName, thisUniqueID, parentID;
                 if (!breakJsonApart(j, data, &menuName, &thisUniqueID, &parentID)) {
                     CubeLog::error("Error breaking json apart");
-                    response["success"] = false;
                     response["message"] = "Error breaking json apart";
                     res.set_content(response.dump(), "application/json");
                     return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Error breaking json apart");
@@ -1164,7 +1179,6 @@ HttpEndPointData_t GUI::getHttpEndpointData()
                 GUI_Error temp = addMenu(menuName, thisUniqueID, parentID, data);
                 if (temp.errorType != GUI_Error::ERROR_TYPES::GUI_NO_ERROR) {
                     CubeLog::error("Failed to add menu. Error: " + temp.errorString);
-                    response["success"] = false;
                     response["message"] = "Failed to add menu. Error: " + temp.errorString;
                     res.set_content(response.dump(), "application/json");
                     return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Failed to add menu. Error: " + temp.errorString);
@@ -1179,20 +1193,6 @@ HttpEndPointData_t GUI::getHttpEndpointData()
             _("Add a menu to the GUI") });
     return actions;
 }
-
-/**
- * @brief Get the Http Endpoint Names And Params object
- *
- * @return std::vector<std::pair<std::string, std::vector<std::string>>> a vector of pairs of strings and vectors of strings
- */
-// std::vector<std::pair<std::string, std::vector<std::string>>> GUI::getHttpEndpointNamesAndParams()
-// {
-//     std::vector<std::pair<std::string, std::vector<std::string>>> names;
-//     names.push_back({ "messageBox", { "text", "title" } });
-//     names.push_back({ "textBox", { "text", "title", "size-x", "size-y", "position-x", "position-y" } });
-//     names.push_back({ "addMenu", {} });
-//     return names;
-// }
 
 /**
  * @brief Get the Inteface Name
@@ -2004,11 +2004,11 @@ bool breakJsonApart(nlohmann::json j, AddMenu_Data_t& data, std::string* menuNam
         *thisUniqueID = j["uniqueID"];
         *parentID = j["parentID"];
         for (auto it = j["entries"].begin(); it != j["entries"].end(); ++it) {
-            std::string entryText = it.value()["entryText"];
+            // std::string entryText = it.value()["entryText"];
             nlohmann::json entryData = it.value();
             std::string uniqueID = it.value()["uniqueID"];
 
-            data.push_back({ entryText, entryData, uniqueID });
+            data.push_back({ entryData, uniqueID });
         }
     } catch (nlohmann::json::exception& e) {
         CubeLog::error("Error parsing json: " + std::string(e.what()));

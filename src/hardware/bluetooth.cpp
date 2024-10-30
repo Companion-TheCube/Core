@@ -514,6 +514,8 @@ BTControl::BTControl()
     // this->server->Get("/bonding_completed")
     // this->server->Get("/bonding_failed")
 
+    // TODO: register the callbacks with the GlobalSettings class so that the enabled/disable/etc actions get called when the setting is changed.
+
     // Start the server
     this->serverThread = new std::jthread([&] {
 #ifdef _WIN32

@@ -11,6 +11,9 @@ add_definitions(-DMAJOR_VERSION=${PROJECT_VERSION_MAJOR})
 add_definitions(-DMINOR_VERSION=${PROJECT_VERSION_MINOR})
 add_definitions(-DPATCH_VERSION=${PROJECT_VERSION_PATCH})
 
+# This is a hack to make intellisense work well with a bunch of lambdas
+add_definitions(-D_ENABLE_LAMBDAS)
+
 # set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE "ON" FORCE)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
 

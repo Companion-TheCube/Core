@@ -400,36 +400,6 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
 }
 
 /**
- * @brief Get the Endpoint Names object
- *
- * @return std::vector<std::pair<std::string, std::vector<std::string>>>
- * @details This function returns a vector of pairs. Each pair contains a string and a vector of strings. The string is the name of the endpoint and the vector of strings are the parameters that the endpoint accepts.
- */
-// std::vector<std::pair<std::string, std::vector<std::string>>> CubeDB::getHttpEndpointNamesAndParams()
-// {
-//     std::vector<std::string> names;
-//     std::vector<std::string> params;
-//     std::pair<std::string, std::vector<std::string>> saveBlob;
-//     saveBlob.first = "saveBlob";
-//     saveBlob.second = {};
-//     std::pair<std::string, std::vector<std::string>> insertData;
-//     insertData.first = "insertData";
-//     insertData.second = {};
-//     std::pair<std::string, std::vector<std::string>> retrieveBlobBinary;
-//     retrieveBlobBinary.first = "retrieveBlobBinary";
-//     retrieveBlobBinary.second = { "clientOrApp_id", "blob_id" };
-//     std::pair<std::string, std::vector<std::string>> retrieveBlobString;
-//     retrieveBlobString.first = "retrieveBlobString";
-//     retrieveBlobString.second = { "clientOrApp_id", "blob_id" };
-//     std::vector<std::pair<std::string, std::vector<std::string>>> namesAndParams;
-//     namesAndParams.push_back(saveBlob);
-//     namesAndParams.push_back(insertData);
-//     namesAndParams.push_back(retrieveBlobBinary);
-//     namesAndParams.push_back(retrieveBlobString);
-//     return namesAndParams;
-// }
-
-/**
  * @brief Get the Inteface Name for the database endpoints
  *
  * @return std::string

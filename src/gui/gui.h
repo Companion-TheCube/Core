@@ -53,10 +53,9 @@
 #define _(String) (String)
 #endif
 
-typedef std::vector<std::tuple<std::string, nlohmann::json, std::string>> AddMenu_Data_t;
-
-bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry);
-bool breakJsonApart(nlohmann::json j, AddMenu_Data_t& data, std::string* menuName, std::string* thisUniqueID, std::string* parentID);
+// Data that is passed to the addMenu function
+// The first string is
+typedef std::vector<std::tuple<nlohmann::json, std::string>> AddMenu_Data_t;
 
 struct GUI_Error {
     enum ERROR_TYPES {

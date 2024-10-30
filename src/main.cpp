@@ -16,7 +16,7 @@ int main(int argc, char* argv[])
     /////////////////////////////////////////////////////////////////
     // Argument parsing
     /////////////////////////////////////////////////////////////////
-    std::string versionInfo = "Companion, TheCube - CORE ver.";
+    std::string versionInfo = "Companion, TheCube - CORE ver: ";
     versionInfo += SW_VERSION;
     versionInfo += "\n";
     versionInfo += "Built on: " + std::string(__DATE__) + " " + std::string(__TIME__) + "\n";
@@ -182,11 +182,12 @@ int main(int argc, char* argv[])
     /////////////////////////////////////////////////////////////////
     {
         auto audioManager = std::make_shared<AudioManager>();
-        auto db_cube = std::make_shared<CubeDatabaseManager>();
-        auto blobs = std::make_shared<BlobsManager>(db_cube, "data/blobs.db");
-        auto cubeDB = std::make_shared<CubeDB>(db_cube, blobs);
+        auto db_manager = std::make_shared<CubeDatabaseManager>();
+        auto blobs = std::make_shared<BlobsManager>(db_manager, "data/blobs.db");
+        auto cubeDB = std::make_shared<CubeDB>(db_manager, blobs);
         auto wifiManager = std::make_shared<WifiManager>();
         auto btManager = std::make_shared<BTManager>();
+        // Testing /////////////////////////////////////////////////
         long blobID = CubeDB::getBlobsManager()->addBlob("client_blobs", "test blob", "1");
         CubeLog::info("Blob ID: " + std::to_string(blobID));
         bool allInsertionsSuccess = true;
@@ -202,6 +203,7 @@ int main(int argc, char* argv[])
         #endif
         if (!allInsertionsSuccess)
             CubeLog::warning("Failed to insert data into database. Last error: " + CubeDB::getDBManager()->getDatabase("apps")->getLastError());
+        // end testing //////////////////////////////////////////////
         AppsManager appsManager;
         auto api = std::make_shared<API>();
         auto auth = std::make_shared<CubeAuth>();
@@ -228,6 +230,9 @@ int main(int argc, char* argv[])
         CubeLog::info("Exited main loop...");
     }
     return 0;
+    // TODO: any other place where main() might return, change the return value to something meaningful. this way, when
+    // we get around to launching this with the node.js manager app, we can use the return value to determine if the
+    // application should be restarted or not.
 }
 
 #ifdef _WIN32
