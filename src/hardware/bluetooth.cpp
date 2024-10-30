@@ -818,12 +818,11 @@ BTService::BTService(std::string serviceName)
     this->address = "/tmp/cube/bt_service_" + std::to_string(this->port) + ".sock";
 #endif
 
-    nlohmann::json config;
-    config["CB_baseAddress"] = this->address;
-    config["CB_port"] = this->port;
-    config["CB_serviceName"] = serviceName;
+    this->config["CB_baseAddress"] = this->address;
+    this->config["CB_port"] = this->port;
+    this->config["CB_serviceName"] = serviceName;
     this->client = new httplib::Client(BT_MANAGER_ADDRESS);
-    httplib::Result res = this->client->Post("/setup", config.dump(), "application/json");
+    httplib::Result res = this->client->Post("/setup", this->config.dump(), "application/json");
     if (!res) {
         CubeLog::error("Error getting response: " + std::string(BT_MANAGER_ADDRESS) + "/setup");
         return;
@@ -862,17 +861,34 @@ void BTService::start()
         nlohmann::json j;
         while (!st.stop_requested()) {
             genericSleep(10 * 1000);
+            if(this->client_id == "none"){
+                CubeLog::info("Client id not set. Attempting to get client id.");
+                httplib::Result res = this->client->Post("/setup", this->config.dump(), "application/json");
+                if (!res) {
+                    continue;
+                }
+                if (res->status != 200) {
+                    continue;
+                }
+                this->client_id = res->body;
+                continue;
+            }
             j["status"] = "alive";
             j["client_id"] = this->client_id;
             httplib::Result res = this->client->Post("/heartbeat", j.dump(), "application/json");
             if (!res) {
                 CubeLog::error("Error getting response: " + std::string(BT_MANAGER_ADDRESS) + "/heartbeat");
+                this->client_id = "none";
+                continue;
             }
             if (res->status != 200) {
                 CubeLog::error("Response code: " + std::to_string(res->status));
+                this->client_id = "none";
+                continue;
             }
             if (res->body != "ok") {
                 CubeLog::error("Heartbeat failed: " + res->body);
+                this->client_id = "none";
             }
         }
         j["status"] = "shutdown";

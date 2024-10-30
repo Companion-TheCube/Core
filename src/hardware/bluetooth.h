@@ -104,6 +104,7 @@ class BTService{
     bool characteristicsLocked = false;
     std::string serviceName;
     std::string client_id = "";
+    nlohmann::json config;
 public:
     BTService(std::string serviceName);
     ~BTService();
