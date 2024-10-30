@@ -44,7 +44,15 @@ endif()
 find_package(Freetype REQUIRED)
 
 include(FetchContent)
+FetchContent_Declare(
+    stduuid
+    GIT_REPOSITORY https://github.com/mariusbancila/stduuid.git
+    GIT_TAG master
+)
+FetchContent_MakeAvailable(stduuid)
+include_directories(${stduuid_SOURCE_DIR}/include)
 
+include(FetchContent)
 FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
 FetchContent_MakeAvailable(json)
 

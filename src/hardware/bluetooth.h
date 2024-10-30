@@ -29,6 +29,7 @@
 #define BT_MANAGER_ADDRESS "http://localhost:55290"
 #endif
 #include "../api/api_i.h"
+#include "uuid.h"
 
 /**
  * @brief An object to hold information about a Bluetooth device
@@ -86,6 +87,7 @@ struct BTCharacteristic {
     std::function<std::string()> getCallback;
     std::function<void(std::string, std::string)> setCallback;
     std::function<std::string(std::string)> setGetCallback;
+    uuids::uuid uuid;
 };
 
 /**
@@ -145,4 +147,4 @@ public:
     std::string getInterfaceName() const;
 };
 
-#endif // BLUETOOTH_H
+#endif// BLUETOOTH_H
