@@ -78,6 +78,7 @@ void API_Builder::start()
             CubeLog::debug("Found static file: " + p.path().string());
         }
     }
+    // TODO: refactor to get rid of staticFiles vector
     for (auto file : staticFiles) {
         CubeLog::info("Adding static file: " + file.string());
         // strip off the ./http/ part of the path
