@@ -229,6 +229,7 @@ int main(int argc, char* argv[])
         }
         CubeLog::info("Exited main loop...");
     }
+    std::cout << "Exiting..." << std::endl;
     return 0;
     // TODO: any other place where main() might return, change the return value to something meaningful. this way, when
     // we get around to launching this with the node.js manager app, we can use the return value to determine if the
