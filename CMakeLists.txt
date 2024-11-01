@@ -11,6 +11,11 @@ add_definitions(-DMAJOR_VERSION=${PROJECT_VERSION_MAJOR})
 add_definitions(-DMINOR_VERSION=${PROJECT_VERSION_MINOR})
 add_definitions(-DPATCH_VERSION=${PROJECT_VERSION_PATCH})
 
+add_definitions(-DDOCTEST_CONFIG_DISABLE)
+
+# Comment out the following line to disable translation
+set(TRANSLATE_ENABLED ON)
+
 # This is a hack to make intellisense work well with a bunch of lambdas
 add_definitions(-D_ENABLE_LAMBDAS)
 
@@ -98,6 +103,15 @@ endif()
 
 # Create libraries directory if it doesn't exist
 file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/libraries)
+
+set(DOCTEST_HEADER ${CMAKE_SOURCE_DIR}/libraries/doctest.h)
+
+if(NOT EXISTS ${DOCTEST_HEADER})
+    file(DOWNLOAD
+    https://raw.githubusercontent.com/doctest/doctest/master/doctest/doctest.h
+        ${DOCTEST_HEADER}
+    )
+endif()
 
 # Download httplib.h if not already downloaded
 set(HTTPLIB_HEADER ${CMAKE_SOURCE_DIR}/libraries/httplib.h)
@@ -258,10 +272,11 @@ endif()
 # Localization
 # ##############################
 if(UNIX AND TRANSLATE_ENABLED)
-    set(LOCALE_DIR "${CMAKE_SOURCE_DIR}/locale")
-    set(LOCALE_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/locale")
-    set(PO_DIR "${CMAKE_SOURCE_DIR}/po")
-    set(MO_DIR "${CMAKE_SOURCE_DIR}/mo")
+    add_compile_definitions(TRANSLATE_ENABLED)
+    set(LOCALE_DIR "${CMAKE_SOURCE_DIR}/localization")
+    set(LOCALE_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/localization")
+    set(PO_DIR "${CMAKE_SOURCE_DIR}/localization/po")
+    set(MO_DIR "${CMAKE_SOURCE_DIR}/localization/mo")
 
     # Locales to install
     set(LANGUAGES en_US es fr de it ja ko)
@@ -269,24 +284,61 @@ if(UNIX AND TRANSLATE_ENABLED)
     # Create the destination directory if it doesn't exist
     file(MAKE_DIRECTORY ${LOCALE_DEST_DIR})
 
-    foreach(SRC ${SOURCE})
-        add_custom_command(
-            OUTPUT ${PO_DIR}/${SRC}.pot
-            COMMAND xgettext --keyword=_ --language=C++ --add-comments --sort-output --from-code=UTF-8 --package-name=CubeCore --package-version=1.0.0 -o ${PO_DIR}/${SRC}.pot ${SRC}
-            DEPENDS ${SRC}
-            COMMENT "Extracting strings from ${SRC}"
-        )
-    endforeach()
-
+    if(NOT EXISTS ${PO_DIR})
+        file(MAKE_DIRECTORY ${PO_DIR})
+    endif()
+    if(NOT EXISTS ${MO_DIR})
+        file(MAKE_DIRECTORY ${MO_DIR})
+    endif()
     foreach(LANG ${LANGUAGES})
-        add_custom_command(
-            OUTPUT ${MO_DIR}/${LANG}/LC_MESSAGES/CubeCore.mo
-            COMMAND ${CMAKE_COMMAND} -E make_directory ${MO_DIR}/${LANG}/LC_MESSAGES
-            COMMAND msgfmt -o ${MO_DIR}/${LANG}/LC_MESSAGES/CubeCore.mo ${PO_DIR}/${LANG}.po
-            DEPENDS ${PO_DIR}/${LANG}.po
-            COMMENT "Compiling ${LANG} translation"
-        )
+        if(NOT EXISTS ${MO_DIR}/${LANG})
+            file(MAKE_DIRECTORY ${MO_DIR}/${LANG})
+            file(MAKE_DIRECTORY ${MO_DIR}/${LANG}/LC_MESSAGES)
+            file(MAKE_DIRECTORY ${PO_DIR}/${LANG})
+        endif()
     endforeach()
+    
+    add_custom_target(GenrateTranslationPotFiles # not working
+        foreach(SRC ${SOURCES})
+            add_custom_command(
+                OUTPUT ${PO_DIR}/${SRC}.pot
+                COMMAND xgettext --keyword=_ --language=C++ --sort-output --from-code=UTF-8 --package-name=CubeCore --package-version=1.0.0 -o ${PO_DIR}/${SRC}.pot ${SRC}
+                # DEPENDS ${SRC}
+                COMMENT "Extracting strings from ${SRC}"
+            )
+        endforeach()
+    )
+
+    add_custom_target(GenerateTranslationMoFiles
+        foreach(LANG ${LANGUAGES})
+            add_custom_command(
+                OUTPUT ${MO_DIR}/${LANG}/LC_MESSAGES/CubeCore.mo
+                COMMAND ${CMAKE_COMMAND} -E make_directory ${MO_DIR}/${LANG}/LC_MESSAGES
+                COMMAND msgfmt -o ${MO_DIR}/${LANG}/LC_MESSAGES/CubeCore.mo ${PO_DIR}/${LANG}.po
+                DEPENDS ${PO_DIR}/${LANG}.po
+                COMMENT "Compiling ${LANG} translation"
+            )
+        endforeach()
+    )
+
+    add_custom_target(UpdateTranslationsPoFiles
+        foreach(LANG ${LANGUAGES})
+            add_custom_command(
+                OUTPUT ${PO_DIR}/${LANG}.po
+                COMMAND msgmerge --update ${PO_DIR}/${LANG}.po ${PO_DIR}/${LANG}.pot
+                DEPENDS ${PO_DIR}/${LANG}.pot
+                COMMENT "Updating ${LANG} translation"
+            )
+        endforeach()
+    )
+
+    # Create a custom target to run all translation-related tasks
+    add_custom_target(update_translations
+        foreach(LANG ${LANGUAGES})
+        DEPENDS ${MO_DIR}/${LANG}/LC_MESSAGES/CubeCore.mo
+        endforeach()
+        COMMENT "Updating and compiling translation files"
+    )
 
     # ###############################
     # Copy the locale files to the output directory
@@ -294,6 +346,7 @@ if(UNIX AND TRANSLATE_ENABLED)
     foreach(LANG ${LANGUAGES})
         add_custom_command(
             TARGET CubeCore POST_BUILD
+            TARGET update_translations
             COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${MO_DIR}/${LANG}
             ${LOCALE_DEST_DIR}/${LANG}
@@ -301,13 +354,7 @@ if(UNIX AND TRANSLATE_ENABLED)
         )
     endforeach()
 
-    # Create a custom target to run all translation-related tasks
-    add_custom_target(update_translations ALL
-        foreach(LANG ${LANGUAGES})
-        DEPENDS ${MO_DIR}/${LANG}/LC_MESSAGES/CubeCore.mo
-        endforeach()
-        COMMENT "Updating and compiling translation files"
-    )
+    
 endif()
 
 # ###############################

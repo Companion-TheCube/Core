@@ -1,0 +1,202 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the CubeCore package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: CubeCore 1.0.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-10-31 19:15-0400\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: src/gui/gui.cpp:618
+msgid ""
+"\n"
+"Please reboot the system for changes to take effect."
+msgstr "Please reboot the system for changes to take effect."
+
+#: src/gui/gui.cpp:495
+msgid "About"
+msgstr "About"
+
+#: src/gui/gui.cpp:466
+msgid "Accessibility"
+msgstr ""
+
+#: src/gui/gui.cpp:369
+msgid "Accounts"
+msgstr ""
+
+#: src/gui/gui.cpp:1193
+msgid "Add a menu to the GUI"
+msgstr ""
+
+#: src/gui/gui.cpp:390
+msgid "Apps"
+msgstr ""
+
+#: src/gui/gui.cpp:261
+msgid "Bluetooth"
+msgstr ""
+
+#: src/gui/gui.cpp:198
+msgid "Connections"
+msgstr ""
+
+#: src/gui/gui.cpp:428
+msgid "Date and Time"
+msgstr ""
+
+#: src/gui/gui.cpp:619
+msgid "Developer Mode"
+msgstr ""
+
+#: src/gui/gui.cpp:608
+msgid "Developer Mode Enable"
+msgstr ""
+
+#: src/gui/gui.cpp:603
+msgid "Developer Settings"
+msgstr ""
+
+#: src/gui/gui.cpp:616
+msgid "Developer mode "
+msgstr ""
+
+#: src/gui/gui.cpp:340
+msgid "Display"
+msgstr ""
+
+#: src/gui/gui.cpp:212
+msgid "Enable/Disable WiFi"
+msgstr ""
+
+#: src/gui/gui.cpp:653 src/gui/gui.cpp:659
+msgid "Factory Reset"
+msgstr ""
+
+#: src/gui/gui.cpp:659
+msgid ""
+"Factory Reset in process.\n"
+"System will reboot when it is complete."
+msgstr ""
+
+#: src/gui/gui.cpp:419
+msgid "General Settings"
+msgstr ""
+
+#: src/gui/gui.cpp:520 src/gui/gui.cpp:525
+msgid "Hardware Version"
+msgstr ""
+
+#: src/gui/gui.cpp:525
+msgid "Hardware Version: 1.0.0"
+msgstr ""
+
+#: src/gui/gui.cpp:157
+msgid "Main Menu"
+msgstr ""
+
+#: src/gui/gui.cpp:277
+msgid "NFC"
+msgstr ""
+
+#: src/gui/gui.cpp:328
+msgid "Notifications"
+msgstr ""
+
+#: src/gui/gui.cpp:288
+msgid "Personality"
+msgstr ""
+
+#: src/gui/gui.cpp:356
+msgid "Privacy"
+msgstr ""
+
+#: src/gui/gui.cpp:670 src/gui/gui.cpp:676
+msgid "Reboot"
+msgstr ""
+
+#: src/gui/gui.cpp:676
+msgid "Rebooting the system."
+msgstr ""
+
+#: src/gui/gui.cpp:639
+msgid ""
+"SSD Integrity verification in process.\n"
+"You will be notified when it is complete."
+msgstr ""
+
+#: src/gui/gui.cpp:302
+msgid "Sensors"
+msgstr ""
+
+#: src/gui/gui.cpp:500 src/gui/gui.cpp:506
+msgid "Serial Number"
+msgstr ""
+
+#: src/gui/gui.cpp:506
+msgid "Serial Number: 1234567890h"
+msgstr ""
+
+#: src/gui/gui.cpp:1118
+msgid "Show a message box with a title and message"
+msgstr ""
+
+#: src/gui/gui.cpp:2062
+msgid "Show a notification with an optional callback"
+msgstr ""
+
+#: src/gui/gui.cpp:1155
+msgid ""
+"Show a text box with a title and message of a specified size and position. "
+"Default values for size and position are 720x720 at 0,0."
+msgstr ""
+
+#: src/gui/gui.cpp:2070
+msgid "Show a yes/no notification with two callbacks"
+msgstr ""
+
+#: src/gui/gui.cpp:687 src/gui/gui.cpp:693
+msgid "Shutdown"
+msgstr ""
+
+#: src/gui/gui.cpp:693
+msgid "Shutting down the system."
+msgstr ""
+
+#: src/gui/gui.cpp:543
+msgid "Software Information"
+msgstr ""
+
+#: src/gui/gui.cpp:313
+msgid "Sound"
+msgstr ""
+
+#: src/gui/gui.cpp:478
+msgid "Updates"
+msgstr ""
+
+#: src/gui/gui.cpp:633
+msgid "Verify SSD Integrity"
+msgstr ""
+
+#: src/gui/gui.cpp:639
+msgid "Verifying SSD Integrity"
+msgstr ""
+
+#: src/gui/gui.cpp:207
+msgid "WiFi"
+msgstr ""
+
+#: src/gui/gui.cpp:617
+msgid "enabled."
+msgstr ""

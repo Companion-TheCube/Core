@@ -1,3 +1,4 @@
+// #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <cstdlib>
 #ifdef __linux__
 #include <sys/wait.h>
@@ -5,14 +6,6 @@
 #include <cstdlib>
 #include <string>
 #endif
-// #ifndef WIN32_INCLUDED
-// #define WIN32_INCLUDED
-// #ifdef _WIN32
-// #define WIN32_LEAN_AND_MEAN
-// #define NOMINMAX
-// #include <windows.h>
-// #endif
-// #endif
 #include "api/builder.h"
 #include "apps/appsManager.h"
 #include "argparse.hpp"
@@ -32,6 +25,12 @@
 #include <thread>
 #include <utils.h>
 #include <functional>
+#include <csignal>
+#include <execinfo.h>
+#include <cxxabi.h>
+#include "doctest.h"
 
 bool supportsBasicColors();
 bool supportsExtendedColors();
+void signalHandler(int signum);
+void printStackTrace();

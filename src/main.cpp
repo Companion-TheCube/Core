@@ -2,9 +2,24 @@
 
 #include "main.h"
 
+bool breakMain = false;
 
 int main(int argc, char* argv[])
 {
+    std::signal(SIGINT, signalHandler);
+    std::signal(SIGTERM, signalHandler);
+    std::signal(SIGKILL, signalHandler);
+    std::signal(SIGQUIT, signalHandler);
+    std::signal(SIGABRT, signalHandler);
+    std::signal(SIGSEGV, signalHandler);
+    std::signal(SIGILL, signalHandler);
+    std::signal(SIGFPE, signalHandler);
+    std::signal(SIGBUS, signalHandler);
+    std::signal(SIGSYS, signalHandler);
+    std::signal(SIGPIPE, signalHandler);
+    std::signal(SIGALRM, signalHandler);
+    std::signal(SIGHUP, signalHandler);
+
     std::cout << "Starting..." << std::endl;
 #ifdef __linux__
     // TODO: rather than set this environment variable in this application, set it in the manager application.
@@ -220,7 +235,10 @@ int main(int argc, char* argv[])
         while (true) {
             genericSleep(100);
             std::string input;
-            std::cin >> input;
+            // std::cin >> input;
+            if(breakMain){
+                break;
+            }
             if (input == "exit" || input == "quit" || input == "q" || input == "e" || input == "x") {
                 break;
             } else if (input == "sound") {
@@ -234,6 +252,128 @@ int main(int argc, char* argv[])
     // TODO: any other place where main() might return, change the return value to something meaningful. this way, when
     // we get around to launching this with the node.js manager app, we can use the return value to determine if the
     // application should be restarted or not.
+}
+
+
+// TODO: this probably needs a mutex for breakMain
+void signalHandler(int signal){
+    switch(signal){
+        case SIGINT:
+            CubeLog::info("Caught SIGINT signal.");
+            // printStackTrace();
+            breakMain = true;
+            break;
+        case SIGTERM:
+            CubeLog::info("Caught SIGTERM signal.");
+            breakMain = true;
+            break;
+        case SIGKILL:
+            CubeLog::info("Caught SIGKILL signal.");
+            breakMain = true;
+            break;
+        case SIGQUIT:
+            CubeLog::info("Caught SIGQUIT signal.");
+            breakMain = true;
+            break;
+        case SIGABRT:
+            CubeLog::info("Caught SIGABRT signal.");
+            breakMain = true;
+            break;
+        case SIGSEGV:
+            CubeLog::info("Caught SIGSEGV signal.");
+            // get the stack trace
+            printStackTrace();
+            breakMain = true;
+            break;
+        case SIGILL:
+            CubeLog::info("Caught SIGILL signal.");
+            breakMain = true;
+            break;
+        case SIGFPE:
+            CubeLog::info("Caught SIGFPE signal.");
+            breakMain = true;
+            break;
+        case SIGBUS:
+            CubeLog::info("Caught SIGBUS signal.");
+            breakMain = true;
+            break;
+        case SIGSYS:
+            CubeLog::info("Caught SIGSYS signal.");
+            breakMain = true;
+            break;
+        case SIGPIPE:
+            CubeLog::info("Caught SIGPIPE signal.");
+            breakMain = true;
+            break;
+        case SIGALRM:
+            CubeLog::info("Caught SIGALRM signal.");
+            breakMain = true;
+            break;
+        case SIGHUP:
+            CubeLog::info("Caught SIGHUP signal.");
+            breakMain = true;
+            break;
+        default:
+            CubeLog::info("Caught unknown signal.");
+            breakMain = true;
+            break;
+    }
+}
+
+// Function to print stack trace
+void printStackTrace() 
+{
+    const int maxFrames = 100;
+    void *frames[maxFrames];
+    int numFrames = backtrace(frames, maxFrames);
+    char **symbols = backtrace_symbols(frames, numFrames);
+
+    if (symbols == nullptr) {
+        std::cerr << "Failed to generate stack trace.\n";
+        return;
+    }
+
+    std::cerr << "Stack trace:\n";
+    bool debugSymbolsIncluded = false;
+
+    for (int i = 0; i < numFrames; ++i) {
+        char *mangledName = nullptr, *offsetBegin = nullptr, *offsetEnd = nullptr;
+        
+        for (char *p = symbols[i]; *p; ++p) {
+            if (*p == '(') mangledName = p;
+            else if (*p == '+') offsetBegin = p;
+            else if (*p == ')' && offsetBegin) {
+                offsetEnd = p;
+                break;
+            }
+        }
+
+        if (mangledName && offsetBegin && offsetEnd && mangledName < offsetBegin) {
+            *mangledName++ = '\0';
+            *offsetBegin++ = '\0';
+            *offsetEnd = '\0';
+
+            int status;
+            char *demangledName = abi::__cxa_demangle(mangledName, nullptr, nullptr, &status);
+
+            if (status == 0 && demangledName != nullptr) {
+                std::cerr << symbols[i] << " : " << demangledName << "+" << offsetBegin << '\n';
+                free(demangledName);
+                debugSymbolsIncluded = true;
+            } else {
+                std::cerr << symbols[i] << " : " << mangledName << "+" << offsetBegin << '\n';
+            }
+        } else {
+            std::cerr << symbols[i] << '\n';
+        }
+    }
+
+    // Check if debug symbols were found
+    if (!debugSymbolsIncluded) {
+        std::cerr << "Warning: Debugging symbols were not included; stack trace may be less informative.\n";
+    }
+
+    free(symbols);
 }
 
 #ifdef _WIN32
@@ -319,3 +459,8 @@ bool supportsExtendedColors()
 }
 
 #endif
+
+TEST_CASE("Test supportsBasicColors")
+{
+    REQUIRE(supportsBasicColors());
+}
