@@ -1,3 +1,4 @@
+#pragma once
 #ifndef BLUETOOTH_H
 #define BLUETOOTH_H
 #include <logger.h>
@@ -5,6 +6,15 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <filesystem>
+#include <cstdio>
+#include <iostream>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <array>
+#include <functional>
+#include <condition_variable>
 #ifndef HTTPLIB_INCLUDED
 #define HTTPLIB_INCLUDED
 #include <httplib.h>
@@ -21,8 +31,6 @@
 #include <windows.h>
 #endif
 #endif
-#include "utils.h"
-#include <filesystem>
 #ifdef PRODUCTION_BUILD
 #ifdef __linux__
 #define BT_MANAGER_ADDRESS "/tmp/cube/bt_manager.sock"
@@ -32,17 +40,15 @@
 #else
 #define BT_MANAGER_ADDRESS "http://localhost:55290"
 #endif
+#ifdef __linux__
+#define BT_MANAGER_EXECUTABLE "bt_manager"
+#else
+#define BT_MANAGER_EXECUTABLE "bt_manager.exe"
+#endif
+#include "utils.h"
 #include "../api/api_i.h"
 #include "uuid.h"
 #include "nlohmann/json.hpp"
-#include <cstdio>
-#include <iostream>
-#include <memory>
-#include <stdexcept>
-#include <string>
-#include <array>
-#include <functional>
-#include <condition_variable>
 
 /**
  * @brief An object to hold information about a Bluetooth device
@@ -78,12 +84,13 @@ class BTControl {
     std::jthread* heartbeatThread;
     std::mutex m;
     std::condition_variable cv;
+    uuids::uuid authUUID;
 #ifndef PRODUCTION_BUILD
     std::jthread* mockThread;
 #endif
 
 public:
-    BTControl();
+    BTControl(uuids::uuid authUUID);
     ~BTControl();
     bool scanForDevices();
     bool stopScanning();
@@ -99,11 +106,23 @@ public:
 
 struct BTCharacteristic {
     std::string name;
-    std::function<void(std::string)> callback;
-    std::function<std::string()> getCallback;
-    std::function<void(std::string, std::string)> setCallback;
-    std::function<std::string(std::string)> setGetCallback;
+    std::function<void(std::string)> callback_void_string;
+    std::function<std::string()> callback_string_void;
+    std::function<void(std::string, std::string)> callback_void_string_string;
+    std::function<std::string(std::string)> callback_string_string;
+    std::function<std::string(std::vector<std::string>)> callback_string_vector_string;
+    std::function<std::vector<std::string>(std::string)> callback_vector_string_string;
+    std::function<std::vector<std::string>(std::vector<std::string>)> callback_vector_string_vector_string;
     uuids::uuid uuid;
+    enum class CBType {
+        VOID_STRING,
+        STRING_VOID,
+        VOID_STRING_STRING,
+        STRING_STRING,
+        STRING_VECTOR_STRING,
+        VECTOR_STRING_STRING,
+        VECTOR_STRING_VECTOR_STRING
+    } cbType;
 };
 
 /**
@@ -111,27 +130,26 @@ struct BTCharacteristic {
  *
  */
 class BTService {
-    static int _port;
-    httplib::Server* server;
     httplib::Client* client;
-    std::string address;
-    int port;
-    std::jthread* serverThread;
-    std::jthread* heartbeatThread;
-    std::vector<BTCharacteristic> characteristics;
+    httplib::Server* server;
+    std::vector<BTCharacteristic*> characteristics;
     bool characteristicsLocked = false;
-    std::string serviceName;
     std::string client_id = "";
     nlohmann::json config;
+    uuids::uuid authUUID;
 
 public:
-    BTService(const std::string& serviceName);
+    BTService(const nlohmann::json& config, httplib::Server* server, uuids::uuid authUUID);
     ~BTService();
-    void start();
-    void addCharacteristic(const std::string& name, std::function<void(std::string)> callback);
-    void addCharacteristic(const std::string& name, std::function<std::string()> callback);
-    void addCharacteristic(const std::string& name, std::function<void(std::string, std::string)> callback);
-    void addCharacteristic(const std::string& name, std::function<std::string(std::string)> callback);
+    void addCharacteristic(const std::string& name, uuids::uuid uuid, std::function<void(std::string)> callback);
+    void addCharacteristic(const std::string& name, uuids::uuid uuid, std::function<std::string()> callback);
+    void addCharacteristic(const std::string& name, uuids::uuid uuid, std::function<void(std::string, std::string)> callback);
+    void addCharacteristic(const std::string& name, uuids::uuid uuid, std::function<std::string(std::string)> callback);
+    void addCharacteristic(const std::string& name, uuids::uuid uuid, std::function<std::string(std::vector<std::string>)> callback);
+    void addCharacteristic(const std::string& name, uuids::uuid uuid, std::function<std::vector<std::string>(std::string)> callback);
+    void addCharacteristic(const std::string& name, uuids::uuid uuid, std::function<std::vector<std::string>(std::vector<std::string>)> callback);
+    bool start();
+    std::string getClientId();
 };
 
 /**
@@ -139,25 +157,20 @@ public:
  *
  */
 class BTManager : public I_API_Interface {
+    httplib::Client* client;
+    httplib::Server* server;
+    std::jthread* serverThread;
+    std::jthread* heartbeatThread;
     BTControl* control;
     std::vector<BTService*> services;
-    std::mutex mut;
-    std::string id_token = ""; // JWT from CubeServer API
-    std::string access_token = ""; // JWT from CubeServer API
-    std::string refresh_token = ""; // JWT from CubeServer API
-    std::string userName = ""; // Get from user
-    std::string userEmail = ""; // Derive from JWT
-    std::string cubeName = ""; // Let the user set this
+    std::string client_id;
+    nlohmann::json config;
+    uuids::uuid authUUID;
 public:
     BTManager();
     ~BTManager();
-    std::string getUserName();
-    std::string getUserEmail();
-    std::string getCubeName();
-    void setCubeName(const std::string& name);
-    std::string getIdToken();
-    std::string getAccessToken();
-    std::string getRefreshToken();
+    void addService(BTService* service);
+    void removeService(BTService* service);
     // CUBE API Interface
     HttpEndPointData_t getHttpEndpointData();
     std::string getInterfaceName() const;

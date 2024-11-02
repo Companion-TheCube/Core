@@ -15,6 +15,7 @@ TODO: since the BT_Manager app is far from complete, we should just mock the blu
 
 
 void startMock(std::stop_token st);
+bool launchProcess(const std::string& execPath, const std::string& execArgs);
 
 /**
  * This file will need to have a class for controller the hardware such as turning BT on and off,
@@ -32,60 +33,20 @@ void startMock(std::stop_token st);
  * to communicate with the main application.
  */
 
-BTControl::BTControl()
+BTControl::BTControl(uuids::uuid authUUID)
 {
+    this->authUUID = authUUID;
     // First thing to do is see if the BTManager is running
     // If it is, we will connect to it and get the client_id
     // If it is not, we will start it and then connect to it
 #ifndef PRODUCTION_BUILD
     mockThread = new std::jthread(startMock);
 #endif
-
-    // Get running processes
-    std::string command = "ps | grep \"bt_manager\"";
-#ifdef _WIN32
-    command = "tasklist";
-    STARTUPINFO si;
-    PROCESS_INFORMATION pi;
-    ZeroMemory(&si, sizeof(si));
-    si.cb = sizeof(si);
-    ZeroMemory(&pi, sizeof(pi));
-    if(!CreateProcess(NULL, (LPSTR)command.c_str(), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
-        CubeLog::error("Error starting process: " + command);
-        return;
-    }
-    WaitForSingleObject(pi.hProcess, INFINITE);
-    DWORD exitCode;
-    GetExitCodeProcess(pi.hProcess, &exitCode);
-    CloseHandle(pi.hProcess);
-    CloseHandle(pi.hThread);
-    if (exitCode != 0) {
-        CubeLog::error("Error starting process: " + command);
-        return;
-    }
-    char buffer[128];
-    DWORD bytesRead;
-    std::string result = "";
-    while (ReadFile(pi.hProcess, buffer, sizeof(buffer), &bytesRead, NULL) && bytesRead > 0) {
-        result += std::string(buffer, bytesRead);
-    }
-    CloseHandle(pi.hProcess);    
-#else
-    std::string result = exec(command.c_str());
-#endif
-    
-    if (result.find("bt_manager") == std::string::npos) {
-        // The BTManager is not running
-        // Start it and then connect to it
-        // TODO: Start the BTManager
-    }
-
     this->server = new httplib::Server();
 #ifdef _WIN32
     this->address = "0.0.0.0";
     this->port = 55285;
     // TODO: Need to check if the port is available
-
 #else
     unlink("/tmp/cube/bt_control.sock");
     this->address = "/tmp/cube/bt_control.sock";
@@ -109,6 +70,9 @@ BTControl::BTControl()
     // here is where we call the setup function in the BTManager
     this->client = new httplib::Client(BT_MANAGER_ADDRESS);
     this->client_id = "none";
+    this->client->set_default_headers({
+        {"Authorization", "Bearer " + uuids::to_string(this->authUUID)}
+    });
     httplib::Result res = this->client->Post("/setup", config.dump(), "application/json");
     if (!res) {
         CubeLog::error("Error getting response: " + std::string(BT_MANAGER_ADDRESS) + "/setup");
@@ -689,16 +653,16 @@ bool BTControl::stopScanning()
 
 bool BTControl::makeVisible(bool visible)
 {
-    httplib::Result res = this->client->Get("/make_visible?visible=" + std::string((visible ? "true" : "false")));
+    httplib::Result res = this->client->Get("/set_visible?visible=" + std::string((visible ? "true" : "false")));
     if (!res) {
-        CubeLog::error("Error getting response: " + std::string(BT_MANAGER_ADDRESS) + "/make_visible");
+        CubeLog::error("Error getting response: " + std::string(BT_MANAGER_ADDRESS) + "/set_visible");
         return false;
     }
     if (res->status != 200) {
         CubeLog::error("Response code: " + std::to_string(res->status));
         return false;
     }
-    CubeLog::info("Response: " + res->body + "From: " + std::string(BT_MANAGER_ADDRESS) + "/make_visible");
+    CubeLog::info("Response: " + res->body + "From: " + std::string(BT_MANAGER_ADDRESS) + "/set_visible");
     if (res->body == "ok") {
         return true;
     }
@@ -774,15 +738,24 @@ std::vector<BTDevice> BTControl::getDevices()
     std::vector<BTDevice> devices;
     for (auto d : resJson) {
         BTDevice dev;
-        dev.name = d["name"];
-        dev.mac = d["mac"];
-        dev.paired = d["paired"];
-        dev.rssi = d["rssi"];
-        dev.alias = d["alias"];
-        dev.manufacturer = d["manufacturer"];
-        dev.connected = d["connected"];
-        dev.trusted = d["trusted"];
-        dev.blocked = d["blocked"];
+        if(d.contains("name"))
+            dev.name = d["name"];
+        if(d.contains("mac"))
+            dev.mac = d["mac"];
+        if(d.contains("paired"))
+            dev.paired = d["paired"];
+        if(d.contains("rssi"))
+            dev.rssi = d["rssi"];
+        if(d.contains("alias"))
+            dev.alias = d["alias"];
+        if(d.contains("manufacturer"))
+            dev.manufacturer = d["manufacturer"];
+        if(d.contains("connected"))
+            dev.connected = d["connected"];
+        if(d.contains("trusted"))
+            dev.trusted = d["trusted"];
+        if(d.contains("blocked"))
+            dev.blocked = d["blocked"];
         devices.push_back(dev);
     }
     return devices;
@@ -803,15 +776,24 @@ std::vector<BTDevice> BTControl::getPairedDevices()
     std::vector<BTDevice> devices;
     for (auto d : resJson) {
         BTDevice dev;
-        dev.name = d["name"];
-        dev.mac = d["mac"];
-        dev.paired = d["paired"];
-        dev.rssi = d["rssi"];
-        dev.alias = d["alias"];
-        dev.manufacturer = d["manufacturer"];
-        dev.connected = d["connected"];
-        dev.trusted = d["trusted"];
-        dev.blocked = d["blocked"];
+        if(d.contains("name"))
+            dev.name = d["name"];
+        if(d.contains("mac"))
+            dev.mac = d["mac"];
+        if(d.contains("paired"))
+            dev.paired = d["paired"];
+        if(d.contains("rssi"))
+            dev.rssi = d["rssi"];
+        if(d.contains("alias"))
+            dev.alias = d["alias"];
+        if(d.contains("manufacturer"))
+            dev.manufacturer = d["manufacturer"];
+        if(d.contains("connected"))
+            dev.connected = d["connected"];
+        if(d.contains("trusted"))
+            dev.trusted = d["trusted"];
+        if(d.contains("blocked"))
+            dev.blocked = d["blocked"];
         devices.push_back(dev);
     }
     return devices;
@@ -832,15 +814,24 @@ std::vector<BTDevice> BTControl::getConnectedDevices()
     std::vector<BTDevice> devices;
     for (auto d : resJson) {
         BTDevice dev;
-        dev.name = d["name"];
-        dev.mac = d["mac"];
-        dev.paired = d["paired"];
-        dev.rssi = d["rssi"];
-        dev.alias = d["alias"];
-        dev.manufacturer = d["manufacturer"];
-        dev.connected = d["connected"];
-        dev.trusted = d["trusted"];
-        dev.blocked = d["blocked"];
+        if(d.contains("name"))
+            dev.name = d["name"];
+        if(d.contains("mac"))
+            dev.mac = d["mac"];
+        if(d.contains("paired"))
+            dev.paired = d["paired"];
+        if(d.contains("rssi"))
+            dev.rssi = d["rssi"];
+        if(d.contains("alias"))
+            dev.alias = d["alias"];
+        if(d.contains("manufacturer"))
+            dev.manufacturer = d["manufacturer"];
+        if(d.contains("connected"))
+            dev.connected = d["connected"];
+        if(d.contains("trusted"))
+            dev.trusted = d["trusted"];
+        if(d.contains("blocked"))
+            dev.blocked = d["blocked"];
         devices.push_back(dev);
     }
     return devices;
@@ -861,77 +852,185 @@ std::vector<BTDevice> BTControl::getAvailableDevices()
     std::vector<BTDevice> devices;
     for (auto d : resJson) {
         BTDevice dev;
-        dev.name = d["name"];
-        dev.mac = d["mac"];
-        dev.paired = d["paired"];
-        dev.rssi = d["rssi"];
-        dev.alias = d["alias"];
-        dev.manufacturer = d["manufacturer"];
-        dev.connected = d["connected"];
-        dev.trusted = d["trusted"];
-        dev.blocked = d["blocked"];
+        if(d.contains("name"))
+            dev.name = d["name"];
+        if(d.contains("mac"))
+            dev.mac = d["mac"];
+        if(d.contains("paired"))
+            dev.paired = d["paired"];
+        if(d.contains("rssi"))
+            dev.rssi = d["rssi"];
+        if(d.contains("alias"))
+            dev.alias = d["alias"];
+        if(d.contains("manufacturer"))
+            dev.manufacturer = d["manufacturer"];
+        if(d.contains("connected"))
+            dev.connected = d["connected"];
+        if(d.contains("trusted"))
+            dev.trusted = d["trusted"];
+        if(d.contains("blocked"))
+            dev.blocked = d["blocked"];
         devices.push_back(dev);
     }
     return devices;
 }
 
-//////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-int BTService::_port = 55291;
-
-BTService::BTService(const std::string& serviceName)
+BTService::BTService(const nlohmann::json& config, httplib::Server* server, uuids::uuid authUUID)
 {
-    // If we are on windows, the http server for this service will use the port as normal.
-    // If we are on Linux, the http server will use a unix socket and will append the port number to the address
-    // in order to ensure we have a unique socket for each service.
-    this->serviceName = serviceName;
-    this->port = BTService::_port++;
-    this->server = new httplib::Server();
-#ifdef _WIN32
-    this->address = "0.0.0.0";
-#else
-    this->address = "/tmp/cube/bt_service_" + std::to_string(this->port) + ".sock";
-#endif
-
-    this->config["CB_baseAddress"] = this->address;
-    this->config["CB_port"] = this->port;
-    this->config["CB_serviceName"] = serviceName;
+    this->authUUID = authUUID;
+    this->config = config;
+    this->server = server;
     this->client = new httplib::Client(BT_MANAGER_ADDRESS);
-    httplib::Result res = this->client->Post("/setup", this->config.dump(), "application/json");
-    if (!res) {
-        CubeLog::error("Error getting response: " + std::string(BT_MANAGER_ADDRESS) + "/setup");
-        return;
-    }
-    if (res->status != 200) {
-        CubeLog::error("Response code: " + std::to_string(res->status));
-        return;
-    }
-    CubeLog::info("Response: " + res->body + "From: " + std::string(BT_MANAGER_ADDRESS) + "/setup");
-    this->client_id = res->body;
+    this->client->set_default_headers({
+        {"Authorization", "Bearer " + uuids::to_string(this->authUUID)}
+    });
+    this->client_id = "none";
 }
 
 BTService::~BTService()
 {
-    this->server->stop();
-    delete this->server;
-    delete this->serverThread;
-    delete this->heartbeatThread;
     delete this->client;
 }
 
-void BTService::start()
+// To be called once all the characteristics have been added
+bool BTService::start()
 {
     this->characteristicsLocked = true;
-    this->serverThread = new std::jthread([&] {
-#ifdef _WIN32
-        this->server->bind_to_port(this->address.c_str(), this->port);
-        this->server->listen_after_bind();
-#else
-        this->server->set_address_family(AF_UNIX).listen(this->address, 80);
-#endif
-    });
+    httplib::Result res = this->client->Post("/setup", this->config.dump(), "application/json");
+    if (!res) {
+        CubeLog::error("Error getting response: " + std::string(BT_MANAGER_ADDRESS) + "/setup");
+        return false;
+    }
+    if (res->status != 200) {
+        CubeLog::error("Response code: " + std::to_string(res->status));
+        return false;
+    }
+    CubeLog::info("Response: " + res->body + "From: " + std::string(BT_MANAGER_ADDRESS) + "/setup");
+    nlohmann::json j = nlohmann::json::parse(res->body);
+    if (j.contains("client_id")) {
+        this->client_id = j["client_id"];
+    }
+    if(this->client_id == "none"){
+        CubeLog::error("Client id not set. Cannot create service.");
+        return false;
+    }
+    return true;
+}
 
-    // Start the heartbeat thread
+void BTService::addCharacteristic(const std::string& name, uuids::uuid uuid, std::function<void(std::string)> callback)
+{
+    if (this->characteristicsLocked) {
+        CubeLog::error("Characteristics are locked. Cannot add characteristic.");
+        return;
+    }
+    // TODO: we need to add this characteristic to config json for this service
+
+    auto characteristic = new BTCharacteristic(name);
+    characteristic->uuid = uuid;
+    characteristic->callback_void_string = callback;
+    characteristic->cbType = BTCharacteristic::CBType::VOID_STRING;
+}
+
+//////////////////////////////////////////////////////////////////////////////////
+
+BTManager::BTManager()
+{
+    std::random_device rd;
+    auto seed_data = std::array<int, std::mt19937::state_size> {};
+    std::generate(std::begin(seed_data), std::end(seed_data), std::ref(rd));
+    std::seed_seq seq(std::begin(seed_data), std::end(seed_data));
+    std::mt19937 generator(seq);
+    uuids::uuid_random_generator gen{generator};
+    this->authUUID = gen();
+
+    // check to see if the BTManager application is running. If it is not, we will need to start it.
+    // Get running processes
+#ifdef _WIN32
+    std::string command = "tasklist";
+    STARTUPINFO si;
+    PROCESS_INFORMATION pi;
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    ZeroMemory(&pi, sizeof(pi));
+    if(!CreateProcess(NULL, (LPSTR)command.c_str(), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
+        CubeLog::error("Error starting process: " + command);
+        return;
+    }
+    WaitForSingleObject(pi.hProcess, INFINITE);
+    DWORD exitCode;
+    GetExitCodeProcess(pi.hProcess, &exitCode);
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+    if (exitCode != 0) {
+        CubeLog::error("Error starting process: " + command);
+        return;
+    }
+    char buffer[128];
+    DWORD bytesRead;
+    std::string result = "";
+    while (ReadFile(pi.hProcess, buffer, sizeof(buffer), &bytesRead, NULL) && bytesRead > 0) {
+        result += std::string(buffer, bytesRead);
+    }
+    CloseHandle(pi.hProcess);    
+#else
+    std::string command = "ps | grep " + BT_MANAGER_EXECUTABLE;
+    std::string result = exec(command.c_str());
+#endif
+    
+    if (result.find(BT_MANAGER_EXECUTABLE) == std::string::npos) {
+        // TODO: this section depends on the BTManager application being completed. We will need to update this section
+        // once the BTManager application is completed.
+        // The BTManager is not running
+        // Start it and then connect to it
+        // TODO: Start the BTManager. The command line args for this should include the address for an http endpoint
+        // that will provide an authentication key to the BTManager. We will need to include this key in all requests to the BTManager.
+        // The BTManager should also have the -s flag set so that only one instance can run at a time. (--single_instance)
+        // httplib::Server authServer;
+        // bool authGotten = false;
+        // authServer.Get("/auth", [&](const httplib::Request& req, httplib::Response& res) {
+        //     res.set_content(this->authUUID.str(), "text/plain");
+        //     authGotten = true;
+        // });
+        // std::jthread serverThread([&] {
+        //      authServer.listen("localhost", 55300);
+        // });
+        // genericSleep(1000); // wait for the authServer to start
+        // std::string command = BT_MANAGER_EXECUTABLE;
+        // std::string args = "-s --auth_cb \"localhost:55300/auth\"";
+        // if(!launchProcess(command, args)){
+        //    CubeLog::error("Error starting process: " + command + " " + args);
+        //    authServer.stop();
+        //    return;
+        // }
+        // while(!authGotten){
+        //     genericSleep(10);
+        // }
+        // genericSleep(100); // ensure that the server finished sending the auth key
+        // authServer.stop(); // stop the server now that we have the auth key
+    }
+
+    // This class will handle the server for all the BTService class instances
+    // It will also handle the heartbeat for the BTManager
+
+    this->control = new BTControl(this->authUUID);
+    this->server = new httplib::Server();
+    this->client_id = "none";
+
+    this->config["name"] = "BTManager";
+    this->config["address"] = "localhost";
+    this->config["port"] = 80;
+    this->config["characteristics_client_ids"] = nlohmann::json::array();
+    
+
+    // TODO: add all the services that we want to use
+    // This should probably be a member function of this class since we'll want to be able to add services via the API.
+    // We should also define all the services in a json file that will use the same format that apps can use via the API.
+    // Then all we have to do is load the json file and create the services.
+    // BTService service1(config, this->server);
+    // this->config["characteristics_client_ids"].push_back("service1_client_id");
+
     this->heartbeatThread = new std::jthread([&](std::stop_token st) {
         nlohmann::json j;
         while (!st.stop_requested()) {
@@ -970,24 +1069,60 @@ void BTService::start()
         j["client_id"] = this->client_id;
         this->client->Post("/heartbeat", j.dump(), "application/json");
     });
-}
 
-void BTService::addCharacteristic(const std::string& name, std::function<void(std::string)> callback)
-{
-    if (this->characteristicsLocked) {
-        CubeLog::error("Characteristics are locked. Cannot add characteristic.");
-        return;
-    }
-}
+    // TODO: The server will need to listen for any incoming requests from the BTManager application and handle them.
+    // Requests can be either GET or POST and the address will have to be parsed to determine the action to take.
+    // Addresses will be in the form of /<client_id>/<action>?<params>
+    // <client_id> will be the client_id of one of the BTService instances stored in the services vector.
+    // Iterating through the services vector and checking the getClientId() function will allow us to determine the service to use.
+    // <action> will be the name of action to take on the BTService instance and are stored as 
+    // std::vector<BTCharacteristic*> characteristics in the BTService instance.
+    // <params> will be the parameters to pass to the action. These will be in the form of key=value pairs and are only applicable to
+    // GET requests. POST requests will have the parameters in the body of the request as JSON.
+    // for(auto c : service.getCharacteristics()){
+    //     if(c->getName() == action){
+    //         // do action. Actions may be any of BTCharacteristic::CBType and we will need to call the appropriate function
+    //         // on the BTService instance. Parameters will be parsed from either the address or the body of the request.
+    //     }
+    // }
+    // this->server->GET("/:client_id/:action", [&](const httplib::Request& req, httplib::Response& res) {
+    //     std::string client_id = req.path_params.at("client_id");
+    //     std::string action = req.path_params.at("action");
+    //     std::string params = req.params;
+    //     for(auto s : this->services){
+    //         if(s.getClientId() == client_id){
+    //             for(auto c : s.getCharacteristics()){
+    //                 if(c->getName() == action){
+    //                     // do action // Probably should break this part out to a function that will parse the params and call the appropriate function.
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     res.set_content("ok", "text/plain"); // This will need to be changed to an appropriate response based on the action taken.
+    // });
+    // this->server->POST("/:client_id/:action", [&](const httplib::Request& req, httplib::Response& res) {
+    //     std::string client_id = req.path_params.at("client_id");
+    //     std::string action = req.path_params.at("action");
+    //     nlohmann::json j = nlohmann::json::parse(req.body);
+    //     for(auto s : this->services){
+    //         if(s.getClientId() == client_id){
+    //             for(auto c : s.getCharacteristics()){
+    //                 if(c->getName() == action){
+    //                     // do action // Probably should break this part out to a function that will parse the params and call the appropriate function.
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     res.set_content("ok", "text/plain"); // This will need to be changed to an appropriate response based on the action taken.
+    // });
 
-//////////////////////////////////////////////////////////////////////////////////
-
-BTManager::BTManager()
-{
-    this->control = new BTControl();
-    // TODO: create all the services that we will need to provide
-
-    // TODO: check to see if the BTManager application is running. If it is not, we will need to start it.
+    this->serverThread = new std::jthread([&] {
+#ifdef _WIN32
+        //this->server->listen(this->config["address"], this->config["port"]);
+#else
+        //this->server->set_address_family(AF_UNIX).listen(this->config["address"], this->config["port"]);
+#endif
+    });
 }
 
 BTManager::~BTManager()
@@ -998,6 +1133,54 @@ BTManager::~BTManager()
 HttpEndPointData_t BTManager::getHttpEndpointData()
 {
     HttpEndPointData_t data;
+    EndpointAction_t action;
+    data.push_back({
+        GET_ENDPOINT | PRIVATE_ENDPOINT,
+        [this](const httplib::Request& req, httplib::Response& res) {
+            // TODO: This should shutdown the BTManager class enough to allow adding new BT Services.
+            nlohmann::json j;
+            j["client_id"] = this->client_id;
+            res.set_content(j.dump(), "application/json");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR , "");
+        },
+        "/stopBTManager",
+        {},
+        "Stops the BTManager class and allows adding new BT Services."
+    });
+    data.push_back({
+        GET_ENDPOINT | PRIVATE_ENDPOINT,
+        [this](const httplib::Request& req, httplib::Response& res) {
+            // TODO: This should start the BTManager class after it has been stopped.
+            nlohmann::json j;
+            j["client_id"] = this->client_id;
+            res.set_content(j.dump(), "application/json");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR , "");
+        },
+        "/startBTManager",
+        {},
+        "Starts the BTManager class after it has been stopped."
+    });
+    data.push_back({
+        POST_ENDPOINT | PRIVATE_ENDPOINT,
+        [this](const httplib::Request& req, httplib::Response& res) {
+            // TODO: This should provide a way to add a new BT Service to the BTManager.
+            nlohmann::json j;
+            j["client_id"] = this->client_id;
+            res.set_content(j.dump(), "application/json");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR , "");
+            /*
+            Adding a new service will allow apps to interact with the BT_manager application. 
+            When an app provides it config via this endpoint, it can have the callback endpoint(s)
+            that are sent to the manager app point directly back to the app. This way, an app can 
+            get data from BT devices without the CORE having to be involved. We can also add
+            an endpoint here that allows an app to get the auth key for the BT_manager app. This
+            way, the app can use the auth key to communicate with the BT_manager app directly.
+            */
+        },
+        "/addBTService",
+        {},
+        "Adds a new BT Service to the BTManager."
+    });
     return data;
 }
 
@@ -1097,7 +1280,156 @@ void startMock(std::stop_token st){
         server.listen("localhost", 55290);
     });
     while(!st.stop_requested()){
-        genericSleep(1000);
+        genericSleep(500);
     }
     server.stop();
+}
+
+bool launchProcess(const std::string& execPath, const std::string& execArgs)
+{
+    CubeLog::info("Starting app: " + execPath + " " + execArgs);
+    std::filesystem::path cwd = std::filesystem::current_path();
+    std::filesystem::path fullPath = cwd / execPath;
+    if (!std::filesystem::exists(fullPath)) {
+        CubeLog::error("App not found: " + fullPath.string());
+        return false;
+    }
+#ifdef _WIN32
+    SECURITY_ATTRIBUTES saAttr;
+    saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
+    saAttr.bInheritHandle = TRUE;
+    saAttr.lpSecurityDescriptor = NULL;
+
+    HANDLE hStdOutRead = NULL;
+    HANDLE hStdOutWrite = NULL;
+    HANDLE hStdErrRead = NULL;
+    HANDLE hStdErrWrite = NULL;
+    HANDLE hStdInRead = NULL;
+    HANDLE hStdInWrite = NULL;
+
+    if (!CreatePipe(&hStdOutRead, &hStdOutWrite, &saAttr, 0)) {
+        CubeLog::error("Stdout pipe creation failed");
+        return false;
+    }
+    if (!SetHandleInformation(hStdOutRead, HANDLE_FLAG_INHERIT, 0)) {
+        CubeLog::error("Stdout SetHandleInformation failed");
+        return false;
+    }
+    if (!CreatePipe(&hStdErrRead, &hStdErrWrite, &saAttr, 0)) {
+        CubeLog::error("Stderr pipe creation failed");
+        return false;
+    }
+    if (!SetHandleInformation(hStdErrRead, HANDLE_FLAG_INHERIT, 0)) {
+        CubeLog::error("Stderr SetHandleInformation failed");
+        return false;
+    }
+    if (!CreatePipe(&hStdInRead, &hStdInWrite, &saAttr, 0)) {
+        CubeLog::error("Stdin pipe creation failed");
+        return false;
+    }
+    if (!SetHandleInformation(hStdInWrite, HANDLE_FLAG_INHERIT, 0)) {
+        CubeLog::error("Stdin SetHandleInformation failed");
+        return false;
+    }
+
+    STARTUPINFO si;
+    PROCESS_INFORMATION pi;
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    ZeroMemory(&pi, sizeof(pi));
+
+    si.hStdError = hStdErrWrite;
+    si.hStdOutput = hStdOutWrite;
+    si.hStdInput = hStdInRead;
+    si.dwFlags |= STARTF_USESTDHANDLES;
+
+    cwd = std::filesystem::current_path().string();
+    std::string execCommand = execPath + " " + execArgs;
+    if (!CreateProcess(NULL,
+            (LPSTR)execCommand.c_str(), // command line
+            NULL, // process security attributes
+            NULL, // primary thread security attributes
+            TRUE, // handles are inherited
+            0, // creation flags
+            NULL, // use parent's environment
+            NULL, // use parent's current directory
+            &si, // STARTUPINFO pointer
+            &pi)) { // receives PROCESS_INFORMATION
+        CubeLog::error("Error: " + std::to_string(GetLastError()));
+        return false;
+    } else {
+        CubeLog::info("App started: " + execPath + " " + execArgs);
+        CubeLog::info("Process ID: " + std::to_string(pi.dwProcessId));
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+        return true;
+    }
+#endif
+#ifdef __linux__
+    pid_t pid = 0;
+    std::string execCommand = execPath + " " + execArgs;
+    CubeLog::debug("Exec command: " + execCommand);
+    const char* path = execPath.c_str();
+    std::vector<std::string> args;
+    // split execArgs by space
+    std::istringstream iss(execArgs);
+    for (std::string s; iss >> s;) {
+        args.push_back(s);
+    }
+    char* argv[args.size() + 2];
+    argv[0] = (char*)path;
+    for (size_t i = 0; i < args.size(); i++) {
+        argv[i + 1] = (char*)args[i].c_str();
+    }
+    argv[args.size() + 1] = NULL;
+    // add the current working directory to the path
+    std::string path_str = std::string(cwd + "/" + execPath).c_str();
+
+    // setup stdout and stderr
+    int stdoutPipe[2];
+    if (pipe(stdoutPipe) == -1) {
+        CubeLog::error("Failed to create stdout pipe");
+        return false;
+    }
+    int stderrPipe[2];
+    if (pipe(stderrPipe) == -1) {
+        CubeLog::error("Failed to create stderr pipe");
+        return false;
+    }
+    int stdinPipe[2];
+    if (pipe(stdinPipe) == -1) {
+        CubeLog::error("Failed to create stdin pipe");
+        return false;
+    }
+    posix_spawn_file_actions_t actions;
+    posix_spawn_file_actions_init(&actions);
+
+    posix_spawn_file_actions_adddup2(&actions, stdoutPipe[1], STDOUT_FILENO);
+    posix_spawn_file_actions_adddup2(&actions, stderrPipe[1], STDERR_FILENO);
+    posix_spawn_file_actions_adddup2(&actions, stdinPipe[0], STDIN_FILENO);
+    posix_spawn_file_actions_addclose(&actions, stdoutPipe[0]);
+    posix_spawn_file_actions_addclose(&actions, stdoutPipe[1]);
+    posix_spawn_file_actions_addclose(&actions, stderrPipe[0]);
+
+    int status = posix_spawn(&pid, path_str.c_str(), actions, NULL, const_cast<char* const*>(argv), environ);
+
+    if (status != 0) {
+        CubeLog::error("Failed to start app: " + execPath + " " + execArgs);
+        return false;
+    }
+    // close the write end of the pipes
+    close(stdoutPipe[1]);
+    close(stderrPipe[1]);
+    close(stdinPipe[0]);
+    temp->setPID(pid);
+    CubeLog::debug("Process created with PID: " + std::to_string(pid));
+    CubeLog::info("App started: " + execPath + " " + execArgs);
+    return true;
+#endif
+#ifndef _WIN32
+#ifndef __linux__
+    CubeLog::error("Unsupported platform");
+    return false;
+#endif
+#endif
 }

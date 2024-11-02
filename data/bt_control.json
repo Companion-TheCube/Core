@@ -1,4 +1,9 @@
 {
+    "name":"Bluetooth Control",
+    "description":"Control Bluetooth devices and connections",
+    "type":"bt_control",
+    "CB_baseAddress": "localhost",
+    "CB_port": "55285",
     "events":[
         {
             "name":"device_connected",
