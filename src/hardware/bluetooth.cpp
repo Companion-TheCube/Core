@@ -1,6 +1,20 @@
+/*
+
+████████╗ ██████╗ ██████╗  ██████╗ 
+╚══██╔══╝██╔═══██╗██╔══██╗██╔═══██╗
+   ██║   ██║   ██║██║  ██║██║   ██║
+   ██║   ██║   ██║██║  ██║██║   ██║
+   ██║   ╚██████╔╝██████╔╝╚██████╔╝
+   ╚═╝    ╚═════╝ ╚═════╝  ╚═════╝ 
+                                   
+TODO: since the BT_Manager app is far from complete, we should just mock the bluetooth functions for now.
+*/
+
+
 #include "bluetooth.h"
 
-// TODO: Implement the Bluetooth functions
+
+void startMock(std::stop_token st);
 
 /**
  * This file will need to have a class for controller the hardware such as turning BT on and off,
@@ -20,14 +34,58 @@
 
 BTControl::BTControl()
 {
-    // TODO: implement an http server that runs on a unix socket (or tcp for windows) that provides
-    // endpoints for the BTManager app to use as callbacks for incoming events.
-    // This class will have to call the setup function (or whatever i end up calling it) in the BTManager
-    // to configure the callbacks.
+    // First thing to do is see if the BTManager is running
+    // If it is, we will connect to it and get the client_id
+    // If it is not, we will start it and then connect to it
+#ifndef PRODUCTION_BUILD
+    mockThread = new std::jthread(startMock);
+#endif
+
+    // Get running processes
+    std::string command = "ps | grep \"bt_manager\"";
+#ifdef _WIN32
+    command = "tasklist";
+    STARTUPINFO si;
+    PROCESS_INFORMATION pi;
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    ZeroMemory(&pi, sizeof(pi));
+    if(!CreateProcess(NULL, (LPSTR)command.c_str(), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
+        CubeLog::error("Error starting process: " + command);
+        return;
+    }
+    WaitForSingleObject(pi.hProcess, INFINITE);
+    DWORD exitCode;
+    GetExitCodeProcess(pi.hProcess, &exitCode);
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+    if (exitCode != 0) {
+        CubeLog::error("Error starting process: " + command);
+        return;
+    }
+    char buffer[128];
+    DWORD bytesRead;
+    std::string result = "";
+    while (ReadFile(pi.hProcess, buffer, sizeof(buffer), &bytesRead, NULL) && bytesRead > 0) {
+        result += std::string(buffer, bytesRead);
+    }
+    CloseHandle(pi.hProcess);    
+#else
+    std::string result = exec(command.c_str());
+#endif
+    
+    if (result.find("bt_manager") == std::string::npos) {
+        // The BTManager is not running
+        // Start it and then connect to it
+        // TODO: Start the BTManager
+    }
+
     this->server = new httplib::Server();
 #ifdef _WIN32
     this->address = "0.0.0.0";
     this->port = 55285;
+    // TODO: Need to check if the port is available
+
 #else
     unlink("/tmp/cube/bt_control.sock");
     this->address = "/tmp/cube/bt_control.sock";
@@ -58,7 +116,12 @@ BTControl::BTControl()
         CubeLog::error("Response code: " + std::to_string(res->status));
     } else {
         CubeLog::info("Response: " + res->body + "From: " + std::string(BT_MANAGER_ADDRESS) + "/setup");
-        this->client_id = res->body;
+        nlohmann::json j = nlohmann::json::parse(res->body);
+        if (j.contains("client_id")) {
+            this->client_id = j["client_id"];
+        }else{
+            CubeLog::error("Error getting client_id from response: " + std::string(BT_MANAGER_ADDRESS) + "/setup");
+        }
     }
 
     // TODO: Setup all the callback endpoints
@@ -528,8 +591,13 @@ BTControl::BTControl()
     // Start the heartbeat thread
     this->heartbeatThread = new std::jthread([&, config](std::stop_token st) {
         nlohmann::json j;
+        unsigned long counter = 0;
         while (!st.stop_requested()) {
-            genericSleep(10 * 1000);
+            genericSleep(100);
+            counter++;
+            if (counter % 100 != 0) {
+                continue;
+            }
             if (this->client_id == "none") {
                 CubeLog::info("Client id not set. Attempting to get client id.");
                 httplib::Result res = this->client->Post("/setup", config.dump(), "application/json");
@@ -539,7 +607,10 @@ BTControl::BTControl()
                 if (res->status != 200) {
                     continue;
                 }
-                this->client_id = res->body;
+                nlohmann::json j = nlohmann::json::parse(res->body);
+                if (j.contains("client_id")) {
+                    this->client_id = j["client_id"];
+                }
                 continue;
             }
             j["status"] = "alive";
@@ -568,8 +639,14 @@ BTControl::BTControl()
 
 BTControl::~BTControl()
 {
-    this->server->stop();
-    delete this->server;
+#ifndef PRODUCTION_BUILD
+    this->mockThread->request_stop();
+    this->mockThread->join();
+#endif
+    if(this->server != nullptr){
+        this->server->stop();
+        delete this->server;
+    }
     delete this->serverThread;
     delete this->heartbeatThread;
 }
@@ -927,4 +1004,100 @@ HttpEndPointData_t BTManager::getHttpEndpointData()
 std::string BTManager::getInterfaceName() const
 {
     return "Bluetooth";
+}
+
+//////////////////////////////////////////////////////////////////////////////////
+
+void startMock(std::stop_token st){
+    httplib::Server server;
+    server.Get("/setup", [](const httplib::Request& req, httplib::Response& res) {
+        nlohmann::json j;
+        j["client_id"] = "mock";
+        res.set_content(j.dump(), "application/json");
+    });
+
+    server.Post("/setup", [](const httplib::Request& req, httplib::Response& res) {
+        nlohmann::json j;
+        j["client_id"] = "mock";
+        res.set_content(j.dump(), "application/json");
+    });
+
+    server.Get("/heartbeat", [](const httplib::Request& req, httplib::Response& res) {
+        res.set_content("ok", "text/plain");
+    });
+
+    server.Post("/heartbeat", [](const httplib::Request& req, httplib::Response& res) {
+        res.set_content("ok", "text/plain");
+    });
+
+    server.Get("/scan", [](const httplib::Request& req, httplib::Response& res) {
+        nlohmann::json j;
+        j["status"] = "ok";
+        res.set_content(j.dump(), "application/json");
+    });
+
+    server.Get("/stop_scan", [](const httplib::Request& req, httplib::Response& res) {
+        nlohmann::json j;
+        j["status"] = "ok";
+        res.set_content(j.dump(), "application/json");
+    });
+
+    server.Get("/make_visible", [](const httplib::Request& req, httplib::Response& res) {
+        nlohmann::json j;
+        j["status"] = "ok";
+        res.set_content(j.dump(), "application/json");
+    });
+
+    server.Post("/connect", [](const httplib::Request& req, httplib::Response& res) {
+        nlohmann::json j;
+        j["status"] = "ok";
+        res.set_content(j.dump(), "application/json");
+    });
+
+    server.Post("/disconnect", [](const httplib::Request& req, httplib::Response& res) {
+        nlohmann::json j;
+        j["status"] = "ok";
+        res.set_content(j.dump(), "application/json");
+    });
+
+    server.Post("/pair", [](const httplib::Request& req, httplib::Response& res) {
+        nlohmann::json j;
+        j["status"] = "ok";
+        res.set_content(j.dump(), "application/json");
+    });
+
+    server.Get("/devices", [](const httplib::Request& req, httplib::Response& res) {
+        nlohmann::json j;
+        j.push_back({{"name", "device1"}, {"mac", "00:00:00:00:00:00"}, {"paired", true}, {"rssi", "-50"}, {"alias", "device1"}, {"manufacturer", "manufacturer1"}, {"connected", true}, {"trusted", true}, {"blocked", false}});
+        j.push_back({{"name", "device2"}, {"mac", "00:00:00:00:00:01"}, {"paired", false}, {"rssi", "-60"}, {"alias", "device2"}, {"manufacturer", "manufacturer2"}, {"connected", false}, {"trusted", false}, {"blocked", false}});
+        j.push_back({{"name", "device3"}, {"mac", "00:00:00:00:00:02"}, {"paired", true}, {"rssi", "-70"}, {"alias", "device3"}, {"manufacturer", "manufacturer3"}, {"connected", false}, {"trusted", true}, {"blocked", false}});
+        res.set_content(j.dump(), "application/json");
+    });
+
+    server.Get("/paired_devices", [](const httplib::Request& req, httplib::Response& res) {
+        nlohmann::json j;
+        j.push_back({{"name", "device1"}, {"mac", "00:00:00:00:00:00"}, {"paired", true}, {"rssi", "-50"}, {"alias", "device1"}, {"manufacturer", "manufacturer1"}, {"connected", true}, {"trusted", true}, {"blocked", false}});
+        j.push_back({{"name", "device3"}, {"mac", "00:00:00:00:00:02"}, {"paired", true}, {"rssi", "-70"}, {"alias", "device3"}, {"manufacturer", "manufacturer3"}, {"connected", false}, {"trusted", true}, {"blocked", false}});
+        res.set_content(j.dump(), "application/json");
+    });
+
+    server.Get("/connected_devices", [](const httplib::Request& req, httplib::Response& res) {
+        nlohmann::json j;
+        j.push_back({{"name", "device1"}, {"mac", "00:00:00:00:00:00"}, {"paired", true}, {"rssi", "-50"}, {"alias", "device1"}, {"manufacturer", "manufacturer1"}, {"connected", true}, {"trusted", true}, {"blocked", false}});
+        res.set_content(j.dump(), "application/json");
+    });
+
+    server.Get("/available_devices", [](const httplib::Request& req, httplib::Response& res) {
+        nlohmann::json j;
+        j.push_back({{"name", "device1"}, {"mac", "00:00:00:00:00:00"}, {"paired", true}, {"rssi", "-50"}, {"alias", "device1"}, {"manufacturer", "manufacturer1"}, {"connected", true}, {"trusted", true}, {"blocked", false}});
+        res.set_content(j.dump(), "application/json");
+    });
+
+    std::jthread t = std::jthread([&]{
+        server.listen("localhost", 55290);
+    });
+    while(!st.stop_requested()){
+        genericSleep(1000);
+    }
+    server.stop();
 }

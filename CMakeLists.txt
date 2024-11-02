@@ -1,5 +1,12 @@
+# ████████╗ ██████╗ ██████╗  ██████╗ 
+# ╚══██╔══╝██╔═══██╗██╔══██╗██╔═══██╗
+#    ██║   ██║   ██║██║  ██║██║   ██║
+#    ██║   ██║   ██║██║  ██║██║   ██║
+#    ██║   ╚██████╔╝██████╔╝╚██████╔╝
+#    ╚═╝    ╚═════╝ ╚═════╝  ╚═════╝ 
 # TODO: add build targets for debug and release. release target needs to set a build define for PRODUCTION_BUILD.
 # Release build should have optimizations enabled and debug symbols stripped.
+# Release build should also set the PRODUCTION_BUILD define.
 
 # Minimum version of CMake required
 cmake_minimum_required(VERSION 3.25)

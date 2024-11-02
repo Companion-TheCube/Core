@@ -23,13 +23,26 @@
 #endif
 #include "utils.h"
 #include <filesystem>
+#ifdef PRODUCTION_BUILD
 #ifdef __linux__
 #define BT_MANAGER_ADDRESS "/tmp/cube/bt_manager.sock"
 #else
 #define BT_MANAGER_ADDRESS "http://localhost:55290"
 #endif
+#else
+#define BT_MANAGER_ADDRESS "http://localhost:55290"
+#endif
 #include "../api/api_i.h"
 #include "uuid.h"
+#include "nlohmann/json.hpp"
+#include <cstdio>
+#include <iostream>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <array>
+#include <functional>
+#include <condition_variable>
 
 /**
  * @brief An object to hold information about a Bluetooth device
@@ -65,6 +78,9 @@ class BTControl {
     std::jthread* heartbeatThread;
     std::mutex m;
     std::condition_variable cv;
+#ifndef PRODUCTION_BUILD
+    std::jthread* mockThread;
+#endif
 
 public:
     BTControl();

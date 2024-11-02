@@ -1,3 +1,17 @@
+/*
+ ██████╗ ██████╗ ███╗   ███╗██████╗  █████╗ ███╗   ██╗██╗ ██████╗ ███╗   ██╗       ████████╗██╗  ██╗███████╗ ██████╗██╗   ██╗██████╗ ███████╗
+██╔════╝██╔═══██╗████╗ ████║██╔══██╗██╔══██╗████╗  ██║██║██╔═══██╗████╗  ██║       ╚══██╔══╝██║  ██║██╔════╝██╔════╝██║   ██║██╔══██╗██╔════╝
+██║     ██║   ██║██╔████╔██║██████╔╝███████║██╔██╗ ██║██║██║   ██║██╔██╗ ██║          ██║   ███████║█████╗  ██║     ██║   ██║██████╔╝█████╗  
+██║     ██║   ██║██║╚██╔╝██║██╔═══╝ ██╔══██║██║╚██╗██║██║██║   ██║██║╚██╗██║          ██║   ██╔══██║██╔══╝  ██║     ██║   ██║██╔══██╗██╔══╝  
+╚██████╗╚██████╔╝██║ ╚═╝ ██║██║     ██║  ██║██║ ╚████║██║╚██████╔╝██║ ╚████║▄█╗       ██║   ██║  ██║███████╗╚██████╗╚██████╔╝██████╔╝███████╗
+ ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝       ╚═╝   ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝
+                                                     ██████╗ ██████╗ ██████╗ ███████╗
+                                                    ██╔════╝██╔═══██╗██╔══██╗██╔════╝
+                                                    ██║     ██║   ██║██████╔╝█████╗  
+                                                    ██║     ██║   ██║██╔══██╗██╔══╝  
+                                                    ╚██████╗╚██████╔╝██║  ██║███████╗
+                                                     ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝                                 
+*/
 #define SW_VERSION "0.1.0"
 
 #include "main.h"
@@ -8,18 +22,19 @@ int main(int argc, char* argv[])
 {
     std::signal(SIGINT, signalHandler);
     std::signal(SIGTERM, signalHandler);
-    std::signal(SIGKILL, signalHandler);
-    std::signal(SIGQUIT, signalHandler);
     std::signal(SIGABRT, signalHandler);
     std::signal(SIGSEGV, signalHandler);
     std::signal(SIGILL, signalHandler);
     std::signal(SIGFPE, signalHandler);
+#ifdef __linux__
+    std::signal(SIGKILL, signalHandler);
+    std::signal(SIGQUIT, signalHandler);
     std::signal(SIGBUS, signalHandler);
     std::signal(SIGSYS, signalHandler);
     std::signal(SIGPIPE, signalHandler);
     std::signal(SIGALRM, signalHandler);
     std::signal(SIGHUP, signalHandler);
-
+#endif
     std::cout << "Starting..." << std::endl;
 #ifdef __linux__
     // TODO: rather than set this environment variable in this application, set it in the manager application.
@@ -232,10 +247,18 @@ int main(int argc, char* argv[])
         api_builder.addInterface(btManager);
         api_builder.start();
         CubeLog::info("Entering main loop...");
+        std::chrono::milliseconds aSecond(1000);
         while (true) {
-            genericSleep(100);
+            // genericSleep(100);
             std::string input;
-            // std::cin >> input;
+            std::future<std::string> future = std::async(std::launch::async, []() {
+                std::string input;
+                std::cin >> input;
+                return input;
+            });
+            if (future.wait_for(aSecond) == std::future_status::ready) {
+                input = future.get();
+            }
             if(breakMain){
                 break;
             }
@@ -267,14 +290,6 @@ void signalHandler(int signal){
             CubeLog::info("Caught SIGTERM signal.");
             breakMain = true;
             break;
-        case SIGKILL:
-            CubeLog::info("Caught SIGKILL signal.");
-            breakMain = true;
-            break;
-        case SIGQUIT:
-            CubeLog::info("Caught SIGQUIT signal.");
-            breakMain = true;
-            break;
         case SIGABRT:
             CubeLog::info("Caught SIGABRT signal.");
             breakMain = true;
@@ -291,6 +306,15 @@ void signalHandler(int signal){
             break;
         case SIGFPE:
             CubeLog::info("Caught SIGFPE signal.");
+            breakMain = true;
+            break;
+#ifdef __linux__
+        case SIGKILL:
+            CubeLog::info("Caught SIGKILL signal.");
+            breakMain = true;
+            break;
+        case SIGQUIT:
+            CubeLog::info("Caught SIGQUIT signal.");
             breakMain = true;
             break;
         case SIGBUS:
@@ -313,6 +337,7 @@ void signalHandler(int signal){
             CubeLog::info("Caught SIGHUP signal.");
             breakMain = true;
             break;
+#endif
         default:
             CubeLog::info("Caught unknown signal.");
             breakMain = true;
@@ -323,6 +348,7 @@ void signalHandler(int signal){
 // Function to print stack trace
 void printStackTrace() 
 {
+#ifdef __linux__
     const int maxFrames = 100;
     void *frames[maxFrames];
     int numFrames = backtrace(frames, maxFrames);
@@ -374,6 +400,7 @@ void printStackTrace()
     }
 
     free(symbols);
+#endif
 }
 
 #ifdef _WIN32

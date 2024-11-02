@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include <cstdlib>
 #include <string>
+#include <execinfo.h>
+#include <cxxabi.h>
 #endif
 #include "api/builder.h"
 #include "apps/appsManager.h"
@@ -26,8 +28,8 @@
 #include <utils.h>
 #include <functional>
 #include <csignal>
-#include <execinfo.h>
-#include <cxxabi.h>
+#include <future>
+#include <chrono>
 #include "doctest.h"
 
 bool supportsBasicColors();
