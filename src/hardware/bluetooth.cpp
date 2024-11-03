@@ -975,7 +975,6 @@ BTManager::BTManager()
     while (ReadFile(pi.hProcess, buffer, sizeof(buffer), &bytesRead, NULL) && bytesRead > 0) {
         result += std::string(buffer, bytesRead);
     }
-    CloseHandle(pi.hProcess);    
 #else
     std::string command = "ps | grep " + BT_MANAGER_EXECUTABLE;
     std::string result = exec(command.c_str());
@@ -1018,8 +1017,10 @@ BTManager::BTManager()
 
     this->control = new BTControl(this->authUUID);
     this->server = new httplib::Server();
+    this->client = new httplib::Client(BT_MANAGER_ADDRESS);
     this->client_id = "none";
 
+    this->config = nlohmann::json::object();
     this->config["name"] = "BTManager";
     this->config["address"] = "localhost";
     this->config["port"] = 80;
