@@ -11,6 +11,49 @@ void generatePortNames();
 mmWave::mmWave()
 {
     generatePortNames();
+    this->port = new QSerialPort();
+    for(auto p : portNames){
+        this->port->setPortName(p.c_str());
+        if(this->port->open(QIODevice::ReadWrite)){
+            CubeLog::info("Opened port: " + p);
+            break;
+        }
+    }
+    this->port->setBaudRate(QSerialPort::Baud57600);
+    this->port->setDataBits(QSerialPort::Data8);
+    this->port->setParity(QSerialPort::NoParity);
+    this->port->setStopBits(QSerialPort::OneStop);
+    this->port->setFlowControl(QSerialPort::NoFlowControl);
+    this->port->write((char*)commandMode.data(), commandMode.size());
+    this->port->waitForBytesWritten(1000);
+    this->port->waitForReadyRead(1000);
+    QByteArray response = this->port->readAll();
+    if(response.size() == commandModeAck.size()){
+        bool ack = true;
+        for(int i = 0; i < response.size(); i++){
+            if(response[i] != commandModeAck[i]){
+                ack = false;
+                break;
+            }
+        }
+        CubeLog::debugSilly("response: " + response.toStdString());
+        if(ack){
+            CubeLog::info("mmWave sensor is in command mode.");
+        }else{
+            CubeLog::error("mmWave sensor did not respond with the correct ack.");
+        }
+    }else{
+        CubeLog::error("mmWave sensor did not respond with the correct ack.");
+    }
+
+    std::jthread readerThread([&] {
+        while(true){
+            this->port->waitForReadyRead(1000);
+            QByteArray response = this->port->readAll();
+            CubeLog::debugSilly("response: " + response.toStdString());
+        }
+    });
+
 }
 
 mmWave::~mmWave()

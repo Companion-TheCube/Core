@@ -4,12 +4,14 @@
 #include <vector>
 #include <string>
 #include <logger.h>
-// #include <QSerialPort>
-// #include <QSerialPortInfo>
-// #include <QDebug>
+#include <QSerialPort>
+#include <QSerialPortInfo>
+#include <QByteArray>
+#include <QCoreApplication>
+#include <QIODevice>
 
 class mmWave{
-    // QSerialPort* port;
+    QSerialPort* port;
 
 public:
     mmWave();

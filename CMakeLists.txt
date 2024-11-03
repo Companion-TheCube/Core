@@ -36,6 +36,9 @@ option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 set(CMAKE_CXX_STANDARD 23)
 
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOUIC ON)
 
 # Set the build type if it isn't already
 if(NOT CMAKE_BUILD_TYPE)
@@ -78,11 +81,20 @@ FetchContent_MakeAvailable(SFML)
 include(FetchContent)
 
 if(WIN32)
-    set(CMAKE_PREFIX_PATH C:/Qt6/6.8.0/mingw_64)
+    set(CMAKE_PREFIX_PATH C:/Qt6/6.8.0/msvc2022_64)
 else()
     set(CMAKE_PREFIX_PATH /home/andrew/Qt/6.8.0/gcc_64)
 endif()
 find_package(Qt6 REQUIRED COMPONENTS Core SerialPort)
+qt_standard_project_setup()
+find_library(SERIALPORT_LIB Qt6SerialPort HINTS "${CMAKE_PREFIX_PATH}/lib")
+if(NOT SERIALPORT_LIB)
+    message(FATAL_ERROR "Qt6SerialPort library not found")
+endif()
+find_library(QT6CORE_LIB Qt6Core HINTS "${CMAKE_PREFIX_PATH}/lib")
+if(NOT QT6CORE_LIB)
+    message(FATAL_ERROR "Qt6Core library not found")
+endif()
 
 if(WIN32)
     # Settings for Windows
@@ -246,6 +258,12 @@ add_executable(CubeCore ${SOURCES})
 if(WIN32)
     target_compile_options(CubeCore PRIVATE "/Zc:__cplusplus")
 endif()
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_compile_definitions(CubeCore PRIVATE DEBUG)
+endif()
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    target_compile_definitions(CubeCore PRIVATE RELEASE)
+endif()
 
 # Link libraries
 target_link_libraries(CubeCore PRIVATE
@@ -261,8 +279,15 @@ target_link_libraries(CubeCore PRIVATE
     SQLiteCpp
     sqlite3
     ${SODIUM_LIBRARIES}
+    Qt6::Core
     Qt6::SerialPort
+    ${SERIALPORT_LIB}
+    ${QT6CORE_LIB}
 )
+
+# set_target_properties(CubeCore PROPERTIES
+#     WIN32_EXECUTABLE TRUE
+# )
 
 target_compile_features(CubeCore PRIVATE cxx_std_17)
 
