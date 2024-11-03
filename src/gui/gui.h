@@ -57,8 +57,6 @@
 #define N_(String) String
 #endif
 
-// Data that is passed to the addMenu function
-// The first string is
 typedef std::vector<std::tuple<nlohmann::json, std::string>> AddMenu_Data_t;
 
 struct GUI_Error {

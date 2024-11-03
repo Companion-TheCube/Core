@@ -253,17 +253,7 @@ int main(int argc, char* argv[])
         while (true) {
             // genericSleep(100);
             std::string input;
-            std::future<std::string> future = std::async(std::launch::async, []() {
-                std::string input;
-                std::cin >> input;
-                return input;
-            });
-            if (future.wait_for(aSecond) == std::future_status::ready) {
-                input = future.get();
-            }
-            if(breakMain){
-                break;
-            }
+            std::cin >> input;
             if (input == "exit" || input == "quit" || input == "q" || input == "e" || input == "x") {
                 break;
             } else if (input == "sound") {

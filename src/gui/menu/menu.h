@@ -68,6 +68,7 @@ enum class EntryType {
     MENUENTRY_TYPE_TOGGLE,
     MENUENTRY_TYPE_TEXT_INFO,
     MENUENTRY_TYPE_TEXT_INPUT,
+    MENUENTRY_TYPE_INLINE_TEXT,
     MENUENTRY_TYPE_SLIDER,
 
     MENUENTRY_TYPE_COUNT
@@ -151,6 +152,8 @@ public:
     int getGroupID() { return this->groupID; }
     void setStatusReturnData(unsigned int statusReturnData) { this->statusReturnData = statusReturnData; }
     void setEntryTextTouched(bool touched);
+    std::string getEntryText() { return this->text; }
+    void setEntryText(const std::string& text);
 };
 
 class Menu : public Clickable {
@@ -180,6 +183,7 @@ private:
     bool isMainMenu = false;
     bool isClickable = false;
     static bool mainMenuSet;
+    static std::vector<MenuEntry*> allMenuEntries_vec;
 
 public:
     Menu(Renderer* renderer);
@@ -219,6 +223,8 @@ public:
     void restorePosition() { }
     bool getIsClickable();
     bool setChildrenClickables_isClickable(bool isClickable);
+    static MenuEntry* getMenuEntryByIndex(unsigned int index);
+    static std::vector<MenuEntry*> getMenuEntriesByGroupID(int groupID);
 };
 
 class MenuBox : public M_Box {

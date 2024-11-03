@@ -272,6 +272,7 @@ void M_Text::setText(const std::string& text)
     for (unsigned char c = 0; c < 128; c++) {
         glDeleteTextures(1, &this->characters[c].textureID);
     }
+    this->width = 0;
     this->text = text;
     this->buildText();
 }

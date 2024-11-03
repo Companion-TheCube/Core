@@ -22,6 +22,11 @@
 #ifdef __linux__
 #include <sys/wait.h>
 #include <unistd.h>
+#include <cstdlib>
+#include <dirent.h>
+#include <iostream>
+#include <spawn.h>
+#include <sys/wait.h>
 #endif
 #ifndef WIN32_INCLUDED
 #define WIN32_INCLUDED

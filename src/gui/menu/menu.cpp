@@ -6,6 +6,7 @@ float screenPxToScreenRelative(float screenPx);
 float screenPxToScreenRelativeWidth(float screenPx);
 float screenRelativeToScreenPxWidth(float screenRelative);
 bool Menu::mainMenuSet = false;
+std::vector<MenuEntry*> Menu::allMenuEntries_vec = std::vector<MenuEntry*>();
 
 /**
  * @brief Construct a new Menu object
@@ -90,7 +91,6 @@ unsigned int Menu::addMenuEntry(const std::string& text, const std::string& uniq
     // TODO: add the ability to have an entry be fixed to the top of the menu. This will need a stencil so that other entries can be scrolled under it.
     // TODO: add icon support
     // TODO: add checkbox support
-    // TODO: add radio button support
     // TODO: add slider support
     CubeLog::debug("Adding MenuEntry with text: " + text);
     float startY = (((menuItemTextSize * 1.2) + MENU_ITEM_PADDING_PX) * this->childrenClickables.size()) + MENU_TOP_PADDING_PX;
@@ -113,6 +113,7 @@ unsigned int Menu::addMenuEntry(const std::string& text, const std::string& uniq
         this->maxScrollY = this->getClickableAreas().at(this->getClickableAreas().size() - 1)->yMax;
 
     CubeLog::debug("MenuEntry added with text: " + text + " and clickable area: " + std::to_string(this->childrenClickables.at(this->childrenClickables.size() - 1)->getClickableArea()->xMin) + "x" + std::to_string(this->childrenClickables.at(this->childrenClickables.size() - 1)->getClickableArea()->yMin) + " to " + std::to_string(this->childrenClickables.at(this->childrenClickables.size() - 1)->getClickableArea()->xMax) + "x" + std::to_string(this->childrenClickables.at(this->childrenClickables.size() - 1)->getClickableArea()->yMax));
+    Menu::allMenuEntries_vec.push_back(entry);
     return entry->getMenuEntryIndex();
 }
 
@@ -462,6 +463,25 @@ bool Menu::getIsClickable()
     return this->isClickable && this->visible;
 }
 
+MenuEntry* Menu::getMenuEntryByIndex(unsigned int index)
+{
+    for (auto entry : Menu::allMenuEntries_vec) {
+        if (entry->getMenuEntryIndex() == index)
+            return entry;
+    }
+    return nullptr;
+}
+
+std::vector<MenuEntry*> Menu::getMenuEntriesByGroupID(int groupID)
+{
+    std::vector<MenuEntry*> entries;
+    for (auto entry : Menu::allMenuEntries_vec) {
+        if (entry->getGroupID() == groupID)
+            entries.push_back(entry);
+    }
+    return entries;
+}
+
 //////////////////////////////////////////////////////////////////////////
 float MenuBox::index = 0;
 
@@ -656,6 +676,16 @@ MenuEntry::MenuEntry(Shader* t_shader, Shader* m_shader, const std::string& text
     }
     // this->textStencil = new MenuStencil({ position.x, position.y - 2 }, { this->visibleWidth, size + 4 });
     CubeLog::info("MenuEntry created with text: " + text + " with click area: " + std::to_string(this->clickArea.xMin) + "x" + std::to_string(this->clickArea.yMin) + " to " + std::to_string(this->clickArea.xMax) + "x" + std::to_string(this->clickArea.yMax));
+}
+
+void MenuEntry::setEntryText(const std::string& text) 
+{ 
+    this->text = text; 
+    this->textObject->setText(text);
+    this->scrollObjects.at(0)->capturePosition();
+    this->size.x = this->scrollObjects.at(0)->getWidth();
+    this->clickArea.xMax = this->clickArea.xMin + this->size.x;
+    this->setVisibleWidth(this->visibleWidth);
 }
 
 /**
@@ -908,6 +938,8 @@ void MenuEntry::restorePosition()
     this->clickArea.xMax = this->originalPosition.z;
     this->clickArea.yMax = this->originalPosition.w;
 }
+
+
 
 //////////////////////////////////////////////////////////////////////////
 

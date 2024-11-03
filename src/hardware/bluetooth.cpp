@@ -16,6 +16,7 @@ TODO: since the BT_Manager app is far from complete, we should just mock the blu
 
 void startMock(std::stop_token st);
 bool launchProcess(const std::string& execPath, const std::string& execArgs);
+bool launchProcess(const std::string& execPath, const std::string& execArgs, std::string& result);
 
 /**
  * This file will need to have a class for controller the hardware such as turning BT on and off,
@@ -976,8 +977,10 @@ BTManager::BTManager()
         result += std::string(buffer, bytesRead);
     }
 #else
-    std::string command = "ps | grep " + BT_MANAGER_EXECUTABLE;
-    std::string result = exec(command.c_str());
+    std::string command = "ps | grep ";
+    command += BT_MANAGER_EXECUTABLE;
+    std::string result = "";
+    launchProcess(command, "", result);
 #endif
     
     if (result.find(BT_MANAGER_EXECUTABLE) == std::string::npos) {
@@ -1288,6 +1291,156 @@ void startMock(std::stop_token st){
     server.stop();
 }
 
+bool launchProcess(const std::string& execPath, const std::string& execArgs, std::string& result)
+{
+    CubeLog::info("Starting app: " + execPath + " " + execArgs);
+    std::filesystem::path cwd = std::filesystem::current_path();
+    std::filesystem::path fullPath = cwd / execPath;
+    if (!std::filesystem::exists(fullPath)) {
+        CubeLog::error("App not found: " + fullPath.string());
+        return false;
+    }
+#ifdef _WIN32
+    SECURITY_ATTRIBUTES saAttr;
+    saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
+    saAttr.bInheritHandle = TRUE;
+    saAttr.lpSecurityDescriptor = NULL;
+
+    HANDLE hStdOutRead = NULL;
+    HANDLE hStdOutWrite = NULL;
+    HANDLE hStdErrRead = NULL;
+    HANDLE hStdErrWrite = NULL;
+    HANDLE hStdInRead = NULL;
+    HANDLE hStdInWrite = NULL;
+
+    if (!CreatePipe(&hStdOutRead, &hStdOutWrite, &saAttr, 0)) {
+        CubeLog::error("Stdout pipe creation failed");
+        return false;
+    }
+    if (!SetHandleInformation(hStdOutRead, HANDLE_FLAG_INHERIT, 0)) {
+        CubeLog::error("Stdout SetHandleInformation failed");
+        return false;
+    }
+    if (!CreatePipe(&hStdErrRead, &hStdErrWrite, &saAttr, 0)) {
+        CubeLog::error("Stderr pipe creation failed");
+        return false;
+    }
+    if (!SetHandleInformation(hStdErrRead, HANDLE_FLAG_INHERIT, 0)) {
+        CubeLog::error("Stderr SetHandleInformation failed");
+        return false;
+    }
+    if (!CreatePipe(&hStdInRead, &hStdInWrite, &saAttr, 0)) {
+        CubeLog::error("Stdin pipe creation failed");
+        return false;
+    }
+    if (!SetHandleInformation(hStdInWrite, HANDLE_FLAG_INHERIT, 0)) {
+        CubeLog::error("Stdin SetHandleInformation failed");
+        return false;
+    }
+
+    STARTUPINFO si;
+    PROCESS_INFORMATION pi;
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    ZeroMemory(&pi, sizeof(pi);
+
+    si.hStdError = hStdErrWrite;
+    si.hStdOutput = hStdOutWrite;
+    si.hStdInput = hStdInRead;
+    si.dwFlags |= STARTF_USESTDHANDLES;
+
+    cwd = std::filesystem::current_path().string();
+    std::string execCommand = execPath + " " + execArgs;
+    WCHAR tempCommand[128];
+    convertStringToWCHAR(execCommand, tempCommand);
+    if (!CreateProcess(NULL,
+            tempCommand, // command line
+            NULL, // process security attributes
+            NULL, // primary thread security attributes
+            TRUE, // handles are inherited
+            0, // creation flags
+            NULL, // use parent's environment
+            NULL, // use parent's current directory
+            &si, // STARTUPINFO pointer
+            &pi)) { // receives PROCESS_INFORMATION
+        CubeLog::error("Error: " + std::to_string(GetLastError()));
+        return false;
+    } else {
+        CubeLog::info("App started: " + execPath + " " + execArgs);
+        CubeLog::info("Process ID: " + std::to_string(pi.dwProcessId));
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+        return true;
+    }
+#endif
+#ifdef __linux__
+    pid_t pid = 0;
+    std::string execCommand = execPath + " " + execArgs;
+    CubeLog::debug("Exec command: " + execCommand);
+    const char* path = execPath.c_str();
+    std::vector<std::string> args;
+    // split execArgs by space
+    std::istringstream iss(execArgs);
+    for (std::string s; iss >> s;) {
+        args.push_back(s);
+    }
+    char* argv[args.size() + 2];
+    argv[0] = (char*)path;
+    for (size_t i = 0; i < args.size(); i++) {
+        argv[i + 1] = (char*)args[i].c_str();
+    }
+    argv[args.size() + 1] = NULL;
+    // add the current working directory to the path
+    std::string path_str = cwd /  execPath;
+
+    // setup stdout and stderr
+    int stdoutPipe[2];
+    if (pipe(stdoutPipe) == -1) {
+        CubeLog::error("Failed to create stdout pipe");
+        return false;
+    }
+    int stderrPipe[2];
+    if (pipe(stderrPipe) == -1) {
+        CubeLog::error("Failed to create stderr pipe");
+        return false;
+    }
+    int stdinPipe[2];
+    if (pipe(stdinPipe) == -1) {
+        CubeLog::error("Failed to create stdin pipe");
+        return false;
+    }
+    posix_spawn_file_actions_t* actions;
+    posix_spawn_file_actions_init(actions);
+
+    posix_spawn_file_actions_adddup2(actions, stdoutPipe[1], STDOUT_FILENO);
+    posix_spawn_file_actions_adddup2(actions, stderrPipe[1], STDERR_FILENO);
+    posix_spawn_file_actions_adddup2(actions, stdinPipe[0], STDIN_FILENO);
+    posix_spawn_file_actions_addclose(actions, stdoutPipe[0]);
+    posix_spawn_file_actions_addclose(actions, stderrPipe[0]);
+    posix_spawn_file_actions_addclose(actions, stdinPipe[1]);
+    posix_spawn_file_actions_addclose(actions, stdoutPipe[1]);
+    posix_spawn_file_actions_addclose(actions, stderrPipe[1]);
+    posix_spawn_file_actions_addclose(actions, stdinPipe[0]);
+
+    if(posix_spawn(&pid, path, actions, NULL, argv, environ) != 0){
+        CubeLog::error("Failed to spawn process: " + execCommand);
+        return false;
+    }
+    close(stdoutPipe[1]);
+    close(stderrPipe[1]);
+    close(stdinPipe[0]);
+    char buffer[128];
+    ssize_t bytesRead;
+    while((bytesRead = read(stdoutPipe[0], buffer, sizeof(buffer))) != 0){
+        result += std::string(buffer, bytesRead);
+    }
+    close(stdoutPipe[0]);
+    close(stderrPipe[0]);
+    close(stdinPipe[1]);
+    return true;
+#endif
+}
+
 bool launchProcess(const std::string& execPath, const std::string& execArgs)
 {
     CubeLog::info("Starting app: " + execPath + " " + execArgs);
@@ -1388,7 +1541,7 @@ bool launchProcess(const std::string& execPath, const std::string& execArgs)
     }
     argv[args.size() + 1] = NULL;
     // add the current working directory to the path
-    std::string path_str = std::string(cwd + "/" + execPath).c_str();
+    std::string path_str = cwd /  execPath;
 
     // setup stdout and stderr
     int stdoutPipe[2];
@@ -1406,15 +1559,15 @@ bool launchProcess(const std::string& execPath, const std::string& execArgs)
         CubeLog::error("Failed to create stdin pipe");
         return false;
     }
-    posix_spawn_file_actions_t actions;
-    posix_spawn_file_actions_init(&actions);
+    posix_spawn_file_actions_t* actions;
+    posix_spawn_file_actions_init(actions);
 
-    posix_spawn_file_actions_adddup2(&actions, stdoutPipe[1], STDOUT_FILENO);
-    posix_spawn_file_actions_adddup2(&actions, stderrPipe[1], STDERR_FILENO);
-    posix_spawn_file_actions_adddup2(&actions, stdinPipe[0], STDIN_FILENO);
-    posix_spawn_file_actions_addclose(&actions, stdoutPipe[0]);
-    posix_spawn_file_actions_addclose(&actions, stdoutPipe[1]);
-    posix_spawn_file_actions_addclose(&actions, stderrPipe[0]);
+    posix_spawn_file_actions_adddup2(actions, stdoutPipe[1], STDOUT_FILENO);
+    posix_spawn_file_actions_adddup2(actions, stderrPipe[1], STDERR_FILENO);
+    posix_spawn_file_actions_adddup2(actions, stdinPipe[0], STDIN_FILENO);
+    posix_spawn_file_actions_addclose(actions, stdoutPipe[0]);
+    posix_spawn_file_actions_addclose(actions, stdoutPipe[1]);
+    posix_spawn_file_actions_addclose(actions, stderrPipe[0]);
 
     int status = posix_spawn(&pid, path_str.c_str(), actions, NULL, const_cast<char* const*>(argv), environ);
 
@@ -1426,7 +1579,6 @@ bool launchProcess(const std::string& execPath, const std::string& execArgs)
     close(stdoutPipe[1]);
     close(stderrPipe[1]);
     close(stdinPipe[0]);
-    temp->setPID(pid);
     CubeLog::debug("Process created with PID: " + std::to_string(pid));
     CubeLog::info("App started: " + execPath + " " + execArgs);
     return true;

@@ -11,7 +11,7 @@ void generatePortNames();
 mmWave::mmWave()
 {
     generatePortNames();
-    std::jthread readerThread([&] {
+    std::jthread readerThread([&](std::stop_token st) {
     this->port = new QSerialPort();
     for(auto p : portNames){
         this->port->setPortName(p.c_str());
@@ -46,15 +46,12 @@ mmWave::mmWave()
     }else{
         CubeLog::error("mmWave sensor did not respond with the correct ack.");
     }
-
-    
-        while(true){
+        while(!st.stop_requested()){
             this->port->waitForReadyRead(1000);
             QByteArray response = this->port->readAll();
             CubeLog::debugSilly("response: " + response.toStdString());
         }
     });
-
 }
 
 mmWave::~mmWave()

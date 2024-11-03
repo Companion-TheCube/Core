@@ -1,3 +1,9 @@
+// ████████╗ ██████╗ ██████╗  ██████╗ 
+// ╚══██╔══╝██╔═══██╗██╔══██╗██╔═══██╗
+//    ██║   ██║   ██║██║  ██║██║   ██║
+//    ██║   ██║   ██║██║  ██║██║   ██║
+//    ██║   ╚██████╔╝██████╔╝╚██████╔╝
+//    ╚═╝    ╚═════╝ ╚═════╝  ╚═════╝ 
 // TODO: Need to add a sort of status bar to the top of the screen. It should show the time and whether or not a person is detected. probably more.
 // TODO: we should monitor the CubeLog for errors and display them in the status bar. This will require a way to get the last error message from the CubeLog. <- this is done in CubeLog
 // TODO: setup notifications that pop up with a CubeMessageBox. this will need to have notifications.cpp fleshed out.
@@ -84,7 +90,7 @@ void GUI::eventLoop()
     ////////////////////////////////////////
     /// Here we build the menus
     ////////////////////////////////////////
-    CountingLatch countingLatch(22); // this value must be equal to count of "new MENUS::Menu()" calls in this method + 2 (for the message box and text box)
+    CountingLatch countingLatch(31); // this value must be equal to count of "new MENUS::Menu()" calls in this method + 2 (for the message box and text box)
 
 // This ifdef is part of a hack to make intellisense play well with the lambda functions. This is defined in cmakelists.txt so that when we compile, the lambdas are enabled.
 // Intellisense struggles with lots of lambdas, so this is a workaround. Uncomment the define at the top of this file to enable intellisense to see the lambdas.
@@ -219,7 +225,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) {
-                // return GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::WIFI_ENABLED);
+                // TODO: return GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::WIFI_ENABLED);
                 int random0or1 = rand() % 2;
                 return random0or1;
             },
@@ -231,31 +237,397 @@ void GUI::eventLoop()
     });
 
     ///////// Connections Menu - WiFi - WiFi Networks /////////
-    ///////// Connections Menu - WiFi - WiFi Networks - Specify SSID /////////
+    auto wifiMenu_Networks = createANewSubMenu(_("WiFi Networks"), "WiFi Networks", wifiMenu);
+    this->renderer->addSetupTask([&wifiMenu_Networks, addBackButton, addToParent]() {
+        addBackButton(wifiMenu_Networks);
+        wifiMenu_Networks->setup();
+        addToParent(wifiMenu_Networks);
+        wifiMenu_Networks->setChildrenClickables_isClickable(false);
+    });
+
+    ///////// Connections Menu - WiFi - WiFi Networks - Add Network /////////
+    auto wifiMenu_Networks_AddNetwork = createANewSubMenu(_("Add Network"), "Add Network", wifiMenu_Networks);
+    this->renderer->addSetupTask([&wifiMenu_Networks_AddNetwork, addBackButton, addToParent]() {
+        addBackButton(wifiMenu_Networks_AddNetwork);
+        wifiMenu_Networks_AddNetwork->setup();
+        addToParent(wifiMenu_Networks_AddNetwork);
+        wifiMenu_Networks_AddNetwork->setChildrenClickables_isClickable(false);
+    });
+
+    ///////// Connections Menu - WiFi - WiFi Networks - Add Network - SSID /////////
+    auto wifiMenu_Networks_AddNetwork_SSID = createANewSubMenu(_("SSID"), "SSID", wifiMenu_Networks_AddNetwork);
+    this->renderer->addSetupTask([&wifiMenu_Networks_AddNetwork_SSID, addBackButton, addToParent]() {
+        addBackButton(wifiMenu_Networks_AddNetwork_SSID);
+        // TODO: add a text box to enter the SSID
+        wifiMenu_Networks_AddNetwork_SSID->setup();
+        addToParent(wifiMenu_Networks_AddNetwork_SSID);
+        wifiMenu_Networks_AddNetwork_SSID->setChildrenClickables_isClickable(false);
+    });
+
+    ///////// Connections Menu - WiFi - WiFi Networks - Add Network - Security Type /////////
+    auto wifiMenu_Networks_AddNetwork_SecurityType = createANewSubMenu(_("Security Type"), "Security Type", wifiMenu_Networks_AddNetwork);
+    this->renderer->addSetupTask([&wifiMenu_Networks_AddNetwork_SecurityType, addBackButton, addToParent]() {
+        addBackButton(wifiMenu_Networks_AddNetwork_SecurityType);
+        // TODO: add a dropdown to select the security type
+        wifiMenu_Networks_AddNetwork_SecurityType->setup();
+        addToParent(wifiMenu_Networks_AddNetwork_SecurityType);
+        wifiMenu_Networks_AddNetwork_SecurityType->setChildrenClickables_isClickable(false);
+    });
+
+    ///////// Connections Menu - WiFi - WiFi Networks - Add Network - Password /////////
+    auto wifiMenu_Networks_AddNetwork_Password = createANewSubMenu(_("Password"), "Password", wifiMenu_Networks_AddNetwork);
+    this->renderer->addSetupTask([&wifiMenu_Networks_AddNetwork_Password, addBackButton, addToParent]() {
+        addBackButton(wifiMenu_Networks_AddNetwork_Password);
+        // TODO: add a text box to enter the password
+        wifiMenu_Networks_AddNetwork_Password->setup();
+        addToParent(wifiMenu_Networks_AddNetwork_Password);
+        wifiMenu_Networks_AddNetwork_Password->setChildrenClickables_isClickable(false);
+    });
+
+    ///////// Connections Menu - WiFi - WiFi Networks - Add Network - Connect /////////
+    this->renderer->addSetupTask([&wifiMenu_Networks_AddNetwork]() {
+        wifiMenu_Networks_AddNetwork->addMenuEntry(
+            _("Connect"),
+            "Connect",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [](void* data) {
+                CubeLog::info("WiFi Networks - Add Network - Connect clicked");
+                // TODO: connect to the network
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
+        wifiMenu_Networks_AddNetwork->setup();
+        wifiMenu_Networks_AddNetwork->setChildrenClickables_isClickable(false);
+    });
+    
     ///////// Connections Menu - WiFi - WiFi Networks - Scan /////////
-    ///////// Connections Menu - WiFi - WiFi Networks - List available networks /////////
+    auto wifiMenu_Networks_Scan = createANewSubMenu(_("Scan"), "Scan", wifiMenu_Networks);
+    this->renderer->addSetupTask([&wifiMenu_Networks_Scan, addBackButton, addToParent]() {
+        addBackButton(wifiMenu_Networks_Scan);
+        auto entryIndex = std::make_shared<unsigned int>();
+        *entryIndex = UINT_MAX;
+        *entryIndex = wifiMenu_Networks_Scan->addMenuEntry(
+            _("Scan"),
+            "Scan",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [entryIndex](void* data) {
+                CubeLog::info("WiFi Networks - Scan clicked: Index: " + std::to_string(*entryIndex));
+                // TODO: Trigger the wif manager to scan for networks and provide a way for it to return the list of networks.
+                // then we need to populate this menu with the list of networks.
+                return 0;
+            },
+            [entryIndex](void*) {
+                if(*entryIndex == UINT_MAX) return 0;
+                // if(wifi is scanning) MENUS::Menu::getMenuEntryByIndex(*entryIndex)->setEntryText("Scan - Scanning");
+                MENUS::Menu::getMenuEntryByIndex(*entryIndex)->setEntryText("Scan - Clicked");
+                return 0; 
+            },
+            nullptr
+        );
+        wifiMenu_Networks_Scan->addHorizontalRule();
+        wifiMenu_Networks_Scan->setup();
+        addToParent(wifiMenu_Networks_Scan);
+        wifiMenu_Networks_Scan->setChildrenClickables_isClickable(false);
+    });
+
+    ///////// Connections Menu - WiFi - WiFi Networks - Known networks /////////
+    auto wifiMenu_Networks_KnownNetworks = createANewSubMenu(_("Known Networks"), "Known Networks", wifiMenu_Networks);
+    this->renderer->addSetupTask([&wifiMenu_Networks_KnownNetworks, addBackButton, addToParent]() {
+        addBackButton(wifiMenu_Networks_KnownNetworks);
+        // TODO: list all the known networks
+        wifiMenu_Networks_KnownNetworks->setup();
+        addToParent(wifiMenu_Networks_KnownNetworks);
+        wifiMenu_Networks_KnownNetworks->setChildrenClickables_isClickable(false);
+    });
+
     ///////// Connections Menu - WiFi - About WiFi /////////
-    ///////// Connections Menu - WiFi - About WiFi - MAC Address /////////
-    ///////// Connections Menu - WiFi - About WiFi - IP Address /////////
-    ///////// Connections Menu - WiFi - About WiFi - Signal Strength /////////
-    ///////// Connections Menu - WiFi - About WiFi - Network Name /////////
-    ///////// Connections Menu - WiFi - About WiFi - Network Type /////////
-    ///////// Connections Menu - WiFi - About WiFi - Security Type /////////
-    ///////// Connections Menu - WiFi - About WiFi - Frequency /////////
-    ///////// Connections Menu - WiFi - About WiFi - Channel /////////
-    ///////// Connections Menu - WiFi - About WiFi - BSSID /////////
-    ///////// Connections Menu - WiFi - About WiFi - Subnet Mask /////////
-    ///////// Connections Menu - WiFi - About WiFi - Gateway /////////
-    ///////// Connections Menu - WiFi - About WiFi - DNS Servers /////////
-    ///////// Connections Menu - WiFi - About WiFi - DHCP Server /////////
-    ///////// Connections Menu - WiFi - About WiFi - Lease Time /////////
-    ///////// Connections Menu - WiFi - About WiFi - Connection Time /////////
-    ///////// Connections Menu - WiFi - About WiFi - Data Rate /////////
-    ///////// Connections Menu - WiFi - About WiFi - Link Quality /////////
-    ///////// Connections Menu - WiFi - About WiFi - TX Power /////////
-    ///////// Connections Menu - WiFi - About WiFi - RX Power /////////
-    ///////// Connections Menu - WiFi - About WiFi - TX Bytes /////////
-    ///////// Connections Menu - WiFi - About WiFi - RX Bytes /////////
+    auto wifiMenu_AboutWiFi = createANewSubMenu(_("About WiFi"), "About WiFi", wifiMenu);
+    this->renderer->addSetupTask([&wifiMenu_AboutWiFi, addBackButton, addToParent]() {
+        addBackButton(wifiMenu_AboutWiFi);
+        ///////// Connections Menu - WiFi - About WiFi - MAC Address /////////
+        auto entryIndex0 = std::make_shared<unsigned int>();
+        *entryIndex0 = UINT_MAX;
+        *entryIndex0 = wifiMenu_AboutWiFi->addMenuEntry(
+            _("MAC Address"),
+            "MAC Address",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [entryIndex0](void* data) {
+                CubeLog::info("WiFi - About WiFi - MAC Address clicked");
+                // TODO: get the MAC address of the wifi adapter
+                // if(entryIndex0 == UINT_MAX) return 0;
+                // MENUS::Menu::getMenuEntryByIndex(*entryIndex0)->setEntryText("MAC Address - 00:00:00:00:00:00");
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
+        ///////// Connections Menu - WiFi - About WiFi - IP Address /////////
+        auto entryIndex1 = std::make_shared<unsigned int>();
+        *entryIndex1 = UINT_MAX;
+        *entryIndex1 = wifiMenu_AboutWiFi->addMenuEntry(
+            _("IP Address"),
+            "IP Address",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [entryIndex1](void* data) {
+                CubeLog::info("WiFi - About WiFi - IP Address clicked");
+                // TODO: get the IP address of the wifi adapter
+                // if(entryIndex1 == UINT_MAX) return 0;
+                // MENUS::Menu::getMenuEntryByIndex(*entryIndex1)->setEntryText("IP Address - 0.0.0.0");
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
+        ///////// Connections Menu - WiFi - About WiFi - Subnet Mask /////////
+        auto entryIndex2 = std::make_shared<unsigned int>();
+        *entryIndex2 = UINT_MAX;
+        *entryIndex2 = wifiMenu_AboutWiFi->addMenuEntry(
+            _("Subnet Mask"),
+            "Subnet Mask",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [entryIndex2](void* data) {
+                CubeLog::info("WiFi - About WiFi - Subnet Mask clicked");
+                // TODO: get the subnet mask of the wifi adapter
+                // if(entryIndex2 == UINT_MAX) return 0;
+                // MENUS::Menu::getMenuEntryByIndex(*entryIndex2)->setEntryText("Subnet Mask - 0.0.0.0");
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
+        ///////// Connections Menu - WiFi - About WiFi - Signal Strength /////////
+        auto entryIndex3 = std::make_shared<unsigned int>();
+        *entryIndex3 = UINT_MAX;
+        *entryIndex3 = wifiMenu_AboutWiFi->addMenuEntry(
+            _("Signal Strength"),
+            "Signal Strength",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [entryIndex3](void* data) {
+                CubeLog::info("WiFi - About WiFi - Signal Strength clicked");
+                // TODO: get the signal strength of the wifi adapter
+                // if(entryIndex3 == UINT_MAX) return 0;
+                // MENUS::Menu::getMenuEntryByIndex(*entryIndex3)->setEntryText("Signal Strength - 0%");
+                return 0;
+            },
+            [](void*) {
+                // if(entryIndex3 == UINT_MAX) return 0;
+                // MENUS::Menu::getMenuEntryByIndex(*entryIndex3)->setEntryText("Signal Strength - 0%");
+                return 0;
+            },
+            nullptr
+        );
+        ///////// Connections Menu - WiFi - About WiFi - Network Name /////////
+        auto entryIndex4 = std::make_shared<unsigned int>();
+        *entryIndex4 = UINT_MAX;
+        *entryIndex4 = wifiMenu_AboutWiFi->addMenuEntry(
+            _("Network Name"),
+            "Network Name",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [entryIndex4](void* data) {
+                CubeLog::info("WiFi - About WiFi - Network Name clicked");
+                // TODO: get the name of the current network
+                // if(entryIndex4 == UINT_MAX) return 0;
+                // MENUS::Menu::getMenuEntryByIndex(*entryIndex4)->setEntryText("Network Name - Network Name");
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
+        ///////// Connections Menu - WiFi - About WiFi - Network Type /////////
+        auto entryIndex5 = std::make_shared<unsigned int>();
+        *entryIndex5 = UINT_MAX;
+        *entryIndex5 = wifiMenu_AboutWiFi->addMenuEntry(
+            _("Network Type"),
+            "Network Type",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [entryIndex5](void* data) {
+                CubeLog::info("WiFi - About WiFi - Network Type clicked");
+                // TODO: get the type of the current network
+                // if(entryIndex5 == UINT_MAX) return 0;
+                // MENUS::Menu::getMenuEntryByIndex(*entryIndex5)->setEntryText("Network Type - Wifi6");
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
+        ///////// Connections Menu - WiFi - About WiFi - Security Type /////////
+        auto entryIndex6 = std::make_shared<unsigned int>();
+        *entryIndex6 = UINT_MAX;
+        *entryIndex6 = wifiMenu_AboutWiFi->addMenuEntry(
+            _("Security Type"),
+            "Security Type",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [entryIndex6](void* data) {
+                CubeLog::info("WiFi - About WiFi - Security Type clicked");
+                // TODO: get the security type of the current network
+                // if(entryIndex6 == UINT_MAX) return 0;
+                // MENUS::Menu::getMenuEntryByIndex(*entryIndex6)->setEntryText("Security Type - WPA2");
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
+        ///////// Connections Menu - WiFi - About WiFi - Frequency /////////
+        auto entryIndex7 = std::make_shared<unsigned int>();
+        *entryIndex7 = UINT_MAX;
+        *entryIndex7 = wifiMenu_AboutWiFi->addMenuEntry(
+            _("Frequency"),
+            "Frequency",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [entryIndex7](void* data) {
+                CubeLog::info("WiFi - About WiFi - Frequency clicked");
+                // TODO: get the frequency of the current network
+                // if(entryIndex7 == UINT_MAX) return 0;
+                // MENUS::Menu::getMenuEntryByIndex(*entryIndex7)->setEntryText("Frequency - 2.4GHz");
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
+        ///////// Connections Menu - WiFi - About WiFi - Channel /////////
+        auto entryIndex8 = std::make_shared<unsigned int>();
+        *entryIndex8 = UINT_MAX;
+        *entryIndex8 = wifiMenu_AboutWiFi->addMenuEntry(
+            _("Channel"),
+            "Channel",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [entryIndex8](void* data) {
+                CubeLog::info("WiFi - About WiFi - Channel clicked");
+                // TODO: get the channel of the current network
+                // if(entryIndex8 == UINT_MAX) return 0;
+                // MENUS::Menu::getMenuEntryByIndex(*entryIndex8)->setEntryText("Channel - 1");
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
+        ///////// Connections Menu - WiFi - About WiFi - BSSID /////////
+        auto entryIndex9 = std::make_shared<unsigned int>();
+        *entryIndex9 = UINT_MAX;
+        *entryIndex9 = wifiMenu_AboutWiFi->addMenuEntry(
+            _("BSSID"),
+            "BSSID",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [entryIndex9](void* data) {
+                CubeLog::info("WiFi - About WiFi - BSSID clicked");
+                // TODO: get the BSSID of the current network
+                // if(entryIndex9 == UINT_MAX) return 0;
+                // MENUS::Menu::getMenuEntryByIndex(*entryIndex9)->setEntryText("BSSID - 00:00:00:00:00:00");
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
+        ///////// Connections Menu - WiFi - About WiFi - Gateway /////////
+        auto entryIndex10 = std::make_shared<unsigned int>();
+        *entryIndex10 = UINT_MAX;
+        *entryIndex10 = wifiMenu_AboutWiFi->addMenuEntry(
+            _("Gateway"),
+            "Gateway",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [entryIndex10](void* data) {
+                CubeLog::info("WiFi - About WiFi - Gateway clicked");
+                // TODO: get the gateway of the current network
+                // if(entryIndex10 == UINT_MAX) return 0;
+                // MENUS::Menu::getMenuEntryByIndex(*entryIndex10)->setEntryText("Gateway - 1.1.1.1");
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
+        ///////// Connections Menu - WiFi - About WiFi - DNS Servers /////////
+        auto entryIndex11 = std::make_shared<unsigned int>();
+        *entryIndex11 = UINT_MAX;
+        *entryIndex11 = wifiMenu_AboutWiFi->addMenuEntry(
+            _("DNS Servers"),
+            "DNS Servers",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [entryIndex11](void* data) {
+                CubeLog::info("WiFi - About WiFi - DNS Servers clicked");
+                // TODO: get the DNS servers of the current network
+                // if(entryIndex11 == UINT_MAX) return 0;
+                // MENUS::Menu::getMenuEntryByIndex(*entryIndex11)->setEntryText("DNS Servers - 1.1.1.1, 2.2.2.2");
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
+        ///////// Connections Menu - WiFi - About WiFi - DHCP Server /////////
+        auto entryIndex12 = std::make_shared<unsigned int>();
+        *entryIndex12 = UINT_MAX;
+        *entryIndex12 = wifiMenu_AboutWiFi->addMenuEntry(
+            _("DHCP Server"),
+            "DHCP Server",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [entryIndex12](void* data) {
+                CubeLog::info("WiFi - About WiFi - DHCP Server clicked");
+                // TODO: get the DHCP server of the current network
+                // if(entryIndex12 == UINT_MAX) return 0;
+                // MENUS::Menu::getMenuEntryByIndex(*entryIndex12)->setEntryText("DHCP Server - 2.1.2.1");
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
+        ///////// Connections Menu - WiFi - About WiFi - Lease Time /////////
+        auto entryIndex13 = std::make_shared<unsigned int>();
+        *entryIndex13 = UINT_MAX;
+        *entryIndex13 = wifiMenu_AboutWiFi->addMenuEntry(
+            _("Lease Time"),
+            "Lease Time",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [entryIndex13](void* data) {
+                CubeLog::info("WiFi - About WiFi - Lease Time clicked");
+                // TODO: get the lease time of the current network
+                // if(entryIndex13 == UINT_MAX) return 0;
+                // MENUS::Menu::getMenuEntryByIndex(*entryIndex13)->setEntryText("Lease Time - 1 day");
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
+        ///////// Connections Menu - WiFi - About WiFi - Connection Time /////////
+        auto entryIndex14 = std::make_shared<unsigned int>();
+        *entryIndex14 = UINT_MAX;
+        *entryIndex14 = wifiMenu_AboutWiFi->addMenuEntry(
+            _("Connection Time"),
+            "Connection Time",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [entryIndex14](void* data) {
+                CubeLog::info("WiFi - About WiFi - Connection Time clicked");
+                // TODO: get the connection time of the current network
+                // if(entryIndex14 == UINT_MAX) return 0;
+                // MENUS::Menu::getMenuEntryByIndex(*entryIndex14)->setEntryText("Connection Time - 1 day");
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
+        ///////// Connections Menu - WiFi - About WiFi - Data Rate /////////
+        auto entryIndex15 = std::make_shared<unsigned int>();
+        *entryIndex15 = UINT_MAX;
+        *entryIndex15 = wifiMenu_AboutWiFi->addMenuEntry(
+            _("Data Rate"),
+            "Data Rate",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [entryIndex15](void* data) {
+                CubeLog::info("WiFi - About WiFi - Data Rate clicked");
+                // TODO: get the data rate of the current network
+                // if(entryIndex15 == UINT_MAX) return 0;
+                // MENUS::Menu::getMenuEntryByIndex(*entryIndex15)->setEntryText("Data Rate - 1Mbps");
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
+        wifiMenu_AboutWiFi->setup();
+        addToParent(wifiMenu_AboutWiFi);
+        wifiMenu_AboutWiFi->setChildrenClickables_isClickable(false);
+    });
+
+    
 
     ///////// Connections Menu - Bluetooth /////////
     auto bluetoothMenu = createANewSubMenu(_("Bluetooth"), "Bluetooth", connectionsMenu);
@@ -263,10 +635,13 @@ void GUI::eventLoop()
         addBackButton(bluetoothMenu);
         ///////// Connections Menu - Bluetooth - Enable/Disable Bluetooth /////////
         // Options below should be greyed out and not clickable if bluetooth is disabled
+        
         ///////// Connections Menu - Bluetooth - Pairing Mode /////////
         // TODO: when pairing mode is clicked, bluetooth should go into pairing mode and show a list of devices that can be paired with.
+        
         ///////// Connections Menu - Bluetooth - Known devices /////////
         // TODO: list all the bluetooth devices that have been paired with the cube
+        
         ///////// Connections Menu - Bluetooth - About Bluetooth /////////
         bluetoothMenu->setup();
         addToParent(bluetoothMenu);
@@ -278,7 +653,36 @@ void GUI::eventLoop()
     this->renderer->addSetupTask([&nfcMenu, addBackButton, addToParent]() {
         addBackButton(nfcMenu);
         ///////// Connections Menu - NFC - Enable/Disable NFC /////////
+        nfcMenu->addMenuEntry(
+            _("Enable/Disable NFC"),
+            "NFC_EnableDisable",
+            MENUS::EntryType::MENUENTRY_TYPE_TOGGLE,
+            [](void* data) {
+                CubeLog::info("NFC - Enable/Disable NFC clicked");
+                // TODO: make this actually enable/disable NFC. the settings should have a callback registered with the GlobalSettings class that will enable/disable NFC when the setting is changed.
+                // GlobalSettings::setSetting(GlobalSettings::SettingType::NFC_ENABLED, !GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::NFC_ENABLED));
+                return 0;
+            },
+            [](void*) {
+                // TODO: return GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::NFC_ENABLED);
+                int random0or1 = rand() % 2;
+                return random0or1;
+            },
+            nullptr
+        );
         ///////// Connections Menu - NFC - About NFC /////////
+        nfcMenu->addMenuEntry(
+            _("About NFC"),
+            "About NFC",
+            MENUS::EntryType::MENUENTRY_TYPE_TEXT_INFO,
+            [](void* data) {
+                CubeLog::info("NFC - About NFC clicked");
+                // TODO: show a fullscreen message box with information about NFC
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
         nfcMenu->setup();
         addToParent(nfcMenu);
         nfcMenu->setChildrenClickables_isClickable(false);
@@ -289,21 +693,104 @@ void GUI::eventLoop()
     this->renderer->addSetupTask([&personalityMenu, addBackButton, addToParent]() {
         addBackButton(personalityMenu);
         ///////// Personality Menu - Enable/Disable Personality /////////
+        personalityMenu->addMenuEntry(
+            _("Enable/Disable Personality"),
+            "Personality_EnableDisable",
+            MENUS::EntryType::MENUENTRY_TYPE_TOGGLE,
+            [](void* data) {
+                CubeLog::info("Personality - Enable/Disable Personality clicked");
+                // TODO: make this actually enable/disable personality. the settings should have a callback registered with the GlobalSettings class that will enable/disable personality when the setting is changed.
+                // GlobalSettings::setSetting(GlobalSettings::SettingType::PERSONALITY_ENABLED, !GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::PERSONALITY_ENABLED));
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
         ///////// Personality Menu - Personality reset /////////
+        personalityMenu->addMenuEntry(
+            _("Reset Personality"),
+            "Personality_Reset",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [](void* data) {
+                CubeLog::info("Personality - Reset Personality clicked");
+                // TODO: reset the personality to default
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
         personalityMenu->setup();
         addToParent(personalityMenu);
         personalityMenu->setChildrenClickables_isClickable(false);
     });
 
     ///////// Personality Menu - Personality Settings /////////
-    // TODO: list each attribute of the personality and provide a slider to adjust.
+    auto personalityMenu_PersonalitySettings = createANewSubMenu(
+        _("Personality Settings"), 
+        "Personality Settings", 
+        personalityMenu
+    );
+    this->renderer->addSetupTask([&personalityMenu_PersonalitySettings, addBackButton, addToParent]() {
+        addBackButton(personalityMenu_PersonalitySettings);
+        // list each attribute of the personality and provide a slider to adjust.
+        // 1. Curiosity
+        personalityMenu_PersonalitySettings->addMenuEntry(
+            _("Curiosity"),
+            "Curiosity",
+            MENUS::EntryType::MENUENTRY_TYPE_SLIDER,
+            [](void* data) {
+                CubeLog::info("Personality Settings - Curiosity clicked");
+                // TODO: set the curiosity level
+                return 0;
+            },
+            [](void*) { return 50; },
+            nullptr
+        );
+        // TODO: before adding the rest of these, we need to figure out the slider rendering and how to get/set the values
+        // 2. Playfulness
+        // 3. Empathy
+        // 4. Assertiveness
+        // 5. Productivity Focus / Encouragement
+        // 6. Attentiveness
+        // 7. Caution
+        
+        personalityMenu_PersonalitySettings->setup();
+        addToParent(personalityMenu_PersonalitySettings);
+        personalityMenu_PersonalitySettings->setChildrenClickables_isClickable(false);
+    });
 
     ///////// Sensors Menu /////////
     auto sensorsMenu = createANewSubMenu(_("Sensors"), "Sensors", mainMenu);
     this->renderer->addSetupTask([&sensorsMenu, addBackButton, addToParent]() {
         addBackButton(sensorsMenu);
         ///////// Sensors Menu - Microphone enable/disable /////////
+        sensorsMenu->addMenuEntry(
+            _("Microphone"),
+            "Microphone",
+            MENUS::EntryType::MENUENTRY_TYPE_TOGGLE,
+            [](void* data) {
+                CubeLog::info("Microphone clicked");
+                // TODO: make this actually enable/disable the microphone. the settings should have a callback registered with the GlobalSettings class that will enable/disable the microphone when the setting is changed.
+                // GlobalSettings::setSetting(GlobalSettings::SettingType::MICROPHONE_ENABLED, !GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::MICROPHONE_ENABLED));
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
         ///////// Sensors Menu - Presence Detection enable/disable /////////
+        sensorsMenu->addMenuEntry(
+            _("Presence Detection"),
+            "Presence Detection",
+            MENUS::EntryType::MENUENTRY_TYPE_TOGGLE,
+            [](void* data) {
+                CubeLog::info("Presence Detection clicked");
+                // TODO: make this actually enable/disable the presence detection. the settings should have a callback registered with the GlobalSettings class that will enable/disable the presence detection when the setting is changed.
+                // GlobalSettings::setSetting(GlobalSettings::SettingType::PRESENCE_DETECTION_ENABLED, !GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::PRESENCE_DETECTION_ENABLED));
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
         sensorsMenu->setup();
         addToParent(sensorsMenu);
         sensorsMenu->setChildrenClickables_isClickable(false);
@@ -314,27 +801,171 @@ void GUI::eventLoop()
     this->renderer->addSetupTask([&soundMenu, addBackButton, addToParent]() {
         addBackButton(soundMenu);
         ///////// Sound Menu - Volume /////////
-        // TODO: add a slider to control the volume
+        soundMenu->addMenuEntry(
+            _("Volume"),
+            "General Volume",
+            MENUS::EntryType::MENUENTRY_TYPE_SLIDER,
+            [](void* data) {
+                CubeLog::info("Volume clicked");
+                // TODO: set the volume
+                return 0;
+            },
+            [](void* val) { 
+                // cast val to int
+                // int volume = *(int*)val;
+                // TODO: save the volume to the settings
+                return 50; 
+            },
+            (void*)(int)(50) // TODO: we need to get the value from the settings and pass it in here.
+        );
         soundMenu->setup();
         addToParent(soundMenu);
         soundMenu->setChildrenClickables_isClickable(false);
     });
 
     ///////// Sound Menu - Notification Sound /////////
+    auto soundMenu_NotificationSound = createANewSubMenu(_("Notification Sound"), "Notification Sound", soundMenu);
+    this->renderer->addSetupTask([&soundMenu_NotificationSound, addBackButton, addToParent]() {
+        addBackButton(soundMenu_NotificationSound);
+        ///////// Sound Menu - Notification Sound - Volume /////////
+        soundMenu_NotificationSound->addMenuEntry(
+            _("Volume"),
+            "Notification Sound Volume",
+            MENUS::EntryType::MENUENTRY_TYPE_SLIDER,
+            [](void* data) {
+                CubeLog::info("Notification Sound - Volume clicked");
+                // TODO: set the volume
+                return 0;
+            },
+            [](void* val) { 
+                // cast val to int
+                // int volume = *(int*)val;
+                // TODO: save the notification volume to the settings
+                return 50;
+            },
+            (void*)(int)(50) // TODO: we need to get the value from the settings and pass it in here.
+        );
+        soundMenu_NotificationSound->setup();
+        addToParent(soundMenu_NotificationSound);
+        soundMenu_NotificationSound->setChildrenClickables_isClickable(false);
+    });
+    ///////// Sound Menu - Notification Sound - Select Sound /////////
+    auto soundMenu_NotificationSound_SelectSound = createANewSubMenu(_("Select Sound"), "Select Notification Sound", soundMenu_NotificationSound);
+    this->renderer->addSetupTask([&soundMenu_NotificationSound_SelectSound, addBackButton, addToParent]() {
+        addBackButton(soundMenu_NotificationSound_SelectSound);
+        // TODO: list all the notification sounds
+        soundMenu_NotificationSound_SelectSound->setup();
+        addToParent(soundMenu_NotificationSound_SelectSound);
+        soundMenu_NotificationSound_SelectSound->setChildrenClickables_isClickable(false);
+    });
+
     ///////// Sound Menu - Alarm Sound /////////
+    auto soundMenu_AlarmSound = createANewSubMenu(_("Alarm Sound"), "Alarm Sound", soundMenu);
+    this->renderer->addSetupTask([&soundMenu_AlarmSound, addBackButton, addToParent]() {
+        addBackButton(soundMenu_AlarmSound);
+        ///////// Sound Menu - Alarm Sound - Volume /////////
+        soundMenu_AlarmSound->addMenuEntry(
+            _("Volume"),
+            "Alarm Sound Volume",
+            MENUS::EntryType::MENUENTRY_TYPE_SLIDER,
+            [](void* data) {
+                CubeLog::info("Alarm Sound - Volume clicked");
+                // TODO: set the volume
+                return 0;
+            },
+            [](void* val) { 
+                // cast val to int
+                // int volume = *(int*)val;
+                // TODO: save the alarm volume to the settings
+                return 50;
+            },
+            (void*)(int)(50) // TODO: we need to get the value from the settings and pass it in here.
+        );
+        soundMenu_AlarmSound->setup();
+        addToParent(soundMenu_AlarmSound);
+        soundMenu_AlarmSound->setChildrenClickables_isClickable(false);
+    });
+    ///////// Sound Menu - Alarm Sound - Select Sound /////////
+    auto soundMenu_AlarmSound_SelectSound = createANewSubMenu(_("Select Sound"), "Select Alarm Sound", soundMenu_AlarmSound);
+    this->renderer->addSetupTask([&soundMenu_AlarmSound_SelectSound, addBackButton, addToParent]() {
+        addBackButton(soundMenu_AlarmSound_SelectSound);
+        // TODO: list all the alarm sounds
+        soundMenu_AlarmSound_SelectSound->setup();
+        addToParent(soundMenu_AlarmSound_SelectSound);
+        soundMenu_AlarmSound_SelectSound->setChildrenClickables_isClickable(false);
+    });
+
     ///////// Sound Menu - Voice Command Sound /////////
+    auto soundMenu_VoiceCommandSound = createANewSubMenu(_("Voice Command Sound"), "Voice Command Sound", soundMenu);
+    this->renderer->addSetupTask([&soundMenu_VoiceCommandSound, addBackButton, addToParent]() {
+        addBackButton(soundMenu_VoiceCommandSound);
+        ///////// Sound Menu - Voice Command Sound - Volume /////////
+        soundMenu_VoiceCommandSound->addMenuEntry(
+            _("Volume"),
+            "Voice Command Sound Volume",
+            MENUS::EntryType::MENUENTRY_TYPE_SLIDER,
+            [](void* data) {
+                CubeLog::info("Voice Command Sound - Volume clicked");
+                // TODO: set the volume
+                return 0;
+            },
+            [](void* val) { 
+                // cast val to int
+                // int volume = *(int*)val;
+                // TODO: save the voice command volume to the settings
+                return 50;
+            },
+            (void*)(int)(50) // TODO: we need to get the value from the settings and pass it in here.
+        );
+        soundMenu_VoiceCommandSound->setup();
+        addToParent(soundMenu_VoiceCommandSound);
+        soundMenu_VoiceCommandSound->setChildrenClickables_isClickable(false);
+    });
+    ///////// Sound Menu - Voice Command Sound - Select Sound /////////
+    auto soundMenu_VoiceCommandSound_SelectSound = createANewSubMenu(_("Select Sound"), "Select Voice Command Sound", soundMenu_VoiceCommandSound);
+    this->renderer->addSetupTask([&soundMenu_VoiceCommandSound_SelectSound, addBackButton, addToParent]() {
+        addBackButton(soundMenu_VoiceCommandSound_SelectSound);
+        // TODO: list all the voice command sounds
+        soundMenu_VoiceCommandSound_SelectSound->setup();
+        addToParent(soundMenu_VoiceCommandSound_SelectSound);
+        soundMenu_VoiceCommandSound_SelectSound->setChildrenClickables_isClickable(false);
+    });
 
     ///////// Notifications Menu /////////
     auto notificationsMenu = createANewSubMenu(_("Notifications"), "Notifications", mainMenu);
     this->renderer->addSetupTask([&notificationsMenu, addBackButton, addToParent]() {
         addBackButton(notificationsMenu);
+        ///////// Notifications Menu - Allow Notifications from Network Sources (Other cubes) /////////
+        notificationsMenu->addMenuEntry(
+            _("Allow Notifications from Network Sources"),
+            "Notifications_Allow_Network_Sources",
+            MENUS::EntryType::MENUENTRY_TYPE_TOGGLE,
+            [](void* data) {
+                CubeLog::info("Notifications - Allow Notifications from Network Sources clicked");
+                // TODO: make this actually enable/disable notifications from network sources. the settings should have a callback registered with the GlobalSettings class that will enable/disable notifications from network sources when the setting is changed.
+                // GlobalSettings::setSetting(GlobalSettings::SettingType::NOTIFICATIONS_FROM_NETWORK_ENABLED, !GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::NOTIFICATIONS_FROM_NETWORK_ENABLED));
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
         notificationsMenu->setup();
         addToParent(notificationsMenu);
         notificationsMenu->setChildrenClickables_isClickable(false);
     });
-
-    ///////// Notifications Menu - Allow Notifications from Network Sources (Other cubes) /////////
+    
     ///////// Notifications Menu - Recent Notifications /////////
+    auto notificationsMenu_RecentNotifications = createANewSubMenu(_("Recent Notifications"), "Recent Notifications", notificationsMenu);
+    this->renderer->addSetupTask([&notificationsMenu_RecentNotifications, addBackButton, addToParent]() {
+        addBackButton(notificationsMenu_RecentNotifications);
+        // TODO: list all the recent notifications. we'll need to determine the max number of notificaitons to show,
+        // then create that many entries and set them up to pull the notification data from the notification manager
+        // and update the text of the title from the notification. then when the user clicks/taps, we'll pop up a
+        // message box with the full notification text.
+        notificationsMenu_RecentNotifications->setup();
+        addToParent(notificationsMenu_RecentNotifications);
+        notificationsMenu_RecentNotifications->setChildrenClickables_isClickable(false);
+    });
 
     ///////// Display Menu /////////
     auto displayMenu = createANewSubMenu(_("Display"), "Display", mainMenu);
@@ -346,11 +977,117 @@ void GUI::eventLoop()
     });
 
     ///////// Display Menu - Animations /////////
+    auto displayMenu_Animations = createANewSubMenu(_("Animations"), "Animations", displayMenu);
+    this->renderer->addSetupTask([&displayMenu_Animations, addBackButton, addToParent]() {
+        addBackButton(displayMenu_Animations);
+        ///////// Display Menu - Animations - Enable remote animations /////////
+        displayMenu_Animations->addMenuEntry(
+            _("Enable Remote Animations"),
+            "Animations_Enable_Remote",
+            MENUS::EntryType::MENUENTRY_TYPE_TOGGLE,
+            [](void* data) {
+                CubeLog::info("Animations - Enable Remote Animations clicked");
+                // TODO: make this actually enable/disable remote animations. the settings should have a callback registered with the GlobalSettings class that will enable/disable remote animations when the setting is changed.
+                // GlobalSettings::setSetting(GlobalSettings::SettingType::REMOTE_ANIMATIONS_ENABLED, !GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::REMOTE_ANIMATIONS_ENABLED));
+                return 0;
+            },
+            [](void*) { 
+                int random0or1 = rand() % 2;
+                return random0or1;
+            },
+            nullptr
+        );
+        displayMenu_Animations->setup();
+        addToParent(displayMenu_Animations);
+        displayMenu_Animations->setChildrenClickables_isClickable(false);
+    });
     ///////// Display Menu - Animations - Select Idle Animation /////////
-    ///////// Display Menu - Animations - Enable remote animations /////////
+    auto displayMenu_Animations_SelectIdleAnimation = createANewSubMenu(_("Select Idle Animation"), "Select Idle Animation", displayMenu_Animations);
+    this->renderer->addSetupTask([&displayMenu_Animations_SelectIdleAnimation, addBackButton, addToParent]() {
+        addBackButton(displayMenu_Animations_SelectIdleAnimation);
+        // TODO: list all the idle animations
+        displayMenu_Animations_SelectIdleAnimation->setup();
+        addToParent(displayMenu_Animations_SelectIdleAnimation);
+        displayMenu_Animations_SelectIdleAnimation->setChildrenClickables_isClickable(false);
+    });
     ///////// Display Menu - Brightness /////////
-    ///////// Display Menu - Auto Off ///////// time?
+    auto displayMenu_Brightness = createANewSubMenu(_("Brightness"), "Brightness", displayMenu);
+    this->renderer->addSetupTask([&displayMenu_Brightness, addBackButton, addToParent]() {
+        addBackButton(displayMenu_Brightness);
+        ///////// Display Menu - Brightness - Set Brightness /////////
+        displayMenu_Brightness->addMenuEntry(
+            _("Set Brightness"),
+            "Brightness_Set",
+            MENUS::EntryType::MENUENTRY_TYPE_SLIDER,
+            [](void* data) {
+                CubeLog::info("Brightness - Set Brightness clicked");
+                // TODO: set the brightness
+                return 0;
+            },
+            [](void* val) { 
+                // cast val to int
+                // int brightness = *(int*)val;
+                // TODO: save the brightness to the settings
+                return 50;
+            },
+            nullptr
+        );
+        displayMenu_Brightness->setup();
+        addToParent(displayMenu_Brightness);
+        displayMenu_Brightness->setChildrenClickables_isClickable(false);
+    });
+    ///////// Display Menu - Auto Off En/Disable /////////
+    auto displayMenu_AutoOff = createANewSubMenu(_("Auto Off"), "Auto Off", displayMenu);
+    this->renderer->addSetupTask([&displayMenu_AutoOff, addBackButton, addToParent]() {
+        addBackButton(displayMenu_AutoOff);
+        ///////// Display Menu - Auto Off - Enable/Disable Auto Off /////////
+        displayMenu_AutoOff->addMenuEntry(
+            _("Enable/Disable Auto Off"),
+            "Auto Off_EnableDisable",
+            MENUS::EntryType::MENUENTRY_TYPE_TOGGLE,
+            [](void* data) {
+                CubeLog::info("Auto Off - Enable/Disable Auto Off clicked");
+                // TODO: make this actually enable/disable auto off. the settings should have a callback registered with the GlobalSettings class that will enable/disable auto off when the setting is changed.
+                // GlobalSettings::setSetting(GlobalSettings::SettingType::AUTO_OFF_ENABLED, !GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::AUTO_OFF_ENABLED));
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr
+        );
+        ///////// Display Menu - Auto Off - Set Time /////////
+        displayMenu_AutoOff->addMenuEntry(
+            _("Set Time"),
+            "Auto Off_Set_Time",
+            MENUS::EntryType::MENUENTRY_TYPE_SLIDER,
+            [](void* data) {
+                CubeLog::info("Auto Off - Set Time clicked");
+                // TODO: set the auto off time
+                return 0;
+            },
+            [](void* val) { 
+                // cast val to int
+                // int time = *(int*)val;
+                // TODO: save the auto off time to the settings
+                return 50;
+            },
+            nullptr
+        );
+        displayMenu_AutoOff->setup();
+        addToParent(displayMenu_AutoOff);
+        displayMenu_AutoOff->setChildrenClickables_isClickable(false);
+    });
     ///////// Display Menu - Font /////////
+    auto displayMenu_Font = createANewSubMenu(_("Font"), "Font", displayMenu);
+    this->renderer->addSetupTask([&displayMenu_Font, addBackButton, addToParent]() {
+        addBackButton(displayMenu_Font);
+        // TODO: list all the available fonts
+        // read all the fonts from the fonts directory and store the paths in a vector
+        // then create a menu entry for each font and when clicked, set the font in the settings.
+        // the settings should have a callback registered (TODO:) with the GlobalSettings class that will set the font when the setting is changed.
+        displayMenu_Font->setup();
+        addToParent(displayMenu_Font);
+        displayMenu_Font->setChildrenClickables_isClickable(false);
+    });
 
     ///////// Privacy Menu /////////
     auto privacyMenu = createANewSubMenu(_("Privacy"), "Privacy", mainMenu);
@@ -1987,6 +2724,11 @@ bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry)
                 return retVal;
             },
             (void*)new int(0));
+        break;
+    }
+    case MENUS::EntryType::MENUENTRY_TYPE_INLINE_TEXT:
+    {
+        // TODO: Implement
         break;
     }
     default:
