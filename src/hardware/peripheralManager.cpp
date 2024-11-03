@@ -4,6 +4,7 @@
 
 PeripheralManager::PeripheralManager()
 {
+    this->mmWaveSensor = std::make_unique<mmWave>();
 }
 
 PeripheralManager::~PeripheralManager()

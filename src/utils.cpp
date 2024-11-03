@@ -144,3 +144,16 @@ std::string getCpuUsage()
     return "0";
 #endif
 }
+
+#ifdef _WIN32
+std::string convertWCHARToString(const WCHAR* wstr) {
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+    return converter.to_bytes(wstr);
+}
+
+void convertStringToWCHAR(const std::string& str, WCHAR* wstr) {
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+    std::wstring wstrTemp = converter.from_bytes(str);
+    wcscpy(wstr, wstrTemp.c_str());
+}
+#endif

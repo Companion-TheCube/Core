@@ -17,6 +17,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+
 #endif
 #include <tlhelp32.h>
 #endif
@@ -25,6 +26,8 @@
 #include <fstream>
 #include <string>
 #include <utils.h>
+
+
 
 class NativeAPI {
 public:

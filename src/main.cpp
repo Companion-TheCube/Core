@@ -237,6 +237,7 @@ int main(int argc, char* argv[])
         AppsManager appsManager;
         auto api = std::make_shared<API>();
         auto auth = std::make_shared<CubeAuth>();
+        auto peripherals = std::make_shared<PeripheralManager>();
         API_Builder api_builder(api);
         api_builder.addInterface(gui);
         api_builder.addInterface(cubeDB);
@@ -245,6 +246,7 @@ int main(int argc, char* argv[])
         api_builder.addInterface(auth);
         // api_builder.addInterface(wifiManager);
         api_builder.addInterface(btManager);
+        // api_builder.addInterface(peripherals);
         api_builder.start();
         CubeLog::info("Entering main loop...");
         std::chrono::milliseconds aSecond(1000);

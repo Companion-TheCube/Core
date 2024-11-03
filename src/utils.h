@@ -22,6 +22,7 @@
 #endif
 #ifdef _WIN32
 #include "psapi.h"
+#include <codecvt>
 #endif
 
 #ifndef _TASK_QUEUE_H_
@@ -124,6 +125,12 @@ private:
     std::mutex mutex_;
     std::condition_variable cv_;
 };
+
+
+#ifdef _WIN32
+std::string convertWCHARToString(const WCHAR* wstr);
+void convertStringToWCHAR(const std::string& str, WCHAR* wstr);
+#endif
 
 #endif
 #endif // UTILS_H

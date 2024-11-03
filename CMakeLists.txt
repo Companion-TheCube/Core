@@ -42,7 +42,6 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
 endif()
 
-# determine if we are building on windows
 if(WIN32)
     set(FREETYPE_INCLUDE_DIRS "C:/Users/Andrew/Documents/freetype/include")
     set(FREETYPE_LIBRARY "C:/Users/Andrew/Documents/freetype/release static/vs2015-2022/win64/freetype.lib")
@@ -77,6 +76,13 @@ FetchContent_Declare(SFML
     GIT_TAG 2.6.x)
 FetchContent_MakeAvailable(SFML)
 include(FetchContent)
+
+if(WIN32)
+    set(CMAKE_PREFIX_PATH C:/Qt6/6.8.0/mingw_64)
+else()
+    set(CMAKE_PREFIX_PATH /home/andrew/Qt/6.8.0/gcc_64)
+endif()
+find_package(Qt6 REQUIRED COMPONENTS Core SerialPort)
 
 if(WIN32)
     # Settings for Windows
@@ -236,6 +242,11 @@ file(MAKE_DIRECTORY ${DATA_DEST_DIR})
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/**/*.cpp" "src/**/**/*.cpp")
 add_executable(CubeCore ${SOURCES})
 
+# this is needed for Qt6
+if(WIN32)
+    target_compile_options(CubeCore PRIVATE "/Zc:__cplusplus")
+endif()
+
 # Link libraries
 target_link_libraries(CubeCore PRIVATE
     sfml-graphics
@@ -250,6 +261,7 @@ target_link_libraries(CubeCore PRIVATE
     SQLiteCpp
     sqlite3
     ${SODIUM_LIBRARIES}
+    Qt6::SerialPort
 )
 
 target_compile_features(CubeCore PRIVATE cxx_std_17)

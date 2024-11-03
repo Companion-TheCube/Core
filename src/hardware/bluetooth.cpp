@@ -954,7 +954,9 @@ BTManager::BTManager()
     ZeroMemory(&si, sizeof(si));
     si.cb = sizeof(si);
     ZeroMemory(&pi, sizeof(pi));
-    if(!CreateProcess(NULL, (LPSTR)command.c_str(), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
+    WCHAR tempCommand[128];
+    convertStringToWCHAR(command, tempCommand);
+    if(!CreateProcess(NULL, tempCommand, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
         CubeLog::error("Error starting process: " + command);
         return;
     }
@@ -1345,8 +1347,10 @@ bool launchProcess(const std::string& execPath, const std::string& execArgs)
 
     cwd = std::filesystem::current_path().string();
     std::string execCommand = execPath + " " + execArgs;
+    WCHAR tempCommand[128];
+    convertStringToWCHAR(execCommand, tempCommand);
     if (!CreateProcess(NULL,
-            (LPSTR)execCommand.c_str(), // command line
+            tempCommand, // command line
             NULL, // process security attributes
             NULL, // primary thread security attributes
             TRUE, // handles are inherited
