@@ -672,6 +672,11 @@ MenuEntry::MenuEntry(Shader* t_shader, Shader* m_shader, const std::string& text
         this->allObjects.push_back(tempTB);
         break;
     }
+    case EntryType::MENUENTRY_TYPE_SLIDER: {
+        CubeLog::moreInfo("Creating slider");
+
+        break;
+    }
         // TODO: add the rest of the MENU_ENTRY_TYPEs
     }
     // this->textStencil = new MenuStencil({ position.x, position.y - 2 }, { this->visibleWidth, size + 4 });
@@ -818,6 +823,10 @@ void MenuEntry::draw()
         } else {
             ((M_RadioButtonTexture*)this->xFixedObjects.at(0))->setSelected(false);
         }
+        break;
+    }
+    case EntryType::MENUENTRY_TYPE_SLIDER: {
+        // TODO: add slider drawing
         break;
     }
     }

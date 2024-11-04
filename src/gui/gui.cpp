@@ -1064,10 +1064,11 @@ void GUI::eventLoop()
                 // TODO: set the auto off time
                 return 0;
             },
-            [](void* val) { 
-                // cast val to int
-                // int time = *(int*)val;
+            [](void* val) {
+                // cast val to unsigned int
+                unsigned int time = *(unsigned int*)val;
                 // TODO: save the auto off time to the settings
+                CubeLog::info("Auto Off - Set Time: " + std::to_string(time));
                 return 50;
             },
             nullptr
@@ -1848,6 +1849,7 @@ HttpEndPointData_t GUI::getHttpEndpointData()
                 else
                     GUI::showMessageBox(title, mes);
                 CubeLog::info("Endpoint stop called and message set to: " + mes + " with title: " + title);
+                res.set_content("Message set to: " + mes, "text/plain");
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Message set to: " + mes);
             },
             "messageBox",
@@ -1885,6 +1887,7 @@ HttpEndPointData_t GUI::getHttpEndpointData()
                 else
                     showTextBox(title, mes, { std::stoi(size_x), std::stoi(size_y) }, { std::stoi(position_x), std::stoi(position_y) });
                 CubeLog::info("Endpoint stop called and message set to: " + mes + " with title: " + title);
+                res.set_content("Message set to: " + mes, "text/plain");
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Message set to: " + mes);
             },
             "textBox",
@@ -2716,12 +2719,11 @@ bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry)
                     CubeLog::error("Error parsing json: " + std::string(e.what()));
                     return (unsigned int)2;
                 }
-
-                std::string enabled = j["success"];
-                unsigned int retVal = 0;
-                if (enabled == "true")
-                    retVal = 1;
-                return retVal;
+                unsigned int retValue = 0;
+                if(j.contains("value") && j["value"].is_number_integer()) {
+                    retValue = j["value"];
+                }
+                return retValue + 100;
             },
             (void*)new int(0));
         break;
