@@ -1,3 +1,3 @@
-[submodule "BTManger"]
-    path = libraries/BTManger
-    url = git://github.com/andrewmcdan/Companion-TheCube-BTManager.git
+[submodule "BTManager"]
+	path = BTManager
+	url = git@github.com:andrewmcdan/Companion-TheCube-BTManager.git
