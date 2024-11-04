@@ -116,6 +116,7 @@ private:
     static Logger::LogVerbosity staticVerbosity;
     static Logger::LogLevel staticPrintLevel;
     static bool consoleLoggingEnabled;
+    static bool shutdown;
     Logger::LogLevel fileLevel;
     bool savingInProgress;
     void saveLogsInterval();

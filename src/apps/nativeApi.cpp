@@ -109,15 +109,14 @@ bool NativeAPI::isProcessRunning(long pid)
 std::unique_ptr<RunningApp> NativeAPI::startApp(const std::string& execPath, const std::string& execArgs, const std::string& appID, const std::string& appName, const std::string& appSource, const std::string& updatePath)
 {
     CubeLog::info("Starting app: " + execPath + " " + execArgs);
-    std::string cwd = std::filesystem::current_path().string();
-    std::string fullPath = cwd + "/" + execPath;
-    std::string ePath = execPath;
+    std::filesystem::path cwd = std::filesystem::current_path();
+    std::filesystem::path fullPath = cwd / execPath;
 #ifdef __linux__
-    std::replace(ePath.begin(), ePath.end(), '\\', '/');
+    // std::replace(ePath.begin(), ePath.end(), '\\', '/');
 #endif
-    std::filesystem::path p = std::filesystem::path(ePath);
-    if (!std::filesystem::exists(p)) {
-        CubeLog::error("App not found: " + p.string());
+    // std::filesystem::path p = std::filesystem::path(ePath);
+    if (!std::filesystem::exists(fullPath)) {
+        CubeLog::error("App not found: " + fullPath.string());
         return nullptr;
     }
     std::string command = execPath + " " + execArgs;
@@ -202,7 +201,7 @@ std::unique_ptr<RunningApp> NativeAPI::startApp(const std::string& execPath, con
 #endif
 #ifdef __linux__
     pid_t pid = 0;
-    std::string execCommand = execPath + " " + execArgs;
+    std::string execCommand = fullPath.string() + " " + execArgs;
     CubeLog::debug("Exec command: " + execCommand);
     const char* path = execPath.c_str();
     std::vector<std::string> args;
@@ -217,8 +216,6 @@ std::unique_ptr<RunningApp> NativeAPI::startApp(const std::string& execPath, con
         argv[i + 1] = (char*)args[i].c_str();
     }
     argv[args.size() + 1] = NULL;
-    // add the current working directory to the path
-    std::string path_str = std::string(cwd + "/" + execPath).c_str();
 
     // setup stdout and stderr
     int stdoutPipe[2];
@@ -252,7 +249,7 @@ std::unique_ptr<RunningApp> NativeAPI::startApp(const std::string& execPath, con
     posix_spawn_file_actions_addclose(temp->getActions(), temp->getStdOutRead());
     posix_spawn_file_actions_addclose(temp->getActions(), temp->getStdErrRead());
 
-    int status = posix_spawn(&pid, path_str.c_str(), temp->getActions(), NULL, const_cast<char* const*>(argv), environ);
+    int status = posix_spawn(&pid, fullPath.c_str(), temp->getActions(), NULL, const_cast<char* const*>(argv), environ);
 
     if (status != 0) {
         CubeLog::error("Failed to start app: " + execPath + " " + execArgs);

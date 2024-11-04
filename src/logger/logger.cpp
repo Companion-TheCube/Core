@@ -122,6 +122,7 @@ std::vector<unsigned int> CubeLog::readErrorIDs;
 std::vector<unsigned int> CubeLog::readLogIDs;
 std::string CubeLog::screenMessage = "";
 int CubeLog::advancedColorsEnabled = 0;
+bool CubeLog::shutdown = false;
 
 /**
  * @brief Log a message
@@ -133,6 +134,7 @@ int CubeLog::advancedColorsEnabled = 0;
  */
 void CubeLog::log(const std::string& message, bool print, Logger::LogLevel level, CustomSourceLocation location)
 {
+    if(CubeLog::shutdown) return;
     CUBE_LOG_ENTRY entry = CUBE_LOG_ENTRY(message, &location, CubeLog::staticVerbosity, level);
     CubeLog::logEntries.push_back(entry);
     Color::Modifier colorDebug(Color::FG_GREEN);
@@ -397,6 +399,7 @@ void CubeLog::purgeOldLogs()
 CubeLog::~CubeLog()
 {
     CubeLog::info("Logger shutting down");
+    CubeLog::shutdown = true;
     resetThread->request_stop();
     resetThread->join();
     std::lock_guard<std::mutex> lock(this->saveLogsThreadRunMutex);
