@@ -674,7 +674,16 @@ MenuEntry::MenuEntry(Shader* t_shader, Shader* m_shader, const std::string& text
     }
     case EntryType::MENUENTRY_TYPE_SLIDER: {
         CubeLog::moreInfo("Creating slider");
-
+        float posX = (720 / 2) - (720 * 0.4);
+        float posY = 50;
+        auto tempS = new M_SliderTexture(m_shader, 720.f * 0.8, 20.f, 10, { 1.f, 1.f, 1.f }, { posX, posY });
+        tempS->setSliderPosition(0.5);
+        tempS->capturePosition();
+        tempS->setVisibility(true);
+        CubeLog::moreInfo("Slider getWidth(): " + std::to_string(tempS->getWidth()));
+        // this->setVisibleWidth(this->visibleWidth - tempS->getWidth());
+        this->fixedObjects.push_back(tempS);
+        this->allObjects.push_back(tempS);
         break;
     }
         // TODO: add the rest of the MENU_ENTRY_TYPEs
@@ -750,6 +759,11 @@ bool MenuEntry::setVisible(bool visible)
 {
     bool temp = this->visible;
     this->visible = visible;
+    if(!visible){
+        for(auto obj : this->fixedObjects){
+            obj->setVisibility(false);
+        }
+    }
     return temp;
 }
 
@@ -827,6 +841,7 @@ void MenuEntry::draw()
     }
     case EntryType::MENUENTRY_TYPE_SLIDER: {
         // TODO: add slider drawing
+        ((M_SliderTexture*)this->fixedObjects.at(0))->setSliderPosition(this->statusReturnData);
         break;
     }
     }

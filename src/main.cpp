@@ -291,6 +291,7 @@ void signalHandler(int signal){
             // get the stack trace
             printStackTrace();
             breakMain = true;
+            exit(1);
             break;
         case SIGILL:
             CubeLog::info("Caught SIGILL signal.");

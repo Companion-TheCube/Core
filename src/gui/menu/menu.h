@@ -154,6 +154,9 @@ public:
     void setEntryTextTouched(bool touched);
     std::string getEntryText() { return this->text; }
     void setEntryText(const std::string& text);
+    std::vector<MeshObject*> getXFixedObjects() { return this->xFixedObjects; }
+    std::vector<MeshObject*> getYFixedObjects() { return this->yFixedObjects; }
+    std::vector<MeshObject*> getFixedObjects() { return this->fixedObjects; }
 };
 
 class Menu : public Clickable {

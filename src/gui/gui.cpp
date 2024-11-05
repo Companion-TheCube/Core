@@ -90,7 +90,7 @@ void GUI::eventLoop()
     ////////////////////////////////////////
     /// Here we build the menus
     ////////////////////////////////////////
-    CountingLatch countingLatch(31); // this value must be equal to count of "new MENUS::Menu()" calls in this method + 2 (for the message box and text box)
+    CountingLatch countingLatch(43); // this value must be equal to count of "new MENUS::Menu()" calls in this method + 2 (for the message box and text box)
 
 // This ifdef is part of a hack to make intellisense play well with the lambda functions. This is defined in cmakelists.txt so that when we compile, the lambdas are enabled.
 // Intellisense struggles with lots of lambdas, so this is a workaround. Uncomment the define at the top of this file to enable intellisense to see the lambdas.
@@ -1055,20 +1055,28 @@ void GUI::eventLoop()
             nullptr
         );
         ///////// Display Menu - Auto Off - Set Time /////////
-        displayMenu_AutoOff->addMenuEntry(
+        auto sliderVisible = std::make_shared<bool>(false);
+        auto entryIndex = std::make_shared<unsigned int>();
+        *entryIndex = UINT_MAX;
+        *entryIndex = displayMenu_AutoOff->addMenuEntry(
             _("Set Time"),
             "Auto Off_Set_Time",
             MENUS::EntryType::MENUENTRY_TYPE_SLIDER,
-            [](void* data) {
+            [entryIndex, sliderVisible](void* data) {
                 CubeLog::info("Auto Off - Set Time clicked");
                 // TODO: set the auto off time
+                *sliderVisible = !*sliderVisible;
+                if(*entryIndex == UINT_MAX) return 0;
+                MENUS::Menu::getMenuEntryByIndex(*entryIndex)->getFixedObjects().at(0)->setVisibility(*sliderVisible);
                 return 0;
             },
-            [](void* val) {
+            [sliderVisible, entryIndex](void* val) {
                 // cast val to unsigned int
-                unsigned int time = *(unsigned int*)val;
+                // unsigned int time = *(unsigned int*)val;
                 // TODO: save the auto off time to the settings
-                CubeLog::info("Auto Off - Set Time: " + std::to_string(time));
+                // CubeLog::info("Auto Off - Set Time: " + std::to_string(time));
+                if(*entryIndex == UINT_MAX) return 0;
+                if(!*sliderVisible) MENUS::Menu::getMenuEntryByIndex(*entryIndex)->getFixedObjects().at(0)->setVisibility(false);
                 return 50;
             },
             nullptr

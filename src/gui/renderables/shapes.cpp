@@ -1093,6 +1093,337 @@ float M_ToggleTexture::getWidth() { return this->toggleWidth; }
 
 //////////////////////////////////////////////////////////////////////////////////////////
 
+unsigned char* createDotTexture(unsigned int size, unsigned int padding)
+{
+    float overallWidthHeight = size + padding * 2.f;
+    unsigned char* data = new unsigned char[(unsigned int)(overallWidthHeight * overallWidthHeight)];
+    float center_x = overallWidthHeight / 2.0f;
+    float center_y = overallWidthHeight / 2.0f;
+    float circle_outer_radius = size / 2.0f;
+    float circle_inner_radius = circle_outer_radius * DOT_INNER_OUTER_RATIO;
+    for (unsigned int y = 0; y < overallWidthHeight; ++y) {
+        for (unsigned int x = 0; x < overallWidthHeight; ++x) {
+            float dx = x - center_x;
+            float dy = y - center_y;
+            float dist = std::sqrt(dx * dx + dy * dy);
+            unsigned char pixel_color = 0;
+            if (dist >= circle_inner_radius && dist <= circle_outer_radius)
+                pixel_color = 255;
+            data[(unsigned int)((float)y * overallWidthHeight + x)] = pixel_color;
+            for (float i = -(size * 0.1f); i <= (size * 0.1f); i++) {
+                for (float j = -(size * 0.1f); j <= (size * 0.1f); j++) {
+                    unsigned int yIdx = y + i;
+                    unsigned int xIdx = x + j;
+                    if (yIdx < 0 || yIdx >= overallWidthHeight || xIdx < 0 || xIdx >= overallWidthHeight) {
+                        continue;
+                    }
+                    if ((((unsigned int)data[(unsigned int)((float)yIdx * overallWidthHeight + xIdx)]) + pixel_color / ((size * 0.2f) * (size * 0.2f))) > 255) {
+                        data[(unsigned int)((float)yIdx * overallWidthHeight + xIdx)] = 255;
+                    } else {
+                        data[(unsigned int)((float)yIdx * overallWidthHeight + xIdx)] += pixel_color / ((size * 0.2f) * (size * 0.2f));
+                    }
+                }
+            }
+        }
+    }
+    return data;
+}
+
+M_SliderTexture::M_SliderTexture(Shader* sh, float sliderWidth, float sliderHeight, unsigned int padding, glm::vec3 color, glm::vec2 position)
+{
+    this->shader = sh;
+    this->position = position;
+    this->sliderWidth = sliderWidth;
+    this->sliderHeight = sliderHeight;
+    this->padding = padding;
+    this->color = color;
+    this->scale_ = 1.0f;
+    this->dotTextureBitmap = createDotTexture(sliderHeight, padding);
+    this->lineTextureBitmap = new unsigned char[(unsigned int)(sliderWidth + padding * 2) * (unsigned int)(sliderHeight + padding * 2)];
+    for (unsigned int y = 0; y < sliderHeight + padding * 2; ++y) {
+        for (unsigned int x = 0; x < sliderWidth + padding * 2; ++x) {
+            unsigned char pixel_color = 0;
+            if (x >= padding && x <= sliderWidth + padding) {
+                pixel_color = 255;
+            }
+            this->lineTextureBitmap[(unsigned int)((float)y * (sliderWidth + padding * 2) + x)] = pixel_color;
+        }
+    }
+    this->backgroundTextureBitmap = new unsigned char[(unsigned int)(sliderWidth + padding * 2) * (unsigned int)(sliderHeight + padding * 2)];
+    for (unsigned int y = 0; y < sliderHeight + padding * 2; ++y) {
+        for (unsigned int x = 0; x < sliderWidth + padding * 2; ++x) {
+            unsigned char pixel_color = 0;
+            if (y >= padding && y <= sliderHeight + padding) {
+                pixel_color = 255;
+            }
+            this->backgroundTextureBitmap[(unsigned int)((float)y * (sliderWidth + padding * 2) + x)] = pixel_color;
+        }
+    }
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glGenTextures(1, &this->dotTexture);
+    glBindTexture(GL_TEXTURE_2D, this->dotTexture);
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RED,
+        sliderWidth + padding * 2,
+        sliderHeight + padding * 2,
+        0,
+        GL_RED,
+        GL_UNSIGNED_BYTE,
+        this->dotTextureBitmap);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glGenTextures(1, &this->lineTexture);
+    glBindTexture(GL_TEXTURE_2D, this->lineTexture);
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RED,
+        sliderWidth + padding * 2,
+        sliderHeight + padding * 2,
+        0,
+        GL_RED,
+        GL_UNSIGNED_BYTE,
+        this->lineTextureBitmap);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glGenTextures(1, &this->backgroundTexture);
+    glBindTexture(GL_TEXTURE_2D, this->backgroundTexture);
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RED,
+        sliderWidth + padding * 2,
+        sliderHeight + padding * 2,
+        0,
+        GL_RED,
+        GL_UNSIGNED_BYTE,
+        this->backgroundTextureBitmap);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    setProjectionMatrix(glm::ortho(0.0f, 720.f, 0.0f, 720.f, -1.f, 1.f));
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glGenVertexArrays(1, &this->VAO);
+    glGenBuffers(1, &this->VBO);
+    glBindVertexArray(this->VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+    // CubeLog::info("Created SliderTexture");
+}
+
+M_SliderTexture::~M_SliderTexture()
+{
+    // CubeLog::info("Destroyed SliderTexture");
+    glDeleteTextures(1, &this->dotTexture);
+    glDeleteTextures(1, &this->lineTexture);
+    glDeleteTextures(1, &this->backgroundTexture);
+}
+
+void M_SliderTexture::draw()
+{
+    if(!this->visible) {
+        return;
+    }
+    CubeLog::critical("Drawing slider texture");
+    this->shader->use();
+    shader->setVec3("textColor", this->color.x, this->color.y, this->color.z);
+    shader->setMat4("projection", projectionMatrix);
+    shader->setFloat("zindex", 0.2f);
+    shader->setFloat("alpha", 1.0f);
+    shader->setFloat("bg_alpha", 1.0f);
+    glActiveTexture(GL_TEXTURE0);
+    float xPos = this->position.x;
+    float yPos = this->position.y - this->sliderHeight;
+    float vertices[6][4] = {
+        // Positions            // Texture Coords
+        { xPos, yPos + this->sliderHeight, 0.0f, 0.0f }, // Top-left
+        { xPos + this->sliderWidth, yPos, 1.0f, 1.0f }, // Bottom-right
+        { xPos, yPos, 0.0f, 1.0f }, // Bottom-left
+
+        { xPos, yPos + this->sliderHeight, 0.0f, 0.0f }, // Top-left
+        { xPos + this->sliderWidth, yPos + this->sliderHeight, 1.0f, 0.0f }, // Top-right
+        { xPos + this->sliderWidth, yPos, 1.0f, 1.0f } // Bottom-right
+    };
+    glBindTexture(GL_TEXTURE_2D, this->backgroundTexture);
+    glBindVertexArray(this->VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    
+    float lineX = this->position.x + this->sliderWidth - this->sliderHeight;
+    float lineY = this->position.y - this->sliderHeight;
+    float verticesLine[6][4] = {
+        // Positions            // Texture Coords
+        { lineX, lineY + this->sliderHeight, 0.0f, 0.0f }, // Top-left
+        { lineX + this->sliderHeight, lineY, 1.0f, 1.0f }, // Bottom-right
+        { lineX, lineY, 0.0f, 1.0f }, // Bottom-left
+
+        { lineX, lineY + this->sliderHeight, 0.0f, 0.0f }, // Top-left
+        { lineX + this->sliderHeight, lineY + this->sliderHeight, 1.0f, 0.0f }, // Top-right
+        { lineX + this->sliderHeight, lineY, 1.0f, 1.0f } // Bottom-right
+    };
+    glBindTexture(GL_TEXTURE_2D, this->lineTexture);
+    glBindVertexArray(this->VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    // dot x position is the left edge of the slider + (the width of the slider * this->sliderPosition)
+    float dotXPos = this->position.x + this->sliderWidth * this->sliderPosition;
+    float dotYPos = this->position.y - this->sliderHeight;
+    float verticesDot[6][4] = {
+        // Positions            // Texture Coords
+        { dotXPos, dotYPos + this->sliderHeight, 0.0f, 0.0f }, // Top-left
+        { dotXPos + this->sliderHeight, dotYPos, 1.0f, 1.0f }, // Bottom-right
+        { dotXPos, dotYPos, 0.0f, 1.0f }, // Bottom-left
+
+        { dotXPos, dotYPos + this->sliderHeight, 0.0f, 0.0f }, // Top-left
+        { dotXPos + this->sliderHeight, dotYPos + this->sliderHeight, 1.0f, 0.0f }, // Top-right
+        { dotXPos + this->sliderHeight, dotYPos, 1.0f, 1.0f } // Bottom-right
+    };
+    glBindTexture(GL_TEXTURE_2D, this->dotTexture);
+    glBindVertexArray(this->VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void M_SliderTexture::setProjectionMatrix(glm::mat4 projectionMatrix)
+{
+    this->projectionMatrix = projectionMatrix;
+}
+
+void M_SliderTexture::setViewMatrix(glm::vec3 viewMatrix)
+{
+    return; // do nothing
+}
+
+void M_SliderTexture::setViewMatrix(glm::mat4 viewMatrix)
+{
+    return; // do nothing
+}
+
+void M_SliderTexture::setModelMatrix(glm::mat4 modelMatrix)
+{
+    return; // do nothing
+}
+
+void M_SliderTexture::translate(glm::vec3 translation)
+{
+    this->position.x += translation.x;
+    this->position.y += translation.y;
+}
+
+void M_SliderTexture::rotate(float angle, glm::vec3 axis)
+{
+    // do nothing
+}
+
+void M_SliderTexture::scale(glm::vec3 scale)
+{
+    this->sliderWidth = this->sliderWidth * scale.x;
+    this->sliderHeight = this->sliderHeight * scale.y;
+}
+
+void M_SliderTexture::uniformScale(float scale)
+{
+    this->scale_ *= scale;
+}
+
+void M_SliderTexture::rotateAbout(float angle, glm::vec3 point)
+{
+    // do nothing
+}
+
+void M_SliderTexture::rotateAbout(float angle, glm::vec3 axis, glm::vec3 point)
+{
+    // do nothing
+}
+
+glm::vec3 M_SliderTexture::getCenterPoint()
+{
+    return { this->position.x, this->position.y, 0.f };
+}
+
+std::vector<Vertex> M_SliderTexture::getVertices()
+{
+    std::vector<Vertex> vertices;
+    return vertices;
+}
+
+void M_SliderTexture::capturePosition()
+{
+    this->capturedModelMatrix = this->modelMatrix;
+    this->capturedViewMatrix = this->viewMatrix;
+    this->capturedProjectionMatrix = this->projectionMatrix;
+    this->capturedPosition = this->position;
+}
+
+void M_SliderTexture::restorePosition()
+{
+    this->modelMatrix = this->capturedModelMatrix;
+    this->viewMatrix = this->capturedViewMatrix;
+    this->projectionMatrix = this->capturedProjectionMatrix;
+    this->position = this->capturedPosition;
+}
+
+void M_SliderTexture::setVisibility(bool visible)
+{
+    this->visible = visible;
+}
+
+void M_SliderTexture::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix)
+{
+    this->mutex.lock();
+    *modelMatrix = this->capturedModelMatrix - this->modelMatrix;
+    *viewMatrix = this->capturedViewMatrix - this->viewMatrix;
+    *projectionMatrix = this->capturedProjectionMatrix - this->projectionMatrix;
+    this->mutex.unlock();
+}
+
+glm::mat4 M_SliderTexture::getModelMatrix()
+{
+    return this->modelMatrix;
+}
+
+glm::mat4 M_SliderTexture::getViewMatrix()
+{
+    return this->viewMatrix;
+}
+
+glm::mat4 M_SliderTexture::getProjectionMatrix()
+{
+    return this->projectionMatrix;
+}
+
+void M_SliderTexture::setPosition(glm::vec2 position)
+{
+    this->position = position;
+}
+
+float M_SliderTexture::getWidth() { return this->sliderWidth; }
+
+
+
+
+//////////////////////////////////////////////////////////////////////////////////////////
+
 M_Rect::M_Rect(Shader* sh, glm::vec3 position, glm::vec2 size, float fillColor, float borderColor)
 {
     this->shader = sh;

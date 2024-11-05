@@ -362,6 +362,63 @@ public:
     float getWidth();
 };
 
+#define DOT_INNER_OUTER_RATIO 0.8f
+
+class M_SliderTexture : public MeshObject {
+private:
+    Shader* shader;
+    std::vector<Vertex> vertexData;
+    GLuint VAO, VBO;
+    GLuint dotTexture, lineTexture, backgroundTexture;
+    glm::mat4 projectionMatrix;
+    glm::mat4 viewMatrix;
+    glm::mat4 modelMatrix;
+    float sliderWidth;
+    float sliderHeight;
+    unsigned int padding;
+    glm::vec3 color;
+    glm::vec2 position;
+    float scale_;
+    glm::mat4 capturedProjectionMatrix;
+    glm::mat4 capturedViewMatrix;
+    glm::mat4 capturedModelMatrix;
+    glm::vec2 capturedPosition;
+    bool visible = true;
+    std::mutex mutex;
+    unsigned char *dotTextureBitmap, *lineTextureBitmap, *backgroundTextureBitmap;
+    float sliderPosition = 0.f;
+
+public:
+    M_SliderTexture(Shader* sh, float sliderWidth, float sliderHeight, unsigned int padding, glm::vec3 color, glm::vec2 position);
+    ~M_SliderTexture();
+    void draw();
+    void setProjectionMatrix(glm::mat4 projectionMatrix);
+    void setViewMatrix(glm::vec3 viewMatrix);
+    void setViewMatrix(glm::mat4 viewMatrix);
+    void setModelMatrix(glm::mat4 modelMatrix);
+    glm::mat4 getModelMatrix();
+    glm::mat4 getViewMatrix();
+    glm::mat4 getProjectionMatrix();
+    void translate(glm::vec3 translation);
+    void rotate(float angle, glm::vec3 axis);
+    void scale(glm::vec3 scale);
+    void uniformScale(float scale);
+    void rotateAbout(float angle, glm::vec3 axis, glm::vec3 point);
+    void rotateAbout(float angle, glm::vec3 point);
+    glm::vec3 getCenterPoint();
+    std::vector<Vertex> getVertices();
+    void setPosition(glm::vec2 position);
+    void setVisibility(bool visible);
+    void capturePosition();
+    void restorePosition();
+    void getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix);
+    float getWidth();
+    void setSliderPosition(float position){ this->sliderPosition = position; };
+};
+
+/*
+class M_ButtonTexture : public MeshObject {
+*/
 #define CUBE_VERTICES_CONST 1.0f
 #define EDGE_VERTICES_OFFSET 0.02f
 #define BLACK_FLOATS 0.0f
