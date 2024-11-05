@@ -176,10 +176,12 @@ std::unique_ptr<RunningApp> NativeAPI::startApp(const std::string& execPath, con
     si.dwFlags |= STARTF_USESTDHANDLES;
 
     cwd = std::filesystem::current_path().string();
-    std::string execCommand = cwd + "\\" + execPath + " " + execArgs;
-    CubeLog::debug("Exec command: " + execCommand);
+    // std::string execCommand = cwd + "\\" + execPath + " " + execArgs;
+    auto execCommand = cwd / execPath;
+    execCommand += " " + execArgs;
+    CubeLog::debug("Exec command: " + execCommand.string());
     WCHAR tempCommand[1024];
-    convertStringToWCHAR(execCommand, tempCommand);
+    convertStringToWCHAR(execCommand.string(), tempCommand);
     if (!CreateProcess(NULL,
             tempCommand, // command line
             NULL, // process security attributes

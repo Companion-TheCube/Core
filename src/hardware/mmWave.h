@@ -4,14 +4,14 @@
 #include <vector>
 #include <string>
 #include <logger.h>
-#include <QSerialPort>
-#include <QSerialPortInfo>
-#include <QByteArray>
-#include <QCoreApplication>
-#include <QIODevice>
+#ifdef __linux__
+#include <wiringPi.h>
+#include <wiringSerial.h>
+#include <iostream>
+#include <unistd.h>
+#endif
 
 class mmWave{
-    QSerialPort* port;
 
 public:
     mmWave();
