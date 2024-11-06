@@ -12,7 +12,7 @@
 #endif
 
 class mmWave{
-
+    std::jthread* readerThread;
 public:
     mmWave();
     ~mmWave();

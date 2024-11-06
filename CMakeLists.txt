@@ -187,7 +187,9 @@ set(SQLITECPP_RUN_CPPLINT OFF CACHE BOOL "" FORCE)
 add_subdirectory(${CMAKE_SOURCE_DIR}/libraries/SQLiteCpp)
 
 # Add the BTManager application
-add_subdirectory(${CMAKE_SOURCE_DIR}/BTManager)
+if(BUILD_BT_MANAGER)
+    add_subdirectory(${CMAKE_SOURCE_DIR}/BTManager)
+endif()
 
 include_directories(${CMAKE_SOURCE_DIR}/src)
 include_directories(${CMAKE_SOURCE_DIR}/src/logger)
@@ -286,6 +288,7 @@ target_link_libraries(CubeCore PRIVATE
     # Qt6::SerialPort
     # ${SERIALPORT_LIB}
     # ${QT6CORE_LIB}
+    wiringPi
 )
 
 # set_target_properties(CubeCore PROPERTIES
