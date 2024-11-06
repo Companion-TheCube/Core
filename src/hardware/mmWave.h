@@ -11,6 +11,10 @@
 #include <unistd.h>
 #endif
 
+// TODO: add some ifdefs and defines for the port name on RasPi
+// TODO: add ifdefs for Windows so that this will compile on Windows
+// For windows, we should just mock the mmWave sensor.
+
 class mmWave{
     std::jthread* readerThread;
 public:
