@@ -6,6 +6,7 @@ int serialOpen(const char* port, int baud) { return -1; }
 void serialPuts(int port, char* data) {}
 int serialDataAvail(int port) { return 0; }
 char serialGetchar(int port) { return 0; }
+unsigned long millis() { return 0; }
 #endif
 
 mmWave::mmWave()
