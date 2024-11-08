@@ -1,8 +1,5 @@
 #include "mmWave.h"
 
-std::vector<uint8_t> commandMode = { 0xFD, 0xFC, 0xFB, 0xFA, 0x04, 0x00, 0xff, 0x00, 0x01, 0x00, 0x04, 0x03, 0x02, 0x01 };
-std::vector<uint8_t> commandModeAck = { 0xFD, 0xFC, 0xFB, 0xFA, 0x08, 0x00, 0xff, 0x01, 0x00, 0x00, 0x01, 0x00, 0x04, 0x03, 0x02, 0x01 };
-
 #ifdef _WIN32
 int wiringPiSetup() { return -1; }
 int serialOpen(const char* port, int baud) { return -1; }
@@ -26,13 +23,24 @@ mmWave::mmWave()
                 CubeLog::info("Failure.");
             }
         }
-        // serialPuts(serialPort_h, (char*)commandMode.data());
-        
+        // this->enableConfigMode();
+        // this->enableEngineeringMode();
+        // this->disableConfigMode();
+        unsigned long lastPrintTime = millis();
         while(!st.stop_requested()){
             Response response = readDataFrame();
             if(response.success){
-                CubeLog::info("Data received: " + response.hexStr);
+                // CubeLog::info("Data received: " + response.hexStr);
                 decodeDataFrame(response);
+            }
+            if(millis() - lastPrintTime > 10000){
+                CubeLog::info("Target State: " + std::to_string(this->targetState));
+                CubeLog::info("Moving Target Distance: " + std::to_string(this->movingTargetDistance));
+                CubeLog::info("Moving Target Energy: " + std::to_string(this->movingTargetEnergy));
+                CubeLog::info("Stationary Target Distance: " + std::to_string(this->stationaryTargetDistance));
+                CubeLog::info("Stationary Target Energy: " + std::to_string(this->stationaryTargetEnergy));
+                CubeLog::info("Detection Distance: " + std::to_string(this->detectionDistance));
+                lastPrintTime = millis();
             }
         }
     });
@@ -169,9 +177,11 @@ Response mmWave::readDataFrame()
 {
     Response response;
     response.data = REPORT_HEADER;
-    response = false;
+    response = true;
+    int headerSize = response.size();
     if(this->commandModeEnabled){
         CubeLog::error("Command mode enabled.");
+        response = false;
         return response;
     }
     uint16_t waitTime = 0;
@@ -184,12 +194,14 @@ Response mmWave::readDataFrame()
         response = false;
         return response;
     }
+    genericSleep(1);
     if(serialDataAvail(this->serialPort_h) == 0){
         CubeLog::error("No data available.");
         response = false;
         return response;
     }
     int headerIndex = 0;
+    genericSleep(1);
     while(serialDataAvail(this->serialPort_h) > 0){
         uint8_t c = serialGetchar(this->serialPort_h);
         if(c == response[headerIndex]){
@@ -207,9 +219,13 @@ Response mmWave::readDataFrame()
         return response;
     }
 
+    genericSleep(1);
     uint16_t reportSize = 0;
     reportSize = serialGetchar(this->serialPort_h);
     reportSize |= serialGetchar(this->serialPort_h) << 8;
+
+    response += reportSize & 0xFF;
+    response += (reportSize >> 8) & 0xFF;
 
     if(serialDataAvail(this->serialPort_h) < reportSize){
         CubeLog::error("Report size does not match data available.");
@@ -217,19 +233,20 @@ Response mmWave::readDataFrame()
         return response;
     }
 
+    genericSleep(2);
     std::vector<uint8_t> tail = REPORT_TAIL;
     for(uint16_t i = 0; i < reportSize + tail.size(); i++){
         response += serialGetchar(this->serialPort_h);
     }
 
-    if(response.size() != reportSize + tail.size()){
+    if(response.size() != reportSize + tail.size() + headerSize + 2){ // 2 for the size bytes
         CubeLog::error("Failed to get full report.");
         response = false;
         return response;
     }
 
-    for(uint16_t i = 0; i < tail.size(); i++){
-        if(response[reportSize + i] != tail[i]){
+    for(uint16_t i = 1; i <= tail.size(); i++){
+        if(response[response.size() - i] != tail[tail.size() - i]){
             CubeLog::error("Failed to find report tail.");
             response = false;
             return response;
@@ -245,59 +262,87 @@ void mmWave::decodeDataFrame(Response response)
         CubeLog::error("Failed to decode data frame.");
         return;
     }
-    std::vector<uint8_t> data = response.data;
-    uint16_t index = 0;
-    uint16_t reportSize = data[index++];
-    reportSize |= data[index++] << 8;
-    uint16_t frameNumber = data[index++];
-    frameNumber |= data[index++] << 8;
-    uint16_t numDetectedObj = data[index++];
-    numDetectedObj |= data[index++] << 8;
-    uint16_t numTLVs = data[index++];
-    numTLVs |= data[index++] << 8;
-    CubeLog::info("Report size: " + std::to_string(reportSize));
-    CubeLog::info("Frame number: " + std::to_string(frameNumber));
-    CubeLog::info("Number of detected objects: " + std::to_string(numDetectedObj));
-    CubeLog::info("Number of TLVs: " + std::to_string(numTLVs));
-    for(uint16_t i = 0; i < numDetectedObj; i++){
-        uint16_t rangeIdx = data[index++];
-        rangeIdx |= data[index++] << 8;
-        uint16_t dopplerIdx = data[index++];
-        dopplerIdx |= data[index++] << 8;
-        uint16_t peakVal = data[index++];
-        peakVal |= data[index++] << 8;
-        uint16_t x = data[index++];
-        x |= data[index++] << 8;
-        uint16_t y = data[index++];
-        y |= data[index++] << 8;
-        uint16_t z = data[index++];
-        z |= data[index++] << 8;
-        uint16_t velocity = data[index++];
-        velocity |= data[index++] << 8;
-        uint16_t azimuth = data[index++];
-        azimuth |= data[index++] << 8;
-        uint16_t elevation = data[index++];
-        elevation |= data[index++] << 8;
-        CubeLog::info("Range index: " + std::to_string(rangeIdx));
-        CubeLog::info("Doppler index: " + std::to_string(dopplerIdx));
-        CubeLog::info("Peak value: " + std::to_string(peakVal));
-        CubeLog::info("X: " + std::to_string(x));
-        CubeLog::info("Y: " + std::to_string(y));
-        CubeLog::info("Z: " + std::to_string(z));
-        CubeLog::info("Velocity: " + std::to_string(velocity));
-        CubeLog::info("Azimuth: " + std::to_string(azimuth));
-        CubeLog::info("Elevation: " + std::to_string(elevation));
+    // CubeLog::debugSilly("Encoded frame: " + response.hexStr);
+    std::vector<uint8_t> data = response.getData();
+
+    // datalength, two bytes, little endian
+    uint16_t dataLength = data[0] | data[1] << 8;
+
+    // Data type, Normal or Engineering
+    uint8_t dataType = data[2];
+
+    // Head
+    uint8_t head = data[3];
+
+    if(head != 0xaa){
+        CubeLog::error("Failed to find head.");
+        return;
     }
-    for(uint16_t i = 0; i < numTLVs; i++){
-        uint16_t tlvType = data[index++];
-        tlvType |= data[index++] << 8;
-        uint16_t tlvLength = data[index++];
-        tlvLength |= data[index++] << 8;
-        CubeLog::info("TLV type: " + std::to_string(tlvType));
-        CubeLog::info("TLV length: " + std::to_string(tlvLength));
-        for(uint16_t j = 0; j < tlvLength; j++){
-            CubeLog::info("TLV data: " + std::to_string(data[index++]));
+
+    // Tail
+    uint8_t tail = data.at(data.size() - 2);
+
+    if(tail != 0x55){
+        CubeLog::error("Failed to find tail.");
+        return;
+    }
+
+    // check
+    uint8_t check = data.at(data.size() - 1);
+
+    if(dataType == 0x02){
+        // CubeLog::info("Normal data frame.");
+        if(data.size() != 15){
+            CubeLog::error("Data size does not match.");
+            return;
         }
+        // target state, 1 byte
+        this->targetState = data[4];
+        // moving target distance, 2 bytes, cm
+        this->movingTargetDistance = data[5] | data[6] << 8;
+        // Excercise target energy value, 1 byte
+        this->movingTargetEnergy = data[7];
+        // Stationary target distance, 2 byte, cm
+        this->stationaryTargetDistance = data[8] | data[9] << 8;
+        // Stationary target energy, 1 byte
+        this->stationaryTargetEnergy = data[10];
+        // Detection Distance, 2 byte, cm
+        this->detectionDistance = data[11] | data[12] << 8;
+    } else if(dataType == 0x01){
+        CubeLog::info("Engineering data frame.");
+        if(data.size() != 33){ // TODO: Check this
+            CubeLog::error("Data size does not match.");
+            return;
+        }
+        // target state, 1 byte
+        this->targetState = data[4];
+        // moving target distance, 2 bytes, cm
+        this->movingTargetDistance = data[5] | data[6] << 8;
+        // Excercise target energy value, 1 byte
+        this->movingTargetEnergy = data[7];
+        // Stationary target distance, 2 byte, cm
+        this->stationaryTargetDistance = data[8] | data[9] << 8;
+        // Stationary target energy, 1 byte
+        this->stationaryTargetEnergy = data[10];
+        // Detection Distance, 2 byte, cm
+        this->detectionDistance = data[11] | data[12] << 8;
+        // Max moving distance gate number, 1 byte
+        uint8_t maxMovingDistanceGateNumber = data[13];
+        // max stationary distance gate number, 1 byte
+        uint8_t maxStationaryDistanceGateNumber = data[14];
+        std::vector<uint8_t> movingDistanceGateEnergy;
+        movingDistanceGateEnergy.reserve(maxMovingDistanceGateNumber);
+        for(size_t i = 0; i < maxMovingDistanceGateNumber; i++){
+            movingDistanceGateEnergy.push_back(data[15 + i]);
+        }
+        std::vector<uint8_t> stationaryDistanceGateEnergy;
+        stationaryDistanceGateEnergy.reserve(maxStationaryDistanceGateNumber);
+        for(size_t i = 0; i < maxStationaryDistanceGateNumber; i++){
+            stationaryDistanceGateEnergy.push_back(data[15 + maxMovingDistanceGateNumber + i]);
+        }
+    } else {
+        CubeLog::error("Unknown data type.");
+        return;
     }
 }
 

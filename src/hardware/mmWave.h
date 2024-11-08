@@ -1,6 +1,4 @@
 #pragma once
-#ifndef MMWAVE_H
-#define MMWAVE_H
 #include <vector>
 #include <string>
 #include <memory>
@@ -36,6 +34,18 @@ public:
     bool success = false;
     std::vector<uint8_t> data = {};
     std::string hexStr = "";
+
+    std::vector<uint8_t> getHeader() {
+        return {data[0], data[1], data[2], data[3]};
+    }
+
+    std::vector<uint8_t> getTail() {
+        return {data[data.size() - 4], data[data.size() - 3], data[data.size() - 2], data[data.size() - 1]};
+    }
+
+    std::vector<uint8_t> getData() {
+        return {data.begin() + 4, data.end() - 4};
+    }
 
     Response() = default;
 
@@ -110,6 +120,12 @@ public:
         return *this;
     }
 
+    Response& operator+=(const int& extraData) {
+        data.push_back(static_cast<uint8_t>(extraData));
+        updateHexStr();
+        return *this;
+    }
+
     // Addition operator for creating a new Response object as the sum of two others
     Response operator+(const Response& other) const {
         Response result = *this;
@@ -129,9 +145,17 @@ private:
 };
 
 class mmWave{
+    uint8_t targetState = 0;
+    uint16_t movingTargetDistance = 0;
+    uint8_t movingTargetEnergy = 0;
+    uint16_t stationaryTargetDistance = 0;
+    uint8_t stationaryTargetEnergy = 0;
+    uint16_t detectionDistance = 0;
+
     int serialPort_h;
     bool commandModeEnabled = false;
     std::unique_ptr<std::jthread> readerThread;
+
     Response sendCommand(std::vector<uint8_t> command);
     Response sendCommand(std::vector<uint8_t> command, std::vector<uint8_t> ack);
     bool enableConfigMode();
@@ -151,5 +175,3 @@ public:
     mmWave();
     ~mmWave();
 };
-
-#endif// MMWAVE_H
