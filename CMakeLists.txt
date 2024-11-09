@@ -269,7 +269,11 @@ add_executable(CubeCore ${SOURCES})
 # if(CMAKE_BUILD_TYPE STREQUAL "Release")
 #     target_compile_definitions(CubeCore PRIVATE RELEASE)
 # endif()
-
+if(WIN32)
+    set(WIRINGPI_LIB "")
+else()
+    set(WIRINGPI_LIB "wiringPi")
+endif()
 # Link libraries
 target_link_libraries(CubeCore PRIVATE
     sfml-graphics
@@ -288,7 +292,7 @@ target_link_libraries(CubeCore PRIVATE
     # Qt6::SerialPort
     # ${SERIALPORT_LIB}
     # ${QT6CORE_LIB}
-    wiringPi
+    ${WIRINGPI_LIB}
 )
 
 # set_target_properties(CubeCore PROPERTIES

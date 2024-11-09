@@ -153,7 +153,7 @@ class mmWave{
     uint16_t detectionDistance = 0;
 
     int serialPort_h;
-    bool commandModeEnabled = false;
+    bool configModeEnabled = false;
     std::unique_ptr<std::jthread> readerThread;
 
     Response sendCommand(std::vector<uint8_t> command);

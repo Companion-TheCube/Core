@@ -1,16 +1,16 @@
 /*
  ██████╗ ██████╗ ███╗   ███╗██████╗  █████╗ ███╗   ██╗██╗ ██████╗ ███╗   ██╗       ████████╗██╗  ██╗███████╗ ██████╗██╗   ██╗██████╗ ███████╗
 ██╔════╝██╔═══██╗████╗ ████║██╔══██╗██╔══██╗████╗  ██║██║██╔═══██╗████╗  ██║       ╚══██╔══╝██║  ██║██╔════╝██╔════╝██║   ██║██╔══██╗██╔════╝
-██║     ██║   ██║██╔████╔██║██████╔╝███████║██╔██╗ ██║██║██║   ██║██╔██╗ ██║          ██║   ███████║█████╗  ██║     ██║   ██║██████╔╝█████╗  
-██║     ██║   ██║██║╚██╔╝██║██╔═══╝ ██╔══██║██║╚██╗██║██║██║   ██║██║╚██╗██║          ██║   ██╔══██║██╔══╝  ██║     ██║   ██║██╔══██╗██╔══╝  
+██║     ██║   ██║██╔████╔██║██████╔╝███████║██╔██╗ ██║██║██║   ██║██╔██╗ ██║          ██║   ███████║█████╗  ██║     ██║   ██║██████╔╝█████╗
+██║     ██║   ██║██║╚██╔╝██║██╔═══╝ ██╔══██║██║╚██╗██║██║██║   ██║██║╚██╗██║          ██║   ██╔══██║██╔══╝  ██║     ██║   ██║██╔══██╗██╔══╝
 ╚██████╗╚██████╔╝██║ ╚═╝ ██║██║     ██║  ██║██║ ╚████║██║╚██████╔╝██║ ╚████║▄█╗       ██║   ██║  ██║███████╗╚██████╗╚██████╔╝██████╔╝███████╗
  ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝       ╚═╝   ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝
                                                      ██████╗ ██████╗ ██████╗ ███████╗
                                                     ██╔════╝██╔═══██╗██╔══██╗██╔════╝
-                                                    ██║     ██║   ██║██████╔╝█████╗  
-                                                    ██║     ██║   ██║██╔══██╗██╔══╝  
+                                                    ██║     ██║   ██║██████╔╝█████╗
+                                                    ██║     ██║   ██║██╔══██╗██╔══╝
                                                     ╚██████╗╚██████╔╝██║  ██║███████╗
-                                                     ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝                                 
+                                                     ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝
 */
 #define SW_VERSION "0.1.0"
 
@@ -147,7 +147,7 @@ int main(int argc, char* argv[])
     std::cout << versionInfo << std::endl;
     auto logVerbosity = argumentParser.get<int>("--logVerbosity");
     auto logLevelPrint = argumentParser.get<int>("--LogLevelP");
-    auto logLevelFile = argumentParser.get<int>("--LogLevelF");    
+    auto logLevelFile = argumentParser.get<int>("--LogLevelF");
     /////////////////////////////////////////////////////////////////
     // Settings and Logger setup
     /////////////////////////////////////////////////////////////////
@@ -167,7 +167,9 @@ int main(int argc, char* argv[])
         settings.setSetting(GlobalSettings::SettingType::LOG_LEVEL_PRINT, logLevelPrint);
     if (customLogLevelF)
         settings.setSetting(GlobalSettings::SettingType::LOG_LEVEL_FILE, logLevelFile);
-    logger->setLogLevel(settings.getSettingOfType<Logger::LogLevel>(GlobalSettings::SettingType::LOG_LEVEL_PRINT), settings.getSettingOfType<Logger::LogLevel>(GlobalSettings::SettingType::LOG_LEVEL_FILE));
+    logger->setLogLevel(
+        settings.getSettingOfType<Logger::LogLevel>(GlobalSettings::SettingType::LOG_LEVEL_PRINT),
+        settings.getSettingOfType<Logger::LogLevel>(GlobalSettings::SettingType::LOG_LEVEL_FILE));
     if (supportsExtendedColors()) {
         CubeLog::info("Extended colors supported.");
     } else if (supportsBasicColors()) {
@@ -186,7 +188,8 @@ int main(int argc, char* argv[])
     std::jthread cpuAndMemoryThread([](std::stop_token st) {
         unsigned long loopCount = 0;
         while (!st.stop_requested()) {
-            if (loopCount++ % 100 == 0) monitorMemoryAndCPU();
+            if (loopCount++ % 100 == 0)
+                monitorMemoryAndCPU();
             genericSleep(100);
         }
     });
@@ -221,16 +224,112 @@ int main(int argc, char* argv[])
         long blobID = CubeDB::getBlobsManager()->addBlob("client_blobs", "test blob", "1");
         CubeLog::info("Blob ID: " + std::to_string(blobID));
         bool allInsertionsSuccess = true;
-        // TODO: All the base apps should be inserted into the database and/or verified in the database here.
-        // allInsertionsSuccess &=  (-1 < CubeDB::getDBManager()->getDatabase("apps")->insertData("apps", { "app_id", "app_name", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason" }, { "1", "CMD", "native", "apps\\customcmd", "", "test source", "test update path", "test last check", "test last update", "test last fail", "test last fail reason" })); // test insert
-        #ifdef __linux__
-        allInsertionsSuccess &= (-1 < CubeDB::getDBManager()->getDatabase("apps")->insertData("apps", { "app_id", "app_name", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason" }, { "2", "ConsoleApp1", "native", "apps/consoleApp1/consoleApp1", "arg1 arg2 arg3 arg4", "test source", "test update path", "test last check", "test last update", "test last fail", "test last fail reason" })); // test insert
-        allInsertionsSuccess &= (-1 < CubeDB::getDBManager()->getDatabase("apps")->insertData("apps", { "app_id", "app_name", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason" }, { "3", "ConsoleApp2", "native", "apps/consoleApp1/consoleApp1", "arg5 arg6 arg7 arg8", "test source", "test update path", "test last check", "test last update", "test last fail", "test last fail reason" })); // test insert
-        #endif
-        #ifdef _WIN32
-        allInsertionsSuccess &= (-1 < CubeDB::getDBManager()->getDatabase("apps")->insertData("apps", { "app_id", "app_name", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason" }, { "2", "ConsoleApp1", "native", "apps/consoleApp1.exe", "arg1 arg2 arg3 arg4", "test source", "test update path", "test last check", "test last update", "test last fail", "test last fail reason" })); // test insert
-        allInsertionsSuccess &= (-1 < CubeDB::getDBManager()->getDatabase("apps")->insertData("apps", { "app_id", "app_name", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason" }, { "3", "ConsoleApp2", "native", "apps/consoleApp1.exe", "arg5 arg6 arg7 arg8", "test source", "test update path", "test last check", "test last update", "test last fail", "test last fail reason" })); // test insert
-        #endif
+        long dbInsertReturnVal = -1;
+// TODO: All the base apps should be inserted into the database and/or verified in the database here.
+#ifdef __linux__
+        dbInsertReturnVal = CubeDB::getDBManager()->getDatabase("apps")->insertData(
+            "apps",
+            { "app_id",
+                "app_name",
+                "role",
+                "exec_path",
+                "exec_args",
+                "app_source",
+                "update_path",
+                "update_last_check",
+                "update_last_update",
+                "update_last_fail",
+                "update_last_fail_reason" },
+            { "2",
+                "ConsoleApp1",
+                "native",
+                "apps/consoleApp1/consoleApp1",
+                "arg1 arg2 arg3 arg4",
+                "test source",
+                "test update path",
+                "test last check",
+                "test last update",
+                "test last fail",
+                "test last fail reason" }); // test insert
+        allInsertionsSuccess &= (-1 < dbInsertReturnVal);
+        dbInsertReturnVal = CubeDB::getDBManager()->getDatabase("apps")->insertData(
+            "apps",
+            { "app_id",
+                "app_name",
+                "role",
+                "exec_path",
+                "exec_args",
+                "app_source",
+                "update_path",
+                "update_last_check",
+                "update_last_update",
+                "update_last_fail",
+                "update_last_fail_reason" },
+            { "3",
+                "ConsoleApp2",
+                "native",
+                "apps/consoleApp1/consoleApp1",
+                "arg5 arg6 arg7 arg8",
+                "test source",
+                "test update path",
+                "test last check",
+                "test last update",
+                "test last fail",
+                "test last fail reason" }); // test insert
+        allInsertionsSuccess &= (-1 < dbInsertReturnVal);
+#endif
+#ifdef _WIN32
+        dbInsertReturnVal = CubeDB::getDBManager()->getDatabase("apps")->insertData(
+            "apps",
+            { "app_id",
+                "app_name",
+                "role",
+                "exec_path",
+                "exec_args",
+                "app_source",
+                "update_path",
+                "update_last_check",
+                "update_last_update",
+                "update_last_fail",
+                "update_last_fail_reason" },
+            { "2",
+                "ConsoleApp1",
+                "native",
+                "apps/consoleApp1.exe",
+                "arg1 arg2 arg3 arg4",
+                "test source",
+                "test update path",
+                "test last check",
+                "test last update",
+                "test last fail",
+                "test last fail reason" }); // test insert
+        allInsertionsSuccess &= (-1 < dbInsertReturnVal);
+        dbInsertReturnVal = CubeDB::getDBManager()->getDatabase("apps")->insertData(
+            "apps",
+            { "app_id",
+                "app_name",
+                "role",
+                "exec_path",
+                "exec_args",
+                "app_source",
+                "update_path",
+                "update_last_check",
+                "update_last_update",
+                "update_last_fail",
+                "update_last_fail_reason" },
+            { "3",
+                "ConsoleApp2",
+                "native",
+                "apps/consoleApp1.exe",
+                "arg5 arg6 arg7 arg8",
+                "test source",
+                "test update path",
+                "test last check",
+                "test last update",
+                "test last fail",
+                "test last fail reason" }); // test insert
+        allInsertionsSuccess &= (-1 < dbInsertReturnVal);
+#endif
         if (!allInsertionsSuccess)
             CubeLog::warning("Failed to insert data into database. Last error: " + CubeDB::getDBManager()->getDatabase("apps")->getLastError());
         // end testing //////////////////////////////////////////////
@@ -269,83 +368,83 @@ int main(int argc, char* argv[])
     // application should be restarted or not.
 }
 
-
 // TODO: this probably needs a mutex for breakMain
-void signalHandler(int signal){
-    switch(signal){
-        case SIGINT:
-            CubeLog::info("Caught SIGINT signal.");
-            // printStackTrace();
-            breakMain = true;
-            break;
-        case SIGTERM:
-            CubeLog::info("Caught SIGTERM signal.");
-            breakMain = true;
-            break;
-        case SIGABRT:
-            CubeLog::info("Caught SIGABRT signal.");
-            breakMain = true;
-            break;
-        case SIGSEGV:
-            CubeLog::info("Caught SIGSEGV signal.");
-            // get the stack trace
-            printStackTrace();
-            breakMain = true;
-            exit(1);
-            break;
-        case SIGILL:
-            CubeLog::info("Caught SIGILL signal.");
-            breakMain = true;
-            break;
-        case SIGFPE:
-            CubeLog::info("Caught SIGFPE signal.");
-            breakMain = true;
-            break;
+void signalHandler(int signal)
+{
+    switch (signal) {
+    case SIGINT:
+        CubeLog::info("Caught SIGINT signal.");
+        // printStackTrace();
+        breakMain = true;
+        break;
+    case SIGTERM:
+        CubeLog::info("Caught SIGTERM signal.");
+        breakMain = true;
+        break;
+    case SIGABRT:
+        CubeLog::info("Caught SIGABRT signal.");
+        breakMain = true;
+        break;
+    case SIGSEGV:
+        CubeLog::info("Caught SIGSEGV signal.");
+        // get the stack trace
+        printStackTrace();
+        breakMain = true;
+        exit(1);
+        break;
+    case SIGILL:
+        CubeLog::info("Caught SIGILL signal.");
+        breakMain = true;
+        break;
+    case SIGFPE:
+        CubeLog::info("Caught SIGFPE signal.");
+        breakMain = true;
+        break;
 #ifdef __linux__
-        case SIGKILL:
-            CubeLog::info("Caught SIGKILL signal.");
-            breakMain = true;
-            break;
-        case SIGQUIT:
-            CubeLog::info("Caught SIGQUIT signal.");
-            breakMain = true;
-            break;
-        case SIGBUS:
-            CubeLog::info("Caught SIGBUS signal.");
-            breakMain = true;
-            break;
-        case SIGSYS:
-            CubeLog::info("Caught SIGSYS signal.");
-            breakMain = true;
-            break;
-        case SIGPIPE:
-            CubeLog::info("Caught SIGPIPE signal.");
-            breakMain = true;
-            break;
-        case SIGALRM:
-            CubeLog::info("Caught SIGALRM signal.");
-            breakMain = true;
-            break;
-        case SIGHUP:
-            CubeLog::info("Caught SIGHUP signal.");
-            breakMain = true;
-            break;
+    case SIGKILL:
+        CubeLog::info("Caught SIGKILL signal.");
+        breakMain = true;
+        break;
+    case SIGQUIT:
+        CubeLog::info("Caught SIGQUIT signal.");
+        breakMain = true;
+        break;
+    case SIGBUS:
+        CubeLog::info("Caught SIGBUS signal.");
+        breakMain = true;
+        break;
+    case SIGSYS:
+        CubeLog::info("Caught SIGSYS signal.");
+        breakMain = true;
+        break;
+    case SIGPIPE:
+        CubeLog::info("Caught SIGPIPE signal.");
+        breakMain = true;
+        break;
+    case SIGALRM:
+        CubeLog::info("Caught SIGALRM signal.");
+        breakMain = true;
+        break;
+    case SIGHUP:
+        CubeLog::info("Caught SIGHUP signal.");
+        breakMain = true;
+        break;
 #endif
-        default:
-            CubeLog::info("Caught unknown signal.");
-            breakMain = true;
-            break;
+    default:
+        CubeLog::info("Caught unknown signal.");
+        breakMain = true;
+        break;
     }
 }
 
 // Function to print stack trace
-void printStackTrace() 
+void printStackTrace()
 {
 #ifdef __linux__
     const int maxFrames = 100;
-    void *frames[maxFrames];
+    void* frames[maxFrames];
     int numFrames = backtrace(frames, maxFrames);
-    char **symbols = backtrace_symbols(frames, numFrames);
+    char** symbols = backtrace_symbols(frames, numFrames);
 
     if (symbols == nullptr) {
         std::cerr << "Failed to generate stack trace.\n";
@@ -357,10 +456,12 @@ void printStackTrace()
 
     for (int i = 0; i < numFrames; ++i) {
         char *mangledName = nullptr, *offsetBegin = nullptr, *offsetEnd = nullptr;
-        
-        for (char *p = symbols[i]; *p; ++p) {
-            if (*p == '(') mangledName = p;
-            else if (*p == '+') offsetBegin = p;
+
+        for (char* p = symbols[i]; *p; ++p) {
+            if (*p == '(')
+                mangledName = p;
+            else if (*p == '+')
+                offsetBegin = p;
             else if (*p == ')' && offsetBegin) {
                 offsetEnd = p;
                 break;
@@ -373,7 +474,7 @@ void printStackTrace()
             *offsetEnd = '\0';
 
             int status;
-            char *demangledName = abi::__cxa_demangle(mangledName, nullptr, nullptr, &status);
+            char* demangledName = abi::__cxa_demangle(mangledName, nullptr, nullptr, &status);
 
             if (status == 0 && demangledName != nullptr) {
                 std::cerr << symbols[i] << " : " << demangledName << "+" << offsetBegin << '\n';
@@ -439,7 +540,6 @@ bool supportsExtendedColors()
 }
 
 #elif __linux__
-
 
 int getTermColors()
 {

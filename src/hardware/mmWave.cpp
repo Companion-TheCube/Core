@@ -3,7 +3,7 @@
 #ifdef _WIN32
 int wiringPiSetup() { return -1; }
 int serialOpen(const char* port, int baud) { return -1; }
-void serialPuts(int port, char* data) {}
+void serialPuts(int port, char* data) { }
 int serialDataAvail(int port) { return 0; }
 char serialGetchar(int port) { return 0; }
 unsigned long millis() { return 0; }
@@ -11,15 +11,15 @@ unsigned long millis() { return 0; }
 
 mmWave::mmWave()
 {
-    if(wiringPiSetup() == -1){
+    if (wiringPiSetup() == -1) {
         CubeLog::error("Failed to setup wiringPi.");
         return;
     }
     this->readerThread = std::make_unique<std::jthread>([&](std::stop_token st) {
         this->serialPort_h = serialOpen("/dev/ttyAMA4", 115200);
-        if(serialPort_h < 0){
+        if (serialPort_h < 0) {
             CubeLog::error("Failed to open serial port.");
-            while(!st.stop_requested()){
+            while (!st.stop_requested()) {
                 genericSleep(1000);
                 CubeLog::info("Failure.");
             }
@@ -28,13 +28,13 @@ mmWave::mmWave()
         // this->enableEngineeringMode();
         // this->disableConfigMode();
         unsigned long lastPrintTime = millis();
-        while(!st.stop_requested()){
+        while (!st.stop_requested()) {
             Response response = readDataFrame();
-            if(response.success){
+            if (response.success) {
                 // CubeLog::info("Data received: " + response.hexStr);
                 decodeDataFrame(response);
             }
-            if(millis() - lastPrintTime > 10000){
+            if (millis() - lastPrintTime > 10000) {
                 CubeLog::info("Target State: " + std::to_string(this->targetState));
                 CubeLog::info("Moving Target Distance: " + std::to_string(this->movingTargetDistance));
                 CubeLog::info("Moving Target Energy: " + std::to_string(this->movingTargetEnergy));
@@ -63,19 +63,19 @@ Response mmWave::sendCommand(std::vector<uint8_t> command)
     serialPuts(this->serialPort_h, (char*)dataToSend.data());
     Response response;
     uint16_t waitTime = 0;
-    while(serialDataAvail(this->serialPort_h) == 0 && waitTime < 1000){
+    while (serialDataAvail(this->serialPort_h) == 0 && waitTime < 1000) {
         genericSleep(10);
         waitTime += 10;
     }
-    if(waitTime >= 1000){
+    if (waitTime >= 1000) {
         CubeLog::error("Timeout trying to get response.");
         response = false;
         return response;
     }
     // These nested loops get the data fast, but if we read faster than the data arrives, give  the source
     // time to catch up.
-    while(serialDataAvail(this->serialPort_h) > 0){
-        while(serialDataAvail(this->serialPort_h) > 0){
+    while (serialDataAvail(this->serialPort_h) > 0) {
+        while (serialDataAvail(this->serialPort_h) > 0) {
             response += serialGetchar(this->serialPort_h);
         }
         genericSleep(10);
@@ -86,7 +86,7 @@ Response mmWave::sendCommand(std::vector<uint8_t> command)
 Response mmWave::sendCommand(std::vector<uint8_t> command, std::vector<uint8_t> ack)
 {
     Response response = this->sendCommand(command);
-    if(!response.success || response != ack){
+    if (!response.success || response != ack) {
         CubeLog::error("Failed to get expected response.");
         response = false;
         return response;
@@ -111,20 +111,26 @@ bool mmWave::enableConfigMode()
     ack.insert(ack.end(), COMMAND_TAIL);
 
     Response response = this->sendCommand(commandMode, ack);
+    if (response.success) {
+        this->configModeEnabled = true;
+    } else {
+        CubeLog::error("Failed to enable command mode.");
+        this->configModeEnabled = false;
+    }
     return response.success;
 }
 
 bool mmWave::disableConfigMode()
 {
     std::vector<uint8_t> commandMode = COMMAND_HEADER;
-    std::vector<uint8_t> commandData = DISABLE_CONFIG_MODE;
+    const std::vector<uint8_t> commandData = DISABLE_CONFIG_MODE;
     commandMode.push_back(commandData.size() & 0xFF);
     commandMode.push_back((commandData.size() >> 8) & 0xFF);
     commandMode.insert(commandMode.end(), commandData.begin(), commandData.end());
     commandMode.insert(commandMode.end(), COMMAND_TAIL);
 
     std::vector<uint8_t> ack = COMMAND_HEADER;
-    std::vector<uint8_t> ackData = DISABLE_CONFIG_MODE_ACK;
+    const std::vector<uint8_t> ackData = DISABLE_CONFIG_MODE_ACK;
     ack.push_back(ackData.size() & 0xFF);
     ack.push_back((ackData.size() >> 8) & 0xFF);
     ack.insert(ack.end(), ackData.begin(), ackData.end());
@@ -180,41 +186,41 @@ Response mmWave::readDataFrame()
     response.data = REPORT_HEADER;
     response = true;
     int headerSize = response.size();
-    if(this->commandModeEnabled){
+    if (this->configModeEnabled) {
         CubeLog::error("Command mode enabled.");
         response = false;
         return response;
     }
     uint16_t waitTime = 0;
-    while(serialDataAvail(this->serialPort_h) == 0 && waitTime < 1000){
+    while (serialDataAvail(this->serialPort_h) == 0 && waitTime < 1000) {
         genericSleep(10);
         waitTime += 10;
     }
-    if(waitTime >= 1000){
+    if (waitTime >= 1000) {
         CubeLog::error("Timeout trying to get data frame.");
         response = false;
         return response;
     }
     genericSleep(1);
-    if(serialDataAvail(this->serialPort_h) == 0){
+    if (serialDataAvail(this->serialPort_h) == 0) {
         CubeLog::error("No data available.");
         response = false;
         return response;
     }
     int headerIndex = 0;
     genericSleep(1);
-    while(serialDataAvail(this->serialPort_h) > 0){
+    while (serialDataAvail(this->serialPort_h) > 0) {
         uint8_t c = serialGetchar(this->serialPort_h);
-        if(c == response[headerIndex]){
+        if (c == response[headerIndex]) {
             headerIndex++;
-            if(headerIndex == response.size()){
+            if (headerIndex == response.size()) {
                 break;
             }
         } else {
             headerIndex = 0;
         }
     }
-    if(headerIndex != response.size()){
+    if (headerIndex != response.size()) {
         CubeLog::error("Failed to find report header.");
         response = false;
         return response;
@@ -228,7 +234,7 @@ Response mmWave::readDataFrame()
     response += reportSize & 0xFF;
     response += (reportSize >> 8) & 0xFF;
 
-    if(serialDataAvail(this->serialPort_h) < reportSize){
+    if (serialDataAvail(this->serialPort_h) < reportSize) {
         CubeLog::error("Report size does not match data available.");
         response = false;
         return response;
@@ -236,18 +242,18 @@ Response mmWave::readDataFrame()
 
     genericSleep(2);
     std::vector<uint8_t> tail = REPORT_TAIL;
-    for(uint16_t i = 0; i < reportSize + tail.size(); i++){
+    for (uint16_t i = 0; i < reportSize + tail.size(); i++) {
         response += serialGetchar(this->serialPort_h);
     }
 
-    if(response.size() != reportSize + tail.size() + headerSize + 2){ // 2 for the size bytes
+    if (response.size() != reportSize + tail.size() + headerSize + 2) { // 2 for the size bytes
         CubeLog::error("Failed to get full report.");
         response = false;
         return response;
     }
 
-    for(uint16_t i = 1; i <= tail.size(); i++){
-        if(response[response.size() - i] != tail[tail.size() - i]){
+    for (uint16_t i = 1; i <= tail.size(); i++) {
+        if (response[response.size() - i] != tail[tail.size() - i]) {
             CubeLog::error("Failed to find report tail.");
             response = false;
             return response;
@@ -259,7 +265,7 @@ Response mmWave::readDataFrame()
 
 void mmWave::decodeDataFrame(Response response)
 {
-    if(!response.success){
+    if (!response.success) {
         CubeLog::error("Failed to decode data frame.");
         return;
     }
@@ -275,7 +281,7 @@ void mmWave::decodeDataFrame(Response response)
     // Head
     uint8_t head = data[3];
 
-    if(head != 0xaa){
+    if (head != 0xaa) {
         CubeLog::error("Failed to find head.");
         return;
     }
@@ -283,7 +289,7 @@ void mmWave::decodeDataFrame(Response response)
     // Tail
     uint8_t tail = data.at(data.size() - 2);
 
-    if(tail != 0x55){
+    if (tail != 0x55) {
         CubeLog::error("Failed to find tail.");
         return;
     }
@@ -291,9 +297,9 @@ void mmWave::decodeDataFrame(Response response)
     // check
     uint8_t check = data.at(data.size() - 1);
 
-    if(dataType == 0x02){
+    if (dataType == 0x02) {
         // CubeLog::info("Normal data frame.");
-        if(data.size() != 15){
+        if (data.size() != 15) {
             CubeLog::error("Data size does not match.");
             return;
         }
@@ -309,17 +315,17 @@ void mmWave::decodeDataFrame(Response response)
         this->stationaryTargetEnergy = data[10];
         // Detection Distance, 2 byte, cm
         this->detectionDistance = data[11] | data[12] << 8;
-    } else if(dataType == 0x01){
+    } else if (dataType == 0x01) {
         CubeLog::info("Engineering data frame.");
-        if(data.size() != 33){ // TODO: Check this
+        if (data.size() != 33) { // TODO: Check this
             CubeLog::error("Data size does not match.");
             return;
         }
         // target state, 1 byte
         this->targetState = data[4];
-        // moving target distance, 2 bytes, cm
+        // Moving target distance, 2 bytes, cm
         this->movingTargetDistance = data[5] | data[6] << 8;
-        // Excercise target energy value, 1 byte
+        // Moving target energy value, 1 byte
         this->movingTargetEnergy = data[7];
         // Stationary target distance, 2 byte, cm
         this->stationaryTargetDistance = data[8] | data[9] << 8;
@@ -333,12 +339,12 @@ void mmWave::decodeDataFrame(Response response)
         uint8_t maxStationaryDistanceGateNumber = data[14];
         std::vector<uint8_t> movingDistanceGateEnergy;
         movingDistanceGateEnergy.reserve(maxMovingDistanceGateNumber);
-        for(size_t i = 0; i < maxMovingDistanceGateNumber; i++){
+        for (size_t i = 0; i < maxMovingDistanceGateNumber; i++) {
             movingDistanceGateEnergy.push_back(data[15 + i]);
         }
         std::vector<uint8_t> stationaryDistanceGateEnergy;
         stationaryDistanceGateEnergy.reserve(maxStationaryDistanceGateNumber);
-        for(size_t i = 0; i < maxStationaryDistanceGateNumber; i++){
+        for (size_t i = 0; i < maxStationaryDistanceGateNumber; i++) {
             stationaryDistanceGateEnergy.push_back(data[15 + maxMovingDistanceGateNumber + i]);
         }
     } else {
@@ -346,6 +352,5 @@ void mmWave::decodeDataFrame(Response response)
         return;
     }
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////////////

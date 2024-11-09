@@ -78,8 +78,7 @@ bool NativeAPI::isProcessRunning(const std::string& processName)
         return false;
     }
     do {
-        // CubeLog::debugSilly("Checking process: " + convertWCHARToString(pe32.szExeFile));
-        if (processName == convertWCHARToString(pe32.szExeFile)) {
+        if (processName == pe32.szExeFile) {
             found = true;
             break;
         }
@@ -180,10 +179,10 @@ std::unique_ptr<RunningApp> NativeAPI::startApp(const std::string& execPath, con
     auto execCommand = cwd / execPath;
     execCommand += " " + execArgs;
     CubeLog::debug("Exec command: " + execCommand.string());
-    WCHAR tempCommand[1024];
-    convertStringToWCHAR(execCommand.string(), tempCommand);
+    // WCHAR tempCommand[1024];
+    // convertStringToWCHAR(execCommand.string(), tempCommand);
     if (!CreateProcess(NULL,
-            tempCommand, // command line
+            (LPSTR)execCommand.string().c_str(), // command line
             NULL, // process security attributes
             NULL, // primary thread security attributes
             TRUE, // handles are inherited
@@ -367,7 +366,7 @@ long NativeAPI::getPID(const std::string& execPath)
         }
         do {
             // CubeLog::debugSilly("Checking process: " + convertWCHARToString(pe32.szExeFile));
-            if (execPath == convertWCHARToString(pe32.szExeFile)) {
+            if (execPath == pe32.szExeFile) {
                 CubeLog::debug("PID for app: " + execPath + " is " + std::to_string(pe32.th32ProcessID));
                 return pe32.th32ProcessID;
             }
