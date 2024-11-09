@@ -227,7 +227,7 @@ int main(int argc, char* argv[])
         long dbInsertReturnVal = -1;
 // TODO: All the base apps should be inserted into the database and/or verified in the database here.
 #ifdef __linux__
-        dbInsertReturnVal = CubeDB::getDBManager()->getDatabase("apps")->insertData(
+        dbInsertReturnVal = CubeDB::getDBManager()->getDatabase("apps")->insertData( // TODO: insertData() should be refactored so that it takes in a vector of std::pair or perhaps a vector of objects that has the column name and value. This will make calls like this much more comprehensible.
             "apps",
             { "app_id",
                 "app_name",
@@ -280,54 +280,38 @@ int main(int argc, char* argv[])
 #endif
 #ifdef _WIN32
         dbInsertReturnVal = CubeDB::getDBManager()->getDatabase("apps")->insertData(
-            "apps",
-            { "app_id",
-                "app_name",
-                "role",
-                "exec_path",
-                "exec_args",
-                "app_source",
-                "update_path",
-                "update_last_check",
-                "update_last_update",
-                "update_last_fail",
-                "update_last_fail_reason" },
-            { "2",
-                "ConsoleApp1",
-                "native",
-                "apps/consoleApp1.exe",
-                "arg1 arg2 arg3 arg4",
-                "test source",
-                "test update path",
-                "test last check",
-                "test last update",
-                "test last fail",
-                "test last fail reason" }); // test insert
+            DB_NS::TableNames::APPS,
+            {
+                { "app_id", "2" },
+                { "app_name", "ConsoleApp1" },
+                { "role", DB_NS::Roles::NATIVE_APP },
+                { "exec_path", "apps/consoleApp1.exe" },
+                { "exec_args", "arg1 arg2 arg3 arg4" },
+                { "app_source", "test source" },
+                { "update_path", "test update path" },
+                { "update_last_check", "test last check" },
+                { "update_last_update", "test last update" },
+                { "update_last_fail", "test last fail" },
+                { "update_last_fail_reason", "test last fail reason" }
+            }
+        ); // test insert
         allInsertionsSuccess &= (-1 < dbInsertReturnVal);
         dbInsertReturnVal = CubeDB::getDBManager()->getDatabase("apps")->insertData(
-            "apps",
-            { "app_id",
-                "app_name",
-                "role",
-                "exec_path",
-                "exec_args",
-                "app_source",
-                "update_path",
-                "update_last_check",
-                "update_last_update",
-                "update_last_fail",
-                "update_last_fail_reason" },
-            { "3",
-                "ConsoleApp2",
-                "native",
-                "apps/consoleApp1.exe",
-                "arg5 arg6 arg7 arg8",
-                "test source",
-                "test update path",
-                "test last check",
-                "test last update",
-                "test last fail",
-                "test last fail reason" }); // test insert
+            DB_NS::TableNames::APPS,
+            {
+                { "app_id", "3" },
+                { "app_name", "ConsoleApp2" },
+                { "role", DB_NS::Roles::NATIVE_APP },
+                { "exec_path", "apps/consoleApp1.exe" },
+                { "exec_args", "arg5 arg6 arg7 arg8" },
+                { "app_source", "test source" },
+                { "update_path", "test update path" },
+                { "update_last_check", "test last check" },
+                { "update_last_update", "test last update" },
+                { "update_last_fail", "test last fail" },
+                { "update_last_fail_reason", "test last fail reason" }
+            }
+        ); // test insert
         allInsertionsSuccess &= (-1 < dbInsertReturnVal);
 #endif
         if (!allInsertionsSuccess)

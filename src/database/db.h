@@ -12,27 +12,45 @@
 #include <vector>
 
 namespace DB_NS {
-typedef struct Table_T {
+struct Table_Entry {
+    Table_Entry(std::string columnName, std::string columnValue, std::string columnType)
+        : columnName(columnName)
+        , columnValue(columnValue)
+        , columnType(columnType)
+    {
+    }
+    Table_Entry(std::string columnName, std::string columnValue)
+        : columnName(columnName)
+        , columnValue(columnValue)
+        , columnType("TEXT")
+    {
+    }
+    std::string columnName;
+    std::string columnValue;
+    std::string columnType;
+};
+
+struct Table_T {
     const std::string name;
     const std::vector<std::string> columnNames;
     const std::vector<std::string> columnTypes;
     const std::vector<bool> columnUnique;
-} Table_T;
+};
 
-typedef struct Database_T {
+struct Database_T {
     const std::string path;
     const std::string name;
     const std::vector<Table_T> tables;
-} DB_T;
+};
 
 namespace Roles {
-    const std::string ROLE_CUBE = "CUBE";
-    const std::string ROLE_MINI_CUBE = "MINI_CUBE";
-    const std::string ROLE_NATIVE_APP = "NATIVE_APP";
-    const std::string ROLE_DOCKER_APP = "DOCKER_APP";
-    const std::string ROLE_WEB_APP = "WEB_APP";
-    const std::string ROLE_MOBILE_APP = "MOBILE_APP";
-    const std::string ROLE_UNKNOWN = "UNKNOWN";
+    const std::string CUBE = "CUBE";
+    const std::string MINI_CUBE = "MINI_CUBE";
+    const std::string NATIVE_APP = "NATIVE_APP";
+    const std::string DOCKER_APP = "DOCKER_APP";
+    const std::string WEB_APP = "WEB_APP";
+    const std::string MOBILE_APP = "MOBILE_APP";
+    const std::string UNKNOWN = "UNKNOWN";
 };
 namespace TableNames {
     const std::string CLIENTS = "clients";
@@ -128,6 +146,7 @@ public:
     ~Database();
     bool createTable(const std::string& tableName, std::vector<std::string> columnNames, std::vector<std::string> columnTypes, std::vector<bool> uniqueColumns);
     long insertData(const std::string& tableName, std::vector<std::string> columnNames, std::vector<std::string> columnValues);
+    long insertData(const std::string& tableName, std::vector<DB_NS::Table_Entry> tableEntries);
     bool updateData(const std::string& tableName, std::vector<std::string> columnNames, std::vector<std::string> columnValues, const std::string& whereClause);
     void setUniqueColumns(std::vector<std::string> columnNames, std::vector<bool> uniqueColumns);
     bool deleteData(const std::string& tableName, const std::string& whereClause);

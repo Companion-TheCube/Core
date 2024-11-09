@@ -88,6 +88,17 @@ bool Database::createTable(const std::string& tableName, std::vector<std::string
     }
 }
 
+long Database::insertData(const std::string& tableName, std::vector<DB_NS::Table_Entry> tableEntries)
+{
+    std::vector<std::string> columnNames;
+    std::vector<std::string> columnValues;
+    for (size_t i = 0; i < tableEntries.size(); i++) {
+        columnNames.push_back(tableEntries[i].columnName);
+        columnValues.push_back(tableEntries[i].columnValue);
+    }
+    return this->insertData(tableName, columnNames, columnValues);
+}
+
 /**
  * @brief Insert blob data into a table
  *
