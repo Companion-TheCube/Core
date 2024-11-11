@@ -88,6 +88,13 @@ bool Database::createTable(const std::string& tableName, std::vector<std::string
     }
 }
 
+/**
+ * @brief Insert data into a table
+ *
+ * @param tableName Table name std::string
+ * @param tableEntries Vector of Table_Entry objects. Each object contains the column name, value, and (optionally) type. Accepts vector of { "columnName", "columnValue" } or vector of { "columnName", "columnValue", "columnType" }. Insertion will fail if column type does not match the existing column type.
+ * @return long -1 on error, rowid on success
+ */
 long Database::insertData(const std::string& tableName, std::vector<DB_NS::Table_Entry> tableEntries)
 {
     std::vector<std::string> columnNames;
@@ -105,8 +112,7 @@ long Database::insertData(const std::string& tableName, std::vector<DB_NS::Table
  * @param tableName
  * @param columnNames Size of columnNames and columnValues must be equal
  * @param columnValues
- * @return true
- * @return false
+ * @return long -1 on error, rowid on success
  */
 long Database::insertData(const std::string& tableName, std::vector<std::string> columnNames, std::vector<std::string> columnValues)
 {
