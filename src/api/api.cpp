@@ -148,7 +148,6 @@ void API::httpApiThreadFn()
             std::filesystem::remove(CUBE_SOCKET_PATH);
         }
         this->serverIPC = std::make_unique<CubeHttpServer>(CUBE_SOCKET_PATH, 0);
-        // TODO: set up authentication // Done?
         for (size_t i = 0; i < this->endpoints.size(); i++) {
             // Public endpoints are accessible by any device on the
             // network. Non public endpoints are only available to devices that have been authenticated. The authentication process is not yet implemented.
@@ -339,7 +338,7 @@ void Endpoint::setAction(EndpointAction_t action)
 }
 
 /**
- * @brief Perform the action when the endpoint is called // TODO: response and request parameters should be combined into a single object
+ * @brief Perform the action when the endpoint is called
  *
  * @param req the request object
  * @param res the response object
