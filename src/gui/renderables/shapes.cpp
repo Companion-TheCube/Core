@@ -1110,20 +1110,6 @@ unsigned char* createDotTexture(unsigned int size, unsigned int padding)
             if (dist >= circle_inner_radius && dist <= circle_outer_radius)
                 pixel_color = 255;
             data[(unsigned int)((float)y * overallWidthHeight + x)] = pixel_color;
-            for (float i = -(size * 0.1f); i <= (size * 0.1f); i++) {
-                for (float j = -(size * 0.1f); j <= (size * 0.1f); j++) {
-                    unsigned int yIdx = y + i;
-                    unsigned int xIdx = x + j;
-                    if (yIdx < 0 || yIdx >= overallWidthHeight || xIdx < 0 || xIdx >= overallWidthHeight) {
-                        continue;
-                    }
-                    if ((((unsigned int)data[(unsigned int)((float)yIdx * overallWidthHeight + xIdx)]) + pixel_color / ((size * 0.2f) * (size * 0.2f))) > 255) {
-                        data[(unsigned int)((float)yIdx * overallWidthHeight + xIdx)] = 255;
-                    } else {
-                        data[(unsigned int)((float)yIdx * overallWidthHeight + xIdx)] += pixel_color / ((size * 0.2f) * (size * 0.2f));
-                    }
-                }
-            }
         }
     }
     return data;
