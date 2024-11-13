@@ -18,6 +18,7 @@ AudioOutput::AudioOutput()
     RtAudio::Api api = RtAudio::RtAudio::WINDOWS_DS;
 #endif
     dac = std::make_unique<RtAudio>(api);
+    // TODO: The RTAudio instance needs to be instantiated in the audioManager and passed to this class and to the speechIn class.
     std::vector<unsigned int> deviceIds = dac->getDeviceIds();
     std::vector<std::string> deviceNames = dac->getDeviceNames();
     if (deviceIds.size() < 1) {
