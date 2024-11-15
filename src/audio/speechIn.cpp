@@ -15,13 +15,18 @@ OpenWakeWord will be used for wake word detection. It is a python script that th
 that script via a named pipe. When a wake word is detected, the script will send a message back to the app manager via an http request.
 We'll need to have an API endpoint that provides this functionality and triggers sending audio to the remote server.
 
+When the wake word is detected, we'll need to tell the audioOutput class to play a sound to let the user know that the wake word was detected.
+
 */
 
 #include "speechIn.h"
 
 // Audio router
+// This class will need a reference to the decision engine so that it can pass the audio to the it.
+// There shall be a FIFO queue that will hold the audio data. When the decision engine is ready for audio,
+// it will pull the audio from the queue. The audio router will have a method to add audio to the queue.
+// The audio router will also have a method to start and stop the audio stream.
+// The audio router will also have a method to get the number of audio samples in the queue.
 
 // Wake word detector monitor (for making sure that the wake word detector is running)
-
-// Whisper
 

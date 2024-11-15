@@ -3,6 +3,9 @@
 /*
 NOTES:
 Because of how the HDMI output works, we will have to have a constant output and modulate the code to change the sound.
+
+There will need to be a class (or something) that can take in sounds (ether buffers or file paths) and play them. 
+This class will need to be able to play multiple sounds at once. 
 */
 
 UserData AudioOutput::userData = { 0.0, 0.0, false };
