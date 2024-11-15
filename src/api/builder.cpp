@@ -74,7 +74,8 @@ void API_Builder::start()
             CubeLog::debug("Found static file: " + p.path().string());
         }
     }
-    // TODO: refactor to get rid of staticFiles vector
+    staticFiles.push_back(std::filesystem::path("http/"));
+    // TODO: refactor to get rid of staticFiles vector. update: maybe not?
     for (auto file : staticFiles) {
         CubeLog::info("Adding static file: " + file.string());
         // strip off the ./http/ part of the path
@@ -84,127 +85,131 @@ void API_Builder::start()
         CubeLog::debug("Endpoint path: " + endpointPath);
         std::string filePath = file.string();
         this->api->addEndpoint(filePath, "/" + endpointPath, PUBLIC_ENDPOINT | GET_ENDPOINT, [&, filePath](const httplib::Request& req, httplib::Response& res) {
-            if (!std::filesystem::exists(filePath)) {
-                CubeLog::error("File not found: " + filePath);
+            std::string l_path = filePath;
+            if(l_path.empty() || l_path == "http/" || l_path == "http"){
+                l_path = "http/index.html";
+            }
+            if (!std::filesystem::exists(l_path)) {
+                CubeLog::error("File not found: " + l_path);
                 // return std::string("File not found: " + filePath);
-                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NOT_FOUND, "File not found: " + filePath);
-            } else if (std::filesystem::is_directory(filePath)) {
-                CubeLog::error("File is a directory: " + filePath);
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NOT_FOUND, "File not found: " + l_path);
+            } else if (std::filesystem::is_directory(l_path)) {
+                CubeLog::error("File is a directory: " + l_path);
                 // return std::string("File is a directory: " + filePath);
-                EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, "File is a directory: " + filePath);
+                EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, "File is a directory: " + l_path);
             } else
-                CubeLog::info("Sending file: " + filePath);
-            std::ifstream fileStream(filePath, std::ios::binary | std::ios::ate);
+                CubeLog::info("Sending file: " + l_path);
+            std::ifstream fileStream(l_path, std::ios::binary | std::ios::ate);
             if (!fileStream.is_open()) {
-                CubeLog::error("Error opening file: " + filePath);
+                CubeLog::error("Error opening file: " + l_path);
                 // return std::string("Error opening file: " + filePath);
-                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Error opening file: " + filePath);
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Error opening file: " + l_path);
             }
             std::streamsize fileSize = fileStream.tellg();
             fileStream.seekg(0, std::ios::beg);
             std::vector<char> buffer(fileSize);
             if (!fileStream.read(buffer.data(), fileSize)) {
-                CubeLog::error("Error reading file: " + filePath);
+                CubeLog::error("Error reading file: " + l_path);
                 // return std::string("Error reading file: " + filePath);
-                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Error reading file: " + filePath);
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Error reading file: " + l_path);
             }
             if (fileStream.fail() || fileStream.bad()) {
-                CubeLog::error("Error reading file: " + filePath);
+                CubeLog::error("Error reading file: " + l_path);
                 // return std::string("Error reading file: " + filePath);
-                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Error reading file: " + filePath);
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Error reading file: " + l_path);
             }
             fileStream.close();
             // set the content type based on the file extension
             std::string contentType = "text/plain";
-            if (filePath.find(".html") != std::string::npos) {
+            if (l_path.find(".html") != std::string::npos) {
                 contentType = "text/html";
-            } else if (filePath.find(".css") != std::string::npos) {
+            } else if (l_path.find(".css") != std::string::npos) {
                 contentType = "text/css";
-            } else if (filePath.find(".js") != std::string::npos) {
+            } else if (l_path.find(".js") != std::string::npos) {
                 contentType = "text/javascript";
-            } else if (filePath.find(".png") != std::string::npos) {
+            } else if (l_path.find(".png") != std::string::npos) {
                 contentType = "image/png";
-            } else if (filePath.find(".jpg") != std::string::npos) {
+            } else if (l_path.find(".jpg") != std::string::npos) {
                 contentType = "image/jpeg";
-            } else if (filePath.find(".ico") != std::string::npos) {
+            } else if (l_path.find(".ico") != std::string::npos) {
                 contentType = "image/x-icon";
-            } else if (filePath.find(".json") != std::string::npos) {
+            } else if (l_path.find(".json") != std::string::npos) {
                 contentType = "application/json";
-            } else if (filePath.find(".txt") != std::string::npos) {
+            } else if (l_path.find(".txt") != std::string::npos) {
                 contentType = "text/plain";
-            } else if (filePath.find(".svg") != std::string::npos) {
+            } else if (l_path.find(".svg") != std::string::npos) {
                 contentType = "image/svg+xml";
-            } else if (filePath.find(".pdf") != std::string::npos) {
+            } else if (l_path.find(".pdf") != std::string::npos) {
                 contentType = "application/pdf";
-            } else if (filePath.find(".mp4") != std::string::npos) {
+            } else if (l_path.find(".mp4") != std::string::npos) {
                 contentType = "video/mp4";
-            } else if (filePath.find(".mp3") != std::string::npos) {
+            } else if (l_path.find(".mp3") != std::string::npos) {
                 contentType = "audio/mp3";
-            } else if (filePath.find(".wav") != std::string::npos) {
+            } else if (l_path.find(".wav") != std::string::npos) {
                 contentType = "audio/wave";
-            } else if (filePath.find(".webm") != std::string::npos) {
+            } else if (l_path.find(".webm") != std::string::npos) {
                 contentType = "video/webm";
-            } else if (filePath.find(".webp") != std::string::npos) {
+            } else if (l_path.find(".webp") != std::string::npos) {
                 contentType = "image/webp";
-            } else if (filePath.find(".woff") != std::string::npos) {
+            } else if (l_path.find(".woff") != std::string::npos) {
                 contentType = "font/woff";
-            } else if (filePath.find(".woff2") != std::string::npos) {
+            } else if (l_path.find(".woff2") != std::string::npos) {
                 contentType = "font/woff2";
-            } else if (filePath.find(".otf") != std::string::npos) {
+            } else if (l_path.find(".otf") != std::string::npos) {
                 contentType = "font/otf";
-            } else if (filePath.find(".ttf") != std::string::npos) {
+            } else if (l_path.find(".ttf") != std::string::npos) {
                 contentType = "font/ttf";
-            } else if (filePath.find(".csv") != std::string::npos) {
+            } else if (l_path.find(".csv") != std::string::npos) {
                 contentType = "text/csv";
-            } else if (filePath.find(".vtt") != std::string::npos) {
+            } else if (l_path.find(".vtt") != std::string::npos) {
                 contentType = "text/vtt";
-            } else if (filePath.find(".7z") != std::string::npos) {
+            } else if (l_path.find(".7z") != std::string::npos) {
                 contentType = "application/x-7z-compressed";
-            } else if (filePath.find(".atom") != std::string::npos) {
+            } else if (l_path.find(".atom") != std::string::npos) {
                 contentType = "application/atom+xml";
-            } else if (filePath.find(".apng") != std::string::npos) {
+            } else if (l_path.find(".apng") != std::string::npos) {
                 contentType = "image/apng";
-            } else if (filePath.find(".avif") != std::string::npos) {
+            } else if (l_path.find(".avif") != std::string::npos) {
                 contentType = "image/avif";
-            } else if (filePath.find(".bmp") != std::string::npos) {
+            } else if (l_path.find(".bmp") != std::string::npos) {
                 contentType = "image/bmp";
-            } else if (filePath.find(".gif") != std::string::npos) {
+            } else if (l_path.find(".gif") != std::string::npos) {
                 contentType = "image/gif";
-            } else if (filePath.find(".jpeg") != std::string::npos) {
+            } else if (l_path.find(".jpeg") != std::string::npos) {
                 contentType = "image/jpeg";
-            } else if (filePath.find(".rss") != std::string::npos) {
+            } else if (l_path.find(".rss") != std::string::npos) {
                 contentType = "application/rss+xml";
-            } else if (filePath.find(".tif") != std::string::npos) {
+            } else if (l_path.find(".tif") != std::string::npos) {
                 contentType = "image/tiff";
-            } else if (filePath.find(".tiff") != std::string::npos) {
+            } else if (l_path.find(".tiff") != std::string::npos) {
                 contentType = "image/tiff";
-            } else if (filePath.find(".tar") != std::string::npos) {
+            } else if (l_path.find(".tar") != std::string::npos) {
                 contentType = "application/x-tar";
-            } else if (filePath.find(".xhtml") != std::string::npos) {
+            } else if (l_path.find(".xhtml") != std::string::npos) {
                 contentType = "application/xhtml+xml";
-            } else if (filePath.find(".xht") != std::string::npos) {
+            } else if (l_path.find(".xht") != std::string::npos) {
                 contentType = "application/xhtml+xml";
-            } else if (filePath.find(".xslt") != std::string::npos) {
+            } else if (l_path.find(".xslt") != std::string::npos) {
                 contentType = "application/xslt+xml";
-            } else if (filePath.find(".xml") != std::string::npos) {
+            } else if (l_path.find(".xml") != std::string::npos) {
                 contentType = "application/xml";
-            } else if (filePath.find(".gz") != std::string::npos) {
+            } else if (l_path.find(".gz") != std::string::npos) {
                 contentType = "application/gzip";
-            } else if (filePath.find(".zip") != std::string::npos) {
+            } else if (l_path.find(".zip") != std::string::npos) {
                 contentType = "application/zip";
-            } else if (filePath.find(".wasm") != std::string::npos) {
+            } else if (l_path.find(".wasm") != std::string::npos) {
                 contentType = "application/wasm";
-            } else if (filePath.find(".blob") != std::string::npos) {
+            } else if (l_path.find(".blob") != std::string::npos) {
                 contentType = "application/octet-stream";
             } else {
-                CubeLog::warning("Unknown file type: " + filePath);
+                CubeLog::warning("Unknown file type: " + l_path);
                 contentType = "application/octet-stream";
             }
             char* fileData = new char[fileSize];
             memcpy(fileData, buffer.data(), fileSize);
             res.set_content(fileData, fileSize, contentType);
             delete[] fileData;
-            CubeLog::debug("File sent: " + filePath + " (" + std::to_string(fileSize) + " bytes)");
+            CubeLog::debug("File sent: " + l_path + " (" + std::to_string(fileSize) + " bytes)");
             // return std::string("");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         });

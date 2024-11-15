@@ -53,6 +53,7 @@ typedef std::function<EndpointError(const httplib::Request& req, httplib::Respon
 // 4. std::vector<std::string> - The parameters that the endpoint accepts.
 // 5. std::string - A description of the endpoint.
 typedef std::tuple<unsigned int, EndpointAction_t, std::string, std::vector<std::string>, std::string> HttpEndPointDataSinglet_t;
+// TODO: Consider changing this tuple to a struct for better readability. This will involve a bit of refactoring across the codebase.
 
 
 // Type: HttpEndPointData_t - A vector of HttpEndPointDataSinglet_t's

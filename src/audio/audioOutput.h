@@ -1,11 +1,11 @@
-#ifndef WIN32_INCLUDED
-#define WIN32_INCLUDED
+#ifndef AUDIOOUTPUT_H
+#define AUDIOOUTPUT_H
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
 #endif
-#endif
+#endif// AUDIOOUTPUT_H
 #include <RtAudio.h>
 #include <cmath>
 #include <iostream>
@@ -24,7 +24,7 @@ public:
     static void stop();
     static void toggleSound();
     static void setSound(bool soundOn);
-
+    HttpEndPointData_t getHttpEndpointData();
 private:
     static bool audioStarted;
     static std::unique_ptr<RtAudio> dac;

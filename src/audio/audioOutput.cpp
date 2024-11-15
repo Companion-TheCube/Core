@@ -11,6 +11,8 @@ std::unique_ptr<RtAudio> AudioOutput::dac = nullptr;
 
 AudioOutput::AudioOutput()
 {
+    // TODO: load all the audio blobs from the DB.
+    // TODO: load all the audio files from the filesystem.
     CubeLog::info("Initializing audio output.");
 #ifdef __linux__
     RtAudio::Api api = RtAudio::RtAudio::LINUX_PULSE;
@@ -44,7 +46,9 @@ AudioOutput::AudioOutput()
 
     if (dac->openStream(parameters.get(), NULL, RTAUDIO_FLOAT64, 48000, &bufferFrames, &saw, (void*)&userData)) {
         CubeLog::fatal(dac->getErrorText() + " Exiting.");
-        exit(0); // problem with device settings
+        exit(1); // problem with device settings
+        // TODO: Need to have a way to recover from this error.
+        // TODO: Any call to exit should use an enum value to indicate the reason for the exit.
     }
 }
 
@@ -95,6 +99,21 @@ void AudioOutput::setSound(bool soundOn)
     }
 }
 
+
+HttpEndPointData_t AudioOutput::getHttpEndpointData(){
+    HttpEndPointData_t data;
+    data.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
+        [&](const httplib::Request& req, httplib::Response& res) {
+            this->start();
+            CubeLog::info("Endpoint start called.");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Start audio called");
+        },
+        "start", {}, "Start the audio." });
+    return data;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 // Two-channel sawtooth wave generator.
 int saw(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData)
 {
@@ -120,3 +139,4 @@ int saw(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, doubl
     }
     return 0;
 }
+

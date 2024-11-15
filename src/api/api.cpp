@@ -6,8 +6,14 @@
  */
 API::API()
 {
+    // TODO: Since we need to make sure that the entire API is built before letting any clients connect,
+    // We should make a http server that will operate on a different port with public access that lets 
+    // clients know if the API is ready. This will be a simple endpoint that returns a 200 OK if the API
+    // is ready and a 503 Service Unavailable if the API is not ready. Client must wait for a 200 OK before
+    // attempting to connect to the API on the main port / unix socket.
+
     // this->endpoints = std::vector<Endpoint*>();
-    // TODO: // TESTING AUTHENTICATION ////
+    // TODO: // TESTING AUTHENTICATION //// remove
     std::pair<std::string, std::string> keys = CubeAuth::generateKeyPair();
     CubeLog::info("Public key: " + keys.first);
     CubeLog::info("Private key: " + keys.second);

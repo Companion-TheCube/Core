@@ -32,6 +32,8 @@ void AudioManager::setSound(bool soundOn)
 
 HttpEndPointData_t AudioManager::getHttpEndpointData()
 {
+    // TODO: Additional endpoints will be defined in the audioOutput.cpp file and speechIn.cpp file so we
+    //  need to pull those in here and add them to the data vector.
     HttpEndPointData_t data;
     data.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
