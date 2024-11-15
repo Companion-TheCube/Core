@@ -5,7 +5,7 @@
 #define NOMINMAX
 #include <windows.h>
 #endif
-#endif// AUDIOOUTPUT_H
+
 #include <RtAudio.h>
 #include <cmath>
 #include <iostream>
@@ -34,3 +34,5 @@ private:
 };
 
 int saw(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData);
+
+#endif// AUDIOOUTPUT_H
