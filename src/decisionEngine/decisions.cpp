@@ -31,6 +31,71 @@ using namespace DecisionEngine;
 
 // Intent - class that contains the intent data including the action to take
 
+Intent::Intent(const std::string& intentName, const Action& action)
+{
+    this->intentName = intentName;
+    this->action = action;
+}
+
+Intent::Intent(const std::string& intentName, const Action& action, const Parameters& parameters)
+{
+    this->intentName = intentName;
+    this->action = action;
+    this->parameters = parameters;
+}
+
+const std::string& Intent::getIntentName() const
+{
+    return intentName;
+}
+
+const Intent::Parameters& Intent::getParameters() const
+{
+    return parameters;
+}
+
+void Intent::setParameters(const Parameters& parameters)
+{
+    this->parameters = parameters;
+}
+
+void Intent::addParameter(const std::string& key, const std::string& value)
+{
+    parameters[key] = value;
+}
+
+void Intent::execute() const
+{
+    if(action)
+        action(parameters);
+    else
+        throw DecisionEngineError("No action set for intent: " + intentName, DecisionErrorType::NO_ACTION_SET);
+}
+
+const std::string Intent::serialize()
+{
+    nlohmann::json j;
+    j["intentName"] = intentName;
+    j["parameters"] = parameters;
+    return j.dump();
+}
+
+Intent::Action convertJsonToAction(const nlohmann::json& action_json)
+{
+    // TODO: Implement this
+    return nullptr;
+}
+
+std::shared_ptr<Intent> Intent::deserialize(const std::string& serializedIntent)
+{
+    // TODO: This needs checks to ensure properly formatted JSON
+    nlohmann::json j = nlohmann::json::parse(serializedIntent);
+    std::string intentName = j["intentName"];
+    Parameters parameters = j["parameters"];
+    Intent::Action action = convertJsonToAction(j["action"]);
+    return std::make_shared<Intent>(intentName, action, parameters);
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Interface: Transcriber - class that converts audio to text
@@ -55,7 +120,7 @@ using namespace DecisionEngine;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// IntentRouter - class that routes intents to the appropriate class or app
+// IntentRouter - class that routes intents to the appropriate class or app - Maybe don't Need?
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
