@@ -23,7 +23,7 @@ however it is not as accurate as the remote service and we'll have to implement 
 using namespace DecisionEngine;
 
 
-// DecisionEngine - Main class that connects all the other classes together
+// DecisionEngine - Main class that connects all the other classes together - this will need to connect to the personalityManager.
 
 // TheCubeServerAPI - class to interact with TheCube Server API. Will use API key stored in CubeDB. Key is stored encrypted and will be decrypted at load time.
 
@@ -116,16 +116,16 @@ std::shared_ptr<Intent> Intent::deserialize(const std::string& serializedIntent)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// BuiltInIntents - class that contains the built in intents for the system
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 // IntentRouter - class that routes intents to the appropriate class or app - Maybe don't Need?
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // IntentRegistry - class that contains the intents that are registered with the system
 // Need to have Http endpoints for the API that allow other apps to register with the decision engine
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// BuiltInIntents - class that contains the built in intents for the system
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
