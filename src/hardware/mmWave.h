@@ -3,7 +3,7 @@
 #include <string>
 #include <memory>
 #include <logger.h>
-#ifdef __linux__
+#ifdef ___linux__
 #include <wiringPi.h>
 #include <wiringSerial.h>
 #include <iostream>

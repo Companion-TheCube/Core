@@ -1,6 +1,6 @@
 #include "mmWave.h"
 
-#ifdef _WIN32
+#ifndef ___linux__
 int wiringPiSetup() { return -1; }
 int serialOpen(const char* port, int baud) { return -1; }
 void serialPuts(int port, char* data) { }

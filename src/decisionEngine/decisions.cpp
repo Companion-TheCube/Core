@@ -1,4 +1,22 @@
 /*
+████████╗██╗  ██╗███████╗                                
+╚══██╔══╝██║  ██║██╔════╝                                
+   ██║   ███████║█████╗                                  
+   ██║   ██╔══██║██╔══╝                                  
+   ██║   ██║  ██║███████╗                                
+   ╚═╝   ╚═╝  ╚═╝╚══════╝                                
+██████╗ ███████╗ ██████╗██╗███████╗██╗ ██████╗ ███╗   ██╗
+██╔══██╗██╔════╝██╔════╝██║██╔════╝██║██╔═══██╗████╗  ██║
+██║  ██║█████╗  ██║     ██║███████╗██║██║   ██║██╔██╗ ██║
+██║  ██║██╔══╝  ██║     ██║╚════██║██║██║   ██║██║╚██╗██║
+██████╔╝███████╗╚██████╗██║███████║██║╚██████╔╝██║ ╚████║
+╚═════╝ ╚══════╝ ╚═════╝╚═╝╚══════╝╚═╝ ╚═════╝ ╚═╝  ╚═══╝
+███████╗███╗   ██╗ ██████╗ ██╗███╗   ██╗███████╗         
+██╔════╝████╗  ██║██╔════╝ ██║████╗  ██║██╔════╝         
+█████╗  ██╔██╗ ██║██║  ███╗██║██╔██╗ ██║█████╗           
+██╔══╝  ██║╚██╗██║██║   ██║██║██║╚██╗██║██╔══╝           
+███████╗██║ ╚████║╚██████╔╝██║██║ ╚████║███████╗         
+╚══════╝╚═╝  ╚═══╝ ╚═════╝ ╚═╝╚═╝  ╚═══╝╚══════╝         
 
 The decision engine will be responsible for making decisions based on the intent of the user.
 It will provide API endpoints for other apps on the system to interact with it.
@@ -31,17 +49,54 @@ using namespace DecisionEngine;
 
 // Intent - class that contains the intent data including the action to take
 
+/**
+ * @brief Construct a new Intent object with no parameters
+ * briefDesc and responseString will be set to empty strings. Call setBriefDesc and setResponseString to set these values. *
+ * @param intentName 
+ * @param action 
+ */
 Intent::Intent(const std::string& intentName, const Action& action)
 {
     this->intentName = intentName;
     this->action = action;
+    this->briefDesc = "";
+    this->responseString = "";
 }
 
+/**
+ * @brief Construct a new Intent object
+ * briefDesc and responseString will be set to empty strings. Call setBriefDesc and setResponseString to set these values. * 
+ * @param intentName 
+ * @param action 
+ * @param parameters 
+ */
 Intent::Intent(const std::string& intentName, const Action& action, const Parameters& parameters)
 {
     this->intentName = intentName;
     this->action = action;
     this->parameters = parameters;
+    this->briefDesc = "";
+    this->responseString = "";
+}
+
+/**
+ * @brief Construct a new Intent object
+ * 
+ * @param intentName 
+ * @param action 
+ * @param parameters 
+ * @param briefDesc 
+ * @param responseString This is the string that will be returned to the user when the intent is executed.
+ * This string can contain placeholders for the parameters. The placeholders will be replaced with the actual values.
+ * The placeholders should be in the format ${parameterName}
+ */
+Intent::Intent(const std::string& intentName, const Action& action, const Parameters& parameters, const std::string& briefDesc, const std::string& responseString)
+{
+    this->intentName = intentName;
+    this->action = action;
+    this->parameters = parameters;
+    this->briefDesc = briefDesc;
+    this->responseString = responseString;
 }
 
 const std::string& Intent::getIntentName() const
@@ -80,6 +135,11 @@ const std::string Intent::serialize()
     return j.dump();
 }
 
+/**
+ * @brief Convert a JSON object to an Intent::Action. USed to convert a serialized intent to a callable action. * 
+ * @param action_json 
+ * @return Intent::Action 
+ */
 Intent::Action convertJsonToAction(const nlohmann::json& action_json)
 {
     // TODO: Implement this
@@ -96,6 +156,47 @@ std::shared_ptr<Intent> Intent::deserialize(const std::string& serializedIntent)
     return std::make_shared<Intent>(intentName, action, parameters);
 }
 
+const std::string& Intent::getBriefDesc() const
+{
+    return briefDesc;
+}
+
+const std::string Intent::getResponseString()
+{
+    // Parse the response string and replace the placeholders with the actual values
+    std::string temp = responseString;
+    bool allParamsFound = true;
+    for(auto& param : parameters)
+    {
+        std::string placeholder = "${" + param.first + "}";
+        size_t pos = temp.find(placeholder);
+        if(pos != std::string::npos) temp.replace(pos, placeholder.length(), param.second);
+        else allParamsFound = false;
+    }
+    if(!allParamsFound) CubeLog::warning("Not all parameters found in response string for intent: " + intentName);
+    return temp;
+}
+
+void Intent::setResponseString(const std::string& responseString)
+{
+    this->responseString = responseString;
+}
+
+void Intent::setSerializedData(const std::string& serializedData)
+{
+    this->serializedData = serializedData;
+}
+
+const std::string& Intent::getSerializedData() const
+{
+    return serializedData;
+}
+
+void Intent::setBriefDesc(const std::string& briefDesc)
+{
+    this->briefDesc = briefDesc;
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Interface: Transcriber - class that converts audio to text
@@ -106,26 +207,71 @@ std::shared_ptr<Intent> Intent::deserialize(const std::string& serializedIntent)
 
 // Interface: IntentDetection - class that determines the intent of the user
 // LocalIntentDetection - class that determines the intent of the user
-// RemoteIntentRecognition - class that converts intent to action using the TheCube Server API
+// RemoteIntentDetection - class that converts intent to action using the TheCube Server API
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// Interface: IntentRecognition - class that converts intent to action
-// RemoteIntentRecognition - class that converts intent to action using the TheCube Server API
-// LocalIntentRecognition - class that converts intent to action locally
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// IntentRouter - class that routes intents to the appropriate class or app - Maybe don't Need?
+// LocalIntentExecutor - class that converts intent to action locally
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // IntentRegistry - class that contains the intents that are registered with the system
 // Need to have Http endpoints for the API that allow other apps to register with the decision engine
+IntentRegistry::IntentRegistry()
+{
+    // Register built in intents
+    // registerIntent("test", Intent("test", [](const Intent::Parameters& params) { CubeLog::info("Test intent executed"); }));
+}
+
+bool IntentRegistry::registerIntent(const std::string& intentName, const Intent& intent)
+{
+    // Check if the intent is already registered
+    if(intentMap.find(intentName) != intentMap.end()) return false;
+    intentMap[intentName] = intent;
+    return true;
+}
+
+bool IntentRegistry::unregisterIntent(const std::string& intentName)
+{
+    // Check if the intent is registered
+    if(intentMap.find(intentName) == intentMap.end()) return false;
+    intentMap.erase(intentName);
+    return true;
+}
+
+std::shared_ptr<Intent> IntentRegistry::getIntent(const std::string& intentName)
+{
+    if(intentMap.find(intentName) == intentMap.end()) return nullptr;
+    return std::make_shared<Intent>(intentMap[intentName]);
+}
+
+std::vector<std::string> IntentRegistry::getIntentNames()
+{
+    std::vector<std::string> intentNames;
+    for(auto& intent : intentMap) intentNames.push_back(intent.first);
+    return intentNames;
+}
+
+HttpEndPointData_t IntentRegistry::getHttpEndpointData()
+{
+    HttpEndPointData_t data;
+    // TODO: 
+    // 1. Register an Intent
+    // 2. Unregister an Intent
+    // 3. Get an Intent
+    // 4. Get all Intent Names
+    return data;
+}
+
+std::string IntentRegistry::getInterfaceName() const
+{
+    return "IntentRegistry";
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// BuiltInIntents - class that contains the built in intents for the system
+// BuiltInIntents - This should be a function or data structure that contains all the built in intents for the system. IntentRegistry
+// constructor should call this function to register all the built in intents.
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -146,4 +292,10 @@ DecisionEngineError::DecisionEngineError(const std::string& message, DecisionErr
     this->errorType = errorType;
     CubeLog::error("DecisionEngineError: " + message);
     errorCount++;
+}
+
+/// Just testing that we can compile with whisper stuff
+void whisperLoop(){
+    struct whisper_context_params cparams = whisper_context_default_params();
+    auto ctx = whisper_init_from_file_with_params("whisper-en-us-tdnn", cparams);
 }

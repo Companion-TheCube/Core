@@ -79,6 +79,22 @@ FetchContent_Declare(SFML
     GIT_TAG 2.6.x)
 FetchContent_MakeAvailable(SFML)
 include(FetchContent)
+FetchContent_Declare(WhisperCPP
+    GIT_REPOSITORY https://github.com/ggerganov/whisper.cpp.git
+    GIT_TAG master
+)
+FetchContent_MakeAvailable(WhisperCPP)
+include(FetchContent)
+
+file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/libraries)
+file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/libraries/whisper_models)
+set(WHISPER_MODELS_DIR ${CMAKE_SOURCE_DIR}/libraries/whisper_models)
+if(NOT EXISTS ${WHISPER_MODELS_DIR}/large.bin)
+    file(DOWNLOAD
+    https://huggingface.co/ggerganov/whisper.cpp/blob/main/ggml-large-v3-turbo-q8_0.bin
+        ${WHISPER_MODELS_DIR}/large.bin
+    )
+endif()
 
 # if(WIN32)
 #     set(CMAKE_PREFIX_PATH C:/Qt6/6.8.0/msvc2022_64)
@@ -126,8 +142,7 @@ if(NOT rtaudio_POPULATED)
     include_directories(${rtaudio_SOURCE_DIR})
 endif()
 
-# Create libraries directory if it doesn't exist
-file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/libraries)
+
 
 set(DOCTEST_HEADER ${CMAKE_SOURCE_DIR}/libraries/doctest.h)
 
@@ -147,6 +162,8 @@ if(NOT EXISTS ${HTTPLIB_HEADER})
         ${HTTPLIB_HEADER}
     )
 endif()
+
+find_package(OpenSSL REQUIRED)
 
 set(ARGPARSE_HEADER ${CMAKE_SOURCE_DIR}/libraries/argparse.hpp)
 
@@ -272,7 +289,8 @@ add_executable(CubeCore ${SOURCES})
 if(WIN32)
     set(WIRINGPI_LIB "")
 else()
-    set(WIRINGPI_LIB "wiringPi")
+    # set(WIRINGPI_LIB "wiringPi")
+    set(WIRINGPI_LIB "")
 endif()
 # Link libraries
 target_link_libraries(CubeCore PRIVATE
@@ -289,10 +307,10 @@ target_link_libraries(CubeCore PRIVATE
     sqlite3
     ${SODIUM_LIBRARIES}
     # Qt6::Core
-    # Qt6::SerialPort
-    # ${SERIALPORT_LIB}
-    # ${QT6CORE_LIB}
-    ${WIRINGPI_LIB}
+    # Qt6::SerialPort${WIRINGPI_LIB}
+    whisper
+    OpenSSL::SSL
+    OpenSSL::Crypto
 )
 
 # set_target_properties(CubeCore PROPERTIES
@@ -311,7 +329,8 @@ if(WIN32)
         ${GLEW_INCLUDE_DIRS}
         ${SFML_INCLUDE_DIR}
         "C:/Users/Andrew/Documents/glm-1.0.1-light"
-    )
+        ${whispercpp_SOURCE_DIR}
+   )
 else()
     target_include_directories(CubeCore PRIVATE
         ${PROJECT_SOURCE_DIR}/src/libs
@@ -319,6 +338,7 @@ else()
         ${OPENGL_INCLUDE_DIRS}
         ${GLEW_INCLUDE_DIRS}
         ${SFML_INCLUDE_DIR}
+        ${whispercpp_SOURCE_DIR}
     )
 endif()
 
