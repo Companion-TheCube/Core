@@ -78,3 +78,5 @@ Please read [CODE_OF_CONDUCT.md]() for details on our code of conduct.
 ## Acknowledgments
 * Hat tip to ChatGPT for all the help
 * Inspiration: I saw a video on [YouTube](https://youtu.be/KgEp91__0cY?t=170) that showed an Eilik Robot and thought it was dumb. Decided to make my own version that would be more useful.
+
+https://patorjk.com/software/taag/#p=display&h=0&v=0&f=ANSI%20Shadow&t=The%0ADecision%0AEngine
