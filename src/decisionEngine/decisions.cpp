@@ -129,6 +129,16 @@ std::shared_ptr<Intent> Intent::deserialize(const std::string& serializedIntent)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// Scheduler - class that schedules intents. This class will be responsible for storing triggers and references to the intents that 
+// they trigger. It will also be responsible for monitoring the states of the triggers and triggering the intents when the triggers are activated.
+// This class will need to have a thread that runs in the background to monitor the triggers.
+
+// Interface: Trigger - class that triggers intents. Stores a reference to whatever state it is monitoring.
+// TimeBasedTrigger - class that triggers intents based on time
+// EventBasedTrigger - class that triggers intents based on events
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 uint32_t DecisionEngineError::errorCount = 0;
 // DecisionError - class that extends std::runtime_error and contains the error message
 DecisionEngineError::DecisionEngineError(const std::string& message, DecisionErrorType errorType) : std::runtime_error(message)

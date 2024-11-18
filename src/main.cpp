@@ -225,79 +225,44 @@ int main(int argc, char* argv[])
         CubeLog::info("Blob ID: " + std::to_string(blobID));
         bool allInsertionsSuccess = true;
         long dbInsertReturnVal = -1;
-// TODO: All the base apps should be inserted into the database and/or verified in the database here.
-#ifdef __linux__
+        // TODO: All the base apps should be inserted into the database and/or verified in the database here.
         dbInsertReturnVal = CubeDB::getDBManager()->getDatabase("apps")->insertData(
             DB_NS::TableNames::APPS,
-            {
-                { "app_id", "1" },
+            { { "app_id", "2" },
                 { "app_name", "ConsoleApp1" },
                 { "role", DB_NS::Roles::NATIVE_APP },
-                { "exec_path", "apps/consoleApp1/consoleApp1" },
-                { "exec_args", "arg5 arg6 arg7 arg8" },
-                { "app_source", "test source" },
-                { "update_path", "test update path" },
-                { "update_last_check", "test last check" },
-                { "update_last_update", "test last update" },
-                { "update_last_fail", "test last fail" },
-                { "update_last_fail_reason", "test last fail reason" }
-            }
-        ); // test insert
-        allInsertionsSuccess &= (-1 < dbInsertReturnVal);
-        dbInsertReturnVal = CubeDB::getDBManager()->getDatabase("apps")->insertData(
-            DB_NS::TableNames::APPS,
-            {
-                { "app_id", "2" },
-                { "app_name", "ConsoleApp2" },
-                { "role", DB_NS::Roles::NATIVE_APP },
-                { "exec_path", "apps/consoleApp1/consoleApp1" },
-                { "exec_args", "arg9 arg10 arg11 arg12" },
-                { "app_source", "test source" },
-                { "update_path", "test update path" },
-                { "update_last_check", "test last check" },
-                { "update_last_update", "test last update" },
-                { "update_last_fail", "test last fail" },
-                { "update_last_fail_reason", "test last fail reason" }
-            }
-        );
-        allInsertionsSuccess &= (-1 < dbInsertReturnVal);
-#endif
 #ifdef _WIN32
-        dbInsertReturnVal = CubeDB::getDBManager()->getDatabase("apps")->insertData(
-            DB_NS::TableNames::APPS,
-            {
-                { "app_id", "2" },
-                { "app_name", "ConsoleApp1" },
-                { "role", DB_NS::Roles::NATIVE_APP },
                 { "exec_path", "apps/consoleApp1.exe" },
+#else
+                { "exec_path", "apps/consoleApp1/consoleApp1" },
+#endif
                 { "exec_args", "arg1 arg2 arg3 arg4" },
                 { "app_source", "test source" },
                 { "update_path", "test update path" },
                 { "update_last_check", "test last check" },
                 { "update_last_update", "test last update" },
                 { "update_last_fail", "test last fail" },
-                { "update_last_fail_reason", "test last fail reason" }
-            }
-        ); // test insert
+                { "update_last_fail_reason", "test last fail reason" } }); // test insert
         allInsertionsSuccess &= (-1 < dbInsertReturnVal);
         dbInsertReturnVal = CubeDB::getDBManager()->getDatabase("apps")->insertData(
             DB_NS::TableNames::APPS,
-            {
-                { "app_id", "3" },
+            { { "app_id", "3" },
                 { "app_name", "ConsoleApp2" },
                 { "role", DB_NS::Roles::NATIVE_APP },
+#ifdef _WIN32
                 { "exec_path", "apps/consoleApp1.exe" },
+#else
+                { "exec_path", "apps/consoleApp1/consoleApp1" },
+#endif
                 { "exec_args", "arg5 arg6 arg7 arg8" },
                 { "app_source", "test source" },
                 { "update_path", "test update path" },
                 { "update_last_check", "test last check" },
                 { "update_last_update", "test last update" },
                 { "update_last_fail", "test last fail" },
-                { "update_last_fail_reason", "test last fail reason" }
-            }
-        ); // test insert
+                { "update_last_fail_reason", "test last fail reason" } }); // test insert
         allInsertionsSuccess &= (-1 < dbInsertReturnVal);
-#endif
+        // TODO: add the insert for the openwakeword python script here. This will be a native app and will use the python executable in the openwakeword/venv/bin(Linux) or openwakeword/Scripts(Windows) directory.
         if (!allInsertionsSuccess)
             CubeLog::warning("Failed to insert data into database. Last error: " + CubeDB::getDBManager()->getDatabase("apps")->getLastError());
         // end testing //////////////////////////////////////////////

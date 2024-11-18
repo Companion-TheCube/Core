@@ -958,7 +958,7 @@ void GUI::eventLoop()
     auto notificationsMenu_RecentNotifications = createANewSubMenu(_("Recent Notifications"), "Recent Notifications", notificationsMenu);
     this->renderer->addSetupTask([&notificationsMenu_RecentNotifications, addBackButton, addToParent]() {
         addBackButton(notificationsMenu_RecentNotifications);
-        // TODO: list all the recent notifications. we'll need to determine the max number of notificaitons to show,
+        // TODO: list all the recent notifications. we'll need to determine the max number of notifications to show,
         // then create that many entries and set them up to pull the notification data from the notification manager
         // and update the text of the title from the notification. then when the user clicks/taps, we'll pop up a
         // message box with the full notification text.
@@ -1837,6 +1837,7 @@ HttpEndPointData_t GUI::getHttpEndpointData()
     - addCharacter
     - removeCharacter
     - animateCharacter
+    - disableGUI (for when the emulator is running)
     */
     HttpEndPointData_t actions;
     actions.push_back(

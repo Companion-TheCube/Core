@@ -4,8 +4,8 @@
 NOTES:
 Because of how the HDMI output works, we will have to have a constant output and modulate the code to change the sound.
 
-There will need to be a class (or something) that can take in sounds (ether buffers or file paths) and play them. 
-This class will need to be able to play multiple sounds at once. 
+There will need to be a class (or something) that can take in sounds (ether buffers or file paths) and play them.
+This class will need to be able to play multiple sounds at once.
 */
 
 UserData AudioOutput::userData = { 0.0, 0.0, false };
@@ -26,21 +26,37 @@ AudioOutput::AudioOutput()
     // TODO: The RTAudio instance needs to be instantiated in the audioManager and passed to this class and to the speechIn class.
     std::vector<unsigned int> deviceIds = dac->getDeviceIds();
     std::vector<std::string> deviceNames = dac->getDeviceNames();
+
     if (deviceIds.size() < 1) {
         CubeLog::fatal("No audio devices found. Exiting.");
         exit(0);
     }
     CubeLog::info("Audio devices found: " + std::to_string(deviceIds.size()));
-    for (auto device : deviceNames) {
-        CubeLog::moreInfo("Device: " + device);
+    for (size_t i = 0; i < deviceNames.size(); i++) {
+        CubeLog::moreInfo("Device (" + std::to_string(deviceIds.at(i)) + "): " + deviceNames.at(i));
     }
 
     parameters = std::make_unique<RtAudio::StreamParameters>();
     CubeLog::info("Setting up audio stream with default audio device.");
-    parameters->deviceId = dac->getDefaultOutputDevice();
+    parameters->deviceId = 130;// dac->getDefaultOutputDevice();
     // find the device name for the audio device id
     std::string deviceName = dac->getDeviceInfo(parameters->deviceId).name;
     CubeLog::info("Using audio device: " + deviceName);
+    RtAudioFormat format = dac->getDeviceInfo(parameters->deviceId).nativeFormats;
+    std::string formatStr = "";
+    if (format & RTAUDIO_SINT8)
+        formatStr += "SINT8 ";
+    if (format & RTAUDIO_SINT16)
+        formatStr += "SINT16 ";
+    if (format & RTAUDIO_SINT24)
+        formatStr += "SINT24 ";
+    if (format & RTAUDIO_SINT32)
+        formatStr += "SINT32 ";
+    if (format & RTAUDIO_FLOAT32)
+        formatStr += "FLOAT32 ";
+    if (format & RTAUDIO_FLOAT64)
+        formatStr += "FLOAT64 ";
+    CubeLog::info("Audio device format: " + formatStr);
     parameters->nChannels = 2;
     parameters->firstChannel = 0;
     userData.data[0] = 0;
@@ -84,7 +100,7 @@ void AudioOutput::toggleSound()
 {
     userData.soundOn = !userData.soundOn;
     if (userData.soundOn) {
-        if(!audioStarted)
+        if (!audioStarted)
             AudioOutput::start();
         CubeLog::info("Sound on.");
     } else {
@@ -102,8 +118,8 @@ void AudioOutput::setSound(bool soundOn)
     }
 }
 
-
-HttpEndPointData_t AudioOutput::getHttpEndpointData(){
+HttpEndPointData_t AudioOutput::getHttpEndpointData()
+{
     HttpEndPointData_t data;
     data.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
@@ -142,4 +158,3 @@ int saw(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, doubl
     }
     return 0;
 }
-
