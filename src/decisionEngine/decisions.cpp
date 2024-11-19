@@ -47,6 +47,9 @@ DecisionEngineMain::DecisionEngineMain()
     // transcriber = std::make_shared<Whisper>();
     intentRegistry = std::make_shared<IntentRegistry>();
     intentRecognition = std::make_shared<LocalIntentRecognition>(intentRegistry);
+
+
+    // TODO: remove this test code
     for(size_t i = 0; i < 20; i++){
         IntentCTorParams params;
         params.intentName = "Test Intent" + std::to_string(i);
@@ -78,10 +81,12 @@ std::shared_ptr<IntentRegistry> DecisionEngineMain::getIntentRegistry()
     return intentRegistry;
 }
 
-// TheCubeServerAPI - class to interact with TheCube Server API. Will use API key stored in CubeDB. Key is stored encrypted and will be decrypted at load time.
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// TheCubeServerAPI - class to interact with TheCube Server API. Will use API key stored in CubeDB. Key is stored encrypted and will be decrypted at load time.
+// TODO: Implement this class
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Intent - class that contains the intent data including the action to take
 
 /**
@@ -277,7 +282,7 @@ void Intent::setBriefDesc(const std::string& briefDesc)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+// TODO:
 // Interface: Transcriber - class that converts audio to text
 // LocalTranscriber - class that interacts with the whisper.cpp library
 // RemoteTranscriber - class that interacts with the TheCube Server API
@@ -382,8 +387,10 @@ LocalIntentRecognition::~LocalIntentRecognition()
     // }
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // RemoteIntentRecognition - class that converts intent to action using the TheCube Server API
+// TODO:
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -391,8 +398,12 @@ LocalIntentRecognition::~LocalIntentRecognition()
 // Need to have Http endpoints for the API that allow other apps to register with the decision engine
 IntentRegistry::IntentRegistry()
 {
-    // Register built in intents
-    // registerIntent("test", Intent("test", [](const Intent::Parameters& params) { CubeLog::info("Test intent executed"); }));
+    for(auto& intent : getSystemIntents()){
+        auto newIntent = std::make_shared<Intent>(intent);
+        if(!registerIntent(intent.intentName, newIntent))
+            CubeLog::error("Failed to register intent: " + intent.intentName);
+    }
+    
     // TODO: remove this. Testing only.
     httplib::Client cli("https://dummyjson.com");
     auto res = cli.Get("/test");
@@ -444,7 +455,7 @@ HttpEndPointData_t IntentRegistry::getHttpEndpointData()
 {
     HttpEndPointData_t data;
     // TODO: 
-    // 1. Register an Intent
+    // 1. Register an Intent - This will need to take a JSON string object that contains the intent data and pass it to the deserialize function of the Intent class.
     // 2. Unregister an Intent
     // 3. Get an Intent
     // 4. Get all Intent Names
@@ -458,15 +469,35 @@ std::string IntentRegistry::getInterfaceName() const
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// BuiltInIntents - This should be a function or data structure that contains all the built in intents for the system. IntentRegistry
-// constructor should call this function to register all the built in intents.
+/**
+ * @brief Get all the built-in system intents
+ * @return std::vector<IntentCTorParams> 
+ */
+std::vector<IntentCTorParams> getSystemIntents()
+{
+    std::vector<IntentCTorParams> intents;
+    // Test intent
+    IntentCTorParams testIntent;
+    testIntent.intentName = "Test Intent";
+    testIntent.action = [](const Parameters& params, Intent intent) {
+        CubeLog::info("Test intent executed");
+    };
+    testIntent.briefDesc = "Test intent description";
+    testIntent.responseString = "Test intent response";
+    testIntent.type = Intent::IntentType::COMMAND;
+    intents.push_back(testIntent);
+    // TODO: define all the system intents. this should include things like "What time is it?" and "What apps are installed?"
+    // Should also include some pure command intents like "Do a flip" or "What was that last notification?"
+    return intents;
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+// TODO:
 // Scheduler - class that schedules intents. This class will be responsible for storing triggers and references to the intents that 
 // they trigger. It will also be responsible for monitoring the states of the triggers and triggering the intents when the triggers are activated.
 // This class will need to have a thread that runs in the background to monitor the triggers.
-
+// This class will also need to implement the API interface so that other apps can interact with it.
+// TODO:
 // Interface: Trigger - class that triggers intents. Stores a reference to whatever state it is monitoring.
 // TimeBasedTrigger - class that triggers intents based on time
 // EventBasedTrigger - class that triggers intents based on events
@@ -474,7 +505,6 @@ std::string IntentRegistry::getInterfaceName() const
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 uint32_t DecisionEngineError::errorCount = 0;
-// DecisionError - class that extends std::runtime_error and contains the error message
 DecisionEngineError::DecisionEngineError(const std::string& message, DecisionErrorType errorType) : std::runtime_error(message)
 {
     this->errorType = errorType;
