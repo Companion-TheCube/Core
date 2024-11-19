@@ -43,14 +43,13 @@ mmWave::mmWave()
                 CubeLog::info("Detection Distance: " + std::to_string(this->detectionDistance));
                 lastPrintTime = millis();
             }
+            genericSleep(10);
         }
     });
 }
 
 mmWave::~mmWave()
 {
-    this->readerThread->request_stop();
-    this->readerThread->join();
 }
 
 Response mmWave::sendCommand(std::vector<uint8_t> command)

@@ -169,7 +169,7 @@ public:
 
 class CubeDatabaseManager {
     std::vector<Database*> databases;
-    TaskQueue dbQueue;
+    TaskQueue<std::function<void()>> dbQueue;
     std::jthread dbThread;
     std::stop_token dbStopToken;
     void dbWorker();

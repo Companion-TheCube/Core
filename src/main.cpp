@@ -270,7 +270,7 @@ int main(int argc, char* argv[])
         auto api = std::make_shared<API>();
         auto auth = std::make_shared<CubeAuth>();
         auto peripherals = std::make_shared<PeripheralManager>();
-        auto decisions = std::make_shared<DecisionEngine::IntentRegistry>();
+        auto decisions = std::make_shared<DecisionEngine::DecisionEngineMain>();
         API_Builder api_builder(api);
         api_builder.addInterface(gui);
         api_builder.addInterface(cubeDB);
@@ -280,6 +280,7 @@ int main(int argc, char* argv[])
         // api_builder.addInterface(wifiManager);
         api_builder.addInterface(btManager);
         // api_builder.addInterface(peripherals);
+        api_builder.addInterface(decisions->getIntentRegistry());
         api_builder.start();
         CubeLog::info("Entering main loop...");
         std::chrono::milliseconds aSecond(1000);

@@ -27,9 +27,11 @@
 
 #ifndef _TASK_QUEUE_H_
 #define _TASK_QUEUE_H_
+template <typename T>
 class TaskQueue {
 public:
-    void push(std::function<void()> task)
+    TaskQueue(){};
+    void push(T task)
     {
         {
             std::lock_guard<std::mutex> lock(mutex_);
@@ -37,7 +39,7 @@ public:
         }
         condition_.notify_one();
     }
-    std::function<void()> pop()
+    T pop()
     {
         std::unique_lock<std::mutex> lock(mutex_);
         condition_.wait(lock, [this] { return !tasks_.empty(); });
@@ -45,7 +47,7 @@ public:
         tasks_.pop_back();
         return task;
     }
-    std::function<void()> shift()
+    T shift()
     {
         std::unique_lock<std::mutex> lock(mutex_);
         condition_.wait(lock, [this] { return !tasks_.empty(); });
@@ -53,12 +55,12 @@ public:
         tasks_.erase(tasks_.begin());
         return task;
     }
-    std::function<void()> peek()
+    T peek()
     {
         std::lock_guard<std::mutex> lock(mutex_);
         return tasks_.front();
     }
-    std::function<void()> peek(int index)
+    T peek(int index)
     {
         std::lock_guard<std::mutex> lock(mutex_);
         return tasks_.at(index);
@@ -70,10 +72,70 @@ public:
     }
 
 private:
-    std::vector<std::function<void()>> tasks_;
+    std::vector<T> tasks_;
     std::mutex mutex_;
     std::condition_variable condition_;
 };
+
+template <typename T, typename D>
+class TaskQueueWithData {
+public:
+    TaskQueueWithData(){};
+    void push(T task, D data)
+    {
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            tasks_.push_back(std::move(task));
+            data_.push_back(std::move(data));
+        }
+        condition_.notify_one();
+    }
+    T pop()
+    {
+        std::unique_lock<std::mutex> lock(mutex_);
+        condition_.wait(lock, [this] { return !tasks_.empty(); });
+        auto task = std::move(tasks_.back());
+        tasks_.pop_back();
+        return task;
+    }
+    T shift()
+    {
+        std::unique_lock<std::mutex> lock(mutex_);
+        condition_.wait(lock, [this] { return !tasks_.empty(); });
+        auto task = std::move(tasks_.front());
+        tasks_.erase(tasks_.begin());
+        return task;
+    }
+    T peek()
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return tasks_.front();
+    }
+    T peek(int index)
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return tasks_.at(index);
+    }
+    size_t size()
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return tasks_.size();
+    }
+    D dataPop()
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto data = std::move(data_.back());
+        data_.pop_back();
+        return data;
+    }
+
+private:
+    std::vector<T> tasks_;
+    std::vector<D> data_;
+    std::mutex mutex_;
+    std::condition_variable condition_;
+};
+
 #endif
 
 #define INIT_COUNTDOWN_TOTAL 1

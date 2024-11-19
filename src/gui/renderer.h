@@ -48,8 +48,8 @@ class Renderer{
         Shader* meshShader;
         Shader* textShader;
         Shader* stencilShader;
-        TaskQueue setupQueue;
-        TaskQueue loopQueue;
+        TaskQueue<std::function<void()>> setupQueue;
+        TaskQueue<std::function<void()>> loopQueue;
         std::atomic<bool> ready = false;
         std::latch* latch;
     public:

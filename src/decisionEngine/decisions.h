@@ -3,6 +3,7 @@
 
 #include "../database/cubeDB.h"
 #include <logger.h>
+#include "utils.h"
 #include <stdexcept>
 #include <string>
 #include <iostream>
@@ -16,7 +17,18 @@
 #define CPPHTTPLIB_OPENSSL_SUPPORT
 #include "httplib.h"
 
+#define LOCAL_INTENT_RECOGNITION_THREAD_COUNT 4
+#define LOCAL_INTENT_RECOGNITION_THREAD_SLEEP_MS 100
+
 namespace DecisionEngine {
+class Intent;
+struct IntentCTorParams;
+
+using Parameters = std::unordered_map<std::string, std::string>;
+using Action = std::function<void(const Parameters&, Intent)>;
+
+
+
 enum class DecisionErrorType {
     ERROR_NONE,
     INVALID_PARAMS,
@@ -33,25 +45,32 @@ public:
 };
 
 class Intent{
-    public:
+public:
+    // TODO: add a mutex so that the calling of execute can be thread safe
+    enum class IntentType {
+        QUESTION,
+        COMMAND
+    }type;
+
     /**
      * @brief Parameters for the intent
      * The parameters are key value pairs that are used to pass data to the action function. 
      * The first string is the key and the second string is the value. The key can be used
      * in response string to insert the value. See responseString for more information.
      */
-    using Parameters = std::unordered_map<std::string, std::string>;
-    using Action = std::function<void(const Parameters&)>;
 
     Intent(){};
     Intent(const std::string& intentName, const Action& action);
     Intent(const std::string& intentName, const Action& action, const Parameters& parameters);
     Intent(const std::string& intentName, const Action& action, const Parameters& parameters, const std::string& briefDesc, const std::string& responseString);
+    Intent(const std::string& intentName, const Action& action, const Parameters& parameters, const std::string& briefDesc, const std::string& responseString, Intent::IntentType type);
+    Intent(IntentCTorParams params);
 
     const std::string& getIntentName() const;
     const Parameters& getParameters() const;
 
     void setParameters(const Parameters& parameters);
+    bool setParameter(const std::string& key, const std::string& value);
     void addParameter(const std::string& key, const std::string& value);
 
     void execute() const;
@@ -62,7 +81,7 @@ class Intent{
 
     const std::string& getSerializedData() const;
     const std::string& getBriefDesc() const;
-    const std::string getResponseString();
+    const std::string getResponseString()const;
     void setResponseString(const std::string& responseString);
     void setBriefDesc(const std::string& briefDesc);
 
@@ -80,13 +99,24 @@ private:
     std::string serializedData;
 };
 
+struct IntentCTorParams{
+    IntentCTorParams(){};
+    std::string intentName = "";
+    Action action = nullptr;
+    Parameters parameters = Parameters();
+    std::string briefDesc = "";
+    std::string responseString = "";
+    Intent::IntentType type = Intent::IntentType::COMMAND;
+};
+
 class IntentRegistry : public I_API_Interface{
 public:
     IntentRegistry();
-    bool registerIntent(const std::string& intentName, const Intent& intent);
+    bool registerIntent(const std::string& intentName, const std::shared_ptr<Intent> intent);
     bool unregisterIntent(const std::string& intentName);
     std::shared_ptr<Intent> getIntent(const std::string& intentName);
     std::vector<std::string> getIntentNames();
+    std::vector<std::shared_ptr<Intent>>  getRegisteredIntents();
     // API Interface
     HttpEndPointData_t getHttpEndpointData() override;
     std::string getInterfaceName() const override;
@@ -94,7 +124,7 @@ private:
     /**
      * @brief Map of intent names to intents
      */
-    std::unordered_map<std::string, Intent> intentMap;
+    std::unordered_map<std::string, std::shared_ptr<Intent>> intentMap;
 };
 
 class Whisper{
@@ -108,15 +138,24 @@ private:
 class I_IntentRecognition {
 public:
     virtual ~I_IntentRecognition() = default;
-    virtual std::shared_ptr<Intent> recognizeIntent(const std::string& intentString) = 0;
+    virtual std::shared_ptr<Intent> recognizeIntent(const std::string& name, const std::string& intentString) = 0;
+    virtual bool recognizeIntentAsync(const std::string& intentString, std::function<void(std::shared_ptr<Intent>)> callback) = 0;
+    virtual bool recognizeIntentAsync(const std::string& intentString) = 0;
     std::shared_ptr<IntentRegistry> intentRegistry;
 };
 
 class LocalIntentRecognition : public I_IntentRecognition{
+    
 public:
     LocalIntentRecognition(std::shared_ptr<IntentRegistry> intentRegistry);
-    std::shared_ptr<Intent> recognizeIntent(const std::string& intentString) override;
+    ~LocalIntentRecognition();
+    bool recognizeIntentAsync(const std::string& intentString, std::function<void(std::shared_ptr<Intent>)> callback) override;
+    bool recognizeIntentAsync(const std::string& intentString) override;
 private:
+    std::shared_ptr<Intent> recognizeIntent(const std::string&  name, const std::string& intentString) override;
+    std::vector<std::jthread*> recognitionThreads;
+    std::vector<std::shared_ptr<TaskQueueWithData<std::function<void()>, std::string>>> taskQueues;
+    bool threadsReady = false;
     // Pattern matching
     // Weighted pattern matching
     // Machine learning?
@@ -125,11 +164,39 @@ private:
 class RemoteIntentRecognition : public I_IntentRecognition{
 public:
     RemoteIntentRecognition(std::shared_ptr<IntentRegistry> intentRegistry);
-    std::shared_ptr<Intent> recognizeIntent(const std::string& intentString) override;
+    std::shared_ptr<Intent> recognizeIntent(const std::string&  name, const std::string& intentString) override;
 private:
     // Interface with TheCube Server API to interpret intent
 };
 
+class DecisionEngineMain{
+public:
+    DecisionEngineMain();
+    ~DecisionEngineMain();
+    void start();
+    void stop();
+    void restart();
+    void pause();
+    void resume();
+    void setIntentRecognition(std::shared_ptr<I_IntentRecognition> intentRecognition);
+    void setTranscriber(std::shared_ptr<Whisper> transcriber);
+    void setIntentRegistry(std::shared_ptr<IntentRegistry> intentRegistry);
+    void setAPIKey(const std::string& apiKey);
+    void setAPIURL(const std::string& apiURL);
+    void setAPIPort(const std::string& apiPort);
+    void setAPIPath(const std::string& apiPath);
+
+    std::shared_ptr<IntentRegistry> getIntentRegistry();
+private:
+    std::shared_ptr<I_IntentRecognition> intentRecognition;
+    std::shared_ptr<Whisper> transcriber;
+    std::shared_ptr<IntentRegistry> intentRegistry;
+    std::string apiKey;
+    std::string apiURL;
+    std::string apiPort;
+    std::string apiPath;
+};
+
 }; // namespace DecisionEngine
 
-#endif // DECISIONS_H
+#endif// DECISIONS_H

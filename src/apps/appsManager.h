@@ -12,7 +12,7 @@ class AppsManager {
 private:
     std::shared_ptr<DockerAPI> dockerApi;
     std::jthread appsManagerThread;
-    TaskQueue taskQueue;
+    TaskQueue<std::function<void()>> taskQueue;
     std::stop_token workerThreadStopToken;
     void appsManagerThreadFn();
     void addWorkerTask(std::function<void()> task);

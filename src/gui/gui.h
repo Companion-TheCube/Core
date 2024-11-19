@@ -37,6 +37,7 @@
 #ifndef UTILS_H
 #include <utils.h>
 #endif
+#define CPPHTTPLIB_OPENSSL_SUPPORT
 #include "httplib.h"
 #ifndef GLOBAL_SETTINGS_H
 #include "globalSettings.h"
@@ -131,4 +132,4 @@ private:
     std::mutex addMenuMutex;
 };
 
-#endif // GUI_H
+#endif// GUI_H
