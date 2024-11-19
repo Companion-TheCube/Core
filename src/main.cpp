@@ -270,6 +270,7 @@ int main(int argc, char* argv[])
         auto api = std::make_shared<API>();
         auto auth = std::make_shared<CubeAuth>();
         auto peripherals = std::make_shared<PeripheralManager>();
+        auto decisions = std::make_shared<DecisionEngine::IntentRegistry>();
         API_Builder api_builder(api);
         api_builder.addInterface(gui);
         api_builder.addInterface(cubeDB);

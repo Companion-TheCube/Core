@@ -18,6 +18,7 @@
 #include "hardware/bluetooth.h"
 #include "hardware/peripheralManager.h"
 #include "hardware/wifi.h"
+#include "decisionEngine/decisions.h"
 #include "logger/logger.h"
 #include "settings/loader.h"
 #include <chrono>

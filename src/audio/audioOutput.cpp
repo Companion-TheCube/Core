@@ -38,7 +38,7 @@ AudioOutput::AudioOutput()
 
     parameters = std::make_unique<RtAudio::StreamParameters>();
     CubeLog::info("Setting up audio stream with default audio device.");
-    parameters->deviceId = 130;// dac->getDefaultOutputDevice();
+    parameters->deviceId = dac->getDefaultOutputDevice();
     // find the device name for the audio device id
     std::string deviceName = dac->getDeviceInfo(parameters->deviceId).name;
     CubeLog::info("Using audio device: " + deviceName);

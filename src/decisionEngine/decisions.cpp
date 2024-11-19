@@ -205,13 +205,13 @@ void Intent::setBriefDesc(const std::string& briefDesc)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// Interface: IntentDetection - class that determines the intent of the user
-// LocalIntentDetection - class that determines the intent of the user
-// RemoteIntentDetection - class that converts intent to action using the TheCube Server API
+// Interface: IntentRecognition - class that determines the intent of the user
+// LocalIntentRecognition - class that determines the intent of the user
+// RemoteIntentRecognition - class that converts intent to action using the TheCube Server API
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// LocalIntentExecutor - class that converts intent to action locally
+// IntentExecutor - class that converts intent to action locally
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -221,6 +221,14 @@ IntentRegistry::IntentRegistry()
 {
     // Register built in intents
     // registerIntent("test", Intent("test", [](const Intent::Parameters& params) { CubeLog::info("Test intent executed"); }));
+    httplib::Client cli("https://dummyjson.com:80/");
+    auto res = cli.Get("test");
+    if(res && res->status == 200){
+        auto text = res->body;
+        CubeLog::info(text);
+    }else{
+        CubeLog::error("Error getting test data");
+    }
 }
 
 bool IntentRegistry::registerIntent(const std::string& intentName, const Intent& intent)
@@ -298,4 +306,5 @@ DecisionEngineError::DecisionEngineError(const std::string& message, DecisionErr
 void whisperLoop(){
     struct whisper_context_params cparams = whisper_context_default_params();
     auto ctx = whisper_init_from_file_with_params("whisper-en-us-tdnn", cparams);
+    
 }

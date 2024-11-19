@@ -13,6 +13,8 @@
 #include <thread>
 #include "nlohmann/json.hpp"
 #include "whisper.h"
+#define CPPHTTPLIB_OPENSSL_SUPPORT
+#include "httplib.h"
 
 namespace DecisionEngine {
 enum class DecisionErrorType {
@@ -118,6 +120,14 @@ private:
     // Pattern matching
     // Weighted pattern matching
     // Machine learning?
+};
+
+class RemoteIntentRecognition : public I_IntentRecognition{
+public:
+    RemoteIntentRecognition(std::shared_ptr<IntentRegistry> intentRegistry);
+    std::shared_ptr<Intent> recognizeIntent(const std::string& intentString) override;
+private:
+    // Interface with TheCube Server API to interpret intent
 };
 
 }; // namespace DecisionEngine
