@@ -44,9 +44,37 @@ using namespace DecisionEngine;
 // DecisionEngine - Main class that connects all the other classes together - this will need to connect to the personalityManager.
 DecisionEngineMain::DecisionEngineMain()
 {
+    /*
+    TODO: 
+    - Set up the connection to the speechIn class
+    - Set up the connection to the TheCube Server API
+    - Set up the connection to the personalityManager
+    - Set up the scheduler
+        - Scheduler needs to interface with the personalityManager so that certain things can be
+        scheduled based on the personality of the user. For instance, if the playfulness setting
+        is set sort of high, the scheduler might schedule some sort of animation or something to
+        welcome the user back to their desk.
+
+    The Process:
+    - Once the wakeword is triggered, start moving audio from the speechIn class to the transcriber
+    - If the user has remote transcription enabled:
+        - The CubeServerAPI will then send the audio to the remote server for transcription
+    - If the user does not have remote transcription enabled
+        - The transcriber will use the whisper class to transcribe the audio
+    - then we send the transcription to the intentRecognition class.
+    - The intentRecognition class will then determine the intent of the user 
+        - if remote intent detection is enabled, intentRecognition will send the transcription
+        to the remote server for intent detection
+        - if remote intent detection is not enabled, intentRecognition will use the local intent detection
+    - The intentRecognition class will then return the intent to the DecisionEngineMain class
+    */
     // transcriber = std::make_shared<Whisper>();
     intentRegistry = std::make_shared<IntentRegistry>();
+    // TODO: we should load the correct intent recognition class based on the user's settings
     intentRecognition = std::make_shared<LocalIntentRecognition>(intentRegistry);
+    // TODO: load the correct transcriber based on the user's settings
+    // transcriber = std::make_shared<LocalTranscriber>();
+    // transcriber = std::make_shared<RemoteTranscriber>();
 
 
     // TODO: remove this test code
@@ -80,11 +108,6 @@ std::shared_ptr<IntentRegistry> DecisionEngineMain::getIntentRegistry()
 {
     return intentRegistry;
 }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// TheCubeServerAPI - class to interact with TheCube Server API. Will use API key stored in CubeDB. Key is stored encrypted and will be decrypted at load time.
-// TODO: Implement this class
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Intent - class that contains the intent data including the action to take
@@ -258,6 +281,7 @@ const std::string Intent::getResponseString() const
         else allParamsFound = false;
     }
     if(!allParamsFound) CubeLog::warning("Not all parameters found in response string for intent: " + intentName);
+    // TODO: The returned string needs to be run through the personalityManager to get the final response string
     return temp;
 }
 
@@ -284,8 +308,8 @@ void Intent::setBriefDesc(const std::string& briefDesc)
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // TODO:
 // Interface: Transcriber - class that converts audio to text
-// LocalTranscriber - class that interacts with the whisper.cpp library
-// RemoteTranscriber - class that interacts with the TheCube Server API
+// LocalTranscriber - class that interacts with the whisper class. Whisper class should be initialized and a reference to it saved for future use.
+// RemoteTranscriber - class that interacts with the TheCube Server API.
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -473,7 +497,7 @@ std::string IntentRegistry::getInterfaceName() const
  * @brief Get all the built-in system intents
  * @return std::vector<IntentCTorParams> 
  */
-std::vector<IntentCTorParams> getSystemIntents()
+std::vector<IntentCTorParams> DecisionEngine::getSystemIntents()
 {
     std::vector<IntentCTorParams> intents;
     // Test intent
@@ -500,7 +524,8 @@ std::vector<IntentCTorParams> getSystemIntents()
 // TODO:
 // Interface: Trigger - class that triggers intents. Stores a reference to whatever state it is monitoring.
 // TimeBasedTrigger - class that triggers intents based on time
-// EventBasedTrigger - class that triggers intents based on events
+// EventBasedTrigger - class that triggers intents based on events like the user returning to the desk
+// APITrigger - class that triggers intents based on API calls
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -510,11 +535,4 @@ DecisionEngineError::DecisionEngineError(const std::string& message, DecisionErr
     this->errorType = errorType;
     CubeLog::error("DecisionEngineError: " + message);
     errorCount++;
-}
-
-/// Just testing that we can compile with whisper stuff
-void whisperLoop(){
-    struct whisper_context_params cparams = whisper_context_default_params();
-    auto ctx = whisper_init_from_file_with_params("whisper-en-us-tdnn", cparams);
-    
 }

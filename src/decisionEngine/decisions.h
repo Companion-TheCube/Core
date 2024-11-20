@@ -13,7 +13,8 @@
 #include <vector>
 #include <thread>
 #include "nlohmann/json.hpp"
-#include "whisper.h"
+#include "cubeWhisper.h"
+#include "remoteServer.h"
 #define CPPHTTPLIB_OPENSSL_SUPPORT
 #include "httplib.h"
 
@@ -135,22 +136,6 @@ private:
 
 /////////////////////////////////////////////////////////////////////////////////////
 
-class Whisper{
-public:
-    Whisper();
-    std::string transcribe(const std::string& audio);
-private:
-    std::jthread transcriberThread;
-};
-
-/////////////////////////////////////////////////////////////////////////////////////
-
-class TheCubeServerAPI{
-    
-};
-
-/////////////////////////////////////////////////////////////////////////////////////
-
 class I_IntentRecognition {
 public:
     virtual ~I_IntentRecognition() = default;
@@ -216,6 +201,7 @@ private:
     std::shared_ptr<I_IntentRecognition> intentRecognition;
     std::shared_ptr<Whisper> transcriber;
     std::shared_ptr<IntentRegistry> intentRegistry;
+    // std::shared_ptr<Transcriber> transcriber;
     std::string apiKey;
     std::string apiURL;
     std::string apiPort;
