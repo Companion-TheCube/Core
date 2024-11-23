@@ -3,8 +3,40 @@
 // TheCubeServerAPI - class to interact with TheCube Server API. Will use API key stored in CubeDB. Key is stored encrypted and will be decrypted at load time.
 // TODO: Implement this class
 
+using namespace TheCubeServer;
+
 TheCubeServerAPI::TheCubeServerAPI(uint16_t* audioBuf)
 {
+    // TODO:
+    // Read the serial number from the hardwareInfo class
+    // Read the API key from the CubeDB and decrypt it
+    // Read the auth key from the CubeDB and decrypt it
+    
+    this->cli = new httplib::Client(SERVER_API_URL);
+    this->cli->set_default_headers({
+        {"Content-Type", "application/json"},
+        {"ApiKey", this->apiKey}
+    });
+    this->cli->set_bearer_token_auth(this->authKey.c_str());
+    this->cli->set_basic_auth(this->serialNumber.c_str(), serialNumberToPassword(this->serialNumber).c_str());
+    if(!this->initServerConnection()){
+        CubeLog::error("Failed to initialize server connection");
+        return;
+    }
+
+    // TODO: Read the setting for which AI service the user wants to use.
+    // options include OpenAI, Google, Amazon, TheCubeServer
+    // TheCubeServer is only available to premium subscribers. Includes Amazon, OpenAI, and Google.
+    // Amazon is only available to plus subscribers. Includes OpenAI and Google.
+    // OpenAi and Google are available to all subscribers.
+
+    // register this->resetServerConnection() with the globalSettings class so that when the user changes their subscription level
+    // this->resetServerConnection() will be called.
+
+    // compare the services the user has access to with their preference
+    // if they don't have access to the service they want, default to the next available service.
+
+    
     CubeLog::info("TheCubeServerAPI initialized");
 }
 
@@ -16,18 +48,162 @@ TheCubeServerAPI::~TheCubeServerAPI()
 bool TheCubeServerAPI::initTranscribing()
 {
     CubeLog::info("Initializing transcribing");
+    // TODO:
     return true;
 }
 
 bool TheCubeServerAPI::streamAudio()
 {
     CubeLog::info("Streaming audio");
+    // TODO:
     return true;
 }
 
 bool TheCubeServerAPI::stopTranscribing()
 {
     CubeLog::info("Stopping transcribing");
+    // TODO:
     return true;
 }
 
+bool TheCubeServerAPI::initServerConnection()
+{
+    if(this->status == ServerStatus::SERVER_STATUS_READY){
+        CubeLog::info("Server connection already initialized");
+        return true;
+    }
+    CubeLog::info("Initializing server connection");
+    if(!ableToCommunicateWithRemoteServer()){
+        CubeLog::error("Unable to communicate with remote server");
+        this->status = ServerStatus::SERVER_STATUS_ERROR;
+        this->error = ServerError::SERVER_ERROR_CONNECTION_ERROR;
+        return false;
+    }
+    if(this->apiKey.empty()){
+        CubeLog::error("API key is empty");
+        this->status = ServerStatus::SERVER_STATUS_ERROR;
+        this->error = ServerError::SERVER_ERROR_AUTHENTICATION_ERROR;
+        return false;
+    }
+    if(this->authKey.empty()){
+        CubeLog::error("Auth key is empty");
+        this->status = ServerStatus::SERVER_STATUS_ERROR;
+        this->error = ServerError::SERVER_ERROR_AUTHENTICATION_ERROR;
+        return false;
+    }
+    if(this->serialNumber.empty()){
+        CubeLog::error("Serial number is empty");
+        this->status = ServerStatus::SERVER_STATUS_ERROR;
+        this->error = ServerError::SERVER_ERROR_INTERNAL_ERROR;
+        return false;
+    }
+    auto res = this->cli->Get("/user/profile");
+    if(!res){
+        CubeLog::error("Failed to get user profile");
+        this->status = ServerStatus::SERVER_STATUS_ERROR;
+        this->error = ServerError::SERVER_ERROR_CONNECTION_ERROR;
+        return false;
+    }
+    switch(res->status){
+        case 200:
+            CubeLog::info("User profile retrieved");
+            break;
+        case 400:
+        case 401:
+        case 403:
+            CubeLog::error("Unauthorized");
+            this->status = ServerStatus::SERVER_STATUS_ERROR;
+            this->error = ServerError::SERVER_ERROR_AUTHENTICATION_ERROR;
+            return false;
+        case 418:
+            CubeLog::error("Server indicates that it is a teapot. This is unusual since we are not making tea.");
+            this->status = ServerStatus::SERVER_STATUS_ERROR;
+            this->error = ServerError::SERVER_ERROR_INTERNAL_ERROR;
+            return false;
+        case 500:
+            CubeLog::error("Internal server error");
+            this->status = ServerStatus::SERVER_STATUS_ERROR;
+            this->error = ServerError::SERVER_ERROR_INTERNAL_ERROR;
+            return false;
+        default:
+            CubeLog::error("Unknown error");
+            this->status = ServerStatus::SERVER_STATUS_ERROR;
+            this->error = ServerError::SERVER_ERROR_UNKNOWN;
+            return false;
+    }
+    try{
+        nlohmann::json j = nlohmann::json::parse(res->body);
+        if(j.contains("subscription_level")){
+            FourBit t2(j["subscription_level"]);
+            this->services = t2;
+        }
+    }catch(std::exception& e){
+        CubeLog::error("Failed to parse user profile: " + std::string(e.what()));
+        this->status = ServerStatus::SERVER_STATUS_ERROR;
+        this->error = ServerError::SERVER_ERROR_INTERNAL_ERROR;
+        return false;
+    }
+    this->status = ServerStatus::SERVER_STATUS_READY;
+    return true;
+}
+
+bool TheCubeServerAPI::resetServerConnection()
+{
+    CubeLog::info("Resetting server connection");
+    this->error = ServerError::SERVER_ERROR_NONE;
+    this->status = ServerStatus::SERVER_STATUS_INITIALIZING;
+    this->state = ServerState::SERVER_STATE_IDLE;
+    return this->initServerConnection();
+}
+
+bool TheCubeServerAPI::ableToCommunicateWithRemoteServer()
+{
+    CubeLog::info("Able to communicate with remote server");
+    // TODO:
+    // test connecting to the server to see if we can get a response + code 200. Response body should be "Hello."
+    // - GET SERVER_API_URL/test
+
+    return true;
+}
+
+TheCubeServerAPI::ServerStatus TheCubeServerAPI::getServerStatus()
+{
+    return status;
+}
+
+TheCubeServerAPI::ServerError TheCubeServerAPI::getServerError()
+{
+    return error;
+}
+
+TheCubeServerAPI::ServerState TheCubeServerAPI::getServerState()
+{
+    return state;
+}
+
+/**
+ * @brief Get the Available Services as a bitfield.
+ * @return TheCubeServerAPI::FourBit A bitfield of the available services.
+ * bit 0 - OpenAI
+ * bit 1 - Google
+ * bit 2 - Amazon
+ * bit 3 - TheCubeServer
+ */
+TheCubeServerAPI::FourBit TheCubeServerAPI::getAvailableServices()
+{
+    return services;
+}
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+std::string TheCubeServer::serialNumberToPassword(const std::string& serialNumber)
+{
+    std::string output;
+    // base64 encode the serial number
+    output = base64_encode_cube(serialNumber);
+    // hash the base64 encoded serial number
+    output = sha256(output);
+    // CRC32 the hashed serial number to get something shorter and return it
+    return crc32(output);
+}

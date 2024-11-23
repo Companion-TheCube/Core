@@ -10,13 +10,13 @@
 #define BYTES_PER_SAMPLE (BITS_PER_SAMPLE / 8)
 // Audio data from RTAudio gets stored in a FIFO buffer to be read out by
 // the speech recognition engine (openwakeword) and the decision engine.
-// Expected data type is int16_t
-#define ROUTER_FIFO_SIZE (8 * 1024) // 0.5 seconds of audio at 16kHz 16bit mono
+// Expected data type is int16_t[]
+#define ROUTER_FIFO_SIZE (512) // 32ms of audio at 16kHz 16bit mono
 // The pre-trigger FIFO buffer is used to store audio data before the wake word
 // is detected. Once the wake word is detected, the decision engine will read
 // the audio data from the pre-trigger FIFO buffer to be analyzed for missed
 // wake words.
-// Expected data type is int16_t
+// Expected data type is int16_t[]
 #define PRE_TRIGGER_FIFO_SIZE (2 * 1000 * 16) // 2 seconds of audio at 16kHz 16bit mono
 
 

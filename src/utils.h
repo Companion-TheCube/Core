@@ -194,5 +194,8 @@ std::string convertWCHARToString(const WCHAR* wstr);
 void convertStringToWCHAR(const std::string& str, WCHAR* wstr);
 #endif
 
+std::string sha256(std::string input);
+std::string crc32(std::string input);
+
 #endif
 #endif // UTILS_H

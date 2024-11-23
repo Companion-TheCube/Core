@@ -42,7 +42,10 @@ static inline bool is_base64(unsigned char c)
 {
     return (isalnum(c) || (c == '+') || (c == '/'));
 }
+
+// TODO: move these to the utils.h file
 std::vector<unsigned char> base64_decode_cube(std::string const& encoded_string);
 std::string base64_encode_cube(const std::vector<unsigned char>& bytes_to_encode);
+std::string base64_encode_cube(const std::string& bytes_to_encode);
 
 #endif // CUBEDB_H

@@ -500,3 +500,14 @@ std::string base64_encode_cube(const std::vector<unsigned char>& bytes_to_encode
 
     return ret;
 }
+
+/**
+ * @brief Base64 encode a string. Based on code from https://renenyffenegger.ch/notes/development/Base64/Encoding-and-decoding-base-64-with-cpp
+ *
+ * @param bytes_to_encode std::string
+ * @return std::string
+ */
+std::string base64_encode_cube(const std::string& bytes_to_encode)
+{
+    return base64_encode_cube(std::vector<unsigned char>(bytes_to_encode.begin(), bytes_to_encode.end()));
+}

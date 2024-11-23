@@ -157,3 +157,31 @@ void convertStringToWCHAR(const std::string& str, WCHAR* wstr) {
     wcscpy(wstr, wstrTemp.c_str());
 }
 #endif
+
+std::string sha256(std::string input){
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256_CTX sha256;
+    SHA256_Init(&sha256);
+    SHA256_Update(&sha256, input.c_str(), input.length());
+    SHA256_Final(hash, &sha256);
+    std::stringstream ss;
+    for(int i = 0; i < SHA256_DIGEST_LENGTH; i++){
+        ss << std::hex << std::setw(2) << std::setfill('0') << (int)hash[i];
+    }
+    return ss.str();
+}
+
+std::string crc32(std::string input){
+    // crc32 without using library
+    unsigned int crc = 0xFFFFFFFF;
+    for (size_t i = 0; i < input.size(); i++) {
+        crc = crc ^ input[i];
+        for (size_t j = 0; j < 8; j++) {
+            crc = (crc >> 1) ^ (0xEDB88320 & (-(crc & 1)));
+        }
+    }
+    crc = ~crc;
+    std::stringstream ss;
+    ss << std::hex << crc;
+    return ss.str();
+}
