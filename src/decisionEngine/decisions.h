@@ -12,6 +12,11 @@
 #include <memory>
 #include <vector>
 #include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <regex>
+#include <chrono>
+#include <signal.h>
 #include "nlohmann/json.hpp"
 #include "cubeWhisper.h"
 #include "remoteServer.h"
@@ -136,6 +141,23 @@ private:
 
 /////////////////////////////////////////////////////////////////////////////////////
 
+class I_RemoteApi {
+public:
+    using Server = TheCubeServer::TheCubeServerAPI;
+    virtual ~I_RemoteApi() = default;
+    bool resetServerConnection();
+    bool ableToCommunicateWithRemoteServer();
+    Server::ServerStatus getServerStatus();
+    Server::ServerError getServerError();
+    Server::ServerState getServerState();
+    Server::FourBit getAvailableServices();
+    void setRemoteServerAPIObject(std::shared_ptr<Server> remoteServerAPI);
+protected:
+    std::shared_ptr<Server> remoteServerAPI;
+};
+
+/////////////////////////////////////////////////////////////////////////////////////
+
 class I_IntentRecognition {
 public:
     virtual ~I_IntentRecognition() = default;
@@ -165,7 +187,7 @@ private:
 
 /////////////////////////////////////////////////////////////////////////////////////
 
-class RemoteIntentRecognition : public I_IntentRecognition{
+class RemoteIntentRecognition : public I_IntentRecognition, protected I_RemoteApi{
 public:
     RemoteIntentRecognition(std::shared_ptr<IntentRegistry> intentRegistry);
     ~RemoteIntentRecognition();
@@ -176,6 +198,96 @@ private:
     std::jthread* recognitionThread;
     httplib::Client cli;
 };
+
+/////////////////////////////////////////////////////////////////////////////////////
+
+class I_Transcriber{
+public:
+    virtual ~I_Transcriber() = default;
+    virtual std::string transcribeBuffer(const uint16_t* audio, size_t length) = 0;
+    virtual std::string transcribeStream(const uint16_t* audio, size_t bufSize) = 0;
+};
+
+/////////////////////////////////////////////////////////////////////////////////////
+
+class LocalTranscriber : public I_Transcriber{
+public:
+    LocalTranscriber();
+    std::string transcribeBuffer(const uint16_t* audio, size_t length) override;
+    std::string transcribeStream(const uint16_t* audio, size_t bufSize) override;
+private:
+    std::shared_ptr<Whisper> m_whisper;
+};
+
+/////////////////////////////////////////////////////////////////////////////////////
+
+class RemoteTranscriber : public I_Transcriber, public I_RemoteApi{
+public:
+    RemoteTranscriber();
+    ~RemoteTranscriber();
+    std::string transcribeBuffer(const uint16_t* audio, size_t length) override;
+    std::string transcribeStream(const uint16_t* audio, size_t bufSize) override;
+private:
+    bool initTranscribing();
+    bool streamAudio();
+    bool stopTranscribing();
+};
+
+/////////////////////////////////////////////////////////////////////////////////////
+
+class Scheduler: public I_API_Interface{
+public:
+    enum class RepeatInterval {
+        REPEAT_NONE_ONE_SHOT,
+        REPEAT_DAILY,
+        REPEAT_WEEKLY,
+        REPEAT_MONTHLY,
+        REPEAT_YEARLY,
+        REPEAT_CUSTOM
+    };
+    using TimePoint = std::chrono::system_clock::time_point;
+    // A handle to a scheduled or schedule-able task
+    using ScheduledTaskHandle = uint32_t;
+    // The first element is the interval for the repeating task. The second element is the number of times the task should be repeated.
+    using RepeatingType = std::pair<RepeatInterval, uint16_t>;
+    // The first element is the time the task should be executed, the second element is the repeating interval, and the third element is the time the task should stop repeating.
+    using ScheduleType = std::tuple<std::chrono::system_clock::time_point, RepeatingType, TimePoint>;
+    // The first element is the type of schedule, the second element is the intent that should execute at that time, and the third element is whether or not the task is enabled.
+    using ScheduledTask = std::tuple<ScheduleType, std::shared_ptr<Intent>, bool, ScheduledTaskHandle>;
+    // A vector of scheduled tasks
+    using ScheduledTaskList = std::vector<ScheduledTask>;
+    
+    Scheduler();
+    ~Scheduler();
+    void start();
+    void stop();
+    void pause();
+    void resume();
+    void restart();
+    void setIntentRecognition(std::shared_ptr<I_IntentRecognition> intentRecognition);
+    uint32_t addTask(const ScheduledTask& task);
+    void removeTask(const std::shared_ptr<Intent>& intent);
+    void removeTask(const std::string& intentName);
+    void removeTask(uint32_t taskHandle);
+    ScheduledTask createTask(const std::shared_ptr<Intent>& intent, const std::chrono::system_clock::time_point& time, const RepeatingType& repeat); // For repeating tasks
+    ScheduledTask createTask(const std::shared_ptr<Intent>& intent, const std::chrono::system_clock::time_point& time); // For one shot tasks
+    ScheduledTask createTask(const std::shared_ptr<Intent>& intent, const std::chrono::system_clock::time_point& time, const std::chrono::system_clock::time_point& repeatTime); // For custom repeating tasks
+    ScheduledTask createTask(const std::shared_ptr<Intent>& intent, const std::chrono::system_clock::time_point& time, const std::chrono::system_clock::time_point& repeatTime, const std::chrono::system_clock::time_point& endTime); // For custom repeating tasks with an end time
+    // API Interface
+    HttpEndPointData_t getHttpEndpointData() override;
+    std::string getInterfaceName() const override;
+private:
+    std::shared_ptr<I_IntentRecognition> intentRecognition;
+    ScheduledTaskList scheduledTasks;
+    std::jthread* schedulerThread;
+    std::mutex schedulerMutex;
+    std::condition_variable schedulerCV;
+    bool schedulerRunning = false;
+    bool schedulerPaused = false;
+    void schedulerThreadFunction(std::stop_token st);
+};
+
+/////////////////////////////////////////////////////////////////////////////////////
 
 /////////////////////////////////////////////////////////////////////////////////////
 
@@ -196,7 +308,8 @@ public:
     void setAPIPort(const std::string& apiPort);
     void setAPIPath(const std::string& apiPath);
 
-    std::shared_ptr<IntentRegistry> getIntentRegistry();
+    const std::shared_ptr<IntentRegistry> getIntentRegistry() const;
+    const std::shared_ptr<Scheduler> getScheduler() const;
 private:
     std::shared_ptr<I_IntentRecognition> intentRecognition;
     std::shared_ptr<Whisper> transcriber;
@@ -211,6 +324,7 @@ private:
 /////////////////////////////////////////////////////////////////////////////////////
 
 std::vector<IntentCTorParams> getSystemIntents();
+std::vector<IntentCTorParams> getSystemSchedule();
 
 }; // namespace DecisionEngine
 

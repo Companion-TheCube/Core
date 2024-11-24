@@ -71,10 +71,16 @@ DecisionEngineMain::DecisionEngineMain()
     // transcriber = std::make_shared<Whisper>();
     intentRegistry = std::make_shared<IntentRegistry>();
     // TODO: we should load the correct intent recognition class based on the user's settings
+    // intentRecognition = std::make_shared<RemoteIntentRecognition>(intentRegistry);
+    // - if remoteIntentRecognition is enabled, pass the serverAPI object to the intentRecognition
+    // (std::dynamic_pointer_cast<RemoteIntentRecognition>(intentRecognition))->setRemoteServerAPIObject(remoteServerAPI);
     intentRecognition = std::make_shared<LocalIntentRecognition>(intentRegistry);
     // TODO: load the correct transcriber based on the user's settings
     // transcriber = std::make_shared<LocalTranscriber>();
     // transcriber = std::make_shared<RemoteTranscriber>();
+    // - if remoteTranscription is enabled, pass the serverAPI object to the transcriber
+    // (std::dynamic_pointer_cast<RemoteTranscriber>(transcriber))->setRemoteServerAPIObject(remoteServerAPI);
+
 
 
     // TODO: remove this test code
@@ -104,7 +110,7 @@ DecisionEngineMain::~DecisionEngineMain()
 {
 }
 
-std::shared_ptr<IntentRegistry> DecisionEngineMain::getIntentRegistry()
+const std::shared_ptr<IntentRegistry> DecisionEngineMain::getIntentRegistry()const
 {
     return intentRegistry;
 }
@@ -324,10 +330,11 @@ LocalIntentRecognition::LocalIntentRecognition(std::shared_ptr<IntentRegistry> i
         recognitionThreads.push_back(new std::jthread([this, i](std::stop_token st){
             while(!st.stop_requested()){
                 genericSleep(LOCAL_INTENT_RECOGNITION_THREAD_SLEEP_MS);
-                if(taskQueues[i]->size() == 0) continue;
-                auto task = taskQueues[i]->pop();
-                if(task){
-                    task();
+                while(taskQueues[i]->size() != 0){
+                    auto task = taskQueues[i]->pop();
+                    if(task){
+                        task();
+                    }
                 }
             }
         }));
@@ -337,6 +344,12 @@ LocalIntentRecognition::LocalIntentRecognition(std::shared_ptr<IntentRegistry> i
 
 std::shared_ptr<Intent> LocalIntentRecognition::recognizeIntent(const std::string& name,const std::string& intentString)
 {
+    // TODO: although this code works, we need to implement a more advanced pattern matching system and we need to 
+    // have pattern matches that are weighted. For example, if the user says "What time is it?" we need to have a pattern
+    // match for "What time is it?" and "What is the time?" and "What time is it now?" and "What is the time now?" and so on.
+    // TODO: This function should somehow return a score for the match so that when multiple intents match, we can 
+    // choose the one with the highest score.
+
     auto l_intent = intentRegistry->getIntent(name);
     // first we make a vector of all the intents param names
     std::vector<std::vector<std::string>> intentParamNames;
@@ -513,6 +526,21 @@ std::vector<IntentCTorParams> DecisionEngine::getSystemIntents()
     // TODO: define all the system intents. this should include things like "What time is it?" and "What apps are installed?"
     // Should also include some pure command intents like "Do a flip" or "What was that last notification?"
     return intents;
+}
+
+std::vector<IntentCTorParams> DecisionEngine::getSystemSchedule()
+{
+    std::vector<IntentCTorParams> intents;
+    // Test intent
+    IntentCTorParams testIntent;
+    testIntent.intentName = "Test Schedule";
+    testIntent.action = [](const Parameters& params, Intent intent) {
+        CubeLog::info("Test schedule executed");
+    };
+    testIntent.briefDesc = "Test schedule description";
+    testIntent.responseString = "Test schedule response";
+    testIntent.type = Intent::IntentType::COMMAND;
+    intents.push_back(testIntent);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

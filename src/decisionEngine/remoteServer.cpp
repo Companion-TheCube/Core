@@ -5,7 +5,7 @@
 
 using namespace TheCubeServer;
 
-TheCubeServerAPI::TheCubeServerAPI(uint16_t* audioBuf)
+TheCubeServerAPI::TheCubeServerAPI(uint16_t* audioBuf, size_t bufSize)
 {
     // TODO:
     // Read the serial number from the hardwareInfo class
@@ -43,6 +43,10 @@ TheCubeServerAPI::TheCubeServerAPI(uint16_t* audioBuf)
 TheCubeServerAPI::~TheCubeServerAPI()
 {
     CubeLog::info("TheCubeServerAPI closing");
+    if(this->cli){
+        delete this->cli;
+    }
+    CubeLog::info("TheCubeServerAPI closed");
 }
 
 bool TheCubeServerAPI::initTranscribing()

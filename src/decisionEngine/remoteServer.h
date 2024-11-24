@@ -48,7 +48,7 @@ public:
         AVAILABLE_SERVICE_THECUBESERVER = 8
     };
     FourBit services = 0;
-    TheCubeServerAPI(uint16_t* audioBuf);
+    TheCubeServerAPI(uint16_t* audioBuf, size_t bufSize);
     ~TheCubeServerAPI();
     bool initTranscribing();
     bool streamAudio();
