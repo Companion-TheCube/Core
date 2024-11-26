@@ -31,7 +31,14 @@ std::unordered_map <GlobalSettings::SettingType, std::string> GlobalSettings::se
         {SettingType::VOICE_COMMAND_SOUND, "voiceCommandSound"},
         {SettingType::NFC_ENABLED, "nfcEnabled"},
         {SettingType::MICROPHONE_ENABLED, "microphoneEnabled"},
-        {SettingType::PRESENCE_DETECTION_ENABLED, "presenceDetectionEnabled"}
+        {SettingType::PRESENCE_DETECTION_ENABLED, "presenceDetectionEnabled"},
+        {SettingType::EMOTION_CURIOSITY, "emotionCuriosity"},
+        {SettingType::EMOTION_PLAYFULNESS, "emotionPlayfulness"},
+        {SettingType::EMOTION_EMPATHY, "emotionEmpathy"},
+        {SettingType::EMOTION_ASSERTIVENESS, "emotionAssertiveness"},
+        {SettingType::EMOTION_ATTENTIVENESS, "emotionAttentiveness"},
+        {SettingType::EMOTION_CAUTION, "emotionCaution"},
+        {SettingType::EMOTION_ANNOYANCE, "emotionAnnoyance"}
     };
 std::unordered_map <std::string, GlobalSettings::SettingType> GlobalSettings::stringSettingTypeMap = {
         {"logVerbosity", SettingType::LOG_VERBOSITY},
@@ -61,5 +68,12 @@ std::unordered_map <std::string, GlobalSettings::SettingType> GlobalSettings::st
         {"voiceCommandSound", SettingType::VOICE_COMMAND_SOUND},
         {"nfcEnabled", SettingType::NFC_ENABLED},
         {"microphoneEnabled", SettingType::MICROPHONE_ENABLED},
-        {"presenceDetectionEnabled", SettingType::PRESENCE_DETECTION_ENABLED}
+        {"presenceDetectionEnabled", SettingType::PRESENCE_DETECTION_ENABLED},
+        {"emotionCuriosity", SettingType::EMOTION_CURIOSITY},
+        {"emotionPlayfulness", SettingType::EMOTION_PLAYFULNESS},
+        {"emotionEmpathy", SettingType::EMOTION_EMPATHY},
+        {"emotionAssertiveness", SettingType::EMOTION_ASSERTIVENESS},
+        {"emotionAttentiveness", SettingType::EMOTION_ATTENTIVENESS},
+        {"emotionCaution", SettingType::EMOTION_CAUTION},
+        {"emotionAnnoyance", SettingType::EMOTION_ANNOYANCE}
     };

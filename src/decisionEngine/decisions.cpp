@@ -1,51 +1,49 @@
 /*
-████████╗██╗  ██╗███████╗                                
-╚══██╔══╝██║  ██║██╔════╝                                
-   ██║   ███████║█████╗                                  
-   ██║   ██╔══██║██╔══╝                                  
-   ██║   ██║  ██║███████╗                                
-   ╚═╝   ╚═╝  ╚═╝╚══════╝                                
+████████╗██╗  ██╗███████╗
+╚══██╔══╝██║  ██║██╔════╝
+   ██║   ███████║█████╗
+   ██║   ██╔══██║██╔══╝
+   ██║   ██║  ██║███████╗
+   ╚═╝   ╚═╝  ╚═╝╚══════╝
 ██████╗ ███████╗ ██████╗██╗███████╗██╗ ██████╗ ███╗   ██╗
 ██╔══██╗██╔════╝██╔════╝██║██╔════╝██║██╔═══██╗████╗  ██║
 ██║  ██║█████╗  ██║     ██║███████╗██║██║   ██║██╔██╗ ██║
 ██║  ██║██╔══╝  ██║     ██║╚════██║██║██║   ██║██║╚██╗██║
 ██████╔╝███████╗╚██████╗██║███████║██║╚██████╔╝██║ ╚████║
 ╚═════╝ ╚══════╝ ╚═════╝╚═╝╚══════╝╚═╝ ╚═════╝ ╚═╝  ╚═══╝
-███████╗███╗   ██╗ ██████╗ ██╗███╗   ██╗███████╗         
-██╔════╝████╗  ██║██╔════╝ ██║████╗  ██║██╔════╝         
-█████╗  ██╔██╗ ██║██║  ███╗██║██╔██╗ ██║█████╗           
-██╔══╝  ██║╚██╗██║██║   ██║██║██║╚██╗██║██╔══╝           
-███████╗██║ ╚████║╚██████╔╝██║██║ ╚████║███████╗         
-╚══════╝╚═╝  ╚═══╝ ╚═════╝ ╚═╝╚═╝  ╚═══╝╚══════╝         
+███████╗███╗   ██╗ ██████╗ ██╗███╗   ██╗███████╗
+██╔════╝████╗  ██║██╔════╝ ██║████╗  ██║██╔════╝
+█████╗  ██╔██╗ ██║██║  ███╗██║██╔██╗ ██║█████╗
+██╔══╝  ██║╚██╗██║██║   ██║██║██║╚██╗██║██╔══╝
+███████╗██║ ╚████║╚██████╔╝██║██║ ╚████║███████╗
+╚══════╝╚═╝  ╚═══╝ ╚═════╝ ╚═╝╚═╝  ╚═══╝╚══════╝
 
-The decision engine will be responsible for making decisions based on the intent of the user.
+The decision engine will be responsible for making decisions based on user commands, schedules, triggers, and the personality of TheCube.
 It will provide API endpoints for other apps on the system to interact with it.
-When the speech in class detects a wake word, it will route audio into the decision engine 
+When the speech in class detects a wake word, it will route audio into the decision engine
 which will then pass the audio to the TheCube Server service for translation to text. If the user
 has not configured the system to use the remote server, we may use the whisper.cpp library
-to do the translation locally. 
+to do the translation locally.
 
 Once the decision engine gets the text of the audio, it will then pass the text to the intent
 detection service which will determine the intent of the user. The decision engine will then
 use the response from the intent detection service to make a decision on what to do next.
 
-To be evaluated: Using Whisper locally for users that don't want to pay for the service. 
-Whisper.cpp (https://github.com/ggerganov/whisper.cpp) will be the best option for this, 
+To be evaluated: Using Whisper locally for users that don't want to pay for the service.
+Whisper.cpp (https://github.com/ggerganov/whisper.cpp) will be the best option for this,
 however it is not as accurate as the remote service and we'll have to implement our own intent detection.
 
 */
-
 
 #include "decisions.h"
 
 using namespace DecisionEngine;
 
-
 // DecisionEngine - Main class that connects all the other classes together - this will need to connect to the personalityManager.
 DecisionEngineMain::DecisionEngineMain()
 {
     /*
-    TODO: 
+    TODO:
     - Set up the connection to the speechIn class
     - Set up the connection to the TheCube Server API
     - Set up the connection to the personalityManager
@@ -62,7 +60,7 @@ DecisionEngineMain::DecisionEngineMain()
     - If the user does not have remote transcription enabled
         - The transcriber will use the whisper class to transcribe the audio
     - then we send the transcription to the intentRecognition class.
-    - The intentRecognition class will then determine the intent of the user 
+    - The intentRecognition class will then determine the intent of the user
         - if remote intent detection is enabled, intentRecognition will send the transcription
         to the remote server for intent detection
         - if remote intent detection is not enabled, intentRecognition will use the local intent detection
@@ -82,9 +80,8 @@ DecisionEngineMain::DecisionEngineMain()
     // (std::dynamic_pointer_cast<RemoteTranscriber>(transcriber))->setRemoteServerAPIObject(remoteServerAPI);
 
 
-
     // TODO: remove this test code
-    for(size_t i = 0; i < 20; i++){
+    for (size_t i = 0; i < 20; i++) {
         IntentCTorParams params;
         params.intentName = "Test Intent" + std::to_string(i);
         params.action = [i](const Parameters& params, Intent intent) {
@@ -92,13 +89,11 @@ DecisionEngineMain::DecisionEngineMain()
             intent.setParameter("TestParam", "--The new " + std::to_string(i) + " testValue--");
             CubeLog::fatal(intent.getResponseString());
         };
-        params.parameters = Parameters({
-            {"TestParam", "testValue"}
-        });
+        params.parameters = Parameters({ { "TestParam", "testValue" } });
         params.briefDesc = "Test intent description: " + std::to_string(i);
         params.responseString = "Test intent response ${TestParam}";
         std::shared_ptr<Intent> testIntent = std::make_shared<Intent>(params);
-        if(!intentRegistry->registerIntent("Test Intent: " + std::to_string(i), testIntent))
+        if (!intentRegistry->registerIntent("Test Intent: " + std::to_string(i), testIntent))
             CubeLog::error("Failed to register test intent" + std::to_string(i));
     }
     intentRecognition->recognizeIntentAsync("Do TestParam", [](std::shared_ptr<Intent> intent) {
@@ -110,7 +105,7 @@ DecisionEngineMain::~DecisionEngineMain()
 {
 }
 
-const std::shared_ptr<IntentRegistry> DecisionEngineMain::getIntentRegistry()const
+const std::shared_ptr<IntentRegistry> DecisionEngineMain::getIntentRegistry() const
 {
     return intentRegistry;
 }
@@ -121,8 +116,8 @@ const std::shared_ptr<IntentRegistry> DecisionEngineMain::getIntentRegistry()con
 /**
  * @brief Construct a new Intent object with no parameters
  * briefDesc and responseString will be set to empty strings. Call setBriefDesc and setResponseString to set these values. *
- * @param intentName 
- * @param action 
+ * @param intentName
+ * @param action
  */
 Intent::Intent(const std::string& intentName, const Action& action)
 {
@@ -135,10 +130,10 @@ Intent::Intent(const std::string& intentName, const Action& action)
 
 /**
  * @brief Construct a new Intent object
- * briefDesc and responseString will be set to empty strings. Call setBriefDesc and setResponseString to set these values. * 
- * @param intentName 
- * @param action 
- * @param parameters 
+ * briefDesc and responseString will be set to empty strings. Call setBriefDesc and setResponseString to set these values. *
+ * @param intentName
+ * @param action
+ * @param parameters
  */
 Intent::Intent(const std::string& intentName, const Action& action, const Parameters& parameters)
 {
@@ -152,7 +147,7 @@ Intent::Intent(const std::string& intentName, const Action& action, const Parame
 
 /**
  * @brief Construct a new Intent object
- * 
+ *
  * @param intentName The name of the intent
  * @param action The action to take when the intent is executed
  * @param parameters The parameters for the intent. For example, "What time is it?" would have a parameter of "time" with the value of the current time.
@@ -173,7 +168,7 @@ Intent::Intent(const std::string& intentName, const Action& action, const Parame
 
 /**
  * @brief Construct a new Intent object
- * 
+ *
  * @param intentName The name of the intent
  * @param action The action to take when the intent is executed
  * @param parameters The parameters for the intent. For example, "What time is it?" would have a parameter of "time" with the value of the current time.
@@ -218,7 +213,7 @@ void Intent::setParameters(const Parameters& parameters)
 
 bool Intent::setParameter(const std::string& key, const std::string& value)
 {
-    if(parameters.find(key) != parameters.end()){
+    if (parameters.find(key) != parameters.end()) {
         parameters[key] = value;
         return true;
     }
@@ -232,11 +227,10 @@ void Intent::addParameter(const std::string& key, const std::string& value)
 
 void Intent::execute() const
 {
-    if(action){
+    if (action) {
         // TODO: add TTS support
         action(parameters, *this);
-    }
-    else
+    } else
         throw DecisionEngineError("No action set for intent: " + intentName, DecisionErrorType::NO_ACTION_SET);
 }
 
@@ -249,9 +243,9 @@ const std::string Intent::serialize()
 }
 
 /**
- * @brief Convert a JSON object to an Intent::Action. USed to convert a serialized intent to a callable action. * 
- * @param action_json 
- * @return Intent::Action 
+ * @brief Convert a JSON object to an Intent::Action. USed to convert a serialized intent to a callable action. *
+ * @param action_json
+ * @return Intent::Action
  */
 Action convertJsonToAction(const nlohmann::json& action_json)
 {
@@ -279,14 +273,16 @@ const std::string Intent::getResponseString() const
     // Parse the response string and replace the placeholders with the actual values
     std::string temp = responseString;
     bool allParamsFound = true;
-    for(auto& param : parameters)
-    {
+    for (auto& param : parameters) {
         std::string placeholder = "${" + param.first + "}";
         size_t pos = temp.find(placeholder);
-        if(pos != std::string::npos) temp.replace(pos, placeholder.length(), param.second);
-        else allParamsFound = false;
+        if (pos != std::string::npos)
+            temp.replace(pos, placeholder.length(), param.second);
+        else
+            allParamsFound = false;
     }
-    if(!allParamsFound) CubeLog::warning("Not all parameters found in response string for intent: " + intentName);
+    if (!allParamsFound)
+        CubeLog::warning("Not all parameters found in response string for intent: " + intentName);
     // TODO: The returned string needs to be run through the personalityManager to get the final response string
     return temp;
 }
@@ -325,14 +321,14 @@ LocalIntentRecognition::LocalIntentRecognition(std::shared_ptr<IntentRegistry> i
 {
     this->intentRegistry = intentRegistry;
     // create the recognition threads
-    for(size_t i = 0; i < LOCAL_INTENT_RECOGNITION_THREAD_COUNT; i++){
-        taskQueues.push_back(std::shared_ptr<TaskQueueWithData<std::function<void()>, std::string>>(new TaskQueueWithData<std::function<void()>,std::string>()));
-        recognitionThreads.push_back(new std::jthread([this, i](std::stop_token st){
-            while(!st.stop_requested()){
+    for (size_t i = 0; i < LOCAL_INTENT_RECOGNITION_THREAD_COUNT; i++) {
+        taskQueues.push_back(std::shared_ptr<TaskQueueWithData<std::function<void()>, std::string>>(new TaskQueueWithData<std::function<void()>, std::string>()));
+        recognitionThreads.push_back(new std::jthread([this, i](std::stop_token st) {
+            while (!st.stop_requested()) {
                 genericSleep(LOCAL_INTENT_RECOGNITION_THREAD_SLEEP_MS);
-                while(taskQueues[i]->size() != 0){
+                while (taskQueues[i]->size() != 0) {
                     auto task = taskQueues[i]->pop();
-                    if(task){
+                    if (task) {
                         task();
                     }
                 }
@@ -342,19 +338,19 @@ LocalIntentRecognition::LocalIntentRecognition(std::shared_ptr<IntentRegistry> i
     threadsReady = true;
 }
 
-std::shared_ptr<Intent> LocalIntentRecognition::recognizeIntent(const std::string& name,const std::string& intentString)
+std::shared_ptr<Intent> LocalIntentRecognition::recognizeIntent(const std::string& name, const std::string& intentString)
 {
-    // TODO: although this code works, we need to implement a more advanced pattern matching system and we need to 
+    // TODO: although this code works, we need to implement a more advanced pattern matching system and we need to
     // have pattern matches that are weighted. For example, if the user says "What time is it?" we need to have a pattern
     // match for "What time is it?" and "What is the time?" and "What time is it now?" and "What is the time now?" and so on.
-    // TODO: This function should somehow return a score for the match so that when multiple intents match, we can 
+    // TODO: This function should somehow return a score for the match so that when multiple intents match, we can
     // choose the one with the highest score.
 
     auto l_intent = intentRegistry->getIntent(name);
     // first we make a vector of all the intents param names
     std::vector<std::vector<std::string>> intentParamNames;
     std::vector<std::string> paramNames;
-    for(auto& param : l_intent->getParameters()){
+    for (auto& param : l_intent->getParameters()) {
         paramNames.push_back(param.first);
     }
     intentParamNames.push_back(paramNames);
@@ -363,65 +359,66 @@ std::shared_ptr<Intent> LocalIntentRecognition::recognizeIntent(const std::strin
     std::regex splitOnRegex("[\\s,.]+");
     std::sregex_token_iterator iter(intentString.begin(), intentString.end(), splitOnRegex, -1);
     std::sregex_token_iterator end;
-    while(iter != end){
+    while (iter != end) {
         tokens.push_back(iter->str());
         ++iter;
     }
     // now we need to find the intent that matches the most tokens
     size_t maxMatchIndex = 0;
     size_t maxMatchCount = 0;
-    for(size_t i = 0; i < intentParamNames.size(); i++){
+    for (size_t i = 0; i < intentParamNames.size(); i++) {
         size_t matchCount = 0;
-        for(auto& token : tokens){
-            for(auto& paramName : intentParamNames[i]){
-                if(token == paramName){
+        for (auto& token : tokens) {
+            for (auto& paramName : intentParamNames[i]) {
+                if (token == paramName) {
                     matchCount++;
                     break;
                 }
             }
         }
-        if(matchCount > maxMatchCount){
+        if (matchCount > maxMatchCount) {
             maxMatchCount = matchCount;
             maxMatchIndex = i;
         }
     }
-    if(maxMatchCount == 0) return nullptr;
+    if (maxMatchCount == 0)
+        return nullptr;
     return l_intent;
 }
 
 bool LocalIntentRecognition::recognizeIntentAsync(const std::string& intentString)
 {
-    return this->recognizeIntentAsync(intentString, [](std::shared_ptr<Intent> intent){});
+    return this->recognizeIntentAsync(intentString, [](std::shared_ptr<Intent> intent) {});
 }
 
 bool LocalIntentRecognition::recognizeIntentAsync(const std::string& intentString, std::function<void(std::shared_ptr<Intent>)> callback)
 {
-    if(!threadsReady) return false;
-    for(auto name : intentRegistry->getIntentNames()){
+    if (!threadsReady)
+        return false;
+    for (auto name : intentRegistry->getIntentNames()) {
         size_t minIndex = 0;
         size_t minSize = taskQueues[0]->size();
-        for(size_t i = 1; i < taskQueues.size(); i++){
-            if(taskQueues[i]->size() < minSize){
+        for (size_t i = 1; i < taskQueues.size(); i++) {
+            if (taskQueues[i]->size() < minSize) {
                 minSize = taskQueues[i]->size();
                 minIndex = i;
             }
         }
-        taskQueues[minIndex]->push([this, intentString, callback, name](){
+        taskQueues[minIndex]->push([this, intentString, callback, name]() {
             auto intent = recognizeIntent(name, intentString);
-            if(intent) callback(intent);
-        }, intentString);
+            if (intent)
+                callback(intent);
+        },
+            intentString);
     }
     return true;
 }
 
 LocalIntentRecognition::~LocalIntentRecognition()
 {
-    for(auto& thread : recognitionThreads){
+    for (auto& thread : recognitionThreads) {
         delete thread;
     }
-    // for(auto& token : stopTokens){
-    //     delete token;
-    // }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -435,19 +432,19 @@ LocalIntentRecognition::~LocalIntentRecognition()
 // Need to have Http endpoints for the API that allow other apps to register with the decision engine
 IntentRegistry::IntentRegistry()
 {
-    for(auto& intent : getSystemIntents()){
+    for (auto& intent : getSystemIntents()) {
         auto newIntent = std::make_shared<Intent>(intent);
-        if(!registerIntent(intent.intentName, newIntent))
+        if (!registerIntent(intent.intentName, newIntent))
             CubeLog::error("Failed to register intent: " + intent.intentName);
     }
-    
+
     // TODO: remove this. Testing only.
     httplib::Client cli("https://dummyjson.com");
     auto res = cli.Get("/test");
-    if(res && res->status == 200){
+    if (res && res->status == 200) {
         auto text = res->body;
         CubeLog::fatal(text);
-    }else{
+    } else {
         CubeLog::error("Error getting test data");
     }
 }
@@ -455,7 +452,8 @@ IntentRegistry::IntentRegistry()
 bool IntentRegistry::registerIntent(const std::string& intentName, const std::shared_ptr<Intent> intent)
 {
     // Check if the intent is already registered
-    if(intentMap.find(intentName) != intentMap.end()) return false;
+    if (intentMap.find(intentName) != intentMap.end())
+        return false;
     intentMap[intentName] = intent;
     return true;
 }
@@ -463,35 +461,39 @@ bool IntentRegistry::registerIntent(const std::string& intentName, const std::sh
 bool IntentRegistry::unregisterIntent(const std::string& intentName)
 {
     // Check if the intent is registered
-    if(intentMap.find(intentName) == intentMap.end()) return false;
+    if (intentMap.find(intentName) == intentMap.end())
+        return false;
     intentMap.erase(intentName);
     return true;
 }
 
 std::shared_ptr<Intent> IntentRegistry::getIntent(const std::string& intentName)
 {
-    if(intentMap.find(intentName) == intentMap.end()) return nullptr;
+    if (intentMap.find(intentName) == intentMap.end())
+        return nullptr;
     return intentMap[intentName];
 }
 
 std::vector<std::string> IntentRegistry::getIntentNames()
 {
     std::vector<std::string> intentNames;
-    for(auto& intent : intentMap) intentNames.push_back(intent.first);
+    for (auto& intent : intentMap)
+        intentNames.push_back(intent.first);
     return intentNames;
 }
 
 std::vector<std::shared_ptr<Intent>> IntentRegistry::getRegisteredIntents()
 {
     auto intents = std::vector<std::shared_ptr<Intent>>();
-    for(auto& intent : intentMap) intents.push_back(intent.second);
+    for (auto& intent : intentMap)
+        intents.push_back(intent.second);
     return intents;
 }
 
 HttpEndPointData_t IntentRegistry::getHttpEndpointData()
 {
     HttpEndPointData_t data;
-    // TODO: 
+    // TODO:
     // 1. Register an Intent - This will need to take a JSON string object that contains the intent data and pass it to the deserialize function of the Intent class.
     // 2. Unregister an Intent
     // 3. Get an Intent
@@ -499,7 +501,7 @@ HttpEndPointData_t IntentRegistry::getHttpEndpointData()
     return data;
 }
 
-std::string IntentRegistry::getInterfaceName() const
+constexpr std::string IntentRegistry::getInterfaceName() const
 {
     return "IntentRegistry";
 }
@@ -508,7 +510,7 @@ std::string IntentRegistry::getInterfaceName() const
 
 /**
  * @brief Get all the built-in system intents
- * @return std::vector<IntentCTorParams> 
+ * @return std::vector<IntentCTorParams>
  */
 std::vector<IntentCTorParams> DecisionEngine::getSystemIntents()
 {
@@ -541,26 +543,282 @@ std::vector<IntentCTorParams> DecisionEngine::getSystemSchedule()
     testIntent.responseString = "Test schedule response";
     testIntent.type = Intent::IntentType::COMMAND;
     intents.push_back(testIntent);
+    return intents;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 // TODO:
-// Scheduler - class that schedules intents. This class will be responsible for storing triggers and references to the intents that 
+// Scheduler - class that schedules intents. This class will be responsible for storing triggers and references to the intents that
 // they trigger. It will also be responsible for monitoring the states of the triggers and triggering the intents when the triggers are activated.
 // This class will need to have a thread that runs in the background to monitor the triggers.
 // This class will also need to implement the API interface so that other apps can interact with it.
+
+ScheduledTask::ScheduledTaskHandle ScheduledTask::nextHandle = 1;
+
+ScheduledTask::ScheduledTask(const std::shared_ptr<Intent>& intent, const TimePoint& time)
+{
+    this->intent = intent;
+    this->schedule.time = time;
+    this->schedule.repeat = { RepeatInterval::REPEAT_NONE_ONE_SHOT, 0 };
+    this->schedule.endTime = TimePoint();
+    this->handle = nextHandle++;
+    this->enabled = true;
+}
+
+ScheduledTask::ScheduledTask(const std::shared_ptr<Intent>& intent, const TimePoint& time, const RepeatingType& repeat)
+{
+    this->intent = intent;
+    this->schedule.time = time;
+    this->schedule.repeat = repeat;
+    this->schedule.endTime = TimePoint();
+    this->handle = nextHandle++;
+    this->enabled = true;
+}
+
+ScheduledTask::ScheduledTask(const std::shared_ptr<Intent>& intent, const TimePoint& time, const RepeatingType& repeat, const TimePoint& endTime)
+{
+    this->intent = intent;
+    this->schedule.time = time;
+    this->schedule.repeat = repeat;
+    this->schedule.endTime = endTime;
+    this->handle = nextHandle++;
+    this->enabled = true;
+}
+
+ScheduledTask::ScheduledTaskHandle ScheduledTask::getHandle() const
+{
+    return handle;
+}
+
+const ScheduledTask::ScheduleType& ScheduledTask::getSchedule() const
+{
+    return schedule;
+}
+
+const std::shared_ptr<Intent>& ScheduledTask::getIntent() const
+{
+    return intent;
+}
+
+bool ScheduledTask::isEnabled() const
+{
+    return enabled;
+}
+
+void ScheduledTask::setEnabled(bool enabled)
+{
+    this->enabled = enabled;
+}
+
+void ScheduledTask::executeIntent()
+{
+    intent->execute();
+    repeatCount++;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Scheduler::Scheduler()
+{
+    schedulerThread = new std::jthread([this](std::stop_token st) {
+        schedulerThreadFunction(st);
+    });
+}
+
+Scheduler::~Scheduler()
+{
+    delete schedulerThread;
+}
+
+void Scheduler::start()
+{
+    std::unique_lock<std::mutex> lock(schedulerMutex);
+    schedulerRunning = true;
+    schedulerCV.notify_all();
+}
+
+void Scheduler::stop()
+{
+    std::unique_lock<std::mutex> lock(schedulerMutex);
+    schedulerRunning = false;
+    schedulerCV.notify_all();
+}
+
+void Scheduler::pause()
+{
+    std::unique_lock<std::mutex> lock(schedulerMutex);
+    schedulerPaused = true;
+}
+
+void Scheduler::resume()
+{
+    std::unique_lock<std::mutex> lock(schedulerMutex);
+    schedulerPaused = false;
+    schedulerCV.notify_all();
+}
+
+void Scheduler::restart()
+{
+    std::unique_lock<std::mutex> lock(schedulerMutex);
+    schedulerRunning = false;
+    schedulerPaused = false;
+    schedulerCV.notify_all();
+}
+
+void Scheduler::setIntentRecognition(std::shared_ptr<I_IntentRecognition> intentRecognition)
+{
+    this->intentRecognition = intentRecognition;
+}
+
+uint32_t Scheduler::addTask(const ScheduledTask& task)
+{
+    std::unique_lock<std::mutex> lock(schedulerMutex);
+    scheduledTasks.push_back(task);
+    return task.getHandle();
+}
+
+void Scheduler::removeTask(const std::shared_ptr<Intent>& intent)
+{
+    std::unique_lock<std::mutex> lock(schedulerMutex);
+    for (auto it = scheduledTasks.begin(); it != scheduledTasks.end(); it++) {
+        if (it->getIntent() == intent) {
+            scheduledTasks.erase(it);
+            return;
+        }
+    }
+}
+
+void Scheduler::removeTask(const std::string& intentName)
+{
+    std::unique_lock<std::mutex> lock(schedulerMutex);
+    for (auto it = scheduledTasks.begin(); it != scheduledTasks.end(); it++) {
+        if (it->getIntent()->getIntentName() == intentName) {
+            scheduledTasks.erase(it);
+            return;
+        }
+    }
+}
+
+void Scheduler::removeTask(uint32_t taskHandle)
+{
+    std::unique_lock<std::mutex> lock(schedulerMutex);
+    for (auto it = scheduledTasks.begin(); it != scheduledTasks.end(); it++) {
+        if (it->getHandle() == taskHandle) {
+            scheduledTasks.erase(it);
+            return;
+        }
+    }
+}
+
+void Scheduler::schedulerThreadFunction(std::stop_token st)
+{
+    std::unique_lock<std::mutex> lock(schedulerMutex);
+    while (!st.stop_requested()) {
+        while (!schedulerRunning) {
+            schedulerCV.wait(lock);
+        }
+        while (!schedulerPaused) {
+            for (auto& task : scheduledTasks) {
+                if (task.isEnabled() && task.getSchedule().time <= std::chrono::system_clock::now()) {
+                    task.executeIntent();
+                    // TODO: check if the task should be repeated and if so, add it back to the scheduledTasks list
+                }
+            }
+            schedulerCV.wait_until(lock, std::chrono::system_clock::now() + std::chrono::milliseconds(SCHEDULER_THREAD_SLEEP_MS));
+        }
+    }
+}
+
+HttpEndPointData_t Scheduler::getHttpEndpointData()
+{
+    HttpEndPointData_t data;
+    // TODO:
+    // 1. Add a task
+
+    return data;
+}
+
+constexpr std::string Scheduler::getInterfaceName() const
+{
+    return "Scheduler";
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 // TODO:
+// Triggers need to work with the personalityManager so that they can be scheduled based on the personality of TheCube.
+// Each trigger will need to have some definition of what personality settings it is looking for. For example, a trigger that
+// plays a sound when the user returns to the desk might only be active if the playfulness setting is set to a certain level.
 // Interface: Trigger - class that triggers intents. Stores a reference to whatever state it is monitoring.
-// TimeBasedTrigger - class that triggers intents based on time
+// TimeBasedTrigger - class that triggers intents based on time. This will use the scheduler to schedule intents.
 // EventBasedTrigger - class that triggers intents based on events like the user returning to the desk
 // APITrigger - class that triggers intents based on API calls
+
+bool I_Trigger::isEnabled() const
+{
+    return enabled;
+}
+
+void I_Trigger::setEnabled(bool enabled)
+{
+    this->enabled = enabled;
+}
+
+void I_Trigger::trigger()
+{
+    if (enabled)
+        triggerFunction();
+}
+
+bool I_Trigger::getTriggerState() const
+{
+    return checkTrigger();
+}
+
+void I_Trigger::setTriggerFunction(std::function<void()> triggerFunction)
+{
+    this->triggerFunction = triggerFunction;
+}
+
+void I_Trigger::setCheckTrigger(std::function<bool()> checkTrigger)
+{
+    this->checkTrigger = checkTrigger;
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 uint32_t DecisionEngineError::errorCount = 0;
-DecisionEngineError::DecisionEngineError(const std::string& message, DecisionErrorType errorType) : std::runtime_error(message)
+DecisionEngineError::DecisionEngineError(const std::string& message, DecisionErrorType errorType)
+    : std::runtime_error(message)
 {
     this->errorType = errorType;
     CubeLog::error("DecisionEngineError: " + message);
     errorCount++;
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+template <int N>
+struct Fibonacci {
+    static const int value = Fibonacci<N - 1>::value + Fibonacci<N - 2>::value;
+};
+
+template <>
+struct Fibonacci<0> {
+    static const int value = 0;
+};
+
+template <>
+struct Fibonacci<1> {
+    static const int value = 1;
+};
+
+constexpr int test()
+{
+    return Fibonacci<10>::value;
+}
+
+int testInt = test();

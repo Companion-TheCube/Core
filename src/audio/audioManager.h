@@ -10,7 +10,7 @@ public:
     void stop();
     void toggleSound();
     void setSound(bool soundOn);
-    std::string getInterfaceName() const override { return "AudioManager"; }
+    constexpr std::string getInterfaceName() const override { return "AudioManager"; }
     HttpEndPointData_t getHttpEndpointData() override;
 private:
     std::unique_ptr<AudioOutput> audioOutput;

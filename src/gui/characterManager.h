@@ -131,7 +131,7 @@ public:
     Character_generic* getCharacterByName(const std::string& name);
     std::vector<std::string> getCharacterNames();
     void triggerAnimationAndExpressionThreads();
-    std::string getInterfaceName() const override;
+    constexpr std::string getInterfaceName() const override;
     HttpEndPointData_t getHttpEndpointData() override;
 };
 

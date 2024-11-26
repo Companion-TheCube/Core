@@ -93,7 +93,7 @@ public:
     static void showNotification(const std::string& title, const std::string& message, NotificationType type);
     static void showNotificationWithCallback(const std::string& title, const std::string& message, NotificationType type, std::function<void()> callback);
     static void showNotificationWithCallback(const std::string& title, const std::string& message, NotificationType type, std::function<void()> callbackYes, std::function<void()> callbackNo);
-    std::string getInterfaceName() const override;
+    constexpr std::string getInterfaceName() const override;
     HttpEndPointData_t getHttpEndpointData() override;
 };
 
@@ -116,7 +116,7 @@ public:
     static void showTextInputBox(const std::string& title, const std::string& field, std::function<void(std::string&)> callback);
     // API Interface
     HttpEndPointData_t getHttpEndpointData();
-    std::string getInterfaceName() const;
+    constexpr std::string getInterfaceName() const override;
 
 private:
     // GUI_Error addMenu(const std::string& menuName, const std::string& thisUniqueID, const std::string& parentName, std::vector<std::string> entryTexts, std::vector<std::string> endpoints, std::vector<std::string> uniqueIDs, CountingLatch &latch);
@@ -132,4 +132,4 @@ private:
     std::mutex addMenuMutex;
 };
 
-#endif// GUI_H
+#endif // GUI_H

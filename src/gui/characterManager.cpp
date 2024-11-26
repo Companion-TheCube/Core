@@ -189,7 +189,7 @@ void CharacterManager::triggerAnimationAndExpressionThreads()
     this->expressionCV.notify_one();
 }
 
-std::string CharacterManager::getInterfaceName() const
+constexpr std::string CharacterManager::getInterfaceName() const
 {
     return "CharacterManager";
 }

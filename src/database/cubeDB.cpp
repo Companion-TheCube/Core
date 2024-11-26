@@ -404,7 +404,7 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
  *
  * @return std::string
  */
-std::string CubeDB::getInterfaceName() const
+constexpr std::string CubeDB::getInterfaceName() const
 {
     return "CubeDB";
 }

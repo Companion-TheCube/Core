@@ -2,29 +2,34 @@
 #define DECISIONS_H
 
 #include "../database/cubeDB.h"
-#include <logger.h>
 #include "utils.h"
+#include <logger.h>
+#ifndef API_I_H
+#include "../api/api_i.h"
+#endif
+#include "cubeWhisper.h"
+#include "nlohmann/json.hpp"
+#include "remoteServer.h"
+#include <chrono>
+#include <condition_variable>
+#include <functional>
+#include <iostream>
+#include <memory>
+#include <mutex>
+#include <regex>
+#include <signal.h>
 #include <stdexcept>
 #include <string>
-#include <iostream>
-#include <functional>
-#include <unordered_map>
-#include <memory>
-#include <vector>
 #include <thread>
-#include <mutex>
-#include <condition_variable>
-#include <regex>
-#include <chrono>
-#include <signal.h>
-#include "nlohmann/json.hpp"
-#include "cubeWhisper.h"
-#include "remoteServer.h"
+#include <unordered_map>
+#include <vector>
 #define CPPHTTPLIB_OPENSSL_SUPPORT
 #include "httplib.h"
+#include "../lazyLoader.h"
 
 #define LOCAL_INTENT_RECOGNITION_THREAD_COUNT 4
 #define LOCAL_INTENT_RECOGNITION_THREAD_SLEEP_MS 100
+#define SCHEDULER_THREAD_SLEEP_MS 100
 
 namespace DecisionEngine {
 class Intent;
@@ -32,6 +37,7 @@ struct IntentCTorParams;
 
 using Parameters = std::unordered_map<std::string, std::string>;
 using Action = std::function<void(const Parameters&, Intent)>;
+using TimePoint = std::chrono::system_clock::time_point;
 
 enum class DecisionErrorType {
     ERROR_NONE,
@@ -46,28 +52,29 @@ enum class DecisionErrorType {
 class DecisionEngineError : public std::runtime_error {
     static uint32_t errorCount;
     DecisionErrorType errorType;
+
 public:
     DecisionEngineError(const std::string& message, DecisionErrorType errorType = DecisionErrorType::UNKNOWN_ERROR);
 };
 
 /////////////////////////////////////////////////////////////////////////////////////
 
-class Intent{
+class Intent {
 public:
     // TODO: add a mutex so that the calling of execute can be thread safe
     enum class IntentType {
         QUESTION,
         COMMAND
-    }type;
+    } type;
 
     /**
      * @brief Parameters for the intent
-     * The parameters are key value pairs that are used to pass data to the action function. 
+     * The parameters are key value pairs that are used to pass data to the action function.
      * The first string is the key and the second string is the value. The key can be used
      * in response string to insert the value. See responseString for more information.
      */
 
-    Intent(){};
+    Intent() {};
     Intent(const std::string& intentName, const Action& action);
     Intent(const std::string& intentName, const Action& action, const Parameters& parameters);
     Intent(const std::string& intentName, const Action& action, const Parameters& parameters, const std::string& briefDesc, const std::string& responseString);
@@ -89,7 +96,7 @@ public:
 
     const std::string& getSerializedData() const;
     const std::string& getBriefDesc() const;
-    const std::string getResponseString()const;
+    const std::string getResponseString() const;
     void setResponseString(const std::string& responseString);
     void setBriefDesc(const std::string& briefDesc);
 
@@ -109,8 +116,8 @@ private:
 
 /////////////////////////////////////////////////////////////////////////////////////
 
-struct IntentCTorParams{
-    IntentCTorParams(){};
+struct IntentCTorParams {
+    IntentCTorParams() {};
     std::string intentName = "";
     Action action = nullptr;
     Parameters parameters = Parameters();
@@ -121,17 +128,18 @@ struct IntentCTorParams{
 
 /////////////////////////////////////////////////////////////////////////////////////
 
-class IntentRegistry : public I_API_Interface{
+class IntentRegistry : public I_API_Interface {
 public:
     IntentRegistry();
     bool registerIntent(const std::string& intentName, const std::shared_ptr<Intent> intent);
     bool unregisterIntent(const std::string& intentName);
     std::shared_ptr<Intent> getIntent(const std::string& intentName);
     std::vector<std::string> getIntentNames();
-    std::vector<std::shared_ptr<Intent>>  getRegisteredIntents();
+    std::vector<std::shared_ptr<Intent>> getRegisteredIntents();
     // API Interface
     HttpEndPointData_t getHttpEndpointData() override;
-    std::string getInterfaceName() const override;
+    constexpr std::string getInterfaceName() const override;
+
 private:
     /**
      * @brief Map of intent names to intents
@@ -152,6 +160,7 @@ public:
     Server::ServerState getServerState();
     Server::FourBit getAvailableServices();
     void setRemoteServerAPIObject(std::shared_ptr<Server> remoteServerAPI);
+
 protected:
     std::shared_ptr<Server> remoteServerAPI;
 };
@@ -169,14 +178,15 @@ public:
 
 /////////////////////////////////////////////////////////////////////////////////////
 
-class LocalIntentRecognition : public I_IntentRecognition{
+class LocalIntentRecognition : public I_IntentRecognition {
 public:
     LocalIntentRecognition(std::shared_ptr<IntentRegistry> intentRegistry);
     ~LocalIntentRecognition();
     bool recognizeIntentAsync(const std::string& intentString, std::function<void(std::shared_ptr<Intent>)> callback) override;
     bool recognizeIntentAsync(const std::string& intentString) override;
+
 private:
-    std::shared_ptr<Intent> recognizeIntent(const std::string&  name, const std::string& intentString) override;
+    std::shared_ptr<Intent> recognizeIntent(const std::string& name, const std::string& intentString) override;
     std::vector<std::jthread*> recognitionThreads;
     std::vector<std::shared_ptr<TaskQueueWithData<std::function<void()>, std::string>>> taskQueues;
     bool threadsReady = false;
@@ -187,21 +197,22 @@ private:
 
 /////////////////////////////////////////////////////////////////////////////////////
 
-class RemoteIntentRecognition : public I_IntentRecognition, protected I_RemoteApi{
+class RemoteIntentRecognition : public I_IntentRecognition, protected I_RemoteApi {
 public:
     RemoteIntentRecognition(std::shared_ptr<IntentRegistry> intentRegistry);
     ~RemoteIntentRecognition();
     bool recognizeIntentAsync(const std::string& intentString, std::function<void(std::shared_ptr<Intent>)> callback) override;
     bool recognizeIntentAsync(const std::string& intentString) override;
+
 private:
-    std::shared_ptr<Intent> recognizeIntent(const std::string&  name, const std::string& intentString) override;
+    std::shared_ptr<Intent> recognizeIntent(const std::string& name, const std::string& intentString) override;
     std::jthread* recognitionThread;
     httplib::Client cli;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////
 
-class I_Transcriber{
+class I_Transcriber {
 public:
     virtual ~I_Transcriber() = default;
     virtual std::string transcribeBuffer(const uint16_t* audio, size_t length) = 0;
@@ -210,23 +221,25 @@ public:
 
 /////////////////////////////////////////////////////////////////////////////////////
 
-class LocalTranscriber : public I_Transcriber{
+class LocalTranscriber : public I_Transcriber {
 public:
     LocalTranscriber();
     std::string transcribeBuffer(const uint16_t* audio, size_t length) override;
     std::string transcribeStream(const uint16_t* audio, size_t bufSize) override;
+
 private:
     std::shared_ptr<Whisper> m_whisper;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////
 
-class RemoteTranscriber : public I_Transcriber, public I_RemoteApi{
+class RemoteTranscriber : public I_Transcriber, public I_RemoteApi {
 public:
     RemoteTranscriber();
     ~RemoteTranscriber();
     std::string transcribeBuffer(const uint16_t* audio, size_t length) override;
     std::string transcribeStream(const uint16_t* audio, size_t bufSize) override;
+
 private:
     bool initTranscribing();
     bool streamAudio();
@@ -235,7 +248,7 @@ private:
 
 /////////////////////////////////////////////////////////////////////////////////////
 
-class Scheduler: public I_API_Interface{
+class ScheduledTask {
 public:
     enum class RepeatInterval {
         REPEAT_NONE_ONE_SHOT,
@@ -245,18 +258,43 @@ public:
         REPEAT_YEARLY,
         REPEAT_CUSTOM
     };
-    using TimePoint = std::chrono::system_clock::time_point;
     // A handle to a scheduled or schedule-able task
     using ScheduledTaskHandle = uint32_t;
     // The first element is the interval for the repeating task. The second element is the number of times the task should be repeated.
     using RepeatingType = std::pair<RepeatInterval, uint16_t>;
-    // The first element is the time the task should be executed, the second element is the repeating interval, and the third element is the time the task should stop repeating.
-    using ScheduleType = std::tuple<std::chrono::system_clock::time_point, RepeatingType, TimePoint>;
-    // The first element is the type of schedule, the second element is the intent that should execute at that time, and the third element is whether or not the task is enabled.
-    using ScheduledTask = std::tuple<ScheduleType, std::shared_ptr<Intent>, bool, ScheduledTaskHandle>;
+    struct ScheduleType {
+        TimePoint time;
+        RepeatingType repeat;
+        TimePoint endTime;
+    };
+
+    ScheduledTask() = default;
+    ScheduledTask(const std::shared_ptr<Intent>& intent, const TimePoint& time);
+    ScheduledTask(const std::shared_ptr<Intent>& intent, const TimePoint& time, const RepeatingType& repeat);
+    ScheduledTask(const std::shared_ptr<Intent>& intent, const TimePoint& time, const RepeatingType& repeat, const TimePoint& endTime);
+    const ScheduleType& getSchedule() const;
+    const std::shared_ptr<Intent>& getIntent() const;
+    bool isEnabled() const;
+    void setEnabled(bool enabled);
+    ScheduledTaskHandle getHandle() const;
+    void executeIntent();
+
+private:
+    ScheduleType schedule = {TimePoint(), {RepeatInterval::REPEAT_NONE_ONE_SHOT, 0}, TimePoint()};
+    std::shared_ptr<Intent> intent;
+    bool enabled = false;
+    static ScheduledTaskHandle nextHandle;
+    ScheduledTaskHandle handle = 0;
+    unsigned int repeatCount = 0;
+};
+
+/////////////////////////////////////////////////////////////////////////////////////
+
+class Scheduler : public I_API_Interface {
+public:
     // A vector of scheduled tasks
     using ScheduledTaskList = std::vector<ScheduledTask>;
-    
+
     Scheduler();
     ~Scheduler();
     void start();
@@ -269,13 +307,11 @@ public:
     void removeTask(const std::shared_ptr<Intent>& intent);
     void removeTask(const std::string& intentName);
     void removeTask(uint32_t taskHandle);
-    ScheduledTask createTask(const std::shared_ptr<Intent>& intent, const std::chrono::system_clock::time_point& time, const RepeatingType& repeat); // For repeating tasks
-    ScheduledTask createTask(const std::shared_ptr<Intent>& intent, const std::chrono::system_clock::time_point& time); // For one shot tasks
-    ScheduledTask createTask(const std::shared_ptr<Intent>& intent, const std::chrono::system_clock::time_point& time, const std::chrono::system_clock::time_point& repeatTime); // For custom repeating tasks
-    ScheduledTask createTask(const std::shared_ptr<Intent>& intent, const std::chrono::system_clock::time_point& time, const std::chrono::system_clock::time_point& repeatTime, const std::chrono::system_clock::time_point& endTime); // For custom repeating tasks with an end time
+
     // API Interface
     HttpEndPointData_t getHttpEndpointData() override;
-    std::string getInterfaceName() const override;
+    constexpr std::string getInterfaceName() const override;
+
 private:
     std::shared_ptr<I_IntentRecognition> intentRecognition;
     ScheduledTaskList scheduledTasks;
@@ -289,9 +325,66 @@ private:
 
 /////////////////////////////////////////////////////////////////////////////////////
 
+class I_Trigger: public I_API_Interface {
+public:
+    virtual ~I_Trigger() = default;
+    virtual void trigger() = 0;
+    bool isEnabled() const;
+    void setEnabled(bool enabled);
+    bool getTriggerState() const;
+    void setTriggerFunction(std::function<void()> triggerFunction);
+    void setCheckTrigger(std::function<bool()> checkTrigger);
+    virtual void setScheduler(std::shared_ptr<Scheduler> scheduler) = 0;
+    // API Interface
+    HttpEndPointData_t getHttpEndpointData() override = 0;
+    constexpr std::string getInterfaceName() const override = 0;
+private:
+    bool enabled = false;
+    bool triggerState = false;
+    bool schedulerSet = false;
+    std::function<void()> triggerFunction;
+    std::function<bool()> checkTrigger;
+};
+
 /////////////////////////////////////////////////////////////////////////////////////
 
-class DecisionEngineMain{
+class TimeTrigger : public I_Trigger {
+public:
+    TimeTrigger();
+    TimeTrigger(const TimePoint& time);
+    TimeTrigger(const TimePoint& time, const std::function<void()>& triggerFunction);
+    TimeTrigger(const TimePoint& time, const std::function<void()>& triggerFunction, const std::function<bool()>& checkTrigger);
+    void trigger() override;
+    void setTime(const TimePoint& time);
+    const TimePoint& getTime() const;
+    void setScheduler(std::shared_ptr<Scheduler> scheduler);
+    // API Interface
+    HttpEndPointData_t getHttpEndpointData() override;
+    constexpr std::string getInterfaceName() const override;
+private:
+    TimePoint time;
+    std::shared_ptr<Scheduler> scheduler;
+};
+
+/////////////////////////////////////////////////////////////////////////////////////
+
+class EventTrigger : public I_Trigger {
+public:
+    EventTrigger();
+    EventTrigger(const std::function<void()>& triggerFunction);
+    EventTrigger(const std::function<void()>& triggerFunction, const std::function<bool()>& checkTrigger);
+    void trigger() override;
+    void setScheduler(std::shared_ptr<Scheduler> scheduler);
+    // API Interface
+    HttpEndPointData_t getHttpEndpointData() override;
+    constexpr std::string getInterfaceName() const override;
+private:
+    std::shared_ptr<Scheduler> scheduler;
+};
+
+/////////////////////////////////////////////////////////////////////////////////////
+
+class DecisionEngineMain {
 public:
     DecisionEngineMain();
     ~DecisionEngineMain();
@@ -310,6 +403,7 @@ public:
 
     const std::shared_ptr<IntentRegistry> getIntentRegistry() const;
     const std::shared_ptr<Scheduler> getScheduler() const;
+
 private:
     std::shared_ptr<I_IntentRecognition> intentRecognition;
     std::shared_ptr<Whisper> transcriber;
@@ -328,4 +422,4 @@ std::vector<IntentCTorParams> getSystemSchedule();
 
 }; // namespace DecisionEngine
 
-#endif// DECISIONS_H
+#endif // DECISIONS_H

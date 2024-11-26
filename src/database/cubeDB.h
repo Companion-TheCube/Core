@@ -31,7 +31,7 @@ public:
     // API Interface
     HttpEndPointData_t getHttpEndpointData() override;
     // std::vector<std::pair<std::string,std::vector<std::string>>> getHttpEndpointNamesAndParams() override;
-    std::string getInterfaceName() const override;
+    constexpr std::string getInterfaceName() const override;
 };
 
 static const std::string base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"

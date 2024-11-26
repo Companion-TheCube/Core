@@ -1190,7 +1190,7 @@ HttpEndPointData_t BTManager::getHttpEndpointData()
     return data;
 }
 
-std::string BTManager::getInterfaceName() const
+constexpr std::string BTManager::getInterfaceName() const
 {
     return "Bluetooth";
 }

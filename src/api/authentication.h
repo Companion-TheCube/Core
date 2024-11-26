@@ -53,7 +53,7 @@ public:
     static std::string getLastError();
 
     // API Interface
-    std::string getInterfaceName() const;
+    constexpr std::string getInterfaceName() const override;
     HttpEndPointData_t getHttpEndpointData();
 };
 

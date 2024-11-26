@@ -25,7 +25,7 @@
 #endif
 
 namespace Logger {
-enum class LogVerbosity: int {
+enum class LogVerbosity : int {
     MINIMUM,
     TIMESTAMP,
     TIMESTAMP_AND_LEVEL,
@@ -163,9 +163,8 @@ public:
     static std::string getScreenMessage();
     static std::string getSizeOfCubeLog();
     // API Interface
-    std::string getInterfaceName() const;
+    constexpr std::string getInterfaceName() const override;
     HttpEndPointData_t getHttpEndpointData();
-    // std::vector<std::pair<std::string, std::vector<std::string>>> getHttpEndpointNamesAndParams();
 };
 
 std::string convertTimestampToString(std::chrono::time_point<std::chrono::system_clock> timestamp);

@@ -1,33 +1,31 @@
 #pragma once
 #ifndef BLUETOOTH_H
 #define BLUETOOTH_H
+#include <array>
+#include <condition_variable>
+#include <cstdio>
+#include <filesystem>
+#include <functional>
+#include <iostream>
 #include <logger.h>
+#include <memory>
 #include <mutex>
+#include <stdexcept>
 #include <string>
 #include <thread>
 #include <vector>
-#include <filesystem>
-#include <cstdio>
-#include <iostream>
-#include <memory>
-#include <stdexcept>
-#include <string>
-#include <array>
-#include <functional>
-#include <condition_variable>
 #ifndef HTTPLIB_INCLUDED
 #define HTTPLIB_INCLUDED
 #define CPPHTTPLIB_OPENSSL_SUPPORT
 #include <httplib.h>
 #endif
 #ifdef __linux__
-#include <sys/wait.h>
-#include <unistd.h>
 #include <cstdlib>
 #include <dirent.h>
 #include <iostream>
 #include <spawn.h>
 #include <sys/wait.h>
+#include <unistd.h>
 #endif
 #ifndef WIN32_INCLUDED
 #define WIN32_INCLUDED
@@ -51,10 +49,10 @@
 #else
 #define BT_MANAGER_EXECUTABLE "bt_manager.exe"
 #endif
-#include "utils.h"
 #include "../api/api_i.h"
-#include "uuid.h"
 #include "nlohmann/json.hpp"
+#include "utils.h"
+#include "uuid.h"
 
 /**
  * @brief An object to hold information about a Bluetooth device
@@ -172,6 +170,7 @@ class BTManager : public I_API_Interface {
     std::string client_id;
     nlohmann::json config;
     uuids::uuid authUUID;
+
 public:
     BTManager();
     ~BTManager();
@@ -179,7 +178,7 @@ public:
     void removeService(BTService* service);
     // CUBE API Interface
     HttpEndPointData_t getHttpEndpointData();
-    std::string getInterfaceName() const;
+    constexpr std::string getInterfaceName() const override;
 };
 
-#endif// BLUETOOTH_H
+#endif // BLUETOOTH_H

@@ -53,6 +53,13 @@ struct GlobalSettings {
         NFC_ENABLED,
         MICROPHONE_ENABLED,
         PRESENCE_DETECTION_ENABLED,
+        EMOTION_CURIOSITY,
+        EMOTION_PLAYFULNESS,
+        EMOTION_EMPATHY,
+        EMOTION_ASSERTIVENESS,
+        EMOTION_ATTENTIVENESS,
+        EMOTION_CAUTION,
+        EMOTION_ANNOYANCE,
 
         SETTING_TYPE_COUNT
     };
@@ -122,6 +129,20 @@ struct GlobalSettings {
         GlobalSettings::setSetting(SettingType::MICROPHONE_ENABLED, true);
         // set the default presence detection to true
         GlobalSettings::setSetting(SettingType::PRESENCE_DETECTION_ENABLED, true);
+        // set the default emotion curiosity to 80
+        GlobalSettings::setSetting(SettingType::EMOTION_CURIOSITY, 80);
+        // set the default emotion playfulness to 70
+        GlobalSettings::setSetting(SettingType::EMOTION_PLAYFULNESS, 70);
+        // set the default emotion empathy to 85
+        GlobalSettings::setSetting(SettingType::EMOTION_EMPATHY, 85);
+        // set the default emotion assertiveness to 60
+        GlobalSettings::setSetting(SettingType::EMOTION_ASSERTIVENESS, 60);
+        // set the default emotion attentiveness to 90
+        GlobalSettings::setSetting(SettingType::EMOTION_ATTENTIVENESS, 90);
+        // set the default emotion caution to 50
+        GlobalSettings::setSetting(SettingType::EMOTION_CAUTION, 50);
+        // set the default emotion annoyance to 0
+        GlobalSettings::setSetting(SettingType::EMOTION_ANNOYANCE, 0);
     }
 
     static void setSettingCB(SettingType key, std::function<void()> callback)

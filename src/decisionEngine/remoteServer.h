@@ -11,7 +11,7 @@
 #include "nlohmann/json.hpp"
 #include "globalSettings.h"
 #include <bitset>
-#include "cubeDB.h"
+#include "../database/cubeDB.h"
 
 #define SERVER_API_URL "https://api.4thecube.com"
 
@@ -25,7 +25,7 @@ public:
         SERVER_STATUS_READY,
         SERVER_STATUS_BUSY,
         SERVER_STATUS_ERROR
-    }status = SERVER_STATUS_INITIALIZING;
+    }status = ServerStatus::SERVER_STATUS_INITIALIZING;
     enum class ServerError{
         SERVER_ERROR_NONE,
         SERVER_ERROR_CONNECTION_ERROR,
@@ -34,12 +34,12 @@ public:
         SERVER_ERROR_TRANSCRIPTION_ERROR,
         SERVER_ERROR_STREAMING_ERROR,
         SERVER_ERROR_UNKNOWN
-    }error = SERVER_ERROR_NONE;
+    }error = ServerError::SERVER_ERROR_NONE;
     enum class ServerState{
         SERVER_STATE_IDLE,
         SERVER_STATE_TRANSCRIBING,
         SERVER_STATE_STREAMING
-    }state = SERVER_STATE_IDLE;
+    }state = ServerState::SERVER_STATE_IDLE;
     enum class AvailableServices{
         AVAILABLE_SERVICE_NONE = 0,
         AVAILABLE_SERVICE_OPENAI = 1,

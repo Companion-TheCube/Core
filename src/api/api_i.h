@@ -18,8 +18,8 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
-#endif
-#endif
+#endif// API_I_H
+#endif// API_I_H
 #include <nlohmann/json.hpp>
 
 struct EndpointError {
@@ -76,7 +76,7 @@ typedef std::vector<HttpEndPointDataSinglet_t> HttpEndPointData_t;
 class I_API_Interface {
 public:
     virtual ~I_API_Interface() = default;
-    virtual std::string getInterfaceName() const = 0;
+    constexpr virtual std::string getInterfaceName() const = 0;
     /**
      * @brief Get the Endpoint Data object
      *
@@ -91,4 +91,4 @@ public:
     virtual HttpEndPointData_t getHttpEndpointData() = 0;
 };
 
-#endif
+#endif// API_I_H

@@ -1,25 +1,33 @@
 #ifndef PERSONALITYMANAGER_H
 #define PERSONALITYMANAGER_H
 
+#include "utils.h"
+#include <chrono>
+#include <logger.h>
+#include <mutex>
+#include <numbers>
+#include <stop_token>
 #include <string>
 #include <thread>
-#include <mutex>
-#include <stop_token>
-#include <chrono>
 #include <unordered_map>
-#include <logger.h>
-#include "utils.h"
-#include <numbers>
+#ifndef API_I_H
+#include "../api/api_i.h"
+#endif
+#ifndef GLOBALSETTINGS_H
+#include "../settings/globalSettings.h"
+#endif
 
 #define EXPONENTIAL_RAMP_EXPONENT 2.0
+#define EMOTION_MAX_VALUE 100
+#define EMOTION_MIN_VALUE 1
 
 namespace Personality {
 
 using TimePoint = std::chrono::system_clock::time_point;
 
-class Emotion{
+class Emotion {
 public:
-    enum class EmotionType{
+    enum class EmotionType {
         EMOTION_NOT_ASSIGNED,
         CURIOSITY,
         PLAYFULNESS,
@@ -27,6 +35,7 @@ public:
         ASSERTIVENESS,
         ATTENTIVENESS,
         CAUTION,
+        ANNOYANCE,
         EMOTION_COUNT
     };
     enum class TimeTargetType {
@@ -38,13 +47,14 @@ public:
         TARGET_RAMP_STEP, // Step to target value at targetValueTime
         TARGET_RAMP_COUNT
     };
-    enum class RampStage{
+    enum class RampStage {
         RAMP_NOT_STARTED,
         RAMP_TO_TARGET,
         RAMP_TO_DEFAULT,
         RAMP_COMPLETE
     };
-    Emotion(int value = 0, EmotionType name);
+    Emotion() = default;
+    Emotion(int value, EmotionType name);
     int operator=(int value);
     int operator+(int value);
     int operator-(int value);
@@ -58,6 +68,7 @@ public:
     int operator--();
     int operator++(int);
     int operator--(int);
+    operator int() const { return currentValue; }
     TimePoint getLastUpdate();
     TimeTargetType timeTargetType = TimeTargetType::TARGET_TYPE_NOT_DEFINED;
     TimeTargetType expirationType = TimeTargetType::TARGET_TYPE_NOT_DEFINED;
@@ -71,20 +82,27 @@ public:
     TimePoint expirationTime;
     TimePoint targetValueTime;
     TimePoint rampStartTime;
+
 private:
     EmotionType name = EmotionType::EMOTION_NOT_ASSIGNED;
     TimePoint lastUpdate;
 };
 
-class EmotionManager{
+class PersonalityManager : public I_API_Interface {
 public:
-    EmotionManager();
-    ~EmotionManager();
-    Emotion getEmotion(Emotion::EmotionType emotion);
+    PersonalityManager();
+    ~PersonalityManager();
+    const Emotion getEmotion(Emotion::EmotionType emotion);
+    // TODO: add methods that allow for ramp type of expiration
     bool setEmotion(Emotion::EmotionType emotion, int value);
     bool setEmotion(Emotion::EmotionType emotion, TimePoint expiration, int value);
+    bool setEmotion(Emotion::EmotionType emotion, TimePoint targetValueTime, int targetValue, Emotion::TimeTargetType rampType);
     bool setEmotion(Emotion::EmotionType emotion, TimePoint targetValueTime, int targetValue, TimePoint expiration, Emotion::TimeTargetType rampType);
     int getEmotionValue(Emotion::EmotionType emotion);
+    // API Interface
+    HttpEndPointData_t getHttpEndpointData() override;
+    constexpr std::string getInterfaceName() const override;
+
 private:
     void managerThreadFunction(std::stop_token st);
     Emotion curiosity;
@@ -93,13 +111,14 @@ private:
     Emotion assertiveness;
     Emotion attentiveness;
     Emotion caution;
+    Emotion annoyance;
 
     std::unordered_map<Emotion::EmotionType, Emotion&> emotions;
-    
+
     std::jthread* managerThread;
     std::mutex managerMutex;
 };
 
 }; // namespace Personality
 
-#endif// PERSONALITYMANAGER_H
+#endif // PERSONALITYMANAGER_H
