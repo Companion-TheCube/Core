@@ -1,4 +1,8 @@
 #include "builder.h"
+
+std::shared_ptr<API> API_Builder::api = nullptr;
+std::unordered_map<std::string, I_API_Interface*> API_Builder::interface_objs;
+
 /**
  * @brief Construct a new api builder::api builder object
  *

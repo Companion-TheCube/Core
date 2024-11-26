@@ -18,8 +18,8 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
-#endif// API_I_H
-#endif// API_I_H
+#endif
+#endif
 #include <nlohmann/json.hpp>
 
 struct EndpointError {
@@ -54,8 +54,6 @@ typedef std::function<EndpointError(const httplib::Request& req, httplib::Respon
 // 4. std::vector<std::string> - The parameters that the endpoint accepts.
 // 5. std::string - A description of the endpoint.
 typedef std::tuple<unsigned int, EndpointAction_t, std::string, std::vector<std::string>, std::string> HttpEndPointDataSinglet_t;
-// TODO: Consider changing this tuple to a struct for better readability. This will involve a bit of refactoring across the codebase.
-
 
 // Type: HttpEndPointData_t - A vector of HttpEndPointDataSinglet_t's
 // Each element of the vector is a tuple containing the following elements:
@@ -91,4 +89,4 @@ public:
     virtual HttpEndPointData_t getHttpEndpointData() = 0;
 };
 
-#endif// API_I_H
+#endif // API_I_H

@@ -26,6 +26,7 @@
 #define CPPHTTPLIB_OPENSSL_SUPPORT
 #include "httplib.h"
 #include "../lazyLoader.h"
+#include "../api/autoRegister.h"
 
 #define LOCAL_INTENT_RECOGNITION_THREAD_COUNT 4
 #define LOCAL_INTENT_RECOGNITION_THREAD_SLEEP_MS 100
@@ -357,13 +358,8 @@ public:
     void trigger() override;
     void setTime(const TimePoint& time);
     const TimePoint& getTime() const;
-    void setScheduler(std::shared_ptr<Scheduler> scheduler);
-    // API Interface
-    HttpEndPointData_t getHttpEndpointData() override;
-    constexpr std::string getInterfaceName() const override;
 private:
     TimePoint time;
-    std::shared_ptr<Scheduler> scheduler;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -374,6 +370,12 @@ public:
     EventTrigger(const std::function<void()>& triggerFunction);
     EventTrigger(const std::function<void()>& triggerFunction, const std::function<bool()>& checkTrigger);
     void trigger() override;
+};
+
+/////////////////////////////////////////////////////////////////////////////////////
+class TriggerManager : public I_API_Interface, public AutoRegisterAPI<TriggerManager> {
+public:
+    TriggerManager();
     void setScheduler(std::shared_ptr<Scheduler> scheduler);
     // API Interface
     HttpEndPointData_t getHttpEndpointData() override;
@@ -381,7 +383,6 @@ public:
 private:
     std::shared_ptr<Scheduler> scheduler;
 };
-
 /////////////////////////////////////////////////////////////////////////////////////
 
 class DecisionEngineMain {

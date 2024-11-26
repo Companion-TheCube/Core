@@ -50,14 +50,14 @@ protected:
 
 
 template <typename T>
-class Lazy {
+class LazyLoader {
 public:
     // Constructor accepts a custom initializer function
-    explicit Lazy(std::function<T()> initializer)
+    explicit LazyLoader(std::function<T()> initializer)
         : initializer_(std::move(initializer)) {}
 
     // Constructor for LazyLoadable types (no custom initializer needed)
-    Lazy() requires std::is_base_of_v<LazyLoadable, T> {}
+    LazyLoader() requires std::is_base_of_v<LazyLoadable, T> {}
 
     // Access the value, initializing it if necessary
     T& get() {
@@ -109,9 +109,14 @@ private:
 
 
 /*
-// Example usage of the Lazy and LazyLoadable classes
-Lazy<LazyLoadableClass> lazyLoader;
-LazyLoadableClass& lazy = lazyLoader.get();
+Example 1. Usage of the Lazy and LazyLoadable classes
+Example 2: Using a non-LazyLoadable type (below)
+
+
+
+// Example 1. Usage of the Lazy and LazyLoadable classes
+LazyLoader<LazyLoadableClass> lazyLoadedObject;
+LazyLoadableClass& lazy = lazyLoadedObject.get(); // After this, we can use the object as usual
 CubeLog::info("LazyLoadableClass initialized: " + std::to_string(lazy.is_initialized()));
 CubeLog::info("LazyLoadableClass data size: " + std::to_string(lazy.data.size()));
 lazy.initialize();
@@ -155,4 +160,17 @@ void LazyLoadableClass::unload()
     this->data.clear();
     LazyLoadable::unload(); // Be sure to call the base class method
 }
+
+
+
+
+// Example 2: Using a non-LazyLoadable type
+Lazy<int> lazyInt([]() {
+    // This lambda will be called only once when the value is first accessed
+    std::cout << "Initializing lazy integer!" << std::endl;
+    return 123;
+});
+
+std::cout << "Before accessing lazyInt..." << std::endl;
+std::cout << "Value: " << lazyInt.get() << std::endl;
  */
