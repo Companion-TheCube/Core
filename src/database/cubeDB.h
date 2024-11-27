@@ -5,13 +5,14 @@
 #include "db.h"
 #endif
 #ifndef API_I_H
-#include "../api/api_i.h"
+#include "../api/api.h"
 #endif
+#include "nlohmann/json.hpp"
 #include <condition_variable>
 #include <functional>
 #include <mutex>
 
-class CubeDB : public I_API_Interface {
+class CubeDB : public AutoRegisterAPI<CubeDB> {
     static std::shared_ptr<CubeDatabaseManager> dbManager;
     static std::shared_ptr<BlobsManager> blobsManager;
     static bool isDBManagerSet;
@@ -30,7 +31,6 @@ public:
     static std::shared_ptr<BlobsManager> getBlobsManager();
     // API Interface
     HttpEndPointData_t getHttpEndpointData() override;
-    // std::vector<std::pair<std::string,std::vector<std::string>>> getHttpEndpointNamesAndParams() override;
     constexpr std::string getInterfaceName() const override;
 };
 

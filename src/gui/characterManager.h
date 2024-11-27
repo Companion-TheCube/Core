@@ -20,11 +20,14 @@
 #include <../database/cubeDB.h>
 #endif // CUBEDB_H
 #ifndef API_I_H
-#include "../api_i.h"
+#include "../api/api.h"
 #endif // API_I_H
+
 #include <filesystem>
 #include <iostream>
+#ifndef LOGGER_H
 #include <logger.h>
+#endif
 #include <thread>
 #include <vector>
 
@@ -103,7 +106,7 @@ public:
     bool getVisible();
 };
 
-class CharacterManager : public I_API_Interface {
+class CharacterManager : public AutoRegisterAPI<CharacterManager> {
 private:
     std::vector<Character_generic*> characters;
     Character_generic* currentCharacter;

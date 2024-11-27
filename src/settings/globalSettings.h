@@ -5,7 +5,9 @@
 #include "utils.h"
 #endif
 #include <filesystem>
+#ifndef LOGGER_H
 #include <logger.h>
+#endif
 #include <mutex>
 #include <nlohmann/json.hpp>
 #include <vector>

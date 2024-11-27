@@ -272,9 +272,89 @@ file(MAKE_DIRECTORY ${HTTP_DEST_DIR})
 file(MAKE_DIRECTORY ${MTL_DEST_DIR})
 file(MAKE_DIRECTORY ${DATA_DEST_DIR})
 
-# Add executable
+
+
+# Function to count all occurrences of regex_pattern in the source files
+# function(count_macro_usages regex_pattern file_list)
+#     # Initialize count
+#     set(count 0)
+
+#     # Loop over all source files
+#     foreach(file ${ARGN})
+#         # Read the file content
+#         file(READ "${file}" file_content)
+
+#         # Count occurrences of the pattern in the file
+#         string(REGEX MATCHALL "${regex_pattern}" matches "${file_content}")
+#         list(LENGTH matches num_matches)
+
+#         # Add to total count
+#         math(EXPR count "${count} + ${num_matches}")
+#     endforeach()
+
+#     # Set the count variable
+#     set(NUM_INTERFACES ${count} PARENT_SCOPE)
+#     add_definitions(-DNUM_INTERFACES=${count})
+# endfunction()
+
+# Define the regex pattern that matches AutoRegisterAPI<XXXX> where XXXX is the class name
+set(MACRO_REGEX "public AutoRegisterAPI<([a-zA-Z_][a-zA-Z0-9_:]*)>")
+
+# Get all source files in the project including headers
+
+# Call the function to count occurrences
+# count_macro_usages("${MACRO_REGEX}" NUM_INTERFACES ${SOURCES_AND_HEADERS})
+
+# Output the count (optional)
+# message(STATUS "Number of interfaces: ${NUM_INTERFACES}")
+
+# Add the preprocessor definition
+# add_definitions(-DNUM_INTERFACES=${NUM_INTERFACES})
+
+# Add the executable
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/**/*.cpp" "src/**/**/*.cpp")
 add_executable(CubeCore ${SOURCES})
+
+
+set(InterfaceCount_OUTPUTFILE "${CMAKE_SOURCE_DIR}/src/api/InterfaceCount.h")
+
+file(WRITE "${CMAKE_BINARY_DIR}/count_interfaces.cmake" "
+cmake_minimum_required(VERSION 3.25)
+file(GLOB_RECURSE SOURCES_AND_HEADERS \"${CMAKE_SOURCE_DIR}/src/*.h\" \"${CMAKE_SOURCE_DIR}/src/**/*.h\" \"${CMAKE_SOURCE_DIR}/src/**/**/*.h\" \"${CMAKE_SOURCE_DIR}/src/*.cpp\" \"${CMAKE_SOURCE_DIR}/src/**/*.cpp\" \"${CMAKE_SOURCE_DIR}/src/**/**/*.cpp\")
+function(count_interfaces regex_pattern count_var)
+    # Initialize count
+    set(count 0)
+
+    # Loop over all source files
+    foreach(file \${ARGN})
+        # Read the file content
+        file(READ \"\${file}\" file_content)
+
+        # Count occurrences of the pattern in the file
+        string(REGEX MATCHALL \"\${regex_pattern}\" matches \"\${file_content}\")
+        list(LENGTH matches num_matches)
+
+        # Add to total count
+        math(EXPR count \"\${count} + \${num_matches}\")
+    endforeach()
+
+    # Set the count variable
+    set(\${count_var} \${count} PARENT_SCOPE)
+endfunction()
+
+count_interfaces(\"public AutoRegisterAPI<([a-zA-Z_][a-zA-Z0-9_:]*)>\" num_interfaces \"\${SOURCES_AND_HEADERS}\")
+message(STATUS \"Number of interfaces: \${num_interfaces}\")
+# add_compile_definitions(NUM_INTERFACES=\${num_interfaces})
+file(WRITE \"${InterfaceCount_OUTPUTFILE}\" \"#pragma once\n#define NUM_INTERFACES \${num_interfaces}\")
+")
+
+add_custom_target(
+    count_interfaces
+    COMMAND ${CMAKE_COMMAND} -P "${CMAKE_BINARY_DIR}/count_interfaces.cmake"
+)
+
+# add dependency of count_interfaces target to CubeCore target
+add_dependencies(CubeCore count_interfaces)
 
 # this is needed for Qt6
 # if(WIN32)

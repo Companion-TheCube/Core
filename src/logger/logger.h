@@ -1,10 +1,9 @@
-#pragma once
 #ifndef LOGGER_H
 #define LOGGER_H
 #define WIN32_LEAN_AND_MEAN
-// #ifndef API_I_H
-#include "../api/api_i.h"
-// #endif
+#ifndef API_H
+#include "../api/api.h"
+#endif
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
@@ -109,7 +108,7 @@ public:
     unsigned long long getTimestampAsLong();
 };
 
-class CubeLog : public I_API_Interface {
+class CubeLog : public AutoRegisterAPI<CubeLog> {
 private:
     static std::vector<CUBE_LOG_ENTRY> logEntries;
     static std::mutex logMutex;

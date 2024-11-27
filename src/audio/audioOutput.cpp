@@ -1,3 +1,6 @@
+#ifndef LOGGER_H
+#include <logger.h>
+#endif
 #include "audioOutput.h"
 
 /*
@@ -118,18 +121,18 @@ void AudioOutput::setSound(bool soundOn)
     }
 }
 
-HttpEndPointData_t AudioOutput::getHttpEndpointData()
-{
-    HttpEndPointData_t data;
-    data.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
-        [&](const httplib::Request& req, httplib::Response& res) {
-            this->start();
-            CubeLog::info("Endpoint start called.");
-            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Start audio called");
-        },
-        "start", {}, "Start the audio." });
-    return data;
-}
+// HttpEndPointData_t AudioOutput::getHttpEndpointData()
+// {
+//     HttpEndPointData_t data;
+//     data.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
+//         [&](const httplib::Request& req, httplib::Response& res) {
+//             this->start();
+//             CubeLog::info("Endpoint start called.");
+//             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Start audio called");
+//         },
+//         "start", {}, "Start the audio." });
+//     return data;
+// }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

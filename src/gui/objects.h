@@ -14,7 +14,9 @@
 #include <SFML/Window.hpp>
 #include <functional>
 #include <glm/glm.hpp>
+#ifndef LOGGER_H
 #include <logger.h>
+#endif
 #include <vector>
 
 class Clickable;
@@ -74,7 +76,7 @@ public:
 
 class Object {
 public:
-    virtual ~Object(){};
+    virtual ~Object() {};
     virtual void draw() = 0;
     virtual bool setVisible(bool visible) = 0;
     virtual bool getVisible() = 0;

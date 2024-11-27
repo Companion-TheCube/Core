@@ -7,7 +7,6 @@
 #include <functional>
 #include <iostream>
 #include <latch>
-#include <logger.h>
 #include <mutex>
 #include <queue>
 #include <thread>
@@ -30,7 +29,7 @@
 template <typename T>
 class TaskQueue {
 public:
-    TaskQueue(){};
+    TaskQueue() {};
     void push(T task)
     {
         {
@@ -80,7 +79,7 @@ private:
 template <typename T, typename D>
 class TaskQueueWithData {
 public:
-    TaskQueueWithData(){};
+    TaskQueueWithData() {};
     void push(T task, D data)
     {
         {
@@ -187,7 +186,6 @@ private:
     std::mutex mutex_;
     std::condition_variable cv_;
 };
-
 
 #ifdef _WIN32
 std::string convertWCHARToString(const WCHAR* wstr);

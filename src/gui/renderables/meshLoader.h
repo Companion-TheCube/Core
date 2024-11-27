@@ -10,7 +10,9 @@
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#ifndef LOGGER_H
 #include <logger.h>
+#endif
 #include <nlohmann/json.hpp>
 #include <string>
 #include <vector>

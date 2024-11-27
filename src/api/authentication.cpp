@@ -1,3 +1,6 @@
+#ifndef LOGGER_H
+#include <logger.h>
+#endif
 #include "authentication.h"
 
 /**

@@ -5,7 +5,9 @@
 #include "meshObject.h"
 #include "meshLoader.h"
 #include "shapes.h"
+#ifndef LOGGER_H
 #include <logger.h>
+#endif
 #include <vector>
 
 

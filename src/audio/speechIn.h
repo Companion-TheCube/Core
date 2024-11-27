@@ -2,7 +2,9 @@
 #define SPEECHIN_H
 
 #include "utils.h"
+#ifndef LOGGER_H
 #include <logger.h>
+#endif
 
 #define SAMPLE_RATE 16000
 #define NUM_CHANNELS 1
@@ -19,9 +21,7 @@
 // Expected data type is int16_t[]
 #define PRE_TRIGGER_FIFO_SIZE (2 * 1000 * 16) // 2 seconds of audio at 16kHz 16bit mono
 
-
-class SpeechIn
-{
+class SpeechIn {
 public:
     SpeechIn();
     ~SpeechIn();
@@ -113,7 +113,5 @@ private:
 
     // Write audio data from the FIFO to the unix socket
     void writeAudioDataToSocket(int16_t* buffer, size_t bufferSize);
-
-
 };
 #endif // SPEECHIN_H

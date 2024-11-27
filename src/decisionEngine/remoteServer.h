@@ -1,32 +1,35 @@
 #ifndef REMOTESERVER_H
 #define REMOTESERVER_H
 
+#ifndef LOGGER_H
 #include <logger.h>
-#include "utils.h"
-#include <httplib.h>
-#include <string>
-#include <iostream>
-#include <thread>
-#include <functional>
-#include "nlohmann/json.hpp"
-#include "globalSettings.h"
-#include <bitset>
+#endif
 #include "../database/cubeDB.h"
+#include "globalSettings.h"
+#include "nlohmann/json.hpp"
+#include "utils.h"
+#include <bitset>
+#include <functional>
+#include <httplib.h>
+#include <iostream>
+#include <string>
+#include <thread>
 
 #define SERVER_API_URL "https://api.4thecube.com"
 
-namespace TheCubeServer{
+namespace TheCubeServer {
 
-class TheCubeServerAPI{
+class TheCubeServerAPI {
 public:
     using FourBit = std::bitset<4>;
-    enum class ServerStatus{
+    enum class ServerStatus {
         SERVER_STATUS_INITIALIZING,
         SERVER_STATUS_READY,
         SERVER_STATUS_BUSY,
         SERVER_STATUS_ERROR
-    }status = ServerStatus::SERVER_STATUS_INITIALIZING;
-    enum class ServerError{
+    } status
+        = ServerStatus::SERVER_STATUS_INITIALIZING;
+    enum class ServerError {
         SERVER_ERROR_NONE,
         SERVER_ERROR_CONNECTION_ERROR,
         SERVER_ERROR_AUTHENTICATION_ERROR,
@@ -34,13 +37,15 @@ public:
         SERVER_ERROR_TRANSCRIPTION_ERROR,
         SERVER_ERROR_STREAMING_ERROR,
         SERVER_ERROR_UNKNOWN
-    }error = ServerError::SERVER_ERROR_NONE;
-    enum class ServerState{
+    } error
+        = ServerError::SERVER_ERROR_NONE;
+    enum class ServerState {
         SERVER_STATE_IDLE,
         SERVER_STATE_TRANSCRIBING,
         SERVER_STATE_STREAMING
-    }state = ServerState::SERVER_STATE_IDLE;
-    enum class AvailableServices{
+    } state
+        = ServerState::SERVER_STATE_IDLE;
+    enum class AvailableServices {
         AVAILABLE_SERVICE_NONE = 0,
         AVAILABLE_SERVICE_OPENAI = 1,
         AVAILABLE_SERVICE_GOOGLE = 2,
@@ -58,6 +63,7 @@ public:
     ServerStatus getServerStatus();
     ServerError getServerError();
     ServerState getServerState();
+
 private:
     uint16_t* audioBuffer;
     httplib::Client* cli;
@@ -72,4 +78,4 @@ std::string serialNumberToPassword(const std::string& serialNumber);
 
 }; // namespace TheCubeServer
 
-#endif// REMOTESERVER_H
+#endif // REMOTESERVER_H

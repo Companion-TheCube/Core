@@ -1,7 +1,11 @@
-#include "builder.h"
+#include "api.h"
+#ifndef LOGGER_H
+#include <logger.h>
+#endif
+#include "InterfaceCount.h"
 
 std::shared_ptr<API> API_Builder::api = nullptr;
-std::unordered_map<std::string, I_API_Interface*> API_Builder::interface_objs;
+std::unordered_map<std::string, std::shared_ptr<I_API_Interface>> API_Builder::interface_objs;
 
 /**
  * @brief Construct a new api builder::api builder object
@@ -28,10 +32,23 @@ API_Builder::~API_Builder()
  */
 void API_Builder::start()
 {
+#ifdef NUM_INTERFACES
+    // Wait here for all the interfaces to be added.
+    CubeLog::info("Number of interfaces: " + std::to_string(NUM_INTERFACES));
+    int waitCount = 0;
+    while (this->interface_objs.size() < NUM_INTERFACES && waitCount < 60) {
+        CubeLog::info("Waiting for interfaces to be added. Current number of interfaces: " + std::to_string(this->interface_objs.size()));
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        waitCount++;
+    }
+    if (waitCount >= 60) {
+        CubeLog::error("Timeout waiting for interfaces to be added. Moving on.");
+    }
+#endif
     // Start the API
     CubeLog::info("API Builder begin build process.");
     // Using all the components that are passed in, build the API endpoints
-    for (auto &[name, i_face_obj] : this->interface_objs) {
+    for (auto& [name, i_face_obj] : this->interface_objs) {
         CubeLog::info("Building interface object: " + name);
         auto endpointData = i_face_obj->getHttpEndpointData();
         for (size_t i = 0; i < endpointData.size(); i++) {
@@ -44,7 +61,7 @@ void API_Builder::start()
     CubeLog::info("Adding endpoint: getEndpoints at /getEndpoints");
     this->api->addEndpoint("getEndpoints", "/getEndpoints", PUBLIC_ENDPOINT | GET_ENDPOINT, [&](const httplib::Request& req, httplib::Response& res) {
         nlohmann::json j;
-        for (auto &[name, i_face_obj] : this->interface_objs) {
+        for (auto& [name, i_face_obj] : this->interface_objs) {
             auto endpointData = i_face_obj->getHttpEndpointData();
             for (size_t i = 0; i < endpointData.size(); i++) {
                 nlohmann::json endpoint_json;
@@ -90,7 +107,7 @@ void API_Builder::start()
         std::string filePath = file.string();
         this->api->addEndpoint(filePath, "/" + endpointPath, PUBLIC_ENDPOINT | GET_ENDPOINT, [&, filePath](const httplib::Request& req, httplib::Response& res) {
             std::string l_path = filePath;
-            if(l_path.empty() || l_path == "http/" || l_path == "http"){
+            if (l_path.empty() || l_path == "http/" || l_path == "http") {
                 l_path = "http/index.html";
             }
             if (!std::filesystem::exists(l_path)) {

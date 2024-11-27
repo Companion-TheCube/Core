@@ -1,3 +1,6 @@
+#ifndef LOGGER_H
+#include <logger.h>
+#endif
 #include "audioManager.h"
 // TODO: this whole thing, basically
 AudioManager::AudioManager()

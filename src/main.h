@@ -8,7 +8,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #endif
-#include "api/builder.h"
+#include "api/api.h"
+#include "api/authentication.h"
 #include "apps/appsManager.h"
 #include "argparse.hpp"
 #include "audio/audioManager.h"
@@ -19,7 +20,6 @@
 #include "hardware/peripheralManager.h"
 #include "hardware/wifi.h"
 #include "decisionEngine/decisions.h"
-#include "logger/logger.h"
 #include "settings/loader.h"
 #include <chrono>
 #include <cmath>

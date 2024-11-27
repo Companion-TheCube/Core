@@ -3,9 +3,12 @@
 
 #include "../database/cubeDB.h"
 #include "utils.h"
+#ifndef LOGGER_H
 #include <logger.h>
+#endif
 #ifndef API_I_H
-#include "../api/api_i.h"
+#include "../api/api.h"
+
 #endif
 #include "cubeWhisper.h"
 #include "nlohmann/json.hpp"
@@ -24,9 +27,9 @@
 #include <unordered_map>
 #include <vector>
 #define CPPHTTPLIB_OPENSSL_SUPPORT
-#include "httplib.h"
-#include "../lazyLoader.h"
 #include "../api/autoRegister.h"
+#include "../lazyLoader.h"
+#include "httplib.h"
 
 #define LOCAL_INTENT_RECOGNITION_THREAD_COUNT 4
 #define LOCAL_INTENT_RECOGNITION_THREAD_SLEEP_MS 100
@@ -129,7 +132,7 @@ struct IntentCTorParams {
 
 /////////////////////////////////////////////////////////////////////////////////////
 
-class IntentRegistry : public I_API_Interface {
+class IntentRegistry : public AutoRegisterAPI<IntentRegistry> {
 public:
     IntentRegistry();
     bool registerIntent(const std::string& intentName, const std::shared_ptr<Intent> intent);
@@ -281,7 +284,7 @@ public:
     void executeIntent();
 
 private:
-    ScheduleType schedule = {TimePoint(), {RepeatInterval::REPEAT_NONE_ONE_SHOT, 0}, TimePoint()};
+    ScheduleType schedule = { TimePoint(), { RepeatInterval::REPEAT_NONE_ONE_SHOT, 0 }, TimePoint() };
     std::shared_ptr<Intent> intent;
     bool enabled = false;
     static ScheduledTaskHandle nextHandle;
@@ -291,7 +294,7 @@ private:
 
 /////////////////////////////////////////////////////////////////////////////////////
 
-class Scheduler : public I_API_Interface {
+class Scheduler : public AutoRegisterAPI<Scheduler> {
 public:
     // A vector of scheduled tasks
     using ScheduledTaskList = std::vector<ScheduledTask>;
@@ -326,7 +329,7 @@ private:
 
 /////////////////////////////////////////////////////////////////////////////////////
 
-class I_Trigger: public I_API_Interface {
+class I_Trigger {
 public:
     virtual ~I_Trigger() = default;
     virtual void trigger() = 0;
@@ -336,9 +339,7 @@ public:
     void setTriggerFunction(std::function<void()> triggerFunction);
     void setCheckTrigger(std::function<bool()> checkTrigger);
     virtual void setScheduler(std::shared_ptr<Scheduler> scheduler) = 0;
-    // API Interface
-    HttpEndPointData_t getHttpEndpointData() override = 0;
-    constexpr std::string getInterfaceName() const override = 0;
+
 private:
     bool enabled = false;
     bool triggerState = false;
@@ -358,6 +359,7 @@ public:
     void trigger() override;
     void setTime(const TimePoint& time);
     const TimePoint& getTime() const;
+
 private:
     TimePoint time;
 };
@@ -373,13 +375,15 @@ public:
 };
 
 /////////////////////////////////////////////////////////////////////////////////////
-class TriggerManager : public I_API_Interface, public AutoRegisterAPI<TriggerManager> {
+
+class TriggerManager : public AutoRegisterAPI<TriggerManager> {
 public:
     TriggerManager();
     void setScheduler(std::shared_ptr<Scheduler> scheduler);
     // API Interface
     HttpEndPointData_t getHttpEndpointData() override;
     constexpr std::string getInterfaceName() const override;
+
 private:
     std::shared_ptr<Scheduler> scheduler;
 };
@@ -402,8 +406,7 @@ public:
     void setAPIPort(const std::string& apiPort);
     void setAPIPath(const std::string& apiPath);
 
-    const std::shared_ptr<IntentRegistry> getIntentRegistry() const;
-    const std::shared_ptr<Scheduler> getScheduler() const;
+    const std::shared_ptr<IntentRegistry> getIntentRegistry() const; // TODO: remove
 
 private:
     std::shared_ptr<I_IntentRecognition> intentRecognition;

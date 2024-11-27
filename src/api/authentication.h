@@ -4,7 +4,6 @@
 #include <expected>
 #include <filesystem>
 #include <iostream>
-#include <logger.h>
 #include <random>
 #include <sodium.h>
 #include <string>
@@ -12,8 +11,8 @@
 #ifndef CUBE_DB_H
 #include "./../database/cubeDB.h"
 #endif
-#ifndef API_I_H
-#include "api_i.h"
+#ifndef API_H
+#include "api.h"
 #endif
 #ifndef GUI_H
 #include "./../gui/gui.h"
@@ -21,7 +20,7 @@
 
 #define CUBE_APPS_ID_LENGTH 64
 
-class CubeAuth : public I_API_Interface {
+class CubeAuth : public AutoRegisterAPI<CubeAuth> {
     static bool available;
     static std::string privateKey;
     static std::string publicKey;
@@ -57,4 +56,4 @@ public:
     HttpEndPointData_t getHttpEndpointData();
 };
 
-#endif
+#endif // AUTHENTICATION_H

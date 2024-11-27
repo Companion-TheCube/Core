@@ -16,7 +16,9 @@
 #endif
 #include <expected>
 #include <iostream>
+#ifndef LOGGER_H
 #include <logger.h>
+#endif
 #include <nlohmann/json.hpp>
 #include <string>
 #include <utils.h>
@@ -26,7 +28,7 @@ class DockerError {
     static unsigned long errorCounter;
 
 public:
-    enum class ErrorCodes: unsigned int {
+    enum class ErrorCodes : unsigned int {
         CONTAINER_NOT_FOUND = 1,
         CONTAINER_ALREADY_RUNNING = 2,
         CONTAINER_NOT_RUNNING = 3,

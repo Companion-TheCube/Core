@@ -24,7 +24,6 @@ public:
     static void stop();
     static void toggleSound();
     static void setSound(bool soundOn);
-    HttpEndPointData_t getHttpEndpointData();
 private:
     static bool audioStarted;
     static std::unique_ptr<RtAudio> dac;

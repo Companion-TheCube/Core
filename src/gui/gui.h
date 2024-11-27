@@ -32,8 +32,9 @@
 #include "../api/api.h"
 #endif
 #ifndef API_I_H
-#include "../api_i.h"
+#include "../api/api.h"
 #endif
+
 #ifndef UTILS_H
 #include <utils.h>
 #endif
@@ -79,7 +80,7 @@ struct GUI_Error {
     std::string errorString;
 };
 
-class NotificationsManager : public I_API_Interface {
+class NotificationsManager : public AutoRegisterAPI<NotificationsManager> {
 public:
     enum class NotificationType {
         NOTIFICATION_OKAY,
@@ -97,7 +98,7 @@ public:
     HttpEndPointData_t getHttpEndpointData() override;
 };
 
-class GUI : public I_API_Interface {
+class GUI : public AutoRegisterAPI<GUI> {
 public:
     GUI();
     ~GUI();

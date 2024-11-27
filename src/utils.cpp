@@ -1,3 +1,6 @@
+#ifndef LOGGER_H
+#include <logger.h>
+#endif
 #include "utils.h"
 
 void genericSleep(int ms)

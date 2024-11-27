@@ -1,4 +1,12 @@
+#ifndef LOGGER_H
+#include <logger.h>
+#endif
+#ifndef API_H
 #include "api.h"
+#endif
+#ifndef AUTHENTICATION_H
+#include "authentication.h"
+#endif
 
 /**
  * @brief Construct a new API::API object. This creates a new CubeAuth object for authentication.

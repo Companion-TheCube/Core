@@ -7,7 +7,9 @@
 #include <filesystem>
 #include <functional>
 #include <iostream>
+#ifndef LOGGER_H
 #include <logger.h>
+#endif
 #include <memory>
 #include <mutex>
 #include <stdexcept>
@@ -49,7 +51,7 @@
 #else
 #define BT_MANAGER_EXECUTABLE "bt_manager.exe"
 #endif
-#include "../api/api_i.h"
+#include "../api/api.h"
 #include "nlohmann/json.hpp"
 #include "utils.h"
 #include "uuid.h"
@@ -160,7 +162,7 @@ public:
  * @brief Manager for all things Bluetooth
  *
  */
-class BTManager : public I_API_Interface {
+class BTManager : public AutoRegisterAPI<BTManager> {
     httplib::Client* client;
     httplib::Server* server;
     std::jthread* serverThread;

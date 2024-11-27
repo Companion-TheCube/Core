@@ -1,7 +1,9 @@
 #pragma once
 #include <filesystem>
 #include <iostream>
+#ifndef LOGGER_H
 #include <logger.h>
+#endif
 #include <string>
 #ifdef __linux__
 #include <cstdlib>
@@ -26,8 +28,6 @@
 #include <fstream>
 #include <string>
 #include <utils.h>
-
-
 
 class NativeAPI {
 public:

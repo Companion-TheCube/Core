@@ -6,7 +6,9 @@
 #include <filesystem>
 #include <functional>
 #include <iostream>
+#ifndef LOGGER_H
 #include <logger.h>
+#endif
 #include <string>
 #include <utils.h>
 #include <vector>

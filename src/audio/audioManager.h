@@ -1,8 +1,8 @@
-#include <utils.h>
-#include "../api/api_i.h"
+#include "../api/api.h"
 #include "audioOutput.h"
+#include <utils.h>
 
-class AudioManager : public I_API_Interface {
+class AudioManager : public AutoRegisterAPI<AudioManager> {
 public:
     AudioManager();
     ~AudioManager();
@@ -12,6 +12,7 @@ public:
     void setSound(bool soundOn);
     constexpr std::string getInterfaceName() const override { return "AudioManager"; }
     HttpEndPointData_t getHttpEndpointData() override;
+
 private:
     std::unique_ptr<AudioOutput> audioOutput;
 };

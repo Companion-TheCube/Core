@@ -2,7 +2,9 @@
 #include "globalSettings.h"
 #include <filesystem>
 #include <fstream>
+#ifndef LOGGER_H
 #include <logger.h>
+#endif
 #include <nlohmann/json.hpp>
 
 class SettingsLoader {

@@ -13,7 +13,9 @@
                                                      ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝
 */
 #define SW_VERSION "0.1.0"
-
+#ifndef LOGGER_H
+#include <logger.h>
+#endif
 #include "main.h"
 
 bool breakMain = false;
@@ -272,15 +274,12 @@ int main(int argc, char* argv[])
         auto peripherals = std::make_shared<PeripheralManager>();
         auto decisions = std::make_shared<DecisionEngine::DecisionEngineMain>();
         API_Builder api_builder(api);
-        api_builder.addInterface(gui);
-        api_builder.addInterface(cubeDB);
-        api_builder.addInterface(logger);
-        api_builder.addInterface(audioManager);
-        api_builder.addInterface(auth);
-        // api_builder.addInterface(wifiManager);
-        api_builder.addInterface(btManager);
-        // api_builder.addInterface(peripherals);
-        api_builder.addInterface(decisions->getIntentRegistry());
+        gui->registerInterface();
+        cubeDB->registerInterface();
+        logger->registerInterface();
+        audioManager->registerInterface();
+        auth->registerInterface();
+        btManager->registerInterface();
         api_builder.start();
         CubeLog::info("Entering main loop...");
         std::chrono::milliseconds aSecond(1000);

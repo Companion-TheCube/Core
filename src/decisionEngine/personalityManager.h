@@ -3,7 +3,9 @@
 
 #include "utils.h"
 #include <chrono>
+#ifndef LOGGER_H
 #include <logger.h>
+#endif
 #include <mutex>
 #include <numbers>
 #include <stop_token>
@@ -11,8 +13,9 @@
 #include <thread>
 #include <unordered_map>
 #ifndef API_I_H
-#include "../api/api_i.h"
+#include "../api/api.h"
 #endif
+
 #ifndef GLOBALSETTINGS_H
 #include "../settings/globalSettings.h"
 #endif
@@ -88,7 +91,7 @@ private:
     TimePoint lastUpdate;
 };
 
-class PersonalityManager : public I_API_Interface {
+class PersonalityManager : public AutoRegisterAPI<PersonalityManager> {
 public:
     PersonalityManager();
     ~PersonalityManager();

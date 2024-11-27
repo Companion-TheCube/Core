@@ -10,7 +10,9 @@
 #include "../objects.h"
 #include <SFML/Graphics.hpp>
 #include <functional>
+#ifndef LOGGER_H
 #include <logger.h>
+#endif
 #include <tuple>
 #include <vector>
 

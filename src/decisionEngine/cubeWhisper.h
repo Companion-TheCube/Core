@@ -1,25 +1,25 @@
 #ifndef CUBEWHISPER_H
 #define CUBEWHISPER_H
 
-#include <string>
-#include <iostream>
-#include <thread>
-#include <thread>
 #include <functional>
 #include <httplib.h>
+#include <iostream>
+#include <string>
+#include <thread>
+#ifndef LOGGER_H
 #include <logger.h>
-#include "utils.h"
+#endif
 #include "nlohmann/json.hpp"
+#include "utils.h"
 #include "whisper.h"
 
-class Whisper{
+class Whisper {
 public:
     Whisper();
     static std::string transcribe(const std::string& audio);
+
 private:
     std::jthread* transcriberThread;
 };
 
-
-
-#endif// CUBEWHISPER_H
+#endif // CUBEWHISPER_H
