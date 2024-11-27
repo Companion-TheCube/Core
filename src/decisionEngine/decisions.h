@@ -26,9 +26,10 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
+#include <future>
 #define CPPHTTPLIB_OPENSSL_SUPPORT
 #include "../api/autoRegister.h"
-#include "../lazyLoader.h"
+#include "personalityManager.h"
 #include "httplib.h"
 
 #define LOCAL_INTENT_RECOGNITION_THREAD_COUNT 4
@@ -85,6 +86,8 @@ public:
     Intent(const std::string& intentName, const Action& action, const Parameters& parameters, const std::string& briefDesc, const std::string& responseString, Intent::IntentType type);
     Intent(IntentCTorParams params);
 
+    void setPersonalityManager(std::shared_ptr<Personality::PersonalityManager> personalityManager);
+
     const std::string& getIntentName() const;
     const Parameters& getParameters() const;
 
@@ -97,13 +100,17 @@ public:
     const std::string serialize();
     static std::shared_ptr<Intent> deserialize(const std::string& serializedIntent);
     void setSerializedData(const std::string& serializedData);
-
     const std::string& getSerializedData() const;
+
     const std::string& getBriefDesc() const;
+    void setBriefDesc(const std::string& briefDesc);
     const std::string getResponseString() const;
     void setResponseString(const std::string& responseString);
-    void setBriefDesc(const std::string& briefDesc);
-
+    void setScoredResponseStrings(const std::vector<std::string>& responseStrings);
+    void setScoredResponseString(const std::string& responseString, int score);
+    
+    void setEmotionalScoreRanges(const std::vector<Personality::EmotionRange>& emotionRanges);
+    void setEmotionScoreRange(const Personality::EmotionRange& emotionRange);
 private:
     std::string intentName;
     Action action;
@@ -114,8 +121,17 @@ private:
      * is enabled, this string will be spoken to the user. This string can contain placeholders for the parameters.
      * The placeholders will be replaced with the actual values. The placeholders should be in the format ${parameterName}
      */
-    std::string responseString;
-    std::string serializedData;
+    std::string responseString = "";
+    std::string serializedData = "";
+    /**
+     * @brief These strings should represent the response string at different emotional scores. The strings should be ordered from
+     * closest to the emotional target to farthest from the emotional target. If the emotional score is out of range, the standard
+     * response string will be used. Therefore, this vector can be 0 to 5 strings long, inclusive.
+     */
+    std::vector<std::string> responseStringScored = {};
+    std::shared_ptr<Personality::PersonalityManager> personalityManager;
+
+    std::vector<Personality::EmotionRange> emotionRanges;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -406,13 +422,11 @@ public:
     void setAPIPort(const std::string& apiPort);
     void setAPIPath(const std::string& apiPath);
 
-    const std::shared_ptr<IntentRegistry> getIntentRegistry() const; // TODO: remove
-
 private:
     std::shared_ptr<I_IntentRecognition> intentRecognition;
     std::shared_ptr<Whisper> transcriber;
     std::shared_ptr<IntentRegistry> intentRegistry;
-    // std::shared_ptr<Transcriber> transcriber;
+    std::shared_ptr<I_Transcriber> transcriber;
     std::string apiKey;
     std::string apiURL;
     std::string apiPort;
@@ -423,6 +437,8 @@ private:
 
 std::vector<IntentCTorParams> getSystemIntents();
 std::vector<IntentCTorParams> getSystemSchedule();
+
+std::future<std::string> modifyStringUsingAIForEmotionalState(const std::string& input, const std::vector<Personality::EmotionSimple>& emotions, const std::shared_ptr<TheCubeServer::TheCubeServerAPI>& remoteServerAPI, const std::function<void(std::string)>& progressCB);
 
 }; // namespace DecisionEngine
 

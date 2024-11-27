@@ -326,6 +326,18 @@ int PersonalityManager::getEmotionValue(Emotion::EmotionType emotion)
     return emotions.at(emotion).currentValue;
 }
 
+std::vector<EmotionSimple> PersonalityManager::getAllEmotionsCurrent()
+{
+    std::unique_lock<std::mutex> lock(managerMutex);
+    std::vector<EmotionSimple> currentEmotions;
+    for (auto& [name, emote] : emotions) {
+        EmotionSimple simple;
+        simple.emotion = name;
+        simple.value = emote.currentValue;
+        currentEmotions.push_back(simple);
+    }
+}
+
 void PersonalityManager::managerThreadFunction(std::stop_token st)
 {
     while (!st.stop_requested()) {
@@ -361,6 +373,69 @@ void PersonalityManager::managerThreadFunction(std::stop_token st)
             }
         }
     }
+}
+
+float PersonalityManager::calculateEmotionalMatchScore(std::vector<EmotionRange> emotionRanges)
+{
+    std::unique_lock<std::mutex> lock(managerMutex);
+    // verify that emotionRanges has all emotions. If not, add them with default values.
+    for(auto& emote : emotions) {
+        bool found = false;
+        for(auto& range : emotionRanges) {
+            if(range.emotion == emote.second.name) {
+                found = true;
+                break;
+            }
+        }
+        if(!found) {
+            EmotionRange range;
+            range.emotion = emote.second.name;
+            range.min = EMOTION_MIN_VALUE;
+            range.max = EMOTION_MAX_VALUE;
+            range.weight = 1.0f;
+            emotionRanges.push_back(range);
+        }
+    }
+    // Make sure all the values in the emotionRanges make sense
+    for(size_t i = 0; i < emotionRanges.size(); i++) {
+        // clamp weight to 0.0f to 1.0f
+        if(emotionRanges.at(i).weight < 0.0f)
+            emotionRanges.at(i).weight = 0.0f;
+        if(emotionRanges.at(i).weight > 1.0f)
+            emotionRanges.at(i).weight = 1.0f;
+        if(emotionRanges.at(i).min > emotionRanges.at(i).max)
+            std::swap(emotionRanges.at(i).min, emotionRanges.at(i).max);
+        if(emotionRanges.at(i).min < EMOTION_MIN_VALUE)
+            emotionRanges.at(i).min = std::abs(emotionRanges.at(i).min);
+        if(emotionRanges.at(i).max < EMOTION_MIN_VALUE)
+            emotionRanges.at(i).max = std::abs(emotionRanges.at(i).max);
+        if(emotionRanges.at(i).min > EMOTION_MAX_VALUE)
+            emotionRanges.at(i).min = EMOTION_MAX_VALUE;
+        if(emotionRanges.at(i).max > EMOTION_MAX_VALUE)
+            emotionRanges.at(i).max = EMOTION_MAX_VALUE;
+    }
+    // Also create and populate a vector of current values in the same order as emotionRanges
+    std::vector<float> currentValues;
+    for(auto& range : emotionRanges) {
+        currentValues.push_back(emotions.at(range.emotion).currentValue);
+    }
+    // Calculate the score
+    std::array<float, 7> distances = {0.0f}; // Array to store distances for each dimension
+    for (size_t i = 0; i < 7; ++i) {
+        if (currentValues[i] < emotionRanges[i].min) {
+            distances[i] = emotionRanges[i].min - currentValues[i]; // Below the range
+        } else if (currentValues[i] > emotionRanges[i].max) {
+            distances[i] = currentValues[i] - emotionRanges[i].max; // Above the range
+        } else {
+            distances[i] = 0.0f; // Within the range
+        }
+    }
+    // Compute the Euclidean distance (length of the distance vector) multiplied by the weight
+    float sumOfSquares = 0.0f;
+    for (size_t i = 0; i < 7; ++i) {
+        sumOfSquares += distances[i] * distances[i] * emotionRanges[i].weight;
+    }
+    return std::sqrt(sumOfSquares);
 }
 
 constexpr std::string PersonalityManager::getInterfaceName() const
@@ -588,4 +663,28 @@ int calculateCurrentValue(int startValue, int endValue, TimePoint startTime, Tim
         break;
     }
     return static_cast<int>(startValue + t * (endValue - startValue));
+}
+
+inline const int Personality::interpretScore(const float score)
+{
+    if(score == 0.f) return 0;
+    if(score < 35.f) return 1;
+    if(score < 60.f) return 2;
+    if(score < 75.f) return 3;
+    if(score < 90.f) return 4;
+    return 5;
+}
+
+inline const std::string Personality::emotionToString(const Emotion::EmotionType emotion)
+{
+    switch(emotion) {
+        case Emotion::EmotionType::CURIOSITY: return "Curiosity";
+        case Emotion::EmotionType::PLAYFULNESS: return "Playfulness";
+        case Emotion::EmotionType::EMPATHY: return "Empathy";
+        case Emotion::EmotionType::ASSERTIVENESS: return "Assertiveness";
+        case Emotion::EmotionType::ATTENTIVENESS: return "Attentiveness";
+        case Emotion::EmotionType::CAUTION: return "Caution";
+        case Emotion::EmotionType::ANNOYANCE: return "Annoyance";
+        default: return "Unknown";
+    }
 }

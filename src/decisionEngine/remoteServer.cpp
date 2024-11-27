@@ -198,6 +198,103 @@ TheCubeServerAPI::FourBit TheCubeServerAPI::getAvailableServices()
     return services;
 }
 
+/**
+ * @brief Get a chat response from the server.
+ * 
+ * @param message The message to send to the LLM. Must contain all relevant information for the LLM to generate a response.
+ * @param progressCB A callback function that will be called with the progress of the chat session. (optional)
+ * @return std::future<std::string> A future that will contain the chat response when it is ready. Use .get() to retrieve the response and .wait_for() to check if the response is ready.
+ */
+std::future<std::string> TheCubeServerAPI::getChatResponseAsync(const std::string& message, const std::function<void(std::string)>& progressCB = [](std::string s) -> std::string { return; })
+{
+    CubeLog::info("Getting chat response async");
+    // generate a random number between 1 and 1000000
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(1, 1000000);
+    auto r = std::to_string(dis(gen));
+    // This random number gets appended to the chat endpoint to create a unique chat session.
+    // This allows for multiple chat sessions to be active at the same time for the same client.
+    return std::async(std::launch::async, [&, r](){
+        auto res = this->cli->Post("/chat/" + r, message, "application/json");
+        if(!res){
+            CubeLog::error("Failed to get chat response");
+            return std::string();
+        }
+        switch(res->status){
+            case 200:
+                if(res->body == "waiting"){
+                    CubeLog::info("Chat response initiated");
+                }
+                CubeLog::info("Chat response initiation failed");
+                return res->body;
+            case 400:
+            case 401:
+            case 403:
+                CubeLog::error("Unauthorized");
+                return std::string();
+            case 418:
+                CubeLog::error("Server indicates that it is a teapot. This is unusual since we are not making tea.");
+                return std::string();
+            case 500:
+                CubeLog::error("Internal server error");
+                return std::string();
+            default:
+                CubeLog::error("Unknown error");
+                return std::string();
+        }
+        auto resCheck = [&, r](){
+            auto res = this->cli->Get("/chat/" + r);
+            if(!res){
+                CubeLog::error("Failed to get chat response");
+                return std::pair<bool, std::string>(false, "");
+            }
+            switch(res->status){
+                case 200:
+                {
+                    CubeLog::info("Chat response retrieved");
+                    nlohmann::json j;
+                    try{
+                        j = nlohmann::json::parse(res->body);
+                    }catch(std::exception& e){
+                        if(res->body == "waiting")
+                        return std::pair<bool, std::string>(true, "");    
+                    }
+                    if(j.contains("status") && j["status"] == "waiting" && j.contains("message")){
+                        progressCB(j["message"]);
+                    }
+                    if(j.contains("status") && j["status"] == "complete" && j.contains("message")){
+                        return std::pair<bool, std::string>(true, j["message"]);
+                    }
+                    return std::pair<bool, std::string>(true, "");
+                }
+                case 400:
+                case 401:
+                case 403:
+                    CubeLog::error("Unauthorized");
+                    return std::pair<bool, std::string>(false, "");
+                case 418:
+                    CubeLog::error("Server indicates that it is a teapot. This is unusual since we are not making tea.");
+                    return std::pair<bool, std::string>(false, "");
+                case 500:
+                    CubeLog::error("Internal server error");
+                    return std::pair<bool, std::string>(false, "");
+                default:
+                    CubeLog::error("Unknown error");
+                    return std::pair<bool, std::string>(false, "");
+            }
+        };
+        while(resCheck().first == true && resCheck().second.empty()){
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        if(resCheck().first == false){
+            CubeLog::error("Failed to get chat response");
+            return std::string();
+        }
+        return resCheck().second;
+    });
+}
+
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

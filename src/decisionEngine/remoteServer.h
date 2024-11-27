@@ -14,6 +14,9 @@
 #include <iostream>
 #include <string>
 #include <thread>
+#include <vector>
+#include <future>
+#include <thread>
 
 #define SERVER_API_URL "https://api.4thecube.com"
 
@@ -60,6 +63,7 @@ public:
     bool stopTranscribing();
     bool initServerConnection();
     bool resetServerConnection();
+    std::future<std::string> getChatResponseAsync(const std::string& message, const std::function<void(std::string)>& progressCB);
     ServerStatus getServerStatus();
     ServerError getServerError();
     ServerState getServerState();

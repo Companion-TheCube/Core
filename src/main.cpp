@@ -295,6 +295,7 @@ int main(int argc, char* argv[])
         }
         CubeLog::info("Exited main loop...");
         gui->stop();
+        logger->~CubeLog();
     }
     std::cout << "Exiting..." << std::endl;
     return 0;
