@@ -172,9 +172,11 @@ public:
 
 /*
 
-This class template is used to automatically register an API interface with the API_Builder class.
-Classes that implements I_API_Interface should inherit from this class template as well.
-This automatically registers the interface with the API_Builder class when the class is instantiated.
+This class template is used to help register an API interface with the API_Builder class.
+Classes that need to register API endpoints should inherit from this class. The class has a
+registerInterface() method that should be called after the object is created. This method will
+register the object with the API_Builder class. The API_Builder class will then use the object to
+build the API.
 
 When the builder class has its start() method called, it will wait until all the interfaces have been
 added to the builder before it starts building the API. This is to ensure that all the interfaces are
@@ -195,6 +197,10 @@ public:
         static_assert(std::is_base_of<AutoRegisterAPI<T>, T>::value,
             "T must inherit from AutoRegisterAPI<T>");
     }
+    /**
+     * @brief Register the object with the API_Builder class. This method should be called after the object is created as
+     * a shared_ptr.
+     */
     void registerInterface()
     {
         if (this->___api_registered)
