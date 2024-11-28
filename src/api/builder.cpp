@@ -36,15 +36,16 @@ API_Builder::~API_Builder()
 void API_Builder::start()
 {
 #ifdef NUM_INTERFACES
-    // Wait here for all the interfaces to be added.
+    // Wait here for all the interfaces to be added. This needs some wort of way to run through this loop
+    // without blocking the main thread. Maybe a separate thread?
     CubeLog::info("Number of interfaces: " + std::to_string(NUM_INTERFACES));
     int waitCount = 0;
-    while (this->interface_objs.size() < NUM_INTERFACES && waitCount < 60) {
+    while (this->interface_objs.size() < NUM_INTERFACES && waitCount < 20) {
         CubeLog::info("Waiting for interfaces to be added. Current number of interfaces: " + std::to_string(this->interface_objs.size()));
         std::this_thread::sleep_for(std::chrono::seconds(1));
         waitCount++;
     }
-    if (waitCount >= 60) {
+    if (waitCount >= 20) {
         CubeLog::error("Timeout waiting for interfaces to be added. Moving on.");
     }
 #endif

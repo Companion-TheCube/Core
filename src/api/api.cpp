@@ -396,6 +396,7 @@ CubeHttpServer::CubeHttpServer(const std::string& address, int port)
 CubeHttpServer::~CubeHttpServer()
 {
     // delete this->server;
+    this->stop();
 }
 
 /**
@@ -439,7 +440,15 @@ void CubeHttpServer::stop()
 {
     // stop the server
     CubeLog::info("HTTP server stopping...");
+    // this->server->decommission();
     this->server->stop();
+    genericSleep(250);
+    while(this->server->is_running()) {
+        genericSleep(100);
+    }
+    // this->server->~Server();
+    this->server.reset();
+    
 }
 
 /**
@@ -451,6 +460,7 @@ void CubeHttpServer::restart()
     // restart the server
     CubeLog::info("HTTP server restarting...");
     this->stop();
+    this->server = std::make_shared<httplib::Server>();
     this->start();
 }
 

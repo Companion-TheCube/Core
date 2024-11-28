@@ -221,7 +221,7 @@ int main(int argc, char* argv[])
         auto blobs = std::make_shared<BlobsManager>(db_manager, "data/blobs.db");
         auto cubeDB = std::make_shared<CubeDB>(db_manager, blobs);
         auto wifiManager = std::make_shared<WifiManager>();
-        auto btManager = std::make_shared<BTManager>();
+        // auto btManager = std::make_shared<BTManager>();
         // Testing /////////////////////////////////////////////////
         long blobID = CubeDB::getBlobsManager()->addBlob("client_blobs", "test blob", "1");
         CubeLog::info("Blob ID: " + std::to_string(blobID));
@@ -280,7 +280,7 @@ int main(int argc, char* argv[])
             logger->registerInterface();
             audioManager->registerInterface();
             auth->registerInterface();
-            btManager->registerInterface();
+            // btManager->registerInterface();
             api_builder.start();
         }
         CubeLog::info("Entering main loop...");
@@ -296,8 +296,7 @@ int main(int argc, char* argv[])
             }
         }
         CubeLog::info("Exited main loop...");
-        
-        logger->~CubeLog();
+        CubeLog::info("CubeLog reference count: " + std::to_string(logger.use_count()));
     }
     std::cout << "Exiting..." << std::endl;
     return 0;

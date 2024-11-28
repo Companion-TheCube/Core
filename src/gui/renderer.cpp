@@ -20,7 +20,16 @@ Renderer::Renderer(std::latch& latch)
 Renderer::~Renderer()
 {
     this->ready = false;
+    {
+    std::lock_guard<std::mutex> lock(this->mutex);
     this->stop();
+    }
+    while (true) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::lock_guard<std::mutex> lock(this->mutex);
+        if (!this->stillRunning)
+            break;
+    }
     this->t.join();
     CubeLog::info("Renderer destroyed");
 }
@@ -98,11 +107,15 @@ int Renderer::thread()
     this->latch->count_down(); // Send a signal to the GUI that the renderer is ready
     auto screenMessage = new M_Text(this->textShader, "", 12, { 0, 1, 0 }, { 2, 2 }); // Logger output for CubeLog::screen()
     while (running) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        std::lock_guard<std::mutex> lock(this->mutex);
         for (auto event = sf::Event {}; this->window.pollEvent(event);)
             this->events.push_back(event);
         if (this->running)
             this->setupTasksRun();
-        this->window.setActive();
+        if(!this->window.isOpen() || !this->running)
+            break;
+        // this->window.setActive();
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // Set clear color to black
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); // Clear the color buffer, the depth buffer and the stencil buffer
         if (this->running)
@@ -125,8 +138,14 @@ int Renderer::thread()
         }
         this->window.display();
     }
-    this->window.setActive(false);
-    this->window.close();
+    if(this->window.isOpen()){
+        // this->window.setActive(false);
+        this->window.close();
+    }
+    {
+    std::lock_guard<std::mutex> lock(this->mutex);
+    this->stillRunning = false;
+    }
     return 0;
 }
 
@@ -152,7 +171,7 @@ std::vector<sf::Event> Renderer::getEvents()
  */
 bool Renderer::getIsRunning()
 {
-    return this->running;
+    return this->running && this->stillRunning;
 }
 
 /**

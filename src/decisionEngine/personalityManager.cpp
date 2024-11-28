@@ -640,8 +640,8 @@ HttpEndPointData_t PersonalityManager::getHttpEndpointData()
 int calculateCurrentValue(int startValue, int endValue, TimePoint startTime, TimePoint endTime, TimePoint currentTime, Emotion::TimeTargetType rampType, double exponent)
 {
     using namespace std::chrono;
-    auto totalDuration = duration_cast<milliseconds>(endTime - startTime).count();
-    auto elapsedDuration = duration_cast<milliseconds>(currentTime - startTime).count();
+    long long totalDuration = duration_cast<milliseconds>(endTime - startTime).count();
+    long long elapsedDuration = duration_cast<milliseconds>(currentTime - startTime).count();
     elapsedDuration = std::max(0LL, std::min(elapsedDuration, totalDuration));
     double t = static_cast<double>(elapsedDuration) / totalDuration;
     switch (rampType) {

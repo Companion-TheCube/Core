@@ -534,6 +534,35 @@ LocalIntentRecognition::~LocalIntentRecognition()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // RemoteIntentRecognition - class that converts intent to action using the TheCube Server API
+RemoteIntentRecognition::RemoteIntentRecognition(std::shared_ptr<IntentRegistry> intentRegistry)
+{
+    this->intentRegistry = intentRegistry;
+}
+
+RemoteIntentRecognition::~RemoteIntentRecognition()
+{
+}
+
+// TODO: convert this to std::future
+bool RemoteIntentRecognition::recognizeIntentAsync(const std::string& intentString)
+{
+    return this->recognizeIntentAsync(intentString, [](std::shared_ptr<Intent> intent) {});
+}
+
+// TODO: convert this to std::future and make callback the progress callback or remove it
+bool RemoteIntentRecognition::recognizeIntentAsync(const std::string& intentString, std::function<void(std::shared_ptr<Intent>)> callback)
+{
+    if (!remoteServerAPI)
+        return false;
+    return false; // TODO:
+}
+
+std::shared_ptr<Intent> RemoteIntentRecognition::recognizeIntent(const std::string& name, const std::string& intentString)
+{
+    if (!remoteServerAPI)
+        return nullptr;
+    return nullptr; // TODO:
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -929,35 +958,7 @@ void I_RemoteApi::setRemoteServerAPIObject(std::shared_ptr<I_RemoteApi::Server> 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-RemoteIntentRecognition::RemoteIntentRecognition(std::shared_ptr<IntentRegistry> intentRegistry)
-{
-    this->intentRegistry = intentRegistry;
-}
 
-RemoteIntentRecognition::~RemoteIntentRecognition()
-{
-}
-
-// TODO: convert this to std::future
-bool RemoteIntentRecognition::recognizeIntentAsync(const std::string& intentString)
-{
-    return this->recognizeIntentAsync(intentString, [](std::shared_ptr<Intent> intent) {});
-}
-
-// TODO: convert this to std::future and make callback the progress callback or remove it
-bool RemoteIntentRecognition::recognizeIntentAsync(const std::string& intentString, std::function<void(std::shared_ptr<Intent>)> callback)
-{
-    if (!remoteServerAPI)
-        return false;
-    return false; // TODO:
-}
-
-std::shared_ptr<Intent> RemoteIntentRecognition::recognizeIntent(const std::string& name, const std::string& intentString)
-{
-    if (!remoteServerAPI)
-        return nullptr;
-    return nullptr; // TODO:
-}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

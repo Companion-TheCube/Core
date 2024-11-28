@@ -33,15 +33,18 @@
 #include <queue>
 #include <functional>
 #include <condition_variable>
+#include <mutex>
 #include <latch>
 #include <utils.h>
 
 class Renderer{
     private:
         int thread();
+        std::mutex mutex;
         sf::Font font;
         std::thread t;
         bool running = true;
+        bool stillRunning = true;
         sf::RenderWindow window;
         std::vector<sf::Event> events;
         std::vector<Object*> objects;

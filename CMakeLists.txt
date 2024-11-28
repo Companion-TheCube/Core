@@ -158,7 +158,7 @@ set(HTTPLIB_HEADER ${CMAKE_SOURCE_DIR}/libraries/httplib.h)
 
 if(NOT EXISTS ${HTTPLIB_HEADER})
     file(DOWNLOAD
-        https://raw.githubusercontent.com/yhirose/cpp-httplib/master/httplib.h
+        https://raw.githubusercontent.com/andrewmcdan/cpp-httplib/master/httplib.h
         ${HTTPLIB_HEADER}
     )
 endif()
