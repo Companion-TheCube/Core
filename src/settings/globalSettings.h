@@ -62,6 +62,8 @@ struct GlobalSettings {
         EMOTION_ATTENTIVENESS,
         EMOTION_CAUTION,
         EMOTION_ANNOYANCE,
+        REMOTE_INTENT_RECOGNITION_ENABLED,
+        REMOTE_TRANSCRIPTION_ENABLED,
 
         SETTING_TYPE_COUNT
     };
@@ -145,6 +147,10 @@ struct GlobalSettings {
         GlobalSettings::setSetting(SettingType::EMOTION_CAUTION, 50);
         // set the default emotion annoyance to 0
         GlobalSettings::setSetting(SettingType::EMOTION_ANNOYANCE, 0);
+        // set the default remote intent recognition to false
+        GlobalSettings::setSetting(SettingType::REMOTE_INTENT_RECOGNITION_ENABLED, false);
+        // set the default remote transcription to false
+        GlobalSettings::setSetting(SettingType::REMOTE_TRANSCRIPTION_ENABLED, false);
     }
 
     static void setSettingCB(SettingType key, std::function<void()> callback)

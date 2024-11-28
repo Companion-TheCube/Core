@@ -369,7 +369,7 @@ add_dependencies(CubeCore count_interfaces)
 if(WIN32)
     set(WIRINGPI_LIB "")
 else()
-    # set(WIRINGPI_LIB "wiringPi")
+    # set(WIRINGPI_LIB "wiringPi") # Commented out for building on Ubuntu. Uncomment for building on Raspberry Pi.
     set(WIRINGPI_LIB "")
 endif()
 # Link libraries

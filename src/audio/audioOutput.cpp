@@ -11,6 +11,8 @@ There will need to be a class (or something) that can take in sounds (ether buff
 This class will need to be able to play multiple sounds at once.
 */
 
+// TODO: Local TTS using Piper
+
 UserData AudioOutput::userData = { 0.0, 0.0, false };
 bool AudioOutput::audioStarted = false;
 std::unique_ptr<RtAudio> AudioOutput::dac = nullptr;
@@ -121,19 +123,7 @@ void AudioOutput::setSound(bool soundOn)
     }
 }
 
-// HttpEndPointData_t AudioOutput::getHttpEndpointData()
-// {
-//     HttpEndPointData_t data;
-//     data.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
-//         [&](const httplib::Request& req, httplib::Response& res) {
-//             this->start();
-//             CubeLog::info("Endpoint start called.");
-//             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Start audio called");
-//         },
-//         "start", {}, "Start the audio." });
-//     return data;
-// }
-
+// TODO: create a function that the output can use to stream data from a ThreadSafeQueue<> to the audio output.
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Two-channel sawtooth wave generator.

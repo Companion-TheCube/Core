@@ -13,9 +13,9 @@
 #include "utils.h"
 #include "whisper.h"
 
-class Whisper {
+class CubeWhisper {
 public:
-    Whisper();
+    CubeWhisper();
     static std::string transcribe(const std::string& audio);
 
 private:

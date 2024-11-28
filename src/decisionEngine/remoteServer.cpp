@@ -5,21 +5,19 @@
 
 using namespace TheCubeServer;
 
-TheCubeServerAPI::TheCubeServerAPI(uint16_t* audioBuf, size_t bufSize)
+TheCubeServerAPI::TheCubeServerAPI(std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioBuffer)
 {
     // TODO:
     // Read the serial number from the hardwareInfo class
     // Read the API key from the CubeDB and decrypt it
     // Read the auth key from the CubeDB and decrypt it
-    
+
     this->cli = new httplib::Client(SERVER_API_URL);
-    this->cli->set_default_headers({
-        {"Content-Type", "application/json"},
-        {"ApiKey", this->apiKey}
-    });
+    this->cli->set_default_headers({ { "Content-Type", "application/json" },
+        { "ApiKey", this->apiKey } });
     this->cli->set_bearer_token_auth(this->authKey.c_str());
     this->cli->set_basic_auth(this->serialNumber.c_str(), serialNumberToPassword(this->serialNumber).c_str());
-    if(!this->initServerConnection()){
+    if (!this->initServerConnection()) {
         CubeLog::error("Failed to initialize server connection");
         return;
     }
@@ -36,14 +34,13 @@ TheCubeServerAPI::TheCubeServerAPI(uint16_t* audioBuf, size_t bufSize)
     // compare the services the user has access to with their preference
     // if they don't have access to the service they want, default to the next available service.
 
-    
     CubeLog::info("TheCubeServerAPI initialized");
 }
 
 TheCubeServerAPI::~TheCubeServerAPI()
 {
     CubeLog::info("TheCubeServerAPI closing");
-    if(this->cli){
+    if (this->cli) {
         delete this->cli;
     }
     CubeLog::info("TheCubeServerAPI closed");
@@ -72,76 +69,76 @@ bool TheCubeServerAPI::stopTranscribing()
 
 bool TheCubeServerAPI::initServerConnection()
 {
-    if(this->status == ServerStatus::SERVER_STATUS_READY){
+    if (this->status == ServerStatus::SERVER_STATUS_READY) {
         CubeLog::info("Server connection already initialized");
         return true;
     }
     CubeLog::info("Initializing server connection");
-    if(!ableToCommunicateWithRemoteServer()){
+    if (!ableToCommunicateWithRemoteServer()) {
         CubeLog::error("Unable to communicate with remote server");
         this->status = ServerStatus::SERVER_STATUS_ERROR;
         this->error = ServerError::SERVER_ERROR_CONNECTION_ERROR;
         return false;
     }
-    if(this->apiKey.empty()){
+    if (this->apiKey.empty()) {
         CubeLog::error("API key is empty");
         this->status = ServerStatus::SERVER_STATUS_ERROR;
         this->error = ServerError::SERVER_ERROR_AUTHENTICATION_ERROR;
         return false;
     }
-    if(this->authKey.empty()){
+    if (this->authKey.empty()) {
         CubeLog::error("Auth key is empty");
         this->status = ServerStatus::SERVER_STATUS_ERROR;
         this->error = ServerError::SERVER_ERROR_AUTHENTICATION_ERROR;
         return false;
     }
-    if(this->serialNumber.empty()){
+    if (this->serialNumber.empty()) {
         CubeLog::error("Serial number is empty");
         this->status = ServerStatus::SERVER_STATUS_ERROR;
         this->error = ServerError::SERVER_ERROR_INTERNAL_ERROR;
         return false;
     }
     auto res = this->cli->Get("/user/profile");
-    if(!res){
+    if (!res) {
         CubeLog::error("Failed to get user profile");
         this->status = ServerStatus::SERVER_STATUS_ERROR;
         this->error = ServerError::SERVER_ERROR_CONNECTION_ERROR;
         return false;
     }
-    switch(res->status){
-        case 200:
-            CubeLog::info("User profile retrieved");
-            break;
-        case 400:
-        case 401:
-        case 403:
-            CubeLog::error("Unauthorized");
-            this->status = ServerStatus::SERVER_STATUS_ERROR;
-            this->error = ServerError::SERVER_ERROR_AUTHENTICATION_ERROR;
-            return false;
-        case 418:
-            CubeLog::error("Server indicates that it is a teapot. This is unusual since we are not making tea.");
-            this->status = ServerStatus::SERVER_STATUS_ERROR;
-            this->error = ServerError::SERVER_ERROR_INTERNAL_ERROR;
-            return false;
-        case 500:
-            CubeLog::error("Internal server error");
-            this->status = ServerStatus::SERVER_STATUS_ERROR;
-            this->error = ServerError::SERVER_ERROR_INTERNAL_ERROR;
-            return false;
-        default:
-            CubeLog::error("Unknown error");
-            this->status = ServerStatus::SERVER_STATUS_ERROR;
-            this->error = ServerError::SERVER_ERROR_UNKNOWN;
-            return false;
+    switch (res->status) {
+    case 200:
+        CubeLog::info("User profile retrieved");
+        break;
+    case 400:
+    case 401:
+    case 403:
+        CubeLog::error("Unauthorized");
+        this->status = ServerStatus::SERVER_STATUS_ERROR;
+        this->error = ServerError::SERVER_ERROR_AUTHENTICATION_ERROR;
+        return false;
+    case 418:
+        CubeLog::error("Server indicates that it is a teapot. This is unusual since we are not making tea.");
+        this->status = ServerStatus::SERVER_STATUS_ERROR;
+        this->error = ServerError::SERVER_ERROR_INTERNAL_ERROR;
+        return false;
+    case 500:
+        CubeLog::error("Internal server error");
+        this->status = ServerStatus::SERVER_STATUS_ERROR;
+        this->error = ServerError::SERVER_ERROR_INTERNAL_ERROR;
+        return false;
+    default:
+        CubeLog::error("Unknown error");
+        this->status = ServerStatus::SERVER_STATUS_ERROR;
+        this->error = ServerError::SERVER_ERROR_UNKNOWN;
+        return false;
     }
-    try{
+    try {
         nlohmann::json j = nlohmann::json::parse(res->body);
-        if(j.contains("subscription_level")){
+        if (j.contains("subscription_level")) {
             FourBit t2(j["subscription_level"]);
             this->services = t2;
         }
-    }catch(std::exception& e){
+    } catch (std::exception& e) {
         CubeLog::error("Failed to parse user profile: " + std::string(e.what()));
         this->status = ServerStatus::SERVER_STATUS_ERROR;
         this->error = ServerError::SERVER_ERROR_INTERNAL_ERROR;
@@ -200,12 +197,12 @@ TheCubeServerAPI::FourBit TheCubeServerAPI::getAvailableServices()
 
 /**
  * @brief Get a chat response from the server.
- * 
+ *
  * @param message The message to send to the LLM. Must contain all relevant information for the LLM to generate a response.
  * @param progressCB A callback function that will be called with the progress of the chat session. (optional)
  * @return std::future<std::string> A future that will contain the chat response when it is ready. Use .get() to retrieve the response and .wait_for() to check if the response is ready.
  */
-std::future<std::string> TheCubeServerAPI::getChatResponseAsync(const std::string& message, const std::function<void(std::string)>& progressCB = [](std::string s) -> std::string { return; })
+std::future<std::string> TheCubeServerAPI::getChatResponseAsync(const std::string& message, const std::function<void(std::string)>& progressCB = [](std::string s) -> void {})
 {
     CubeLog::info("Getting chat response async");
     // generate a random number between 1 and 1000000
@@ -215,86 +212,84 @@ std::future<std::string> TheCubeServerAPI::getChatResponseAsync(const std::strin
     auto r = std::to_string(dis(gen));
     // This random number gets appended to the chat endpoint to create a unique chat session.
     // This allows for multiple chat sessions to be active at the same time for the same client.
-    return std::async(std::launch::async, [&, r](){
+    return std::async(std::launch::async, [&, r]() {
         auto res = this->cli->Post("/chat/" + r, message, "application/json");
-        if(!res){
+        if (!res) {
             CubeLog::error("Failed to get chat response");
             return std::string();
         }
-        switch(res->status){
-            case 200:
-                if(res->body == "waiting"){
-                    CubeLog::info("Chat response initiated");
+        switch (res->status) {
+        case 200:
+            if (res->body == "waiting") {
+                CubeLog::info("Chat response initiated");
+            }
+            CubeLog::info("Chat response initiation failed");
+            return res->body;
+        case 400:
+        case 401:
+        case 403:
+            CubeLog::error("Unauthorized");
+            return std::string();
+        case 418:
+            CubeLog::error("Server indicates that it is a teapot. This is unusual since we are not making tea.");
+            return std::string();
+        case 500:
+            CubeLog::error("Internal server error");
+            return std::string();
+        default:
+            CubeLog::error("Unknown error");
+            return std::string();
+        }
+        auto resCheck = [&, r]() {
+            auto res = this->cli->Get("/chat/" + r);
+            if (!res) {
+                CubeLog::error("Failed to get chat response");
+                return std::pair<bool, std::string>(false, "");
+            }
+            switch (res->status) {
+            case 200: {
+                CubeLog::info("Chat response retrieved");
+                nlohmann::json j;
+                try {
+                    j = nlohmann::json::parse(res->body);
+                } catch (std::exception& e) {
+                    if (res->body == "waiting")
+                        return std::pair<bool, std::string>(true, "");
                 }
-                CubeLog::info("Chat response initiation failed");
-                return res->body;
+                if (j.contains("status") && j["status"] == "waiting" && j.contains("message")) {
+                    progressCB(j["message"]);
+                }
+                if (j.contains("status") && j["status"] == "complete" && j.contains("message")) {
+                    return std::pair<bool, std::string>(true, j["message"]);
+                }
+                return std::pair<bool, std::string>(true, "");
+            }
             case 400:
             case 401:
             case 403:
                 CubeLog::error("Unauthorized");
-                return std::string();
+                return std::pair<bool, std::string>(false, "");
             case 418:
                 CubeLog::error("Server indicates that it is a teapot. This is unusual since we are not making tea.");
-                return std::string();
+                return std::pair<bool, std::string>(false, "");
             case 500:
                 CubeLog::error("Internal server error");
-                return std::string();
+                return std::pair<bool, std::string>(false, "");
             default:
                 CubeLog::error("Unknown error");
-                return std::string();
-        }
-        auto resCheck = [&, r](){
-            auto res = this->cli->Get("/chat/" + r);
-            if(!res){
-                CubeLog::error("Failed to get chat response");
                 return std::pair<bool, std::string>(false, "");
             }
-            switch(res->status){
-                case 200:
-                {
-                    CubeLog::info("Chat response retrieved");
-                    nlohmann::json j;
-                    try{
-                        j = nlohmann::json::parse(res->body);
-                    }catch(std::exception& e){
-                        if(res->body == "waiting")
-                        return std::pair<bool, std::string>(true, "");    
-                    }
-                    if(j.contains("status") && j["status"] == "waiting" && j.contains("message")){
-                        progressCB(j["message"]);
-                    }
-                    if(j.contains("status") && j["status"] == "complete" && j.contains("message")){
-                        return std::pair<bool, std::string>(true, j["message"]);
-                    }
-                    return std::pair<bool, std::string>(true, "");
-                }
-                case 400:
-                case 401:
-                case 403:
-                    CubeLog::error("Unauthorized");
-                    return std::pair<bool, std::string>(false, "");
-                case 418:
-                    CubeLog::error("Server indicates that it is a teapot. This is unusual since we are not making tea.");
-                    return std::pair<bool, std::string>(false, "");
-                case 500:
-                    CubeLog::error("Internal server error");
-                    return std::pair<bool, std::string>(false, "");
-                default:
-                    CubeLog::error("Unknown error");
-                    return std::pair<bool, std::string>(false, "");
-            }
         };
-        while(resCheck().first == true && resCheck().second.empty()){
+        while (resCheck().first == true && resCheck().second.empty()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
-        if(resCheck().first == false){
+        if (resCheck().first == false) {
             CubeLog::error("Failed to get chat response");
             return std::string();
         }
         return resCheck().second;
     });
 }
-
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

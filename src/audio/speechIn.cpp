@@ -30,3 +30,91 @@ When the wake word is detected, we'll need to tell the audioOutput class to play
 
 // Wake word detector monitor (for making sure that the wake word detector is running)
 
+SpeechIn::~SpeechIn()
+{
+    stop();
+}
+
+void SpeechIn::start()
+{
+}
+
+void SpeechIn::stop()
+{
+}
+
+std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> SpeechIn::getAudioDataQueue()
+{
+    return audioQueue;
+}
+
+std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> SpeechIn::getPreTriggerAudioDataQueue()
+{
+    return preTriggerAudioData;
+}
+
+size_t SpeechIn::getAudioDataSize()
+{
+    return 0;
+}
+
+size_t SpeechIn::getPreTriggerAudioDataSize()
+{
+    return 0;
+}
+
+void SpeechIn::clearAudioData()
+{
+}
+
+void SpeechIn::clearPreTriggerAudioData()
+{
+}
+
+size_t SpeechIn::getFifoSize()
+{
+    return 0;
+}
+
+size_t SpeechIn::getPreTriggerFifoSize()
+{
+    return 0;
+}
+
+unsigned int SpeechIn::getSampleRate()
+{
+    return sampleRate;
+}
+
+unsigned int SpeechIn::getNumChannels()
+{
+    return numChannels;
+}
+
+unsigned int SpeechIn::getBitsPerSample()
+{
+    return bitsPerSample;
+}
+
+unsigned int SpeechIn::getBytesPerSample()
+{
+    return bytesPerSample;
+}
+
+unsigned int SpeechIn::getNumSamples()
+{
+    return numSamples;
+}
+
+unsigned int SpeechIn::getNumBytes()
+{
+    return numSamples * bytesPerSample;
+}
+
+void SpeechIn::audioInputThread()
+{
+}
+
+void SpeechIn::writeAudioDataToSocket(int16_t* buffer, size_t bufferSize)
+{
+}

@@ -273,14 +273,16 @@ int main(int argc, char* argv[])
         auto auth = std::make_shared<CubeAuth>();
         auto peripherals = std::make_shared<PeripheralManager>();
         auto decisions = std::make_shared<DecisionEngine::DecisionEngineMain>();
-        API_Builder api_builder(api);
-        gui->registerInterface();
-        cubeDB->registerInterface();
-        logger->registerInterface();
-        audioManager->registerInterface();
-        auth->registerInterface();
-        btManager->registerInterface();
-        api_builder.start();
+        {
+            API_Builder api_builder(api);
+            gui->registerInterface();
+            cubeDB->registerInterface();
+            logger->registerInterface();
+            audioManager->registerInterface();
+            auth->registerInterface();
+            btManager->registerInterface();
+            api_builder.start();
+        }
         CubeLog::info("Entering main loop...");
         std::chrono::milliseconds aSecond(1000);
         while (true) {
@@ -294,7 +296,7 @@ int main(int argc, char* argv[])
             }
         }
         CubeLog::info("Exited main loop...");
-        gui->stop();
+        
         logger->~CubeLog();
     }
     std::cout << "Exiting..." << std::endl;

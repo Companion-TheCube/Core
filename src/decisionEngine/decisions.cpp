@@ -1,24 +1,25 @@
 /*
-████████╗██╗  ██╗███████╗
-╚══██╔══╝██║  ██║██╔════╝
-   ██║   ███████║█████╗
-   ██║   ██╔══██║██╔══╝
-   ██║   ██║  ██║███████╗
-   ╚═╝   ╚═╝  ╚═╝╚══════╝
+              ████████╗██╗  ██╗███████╗
+              ╚══██╔══╝██║  ██║██╔════╝
+                 ██║   ███████║█████╗
+                 ██║   ██╔══██║██╔══╝
+                 ██║   ██║  ██║███████╗
+                 ╚═╝   ╚═╝  ╚═╝╚══════╝
 ██████╗ ███████╗ ██████╗██╗███████╗██╗ ██████╗ ███╗   ██╗
 ██╔══██╗██╔════╝██╔════╝██║██╔════╝██║██╔═══██╗████╗  ██║
 ██║  ██║█████╗  ██║     ██║███████╗██║██║   ██║██╔██╗ ██║
 ██║  ██║██╔══╝  ██║     ██║╚════██║██║██║   ██║██║╚██╗██║
 ██████╔╝███████╗╚██████╗██║███████║██║╚██████╔╝██║ ╚████║
 ╚═════╝ ╚══════╝ ╚═════╝╚═╝╚══════╝╚═╝ ╚═════╝ ╚═╝  ╚═══╝
-███████╗███╗   ██╗ ██████╗ ██╗███╗   ██╗███████╗
-██╔════╝████╗  ██║██╔════╝ ██║████╗  ██║██╔════╝
-█████╗  ██╔██╗ ██║██║  ███╗██║██╔██╗ ██║█████╗
-██╔══╝  ██║╚██╗██║██║   ██║██║██║╚██╗██║██╔══╝
-███████╗██║ ╚████║╚██████╔╝██║██║ ╚████║███████╗
-╚══════╝╚═╝  ╚═══╝ ╚═════╝ ╚═╝╚═╝  ╚═══╝╚══════╝
+    ███████╗███╗   ██╗ ██████╗ ██╗███╗   ██╗███████╗
+    ██╔════╝████╗  ██║██╔════╝ ██║████╗  ██║██╔════╝
+    █████╗  ██╔██╗ ██║██║  ███╗██║██╔██╗ ██║█████╗
+    ██╔══╝  ██║╚██╗██║██║   ██║██║██║╚██╗██║██╔══╝
+    ███████╗██║ ╚████║╚██████╔╝██║██║ ╚████║███████╗
+    ╚══════╝╚═╝  ╚═══╝ ╚═════╝ ╚═╝╚═╝  ╚═══╝╚══════╝
 
-The decision engine will be responsible for making decisions based on user commands, schedules, triggers, and the personality of TheCube.
+The decision engine will be responsible for making decisions based on user commands, schedules,
+triggers, and the personality of TheCube.
 It will provide API endpoints for other apps on the system to interact with it.
 When the speech in class detects a wake word, it will route audio into the decision engine
 which will then pass the audio to the TheCube Server service for translation to text. If the user
@@ -66,34 +67,45 @@ DecisionEngineMain::DecisionEngineMain()
         - if remote intent detection is not enabled, intentRecognition will use the local intent detection
     - The intentRecognition class will then return the intent to the DecisionEngineMain class
     */
-    // transcriber = std::make_shared<Whisper>();
-    intentRegistry = std::make_shared<IntentRegistry>();
-    // TODO: we should load the correct intent recognition class based on the user's settings
-    // intentRecognition = std::make_shared<RemoteIntentRecognition>(intentRegistry);
-    // - if remoteIntentRecognition is enabled, pass the serverAPI object to the intentRecognition
-    // (std::dynamic_pointer_cast<RemoteIntentRecognition>(intentRecognition))->setRemoteServerAPIObject(remoteServerAPI);
-    intentRecognition = std::make_shared<LocalIntentRecognition>(intentRegistry);
-    // TODO: load the correct transcriber based on the user's settings
-    // transcriber = std::make_shared<LocalTranscriber>();
-    // transcriber = std::make_shared<RemoteTranscriber>();
-    // - if remoteTranscription is enabled, pass the serverAPI object to the transcriber
-    // (std::dynamic_pointer_cast<RemoteTranscriber>(transcriber))->setRemoteServerAPIObject(remoteServerAPI);
 
+    //
+    this->audioQueue = AudioManager::audioInQueue;
+    remoteServerAPI = std::make_shared<TheCubeServer::TheCubeServerAPI>(audioQueue);
+    intentRegistry = std::make_shared<IntentRegistry>();
+
+    bool remoteIntentRecognition = GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::REMOTE_INTENT_RECOGNITION_ENABLED);
+    if (remoteIntentRecognition) {
+        intentRecognition = std::make_shared<RemoteIntentRecognition>(intentRegistry);
+        (std::dynamic_pointer_cast<RemoteIntentRecognition>(intentRecognition))->setRemoteServerAPIObject(remoteServerAPI);
+    } else
+        intentRecognition = std::make_shared<LocalIntentRecognition>(intentRegistry);
+    intentRecognition = std::make_shared<LocalIntentRecognition>(intentRegistry);
+    bool remoteTranscription = GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::REMOTE_TRANSCRIPTION_ENABLED);
+    if (remoteTranscription) {
+        transcriber = std::make_shared<RemoteTranscriber>();
+        (std::dynamic_pointer_cast<RemoteTranscriber>(transcriber))->setRemoteServerAPIObject(remoteServerAPI);
+    } else
+        transcriber = std::make_shared<LocalTranscriber>();
+
+
+
+    ///////////// Testing /////////////
+    // TODO: remove this test code
     auto pMan = std::make_shared<Personality::PersonalityManager>();
     pMan->registerInterface();
     std::vector<Personality::EmotionRange> inputRange = {
-        Personality::EmotionRange{ 1, 1, 1.f, Personality::Emotion::EmotionType::CURIOSITY },
-        Personality::EmotionRange{ 1, 1, 1.f, Personality::Emotion::EmotionType::PLAYFULNESS },
-        Personality::EmotionRange{ 1, 1, 1.f, Personality::Emotion::EmotionType::EMPATHY },
-        Personality::EmotionRange{ 1, 1, 1.f, Personality::Emotion::EmotionType::ASSERTIVENESS },
-        Personality::EmotionRange{ 1, 1, 1.f, Personality::Emotion::EmotionType::ATTENTIVENESS },
-        Personality::EmotionRange{ 1, 1, 1.f, Personality::Emotion::EmotionType::CAUTION },
-        Personality::EmotionRange{ 1, 1, 1.f, Personality::Emotion::EmotionType::ANNOYANCE }
+        Personality::EmotionRange { 1, 1, 1.f, Personality::Emotion::EmotionType::CURIOSITY },
+        Personality::EmotionRange { 1, 1, 1.f, Personality::Emotion::EmotionType::PLAYFULNESS },
+        Personality::EmotionRange { 1, 1, 1.f, Personality::Emotion::EmotionType::EMPATHY },
+        Personality::EmotionRange { 1, 1, 1.f, Personality::Emotion::EmotionType::ASSERTIVENESS },
+        Personality::EmotionRange { 1, 1, 1.f, Personality::Emotion::EmotionType::ATTENTIVENESS },
+        Personality::EmotionRange { 1, 1, 1.f, Personality::Emotion::EmotionType::CAUTION },
+        Personality::EmotionRange { 1, 1, 1.f, Personality::Emotion::EmotionType::ANNOYANCE }
     };
     auto score = pMan->calculateEmotionalMatchScore(inputRange);
     CubeLog::fatal("Emotional match score: " + std::to_string(score));
 
-    // TODO: remove this test code
+    
     for (size_t i = 0; i < 20; i++) {
         IntentCTorParams params;
         params.intentName = "Test Intent" + std::to_string(i);
@@ -277,15 +289,14 @@ const std::string& Intent::getBriefDesc() const
 }
 
 const std::string Intent::getResponseString() const
-{   
+{
     std::string temp = responseString;
-    if(responseStringScored.size() > 0 && personalityManager)
-    {
+    if (responseStringScored.size() > 0 && personalityManager) {
         auto score = personalityManager->calculateEmotionalMatchScore(emotionRanges);
         auto scoreIndex = Personality::interpretScore(score);
-        if(scoreIndex < responseStringScored.size())
+        if (scoreIndex < responseStringScored.size())
             temp = responseStringScored[scoreIndex];
-        else{
+        else {
             CubeLog::warning("Score index out of range for intent: " + intentName);
         }
     }
@@ -312,30 +323,26 @@ void Intent::setResponseString(const std::string& responseString)
 
 void Intent::setScoredResponseStrings(const std::vector<std::string>& responseStrings)
 {
-    if(responseStrings.size() > 5)
-    {
+    if (responseStrings.size() > 5) {
         CubeLog::warning("Too many scored response strings for intent: " + intentName);
         CubeLog::warning("Only the first 5 will be used.");
     }
-    for(size_t i = 0; i < responseStrings.size() && i < 5; i++)
-    {
+    for (size_t i = 0; i < responseStrings.size() && i < 5; i++) {
         responseStringScored.push_back(responseStrings[i]);
     }
 }
 
 void Intent::setScoredResponseString(const std::string& responseString, int score)
 {
-    if(score < 0 || score > 5)
-    {
+    if (score < 0 || score > 5) {
         CubeLog::warning("Score out of range for intent: " + intentName);
         CubeLog::warning("Setting score to " + std::string(score < 0 ? "0" : "5"));
         score = score < 0 ? 0 : 5;
     }
     std::string t = "";
-    if(responseStringScored.size() > 0)
+    if (responseStringScored.size() > 0)
         t = responseStringScored.at(responseStringScored.size() - 1);
-    while(responseStringScored.size() <= score)
-    {
+    while (responseStringScored.size() <= score) {
         responseStringScored.push_back(t);
     }
     responseStringScored.at(score) = responseString;
@@ -350,17 +357,14 @@ void Intent::setEmotionScoreRange(const Personality::EmotionRange& emotionRange)
 {
     auto emote = emotionRange.emotion;
     bool found = false;
-    for(auto& range : emotionRanges)
-    {
-        if(range.emotion == emote)
-        {
+    for (auto& range : emotionRanges) {
+        if (range.emotion == emote) {
             range = emotionRange;
             found = true;
             break;
         }
     }
-    if(!found)
-    {
+    if (!found) {
         CubeLog::warning("Emotion range not found for intent: " + intentName);
         CubeLog::warning("Adding new range for emotion: " + Personality::emotionToString(emote));
         emotionRanges.push_back(emotionRange);
@@ -386,7 +390,37 @@ void Intent::setBriefDesc(const std::string& briefDesc)
 // TODO:
 // Interface: Transcriber - class that converts audio to text
 // LocalTranscriber - class that interacts with the whisper class. Whisper class should be initialized and a reference to it saved for future use.
+LocalTranscriber::LocalTranscriber()
+{
+    // TODO: this whole stupid thing
+}
+LocalTranscriber::~LocalTranscriber()
+{
+}
+std::string LocalTranscriber::transcribeBuffer(const uint16_t* audio, size_t length)
+{
+    return "";
+}
+std::string LocalTranscriber::transcribeStream(const uint16_t* audio, size_t bufSize)
+{
+    return "";
+}
 // RemoteTranscriber - class that interacts with the TheCube Server API.
+RemoteTranscriber::RemoteTranscriber()
+{
+    // TODO: also all of this one too
+}
+RemoteTranscriber::~RemoteTranscriber()
+{
+}
+std::string RemoteTranscriber::transcribeBuffer(const uint16_t* audio, size_t length)
+{
+    return "";
+}
+std::string RemoteTranscriber::transcribeStream(const uint16_t* audio, size_t bufSize)
+{
+    return "";
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -466,6 +500,7 @@ bool LocalIntentRecognition::recognizeIntentAsync(const std::string& intentStrin
     return this->recognizeIntentAsync(intentString, [](std::shared_ptr<Intent> intent) {});
 }
 
+// TODO: convert this to std::future and make callback the progress callback or remove it
 bool LocalIntentRecognition::recognizeIntentAsync(const std::string& intentString, std::function<void(std::shared_ptr<Intent>)> callback)
 {
     if (!threadsReady)
@@ -499,7 +534,6 @@ LocalIntentRecognition::~LocalIntentRecognition()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // RemoteIntentRecognition - class that converts intent to action using the TheCube Server API
-// TODO:
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -863,6 +897,70 @@ void I_Trigger::setCheckTrigger(std::function<bool()> checkTrigger)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool I_RemoteApi::resetServerConnection()
+{
+    return remoteServerAPI->resetServerConnection();
+}
+
+I_RemoteApi::Server::ServerStatus I_RemoteApi::getServerStatus()
+{
+    return remoteServerAPI->getServerStatus();
+}
+
+I_RemoteApi::Server::ServerError I_RemoteApi::getServerError()
+{
+    return remoteServerAPI->getServerError();
+}
+
+I_RemoteApi::Server::ServerState I_RemoteApi::getServerState()
+{
+    return remoteServerAPI->getServerState();
+}
+
+I_RemoteApi::Server::FourBit I_RemoteApi::getAvailableServices()
+{
+    return remoteServerAPI->services;
+}
+
+void I_RemoteApi::setRemoteServerAPIObject(std::shared_ptr<I_RemoteApi::Server> remoteServerAPI)
+{
+    this->remoteServerAPI = remoteServerAPI;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+RemoteIntentRecognition::RemoteIntentRecognition(std::shared_ptr<IntentRegistry> intentRegistry)
+{
+    this->intentRegistry = intentRegistry;
+}
+
+RemoteIntentRecognition::~RemoteIntentRecognition()
+{
+}
+
+// TODO: convert this to std::future
+bool RemoteIntentRecognition::recognizeIntentAsync(const std::string& intentString)
+{
+    return this->recognizeIntentAsync(intentString, [](std::shared_ptr<Intent> intent) {});
+}
+
+// TODO: convert this to std::future and make callback the progress callback or remove it
+bool RemoteIntentRecognition::recognizeIntentAsync(const std::string& intentString, std::function<void(std::shared_ptr<Intent>)> callback)
+{
+    if (!remoteServerAPI)
+        return false;
+    return false; // TODO:
+}
+
+std::shared_ptr<Intent> RemoteIntentRecognition::recognizeIntent(const std::string& name, const std::string& intentString)
+{
+    if (!remoteServerAPI)
+        return nullptr;
+    return nullptr; // TODO:
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 uint32_t DecisionEngineError::errorCount = 0;
 DecisionEngineError::DecisionEngineError(const std::string& message, DecisionErrorType errorType)
     : std::runtime_error(message)
@@ -874,34 +972,43 @@ DecisionEngineError::DecisionEngineError(const std::string& message, DecisionErr
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/**
+ * @brief Modify a string to align with a given emotional state.
+ *
+ * @param input The string to modify
+ * @param emotions The emotional state to align with
+ * @param remoteServerAPI The remote server API object
+ * @param progressCB The callback function to call with progress updates. Will be called on each of the response fragments from the LLM.
+ * @return std::future<std::string> A future that will yield a JSON string with the modified string under the key "output". May contain other keys.
+ */
 std::future<std::string> DecisionEngine::modifyStringUsingAIForEmotionalState(const std::string& input, const std::vector<Personality::EmotionSimple>& emotions, const std::shared_ptr<TheCubeServer::TheCubeServerAPI>& remoteServerAPI, const std::function<void(std::string)>& progressCB)
 {
     static const std::string chatString = "I have a robot program with an emotional state defined by 7 qualities: curiosity, playfulness, empathy, assertiveness, attentiveness, caution, and annoyance. Each quality has a value between 1 and 100 (inclusive). The robot interacts with the user by speaking sentences, and I need you to revise a given string to align with its emotional state.\n\n"
-        "Here are the definitions of each quality:\n"
-        "Curiosity (1-100): Reflects the robot’s interest in exploring or learning. High values make it more inquisitive or engaged.\n"
-        "Playfulness (1-100): Reflects the robot's tendency to be lighthearted and fun. High values lead to a more cheerful and humorous tone.\n"
-        "Empathy (1-100): Reflects the robot's capacity for understanding and kindness. High values result in more compassionate or sensitive language.\n"
-        "Assertiveness (1-100): Reflects the robot's directness and determination. High values lead to more confident and action-oriented language.\n"
-        "Attentiveness (1-100): Reflects the robot's focus and precision. High values make it more detailed and thorough.\n"
-        "Caution (1-100): Reflects the robot's tendency to warn or hesitate. High values make it more reserved or cautious.\n"
-        "Annoyance (1-100): Reflects the robot’s irritation level. High values lead to more curt or sarcastic language.\n\n"
-        "When I provide a string, the robot's emotional state will also be provided as a list of 7 values, each corresponding to the qualities above. Modify the string to align with these values while keeping the robot’s response functional and understandable.\n\n"
-        "Example:\n\n"
-        "Input:\n"
-        "String: \"You have eight items on your to-do list today.\"\n"
-        "Emotional State: {Curiosity: 40, Playfulness: 20, Empathy: 50, Assertiveness: 90, Attentiveness: 80, Caution: 30, Annoyance: 10}\n\n"
-        "Output:\n"
-        "\"You have eight items on your to-do list that must be accomplished today.\"\n\n"
-        "Another Example:\n\n"
-        "Input:\n"
-        "String: \"You have eight items on your to-do list today.\"\n"
-        "Emotional State: {Curiosity: 70, Playfulness: 60, Empathy: 80, Assertiveness: 20, Attentiveness: 50, Caution: 40, Annoyance: 10}\n\n"
-        "Output:\n"
-        "\"You've got eight items on your to-do list today. Let me know if you'd like help organizing them!\"\n\n"
-        "Request:\n"
-        "Modify the following string to align with the given emotional state. Use the emotional state values to adjust tone, word choice, and phrasing appropriately while retaining the core message.  Your response should be a JSON object with the key \"output\" and a value that is only the revised string. Other keys are permissible.\n\n"
-        "Input:\n";
-    std::string inputString =  "String: \"" + input + "\"\nEmotional State: {";
+                                          "Here are the definitions of each quality:\n"
+                                          "Curiosity (1-100): Reflects the robot’s interest in exploring or learning. High values make it more inquisitive or engaged.\n"
+                                          "Playfulness (1-100): Reflects the robot's tendency to be lighthearted and fun. High values lead to a more cheerful and humorous tone.\n"
+                                          "Empathy (1-100): Reflects the robot's capacity for understanding and kindness. High values result in more compassionate or sensitive language.\n"
+                                          "Assertiveness (1-100): Reflects the robot's directness and determination. High values lead to more confident and action-oriented language.\n"
+                                          "Attentiveness (1-100): Reflects the robot's focus and precision. High values make it more detailed and thorough.\n"
+                                          "Caution (1-100): Reflects the robot's tendency to warn or hesitate. High values make it more reserved or cautious.\n"
+                                          "Annoyance (1-100): Reflects the robot’s irritation level. High values lead to more curt or sarcastic language.\n\n"
+                                          "When I provide a string, the robot's emotional state will also be provided as a list of 7 values, each corresponding to the qualities above. Modify the string to align with these values while keeping the robot’s response functional and understandable.\n\n"
+                                          "Example:\n\n"
+                                          "Input:\n"
+                                          "String: \"You have eight items on your to-do list today.\"\n"
+                                          "Emotional State: {Curiosity: 40, Playfulness: 20, Empathy: 50, Assertiveness: 90, Attentiveness: 80, Caution: 30, Annoyance: 10}\n\n"
+                                          "Output:\n"
+                                          "\"You have eight items on your to-do list that must be accomplished today.\"\n\n"
+                                          "Another Example:\n\n"
+                                          "Input:\n"
+                                          "String: \"You have eight items on your to-do list today.\"\n"
+                                          "Emotional State: {Curiosity: 70, Playfulness: 60, Empathy: 80, Assertiveness: 20, Attentiveness: 50, Caution: 40, Annoyance: 10}\n\n"
+                                          "Output:\n"
+                                          "\"You've got eight items on your to-do list today. Let me know if you'd like help organizing them!\"\n\n"
+                                          "Request:\n"
+                                          "Modify the following string to align with the given emotional state. Use the emotional state values to adjust tone, word choice, and phrasing appropriately while retaining the core message.  Your response should be a JSON object with the key \"output\" and a value that is only the revised string. Other keys are permissible.\n\n"
+                                          "Input:\n";
+    std::string inputString = "String: \"" + input + "\"\nEmotional State: {";
     for (size_t i = 0; i < emotions.size(); i++) {
         inputString += Personality::emotionToString(emotions[i].emotion) + ": " + std::to_string(emotions[i].value);
         if (i < emotions.size() - 1)

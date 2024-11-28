@@ -1037,10 +1037,16 @@ BTManager::BTManager()
     // BTService service1(config, this->server);
     // this->config["characteristics_client_ids"].push_back("service1_client_id");
 
+    // TODO: this->client_id needs a mutex. When this class is destroyed, we need to make sure we can get a lock on that mutex
+    // so that we don't destroy the client_id while the heartbeat thread is still using it.
+
     this->heartbeatThread = new std::jthread([&](std::stop_token st) {
         nlohmann::json j;
         while (!st.stop_requested()) {
             genericSleep(10 * 1000);
+            if(st.stop_requested()){
+                break;
+            }
             if (this->client_id == "none") {
                 CubeLog::info("Client id not set. Attempting to get client id.");
                 httplib::Result res = this->client->Post("/setup", this->config.dump(), "application/json");

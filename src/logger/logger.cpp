@@ -399,16 +399,17 @@ void CubeLog::purgeOldLogs()
 CubeLog::~CubeLog()
 {
     CubeLog::info("Logger shutting down");
+    this->writeOutLogs();
     CubeLog::shutdown = true;
     resetThread->request_stop();
-    resetThread->join();
+    if(resetThread->joinable())
+        resetThread->join();
     std::lock_guard<std::mutex> lock(this->saveLogsThreadRunMutex);
     this->saveLogsThreadRun = false;
     Color::Modifier fgColorReset(Color::FG_DEFAULT);
     Color::Modifier bgColorReset(Color::BG_DEFAULT);
     if (this->consoleLoggingEnabled)
         std::cout << fgColorReset << bgColorReset << std::endl;
-    this->writeOutLogs();
 }
 
 /**

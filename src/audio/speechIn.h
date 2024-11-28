@@ -1,3 +1,4 @@
+#pragma once
 #ifndef SPEECHIN_H
 #define SPEECHIN_H
 
@@ -5,6 +6,7 @@
 #ifndef LOGGER_H
 #include <logger.h>
 #endif
+#include "threadsafeQueue.h"
 
 #define SAMPLE_RATE 16000
 #define NUM_CHANNELS 1
@@ -23,7 +25,9 @@
 
 class SpeechIn {
 public:
-    SpeechIn();
+    SpeechIn() = default;
+    SpeechIn(std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue)
+        : audioQueue(audioQueue) {};
     ~SpeechIn();
 
     // Start the audio input thread
@@ -34,11 +38,11 @@ public:
 
     // Get the audio data from the FIFO buffer
     // Returns the number of bytes read
-    size_t getAudioData(int16_t* buffer, size_t bufferSize);
+    std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> getAudioDataQueue();
 
     // Get the audio data from the pre-trigger FIFO buffer
     // Returns the number of bytes read
-    size_t getPreTriggerAudioData(int16_t* buffer, size_t bufferSize);
+    std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> getPreTriggerAudioDataQueue();
 
     // Get the size of the audio data in the FIFO buffer
     size_t getAudioDataSize();
@@ -78,9 +82,9 @@ public:
 
 private:
     // Audio data FIFO buffer
-    std::vector<int16_t> audioData;
+    std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue;
     // Pre-trigger audio data FIFO buffer
-    std::vector<int16_t> preTriggerAudioData;
+    std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> preTriggerAudioData;
     // Mutex for the audio data FIFO buffer
     std::mutex audioDataMutex;
     // Mutex for the pre-trigger audio data FIFO buffer

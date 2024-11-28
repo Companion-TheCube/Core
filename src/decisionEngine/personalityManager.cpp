@@ -336,6 +336,7 @@ std::vector<EmotionSimple> PersonalityManager::getAllEmotionsCurrent()
         simple.value = emote.currentValue;
         currentEmotions.push_back(simple);
     }
+    return currentEmotions;
 }
 
 void PersonalityManager::managerThreadFunction(std::stop_token st)
@@ -665,7 +666,7 @@ int calculateCurrentValue(int startValue, int endValue, TimePoint startTime, Tim
     return static_cast<int>(startValue + t * (endValue - startValue));
 }
 
-inline const int Personality::interpretScore(const float score)
+const int Personality::interpretScore(const float score)
 {
     if(score == 0.f) return 0;
     if(score < 35.f) return 1;
@@ -675,7 +676,7 @@ inline const int Personality::interpretScore(const float score)
     return 5;
 }
 
-inline const std::string Personality::emotionToString(const Emotion::EmotionType emotion)
+const std::string Personality::emotionToString(const Emotion::EmotionType emotion)
 {
     switch(emotion) {
         case Emotion::EmotionType::CURIOSITY: return "Curiosity";

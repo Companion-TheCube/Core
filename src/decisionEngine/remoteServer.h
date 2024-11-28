@@ -1,3 +1,4 @@
+#pragma once
 #ifndef REMOTESERVER_H
 #define REMOTESERVER_H
 
@@ -5,18 +6,19 @@
 #include <logger.h>
 #endif
 #include "../database/cubeDB.h"
+#include "../threadsafeQueue.h"
 #include "globalSettings.h"
 #include "nlohmann/json.hpp"
 #include "utils.h"
 #include <bitset>
 #include <functional>
+#include <future>
 #include <httplib.h>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <thread>
 #include <vector>
-#include <future>
-#include <thread>
 
 #define SERVER_API_URL "https://api.4thecube.com"
 
@@ -56,7 +58,7 @@ public:
         AVAILABLE_SERVICE_THECUBESERVER = 8
     };
     FourBit services = 0;
-    TheCubeServerAPI(uint16_t* audioBuf, size_t bufSize);
+    TheCubeServerAPI(std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioBuffer);
     ~TheCubeServerAPI();
     bool initTranscribing();
     bool streamAudio();
@@ -69,7 +71,7 @@ public:
     ServerState getServerState();
 
 private:
-    uint16_t* audioBuffer;
+    std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioBuffer;
     httplib::Client* cli;
     std::string apiKey;
     std::string authKey;

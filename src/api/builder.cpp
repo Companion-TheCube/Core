@@ -24,6 +24,9 @@ API_Builder::API_Builder(std::shared_ptr<API> api)
 API_Builder::~API_Builder()
 {
     CubeLog::info("API Builder destroyed");
+    for(size_t i = 0; i < this->interface_objs.size(); i++) {
+        this->interface_objs.erase(this->interface_objs.begin());
+    }
 }
 
 /**

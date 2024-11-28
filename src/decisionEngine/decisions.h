@@ -1,3 +1,4 @@
+#pragma once
 #ifndef DECISIONS_H
 #define DECISIONS_H
 
@@ -16,6 +17,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <functional>
+#include <future>
 #include <iostream>
 #include <memory>
 #include <mutex>
@@ -26,11 +28,13 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
-#include <future>
 #define CPPHTTPLIB_OPENSSL_SUPPORT
 #include "../api/autoRegister.h"
-#include "personalityManager.h"
+#include "../audio/audioManager.h"
+#include "../threadsafeQueue.h"
+#include "globalSettings.h"
 #include "httplib.h"
+#include "personalityManager.h"
 
 #define LOCAL_INTENT_RECOGNITION_THREAD_COUNT 4
 #define LOCAL_INTENT_RECOGNITION_THREAD_SLEEP_MS 100
@@ -108,9 +112,10 @@ public:
     void setResponseString(const std::string& responseString);
     void setScoredResponseStrings(const std::vector<std::string>& responseStrings);
     void setScoredResponseString(const std::string& responseString, int score);
-    
+
     void setEmotionalScoreRanges(const std::vector<Personality::EmotionRange>& emotionRanges);
     void setEmotionScoreRange(const Personality::EmotionRange& emotionRange);
+
 private:
     std::string intentName;
     Action action;
@@ -169,12 +174,29 @@ private:
 
 /////////////////////////////////////////////////////////////////////////////////////
 
+class I_AudioQueue {
+public:
+    virtual ~I_AudioQueue() = default;
+    void setThreadSafeQueue(std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue)
+    {
+        this->audioQueue = audioQueue;
+    }
+    const std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> getThreadSafeQueue()
+    {
+        return audioQueue;
+    }
+
+protected:
+    std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue;
+};
+
+/////////////////////////////////////////////////////////////////////////////////////
+
 class I_RemoteApi {
 public:
     using Server = TheCubeServer::TheCubeServerAPI;
     virtual ~I_RemoteApi() = default;
     bool resetServerConnection();
-    bool ableToCommunicateWithRemoteServer();
     Server::ServerStatus getServerStatus();
     Server::ServerError getServerError();
     Server::ServerState getServerState();
@@ -217,7 +239,7 @@ private:
 
 /////////////////////////////////////////////////////////////////////////////////////
 
-class RemoteIntentRecognition : public I_IntentRecognition, protected I_RemoteApi {
+class RemoteIntentRecognition : public I_IntentRecognition, public I_RemoteApi {
 public:
     RemoteIntentRecognition(std::shared_ptr<IntentRegistry> intentRegistry);
     ~RemoteIntentRecognition();
@@ -227,12 +249,11 @@ public:
 private:
     std::shared_ptr<Intent> recognizeIntent(const std::string& name, const std::string& intentString) override;
     std::jthread* recognitionThread;
-    httplib::Client cli;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////
 
-class I_Transcriber {
+class I_Transcriber: public I_AudioQueue {
 public:
     virtual ~I_Transcriber() = default;
     virtual std::string transcribeBuffer(const uint16_t* audio, size_t length) = 0;
@@ -244,11 +265,14 @@ public:
 class LocalTranscriber : public I_Transcriber {
 public:
     LocalTranscriber();
+    ~LocalTranscriber();
     std::string transcribeBuffer(const uint16_t* audio, size_t length) override;
     std::string transcribeStream(const uint16_t* audio, size_t bufSize) override;
+    // TODO: the stream that this is reading from may need to be a more complex
+    // datatype that has read and write pointers and a mutex to protect them.
 
 private:
-    std::shared_ptr<Whisper> m_whisper;
+    std::shared_ptr<CubeWhisper> cubeWhisper;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -405,7 +429,7 @@ private:
 };
 /////////////////////////////////////////////////////////////////////////////////////
 
-class DecisionEngineMain {
+class DecisionEngineMain : public I_AudioQueue {
 public:
     DecisionEngineMain();
     ~DecisionEngineMain();
@@ -414,23 +438,15 @@ public:
     void restart();
     void pause();
     void resume();
-    void setIntentRecognition(std::shared_ptr<I_IntentRecognition> intentRecognition);
-    void setTranscriber(std::shared_ptr<Whisper> transcriber);
-    void setIntentRegistry(std::shared_ptr<IntentRegistry> intentRegistry);
-    void setAPIKey(const std::string& apiKey);
-    void setAPIURL(const std::string& apiURL);
-    void setAPIPort(const std::string& apiPort);
-    void setAPIPath(const std::string& apiPath);
 
 private:
     std::shared_ptr<I_IntentRecognition> intentRecognition;
-    std::shared_ptr<Whisper> transcriber;
     std::shared_ptr<IntentRegistry> intentRegistry;
     std::shared_ptr<I_Transcriber> transcriber;
-    std::string apiKey;
-    std::string apiURL;
-    std::string apiPort;
-    std::string apiPath;
+    std::shared_ptr<Scheduler> scheduler;
+    std::shared_ptr<TriggerManager> triggerManager;
+    std::shared_ptr<Personality::PersonalityManager> personalityManager;
+    std::shared_ptr<TheCubeServer::TheCubeServerAPI> remoteServerAPI;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////

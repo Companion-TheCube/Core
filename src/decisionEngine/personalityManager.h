@@ -1,3 +1,4 @@
+#pragma once
 #ifndef PERSONALITYMANAGER_H
 #define PERSONALITYMANAGER_H
 
@@ -102,8 +103,8 @@ struct EmotionRange {
     Emotion::EmotionType emotion;
 };
 
-inline const int interpretScore(const float score);
-inline const std::string emotionToString(const Emotion::EmotionType emotion);
+const int interpretScore(const float score);
+const std::string emotionToString(const Emotion::EmotionType emotion);
 
 class PersonalityManager : public AutoRegisterAPI<PersonalityManager> {
 public:

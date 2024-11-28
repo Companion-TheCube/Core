@@ -38,7 +38,9 @@ std::unordered_map <GlobalSettings::SettingType, std::string> GlobalSettings::se
         {SettingType::EMOTION_ASSERTIVENESS, "emotionAssertiveness"},
         {SettingType::EMOTION_ATTENTIVENESS, "emotionAttentiveness"},
         {SettingType::EMOTION_CAUTION, "emotionCaution"},
-        {SettingType::EMOTION_ANNOYANCE, "emotionAnnoyance"}
+        {SettingType::EMOTION_ANNOYANCE, "emotionAnnoyance"},
+        {SettingType::REMOTE_INTENT_RECOGNITION_ENABLED, "remoteIntentRecognitionEnabled"},
+        {SettingType::REMOTE_TRANSCRIPTION_ENABLED, "remoteTranscriptionEnabled"}
     };
 std::unordered_map <std::string, GlobalSettings::SettingType> GlobalSettings::stringSettingTypeMap = {
         {"logVerbosity", SettingType::LOG_VERBOSITY},
@@ -75,5 +77,7 @@ std::unordered_map <std::string, GlobalSettings::SettingType> GlobalSettings::st
         {"emotionAssertiveness", SettingType::EMOTION_ASSERTIVENESS},
         {"emotionAttentiveness", SettingType::EMOTION_ATTENTIVENESS},
         {"emotionCaution", SettingType::EMOTION_CAUTION},
-        {"emotionAnnoyance", SettingType::EMOTION_ANNOYANCE}
+        {"emotionAnnoyance", SettingType::EMOTION_ANNOYANCE},
+        {"remoteIntentRecognitionEnabled", SettingType::REMOTE_INTENT_RECOGNITION_ENABLED},
+        {"remoteTranscriptionEnabled", SettingType::REMOTE_TRANSCRIPTION_ENABLED}
     };

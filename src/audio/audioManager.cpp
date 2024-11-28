@@ -2,10 +2,21 @@
 #include <logger.h>
 #endif
 #include "audioManager.h"
+
+std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> AudioManager::audioInQueue = nullptr;
+
+
+
+// TODO: NOTE: Audio input needs to be configured for RTAUDIO_INT16 or all the threadsafeQueue 
+// stuff needs to be changed to handle the different data types.
+
+
 // TODO: this whole thing, basically
 AudioManager::AudioManager()
 {
     audioOutput = std::make_unique<AudioOutput>();
+    audioInQueue = std::make_shared<ThreadSafeQueue<std::vector<int16_t>>>();
+    speechIn = std::make_shared<SpeechIn>(audioInQueue);
 }
 
 AudioManager::~AudioManager()
@@ -62,7 +73,7 @@ HttpEndPointData_t AudioManager::getHttpEndpointData()
     data.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
             std::string p = "no param";
-            for (auto &[paramName, paramValue] : req.params) {
+            for (auto& [paramName, paramValue] : req.params) {
                 if (paramName == "soundOn") {
                     this->setSound(paramValue == "true");
                     p = paramValue;
