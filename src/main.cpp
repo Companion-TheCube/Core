@@ -298,6 +298,7 @@ int main(int argc, char* argv[])
         CubeLog::info("Exited main loop...");
         CubeLog::info("CubeLog reference count: " + std::to_string(logger.use_count()));
     }
+    gui.reset();
     std::cout << "Exiting..." << std::endl;
     return 0;
     // TODO: any other place where main() might return, change the return value to something meaningful. this way, when

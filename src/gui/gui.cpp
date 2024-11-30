@@ -1581,7 +1581,7 @@ void GUI::eventLoop()
     }
     delete messageBox;
     delete fullScreenTextBox;
-    CubeLog::info("GUI stopped");
+    // CubeLog::info("GUI stopped");
 }
 
 /**
