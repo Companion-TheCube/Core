@@ -7,6 +7,8 @@
 // TODO: Need to add a sort of status bar to the top of the screen. It should show the time and whether or not a person is detected. probably more.
 // TODO: we should monitor the CubeLog for errors and display them in the status bar. This will require a way to get the last error message from the CubeLog. <- this is done in CubeLog
 // TODO: setup notifications that pop up with a CubeMessageBox. this will need to have notifications.cpp fleshed out.
+// TODO: Instead of having the menu become visible with a single tap/click, it should only pop up when teh user holds
+// click or tap for a certain amount of time. This way we can use normal clicks for interacting with the on screen character.
 
 //#define _ENABLE_LAMBDAS
 

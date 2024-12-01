@@ -11,6 +11,10 @@
 // TODO: Any app that is not found at the location specified in the database should be marked as "not installed" or removed from the database
 // TODO: isAppInstalled() should check once and then keep track of the installed status so that repeated calls to this method are faster and don't require filesystem accesses. Any changes to apps installed status will need to noted.
 
+// TODO: App installation needs to be handled somehow. Apps that come from trusted sources may have scripts that need to 
+// be run to install the app. These scripts should be relatively simple and not require installation of dependencies, since
+// this could result in conflicts with other apps. 
+
 bool AppsManager::consoleLoggingEnabled = true;
 
 /**
