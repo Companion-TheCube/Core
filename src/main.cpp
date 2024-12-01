@@ -17,6 +17,7 @@
 #include <logger.h>
 #endif
 #include "main.h"
+#include "build_number.h"
 
 bool breakMain = false;
 

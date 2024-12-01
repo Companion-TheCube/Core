@@ -96,21 +96,8 @@ if(NOT EXISTS ${WHISPER_MODELS_DIR}/large.bin)
     )
 endif()
 
-# if(WIN32)
-#     set(CMAKE_PREFIX_PATH C:/Qt6/6.8.0/msvc2022_64)
-# else()
-#     set(CMAKE_PREFIX_PATH /home/andrew/Qt/6.8.0/gcc_64)
-# endif()
-# find_package(Qt6 REQUIRED COMPONENTS Core SerialPort)
-# qt_standard_project_setup()
-# find_library(SERIALPORT_LIB Qt6SerialPort HINTS "${CMAKE_PREFIX_PATH}/lib")
-# if(NOT SERIALPORT_LIB)
-#     message(FATAL_ERROR "Qt6SerialPort library not found")
-# endif()
-# find_library(QT6CORE_LIB Qt6Core HINTS "${CMAKE_PREFIX_PATH}/lib")
-# if(NOT QT6CORE_LIB)
-#     message(FATAL_ERROR "Qt6Core library not found")
-# endif()
+
+
 
 if(WIN32)
     # Settings for Windows
@@ -274,42 +261,9 @@ file(MAKE_DIRECTORY ${DATA_DEST_DIR})
 
 
 
-# Function to count all occurrences of regex_pattern in the source files
-# function(count_macro_usages regex_pattern file_list)
-#     # Initialize count
-#     set(count 0)
-
-#     # Loop over all source files
-#     foreach(file ${ARGN})
-#         # Read the file content
-#         file(READ "${file}" file_content)
-
-#         # Count occurrences of the pattern in the file
-#         string(REGEX MATCHALL "${regex_pattern}" matches "${file_content}")
-#         list(LENGTH matches num_matches)
-
-#         # Add to total count
-#         math(EXPR count "${count} + ${num_matches}")
-#     endforeach()
-
-#     # Set the count variable
-#     set(NUM_INTERFACES ${count} PARENT_SCOPE)
-#     add_definitions(-DNUM_INTERFACES=${count})
-# endfunction()
-
 # Define the regex pattern that matches AutoRegisterAPI<XXXX> where XXXX is the class name
 set(MACRO_REGEX "public AutoRegisterAPI<([a-zA-Z_][a-zA-Z0-9_:]*)>")
 
-# Get all source files in the project including headers
-
-# Call the function to count occurrences
-# count_macro_usages("${MACRO_REGEX}" NUM_INTERFACES ${SOURCES_AND_HEADERS})
-
-# Output the count (optional)
-# message(STATUS "Number of interfaces: ${NUM_INTERFACES}")
-
-# Add the preprocessor definition
-# add_definitions(-DNUM_INTERFACES=${NUM_INTERFACES})
 
 # Add the executable
 file(GLOB_RECURSE SOURCES "src/*.cpp" "src/**/*.cpp" "src/**/**/*.cpp")
@@ -355,6 +309,7 @@ add_custom_target(
 
 # add dependency of count_interfaces target to CubeCore target
 add_dependencies(CubeCore count_interfaces)
+
 
 # this is needed for Qt6
 # if(WIN32)
@@ -571,31 +526,60 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E echo "Copying data to output directory"
 )
 
-# Define path to the build number file
-set(BUILD_NUMBER_FILE "${CMAKE_SOURCE_DIR}/build_number.txt")
+# Variables
+set(BUILD_NUMBER_HEADER "${CMAKE_SOURCE_DIR}/libraries/build_number.h")
+set(GET_BUILD_NUMBER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/get_next_build_number.py")
 
-# Custom command to increment the build number and write it to the file
+# Ensure Python is found
+find_package(PythonInterp 3 REQUIRED)
+
+# Custom command to generate the build number header
 add_custom_command(
     TARGET CubeCore POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -P "${CMAKE_SOURCE_DIR}/incr_build_num.cmake"
-    COMMENT "Incrementing build number..."
+    # OUTPUT "${BUILD_NUMBER_HEADER}"
+    COMMAND ${PYTHON_EXECUTABLE} "${GET_BUILD_NUMBER_SCRIPT}" "${BUILD_NUMBER_HEADER}" "${CMAKE_SOURCE_DIR}"
+    DEPENDS "${GET_BUILD_NUMBER_SCRIPT}"
+    COMMENT "Fetching build number from server..."
 )
+
+# Custom target that depends on the custom command
+add_custom_target(
+    FetchBuildNumber ALL
+    DEPENDS "${BUILD_NUMBER_HEADER}"
+)
+
+
+# Ensure the build number is fetched before building the executable
+add_dependencies(CubeCore FetchBuildNumber)
+
+# Include the directory where the header is located
+# include_directories("${CMAKE_BINARY_DIR}")
+
+# Define path to the build number file
+# set(BUILD_NUMBER_FILE "${CMAKE_SOURCE_DIR}/build_number.txt")
+
+# Custom command to increment the build number and write it to the file
+# add_custom_command(
+#     TARGET CubeCore POST_BUILD
+#     COMMAND ${CMAKE_COMMAND} -P "${CMAKE_SOURCE_DIR}/incr_build_num.cmake"
+#     COMMENT "Incrementing build number..."
+# )
 
 # Custom target that will always run
-add_custom_target(incr_build_num ALL
-    DEPENDS "${BUILD_NUMBER_FILE}"
-    COMMENT "Build number increment target"
-)
+# add_custom_target(incr_build_num ALL
+#     DEPENDS "${BUILD_NUMBER_FILE}"
+#     COMMENT "Build number increment target"
+# )
 
 # Ensure that the build number target runs before your actual target
-add_dependencies(CubeCore incr_build_num)
+# add_dependencies(CubeCore incr_build_num)
 
 # Optionally, you can define this build number as a preprocessor definition
-file(READ "${BUILD_NUMBER_FILE}" BUILD_NUMBER)
-add_definitions(-DBUILD_NUMBER=${BUILD_NUMBER})
+# file(READ "${BUILD_NUMBER_FILE}" BUILD_NUMBER)
+# add_definitions(-DBUILD_NUMBER=${BUILD_NUMBER})
 
-# Print the build number in the output
-message(STATUS "Build number: ${BUILD_NUMBER}")
+# # Print the build number in the output
+# message(STATUS "Build number: ${BUILD_NUMBER}")
 
 install(TARGETS CubeCore)
 

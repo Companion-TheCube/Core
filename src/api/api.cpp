@@ -15,7 +15,7 @@
 API::API()
 {
     // TODO: Since we need to make sure that the entire API is built before letting any clients connect,
-    // We should make a http server that will operate on a different port with public access that lets 
+    // We should make a http server that will operate on a different port with public access that lets
     // clients know if the API is ready. This will be a simple endpoint that returns a 200 OK if the API
     // is ready and a 503 Service Unavailable if the API is not ready. Client must wait for a 200 OK before
     // attempting to connect to the API on the main port / unix socket.
@@ -68,7 +68,7 @@ void API::stop()
     // TODO: add checks to make sure these are valid calls.
     // this->server->stop();
     // this->serverIPC->stop();
-    // this->listenerThread.join();
+    this->listenerThread.join();
     // delete this->server;
     // this->server = nullptr;
     CubeLog::info("API stopped");
@@ -438,17 +438,26 @@ void CubeHttpServer::start()
  */
 void CubeHttpServer::stop()
 {
-    // stop the server
     CubeLog::info("HTTP server stopping...");
-    // this->server->decommission();
     this->server->stop();
     genericSleep(250);
-    while(this->server->is_running()) {
+    // There is a weird bug in the httplib library that causes it to hang when trying to stop the server if
+    // the server is bound to a unix socket and no client ever connects to it. To work around this, we connect
+    // to the socket with a dummy client after calling stop.
+    if (this->address == CUBE_SOCKET_PATH) {
+        int dummy_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+        struct sockaddr_un addr;
+        memset(&addr, 0, sizeof(addr));
+        addr.sun_family = AF_UNIX;
+        strncpy(addr.sun_path, CUBE_SOCKET_PATH, sizeof(addr.sun_path) - 1);
+        connect(dummy_fd, (struct sockaddr*)&addr, sizeof(addr));
+        close(dummy_fd);
+    }
+    while (this->server->is_running()) {
         genericSleep(100);
     }
-    // this->server->~Server();
+    // Ensure that the resources are released
     this->server.reset();
-    
 }
 
 /**
