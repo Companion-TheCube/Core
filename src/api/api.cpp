@@ -446,12 +446,14 @@ void CubeHttpServer::stop()
     // to the socket with a dummy client after calling stop.
     if (this->address == CUBE_SOCKET_PATH) {
         int dummy_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+#ifdef __linux__
         struct sockaddr_un addr;
         memset(&addr, 0, sizeof(addr));
         addr.sun_family = AF_UNIX;
         strncpy(addr.sun_path, CUBE_SOCKET_PATH, sizeof(addr.sun_path) - 1);
         connect(dummy_fd, (struct sockaddr*)&addr, sizeof(addr));
         close(dummy_fd);
+#endif
     }
     while (this->server->is_running()) {
         genericSleep(100);

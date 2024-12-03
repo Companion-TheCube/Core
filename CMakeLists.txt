@@ -535,7 +535,7 @@ find_package(PythonInterp 3 REQUIRED)
 
 # Custom command to generate the build number header
 add_custom_command(
-    TARGET CubeCore POST_BUILD
+    TARGET CubeCore PRE_BUILD
     # OUTPUT "${BUILD_NUMBER_HEADER}"
     COMMAND ${PYTHON_EXECUTABLE} "${GET_BUILD_NUMBER_SCRIPT}" "${BUILD_NUMBER_HEADER}" "${CMAKE_SOURCE_DIR}"
     DEPENDS "${GET_BUILD_NUMBER_SCRIPT}"
@@ -543,14 +543,14 @@ add_custom_command(
 )
 
 # Custom target that depends on the custom command
-add_custom_target(
-    FetchBuildNumber ALL
-    DEPENDS "${BUILD_NUMBER_HEADER}"
-)
+# add_custom_target(
+#     FetchBuildNumber ALL
+#     DEPENDS "${BUILD_NUMBER_HEADER}"
+# )
 
 
-# Ensure the build number is fetched before building the executable
-add_dependencies(CubeCore FetchBuildNumber)
+# # Ensure the build number is fetched before building the executable
+# add_dependencies(CubeCore FetchBuildNumber)
 
 # Include the directory where the header is located
 # include_directories("${CMAKE_BINARY_DIR}")
