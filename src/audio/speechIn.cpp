@@ -30,6 +30,8 @@ When the wake word is detected, we'll need to tell the audioOutput class to play
 
 // Wake word detector monitor (for making sure that the wake word detector is running)
 
+int audioInputCallback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData);
+
 SpeechIn::~SpeechIn()
 {
     stop();
@@ -37,6 +39,10 @@ SpeechIn::~SpeechIn()
 
 void SpeechIn::start()
 {
+    // Start the audio input thread that handles rtaudio and streams audio to openwakeword
+    this->audioInputThread = std::jthread([this](std::stop_token st) {
+        this->audioInputThreadFn(st);
+    });
 }
 
 void SpeechIn::stop()
@@ -111,10 +117,38 @@ unsigned int SpeechIn::getNumBytes()
     return numSamples * bytesPerSample;
 }
 
-void SpeechIn::audioInputThread()
+void SpeechIn::audioInputThreadFn(std::stop_token st)
 {
+    // set up rt audio
+    RtAudio audio;
+    RtAudio::StreamParameters params;
+    params.deviceId = audio.getDefaultInputDevice();
+    params.nChannels = 1;
+    params.firstChannel = 0;
+    unsigned int sampleRate = 16000;
+    unsigned int bufferFrames = 256;
+    unsigned int numBuffers = 4;
+    unsigned int numSamples = bufferFrames * numBuffers;
+    unsigned int bitsPerSample = 16;
+    unsigned int bytesPerSample = bitsPerSample / 8;
+    unsigned int numChannels = 1;
+    unsigned int fifoSize = numSamples * bytesPerSample;
+    unsigned int preTriggerFifoSize = numSamples * bytesPerSample;
+    RtAudio::StreamOptions options;
+    options.flags = RTAUDIO_SCHEDULE_REALTIME;
+    options.numberOfBuffers = numBuffers;
+    options.priority = 99;
+    options.streamName = "Audio Input Stream";
+    audio.openStream(nullptr, &params, RTAUDIO_SINT16, sampleRate, &bufferFrames, &audioInputCallback, this, &options);
+    
+
 }
 
 void SpeechIn::writeAudioDataToSocket(int16_t* buffer, size_t bufferSize)
 {
+}
+
+int audioInputCallback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData)
+{
+    return 0;
 }

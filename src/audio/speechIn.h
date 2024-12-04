@@ -1,7 +1,7 @@
 #pragma once
 #ifndef SPEECHIN_H
 #define SPEECHIN_H
-
+#include "RtAudio.h"
 #include "utils.h"
 #ifndef LOGGER_H
 #include <logger.h>
@@ -111,9 +111,11 @@ private:
     size_t fifoSize;
     // Number of bytes in the pre-trigger FIFO buffer
     size_t preTriggerFifoSize;
+    // Audio input thread
+    std::jthread audioInputThread;
 
     // Audio input thread
-    void audioInputThread();
+    void audioInputThreadFn(std::stop_token st);
 
     // Write audio data from the FIFO to the unix socket
     void writeAudioDataToSocket(int16_t* buffer, size_t bufferSize);
