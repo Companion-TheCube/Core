@@ -30,8 +30,6 @@ When the wake word is detected, we'll need to tell the audioOutput class to play
 
 // Wake word detector monitor (for making sure that the wake word detector is running)
 
-int audioInputCallback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData);
-
 SpeechIn::~SpeechIn()
 {
     stop();
@@ -120,35 +118,67 @@ unsigned int SpeechIn::getNumBytes()
 void SpeechIn::audioInputThreadFn(std::stop_token st)
 {
     // set up rt audio
-    RtAudio audio;
+    RtAudio::Api api = RtAudio::RtAudio::LINUX_PULSE;
+    std::unique_ptr audio = std::make_unique<RtAudio>(api);
+    if(audio->getDeviceCount() == 0) {
+        CubeLog::error("No audio devices found.");
+        return;
+    }
+
+    std::vector<unsigned int> devicesList = audio->getDeviceIds();
+
+    RtAudio::DeviceInfo info;
+    for(const auto& i : devicesList) {
+        info = audio->getDeviceInfo(i);
+        if(info.inputChannels > 0) {
+            CubeLog::info("Device " + std::to_string(i) + ": " + info.name);
+            CubeLog::info("Input channels: " + std::to_string(info.inputChannels));
+        }
+    }
+
+    auto soundInInd = audio->getDefaultInputDevice();
+    
     RtAudio::StreamParameters params;
-    params.deviceId = audio.getDefaultInputDevice();
+    params.deviceId = soundInInd;
     params.nChannels = 1;
     params.firstChannel = 0;
-    unsigned int sampleRate = 16000;
-    unsigned int bufferFrames = 256;
-    unsigned int numBuffers = 4;
-    unsigned int numSamples = bufferFrames * numBuffers;
-    unsigned int bitsPerSample = 16;
-    unsigned int bytesPerSample = bitsPerSample / 8;
-    unsigned int numChannels = 1;
-    unsigned int fifoSize = numSamples * bytesPerSample;
-    unsigned int preTriggerFifoSize = numSamples * bytesPerSample;
-    RtAudio::StreamOptions options;
-    options.flags = RTAUDIO_SCHEDULE_REALTIME;
-    options.numberOfBuffers = numBuffers;
-    options.priority = 99;
-    options.streamName = "Audio Input Stream";
-    audio.openStream(nullptr, &params, RTAUDIO_SINT16, sampleRate, &bufferFrames, &audioInputCallback, this, &options);
-    
 
+    RtAudio::StreamOptions options;
+    options.flags = RTAUDIO_NONINTERLEAVED | RTAUDIO_SINT16;
+    options.streamName = "SpeechIn";
+    options.numberOfBuffers = 1;
+
+    unsigned int bufferFrames = 512;
+    unsigned int sampleRate = 16000;
+
+    try {
+        audio->openStream(nullptr, &params, RTAUDIO_SINT16, sampleRate, &bufferFrames, &audioInputCallback, nullptr, &options);
+        audio->startStream();
+    } catch(RtAudioErrorType& e) {
+        CubeLog::error("Error starting audio stream");
+        return;
+    }
+
+    while(!st.stop_requested()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
+    audio->stopStream();
+    audio->closeStream();
 }
 
-void SpeechIn::writeAudioDataToSocket(int16_t* buffer, size_t bufferSize)
+void SpeechIn::writeAudioDataToSocket()
 {
+    auto data = this->audioQueue->pop();
+    if(data) {
+        // send data to the socket
+    }
 }
 
 int audioInputCallback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData)
 {
+    int16_t* buffer = (int16_t*)inputBuffer;
+    std::vector<int16_t> audioData(buffer, buffer + nBufferFrames);
+    SpeechIn::getAudioDataQueue()->push(audioData);
     return 0;
 }

@@ -17,6 +17,7 @@ AudioManager::AudioManager()
     audioOutput = std::make_unique<AudioOutput>();
     audioInQueue = std::make_shared<ThreadSafeQueue<std::vector<int16_t>>>();
     speechIn = std::make_shared<SpeechIn>(audioInQueue);
+    speechIn->start();
 }
 
 AudioManager::~AudioManager()

@@ -36,13 +36,12 @@ public:
     // Stop the audio input thread
     void stop();
 
-    // Get the audio data from the FIFO buffer
-    // Returns the number of bytes read
-    std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> getAudioDataQueue();
+    
+    static std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> getAudioDataQueue();
 
     // Get the audio data from the pre-trigger FIFO buffer
     // Returns the number of bytes read
-    std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> getPreTriggerAudioDataQueue();
+    static std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> getPreTriggerAudioDataQueue();
 
     // Get the size of the audio data in the FIFO buffer
     size_t getAudioDataSize();
@@ -82,9 +81,9 @@ public:
 
 private:
     // Audio data FIFO buffer
-    std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue;
+    static std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue;
     // Pre-trigger audio data FIFO buffer
-    std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> preTriggerAudioData;
+    static std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> preTriggerAudioData;
     // Mutex for the audio data FIFO buffer
     std::mutex audioDataMutex;
     // Mutex for the pre-trigger audio data FIFO buffer
@@ -118,6 +117,6 @@ private:
     void audioInputThreadFn(std::stop_token st);
 
     // Write audio data from the FIFO to the unix socket
-    void writeAudioDataToSocket(int16_t* buffer, size_t bufferSize);
+    void writeAudioDataToSocket();
 };
 #endif // SPEECHIN_H
