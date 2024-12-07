@@ -30,6 +30,10 @@ When the wake word is detected, we'll need to tell the audioOutput class to play
 
 // Wake word detector monitor (for making sure that the wake word detector is running)
 
+std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> SpeechIn::audioQueue;
+std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> SpeechIn::preTriggerAudioData;
+int audioInputCallback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData);
+
 SpeechIn::~SpeechIn()
 {
     stop();
@@ -170,7 +174,7 @@ void SpeechIn::audioInputThreadFn(std::stop_token st)
 void SpeechIn::writeAudioDataToSocket()
 {
     auto data = this->audioQueue->pop();
-    if(data) {
+    while(data) {
         // send data to the socket
     }
 }

@@ -26,8 +26,7 @@
 class SpeechIn {
 public:
     SpeechIn() = default;
-    SpeechIn(std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue)
-        : audioQueue(audioQueue) {};
+    SpeechIn(std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue){};
     ~SpeechIn();
 
     // Start the audio input thread
