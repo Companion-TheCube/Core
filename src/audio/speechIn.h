@@ -35,13 +35,6 @@ public:
     // Stop the audio input thread
     void stop();
 
-    
-    static std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> getAudioDataQueue();
-
-    // Get the audio data from the pre-trigger FIFO buffer
-    // Returns the number of bytes read
-    static std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> getPreTriggerAudioDataQueue();
-
     // Get the size of the audio data in the FIFO buffer
     size_t getAudioDataSize();
 
@@ -78,19 +71,12 @@ public:
     // Get the number of bytes in the audio data
     unsigned int getNumBytes();
 
-private:
+
     // Audio data FIFO buffer
     static std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue;
     // Pre-trigger audio data FIFO buffer
     static std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> preTriggerAudioData;
-    // Mutex for the audio data FIFO buffer
-    std::mutex audioDataMutex;
-    // Mutex for the pre-trigger audio data FIFO buffer
-    std::mutex preTriggerAudioDataMutex;
-    // Condition variable for the audio data FIFO buffer
-    std::condition_variable audioDataCV;
-    // Condition variable for the pre-trigger audio data FIFO buffer
-    std::condition_variable preTriggerAudioDataCV;
+private:
     // Flag to stop the audio input thread
     std::atomic<bool> stopFlag;
     // Sample rate of the audio data

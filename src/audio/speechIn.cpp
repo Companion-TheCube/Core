@@ -49,16 +49,8 @@ void SpeechIn::start()
 
 void SpeechIn::stop()
 {
-}
-
-std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> SpeechIn::getAudioDataQueue()
-{
-    return audioQueue;
-}
-
-std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> SpeechIn::getPreTriggerAudioDataQueue()
-{
-    return preTriggerAudioData;
+    this->audioInputThread.request_stop();
+    this->audioInputThread.join();
 }
 
 size_t SpeechIn::getAudioDataSize()
@@ -164,7 +156,8 @@ void SpeechIn::audioInputThreadFn(std::stop_token st)
     }
 
     while(!st.stop_requested()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        this->writeAudioDataToSocket();
     }
 
     audio->stopStream();
@@ -183,6 +176,6 @@ int audioInputCallback(void* outputBuffer, void* inputBuffer, unsigned int nBuff
 {
     int16_t* buffer = (int16_t*)inputBuffer;
     std::vector<int16_t> audioData(buffer, buffer + nBufferFrames);
-    SpeechIn::getAudioDataQueue()->push(audioData);
+    SpeechIn::audioQueue->push(audioData);
     return 0;
 }
