@@ -167,8 +167,40 @@ void SpeechIn::audioInputThreadFn(std::stop_token st)
 void SpeechIn::writeAudioDataToSocket()
 {
     auto data = this->audioQueue->pop();
+    const char *SERVER_IP = "127.0.0.1";
+    const int SERVER_PORT = 5000;
+    int sockfd;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
     while(data) {
-        // send data to the socket
+        // send data to the socket on localhost port 5000
+        sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        if(sockfd < 0) {
+            CubeLog::error("Error opening socket");
+            return;
+        }
+        sockfd.sin_family = AF_INET;
+        sockfd.sin_port = htons(SERVER_PORT);
+        inet_pton(AF_INET, SERVER_IP, &serv_addr.sin_addr);
+
+        if(connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
+            CubeLog::error("Error connecting to socket");
+            return;
+        }
+
+        // base64 encode the audio data
+        std::string encodedData = base64_encode((const unsigned char*)data.data(), data.size() * sizeof(int16_t));
+
+        // send the data to the server
+        if(send(sockfd, encodedData.c_str(), encodedData.size(), 0) < 0) {
+            CubeLog::error("Error sending data to socket");
+            return;
+        }
+
+        close(sockfd);
+
+        data = this->audioQueue->pop();
     }
 }
 
