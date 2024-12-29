@@ -85,6 +85,13 @@ FetchContent_Declare(WhisperCPP
 )
 FetchContent_MakeAvailable(WhisperCPP)
 include(FetchContent)
+FetchContent_Declare(
+    cppcodec
+    GIT_REPOSITORY https://github.com/tplgy/cppcodec.git
+    GIT_TAG master
+)
+FetchContent_MakeAvailable(cppcodec)
+include_directories(${cppcodec_SOURCE_DIR}/cppcodec)
 
 file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/libraries)
 file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/libraries/whisper_models)

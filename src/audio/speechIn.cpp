@@ -30,8 +30,8 @@ When the wake word is detected, we'll need to tell the audioOutput class to play
 
 // Wake word detector monitor (for making sure that the wake word detector is running)
 
-std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> SpeechIn::audioQueue;
-std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> SpeechIn::preTriggerAudioData;
+std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> SpeechIn::audioQueue = std::make_shared<ThreadSafeQueue<std::vector<int16_t>>>();
+std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> SpeechIn::preTriggerAudioData = std::make_shared<ThreadSafeQueue<std::vector<int16_t>>>();
 int audioInputCallback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData);
 
 SpeechIn::~SpeechIn()
@@ -116,7 +116,7 @@ void SpeechIn::audioInputThreadFn(std::stop_token st)
     // set up rt audio
     RtAudio::Api api = RtAudio::RtAudio::LINUX_PULSE;
     std::unique_ptr audio = std::make_unique<RtAudio>(api);
-    if(audio->getDeviceCount() == 0) {
+    if (audio->getDeviceCount() == 0) {
         CubeLog::error("No audio devices found.");
         return;
     }
@@ -124,16 +124,16 @@ void SpeechIn::audioInputThreadFn(std::stop_token st)
     std::vector<unsigned int> devicesList = audio->getDeviceIds();
 
     RtAudio::DeviceInfo info;
-    for(const auto& i : devicesList) {
+    for (const auto& i : devicesList) {
         info = audio->getDeviceInfo(i);
-        if(info.inputChannels > 0) {
+        if (info.inputChannels > 0) {
             CubeLog::info("Device " + std::to_string(i) + ": " + info.name);
             CubeLog::info("Input channels: " + std::to_string(info.inputChannels));
         }
     }
 
     auto soundInInd = audio->getDefaultInputDevice();
-    
+
     RtAudio::StreamParameters params;
     params.deviceId = soundInInd;
     params.nChannels = 1;
@@ -150,13 +150,13 @@ void SpeechIn::audioInputThreadFn(std::stop_token st)
     try {
         audio->openStream(nullptr, &params, RTAUDIO_SINT16, sampleRate, &bufferFrames, &audioInputCallback, nullptr, &options);
         audio->startStream();
-    } catch(RtAudioErrorType& e) {
+    } catch (RtAudioErrorType& e) {
         CubeLog::error("Error starting audio stream");
         return;
     }
 
-    while(!st.stop_requested()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    while (!st.stop_requested()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
         this->writeAudioDataToSocket();
     }
 
@@ -166,42 +166,39 @@ void SpeechIn::audioInputThreadFn(std::stop_token st)
 
 void SpeechIn::writeAudioDataToSocket()
 {
+    using base64 = cppcodec::base64_rfc4648;
     auto data = this->audioQueue->pop();
-    const char *SERVER_IP = "127.0.0.1";
-    const int SERVER_PORT = 5000;
+
     int sockfd;
-    struct sockaddr_in serv_addr;
-    struct hostent *server;
+    sockaddr_un serverAddr;
+    serverAddr.sun_family = AF_UNIX;
+    strcpy(serverAddr.sun_path, "/home/andrew/Documents/projects/openwakeword/openww.sock");
 
-    while(data) {
-        // send data to the socket on localhost port 5000
-        sockfd = socket(AF_INET, SOCK_STREAM, 0);
-        if(sockfd < 0) {
-            CubeLog::error("Error opening socket");
-            return;
-        }
-        sockfd.sin_family = AF_INET;
-        sockfd.sin_port = htons(SERVER_PORT);
-        inet_pton(AF_INET, SERVER_IP, &serv_addr.sin_addr);
+    sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        CubeLog::error("Error opening socket");
+        return;
+    }
 
-        if(connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
-            CubeLog::error("Error connecting to socket");
-            return;
-        }
+    if (connect(sockfd, (sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
+        CubeLog::error("Error connecting to socket");
+        return;
+    }
 
+    while (data) {
         // base64 encode the audio data
-        std::string encodedData = base64_encode((const unsigned char*)data.data(), data.size() * sizeof(int16_t));
+        std::string encodedData = base64::encode((const unsigned char*)data->data(), data->size() * sizeof(int16_t));
 
         // send the data to the server
-        if(send(sockfd, encodedData.c_str(), encodedData.size(), 0) < 0) {
+        if (write(sockfd, encodedData.c_str(), encodedData.size()) < 0) {
             CubeLog::error("Error sending data to socket");
             return;
         }
 
-        close(sockfd);
-
         data = this->audioQueue->pop();
     }
+
+    close(sockfd);
 }
 
 int audioInputCallback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData)

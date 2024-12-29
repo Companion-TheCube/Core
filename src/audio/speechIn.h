@@ -6,6 +6,7 @@
 #ifndef LOGGER_H
 #include <logger.h>
 #endif
+#include "base64_rfc4648.hpp"
 #include "threadsafeQueue.h"
 
 #define SAMPLE_RATE 16000
