@@ -170,9 +170,18 @@ void SpeechIn::writeAudioDataToSocket()
     auto data = this->audioQueue->pop();
 
     int sockfd;
+#ifdef __linux__
     sockaddr_un serverAddr;
     serverAddr.sun_family = AF_UNIX;
     strcpy(serverAddr.sun_path, "/home/andrew/Documents/projects/openwakeword/openww.sock");
+#else
+    sockaddr serverAddr;
+    serverAddr.sa_family = AF_UNIX;
+    strcpy(serverAddr.sa_data, "/home/andrew/Documents/projects/openwakeword/openww.sock");
+#endif
+    
+    
+    
 
     sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (sockfd < 0) {
