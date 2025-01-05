@@ -169,6 +169,10 @@ void SpeechIn::writeAudioDataToSocket()
     using base64 = cppcodec::base64_rfc4648;
     auto data = this->audioQueue->pop();
 
+    // TODO: if there is data in the queue, we need to get the correct number of int16_t values from the queue
+    // and send them to openWW via a unix socket. OpenWW expects a certain number of samples at a time, so if there are not
+    // enough samples in the queue, we need to wait until there are enough samples.
+
     int sockfd;
 #ifdef __linux__
     sockaddr_un serverAddr;
