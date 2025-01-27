@@ -127,7 +127,6 @@ private:
     std::vector<std::string> getFileNames();
     void loadAnimations(std::vector<std::string> fileNames);
     Animation loadAnimation(const std::string& fileName);
-    AnimationKeyframe loadKeyframe(nlohmann::json keyframe);
     std::string folderName;
 
 public:
@@ -153,9 +152,9 @@ public:
 struct ExpressionDefinition {
     Expressions::ExpressionNames_enum name;
     std::string expression;
-    std::vector<std::string> objects;
-    std::vector<bool> visibility;
-    std::vector<AnimationKeyframe> animations;
+    std::vector<std::string> objects; // the Objects that are involved in the expression
+    std::vector<std::vector<bool>> visibility; // the visibility of the objects for each set of keyframes. each vector<bool> is a representation of the visible objects.
+    std::vector<AnimationKeyframe> animationKeyframes;
 };
 
 class ExpressionLoader {
@@ -173,5 +172,7 @@ public:
     ExpressionDefinition getExpressionByEnum(Expressions::ExpressionNames_enum name);
     ExpressionDefinition getExpressionByName(std::string name);
 };
+
+AnimationKeyframe loadKeyframe(nlohmann::json keyframe);
 
 #endif // MESHLOADER_H

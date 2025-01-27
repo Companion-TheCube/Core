@@ -1,1 +1,53 @@
-{}
+{
+    "objects": ["ClosedEyesSmile", "OpenEyesSmile"],
+    "name": "neutral",
+    "expression": "neutral",
+    "visibility":[
+        [
+            true,false
+        ],
+        [
+            false,true
+        ]
+    ],
+    "frames": [
+        {
+            "type": "SCALE_XYZ",
+            "value": 0.0,
+            "time": {
+                "start": 0,
+                "end": 500
+            },
+            "easing": "easeIn",
+            "axis": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+            },
+            "point": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            }
+        },
+        {
+            "type": "SCALE_XYZ",
+            "value": 0.0,
+            "time": {
+                "start": 0,
+                "end": 30
+            },
+            "easing": "easeIn",
+            "axis": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+            },
+            "point": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            }
+        }
+    ]
+}

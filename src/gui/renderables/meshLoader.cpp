@@ -440,13 +440,15 @@ Animation AnimationLoader::loadAnimation(const std::string& fileName)
     return animation;
 }
 
+
+// TODO: Move this function to bottom of file.
 /**
  * @brief Parse a json object into an AnimationKeyframe object
  *
  * @param keyframe - The json object to parse
  * @return AnimationKeyframe - The parsed keyframe
  */
-AnimationKeyframe AnimationLoader::loadKeyframe(nlohmann::json keyframe)
+AnimationKeyframe loadKeyframe(nlohmann::json keyframe)
 {
     static const std::unordered_map<std::string, Animations::AnimationType> nameToAnimType = {
         { "TRANSLATE", Animations::AnimationType::TRANSLATE },
@@ -694,7 +696,6 @@ std::vector<ExpressionDefinition> ExpressionLoader::loadExpressions(std::vector<
             continue;
         }
         for (auto expression : jsonObject) {
-            expressions.push_back({ expression["name"], expression["expression"], expression["objects"], expression["visibility"] });
             // TODO: parse the animations in the expression and add them to the object we just pushed back.
         }
     }
