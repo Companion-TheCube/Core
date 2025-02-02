@@ -9,3 +9,4 @@
 - Migrate from SFML to GLFW
 - Window manager interface: Use XCB and xcb-ewmh to interface with the matchbox window manager so that we can control which window is on top and which window has focus. This will be particularly useful for games or apps with guis, like if a game runs in chromium or an app needs to have the user interact with a web page. Really, any app that needs a GUI outside of the main Core GUI will need this.
 - If remote AI services is enabled, we need to check on a regular that it is available. If it is not, there needs to be an indicator, maybe a little red dot in the corner of the screen, that the service is not available. If the service becomes available, the indicator should disappear. This indicator may be well suited to be in the status bar if we ever get around to adding that.
+- Sentences used for natural language matching need to be translated. Use the same methods as for the UI strings.
