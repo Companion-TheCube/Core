@@ -1,12 +1,4 @@
 #!/usr/bin/env python3
-
-# TODO: this script should also update the buildinfo endpoint with build info
-# http://developmenttracking.lan:9180/TheCube-Core/buildinfo/setInfo/:buildNumber/:buildDate/:buildTime/:buildAuthor
-# buildNumber: the build number
-# buildDate: the date the build was created
-# buildTime: the time the build was created
-# buildAuthor: the person who created the build. This should be in .env file
-
 import sys
 from datetime import datetime
 import urllib.request
