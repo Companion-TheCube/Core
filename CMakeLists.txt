@@ -70,6 +70,15 @@ FetchContent_MakeAvailable(stduuid)
 include_directories(${stduuid_SOURCE_DIR}/include)
 
 include(FetchContent)
+FetchContent_Declare(
+    infoware
+    GIT_REPOSITORY https://github.com/ThePhD/infoware.git
+    GIT_TAG main
+)
+FetchContent_MakeAvailable(infoware)
+include_directories(${infoware_SOURCE_DIR}/include)
+
+include(FetchContent)
 FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
 FetchContent_MakeAvailable(json)
 
@@ -353,6 +362,7 @@ target_link_libraries(CubeCore PRIVATE
     whisper
     OpenSSL::SSL
     OpenSSL::Crypto
+    infoware
 )
 
 # set_target_properties(CubeCore PROPERTIES
@@ -538,7 +548,7 @@ set(BUILD_NUMBER_HEADER "${CMAKE_SOURCE_DIR}/libraries/build_number.h")
 set(GET_BUILD_NUMBER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/get_next_build_number.py")
 
 # Ensure Python is found
-find_package(PythonInterp 3 REQUIRED)
+find_package(Python3 REQUIRED)
 
 # Custom command to generate the build number header
 add_custom_command(
@@ -624,6 +634,9 @@ target_link_libraries(CubeCoreTests PRIVATE
     SQLiteCpp
     sqlite3
     ${SODIUM_LIBRARIES}
+    whisper
+    OpenSSL::SSL
+    OpenSSL::Crypto
 )
 
 enable_testing()
@@ -655,6 +668,9 @@ if(benchmark_FOUND)
         SQLiteCpp
         sqlite3
         ${SODIUM_LIBRARIES}
+        whisper
+        OpenSSL::SSL
+        OpenSSL::Crypto
     )
 else()
     message(WARNING "Google Benchmark not found, skipping benchmarks.")

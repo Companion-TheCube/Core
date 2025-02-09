@@ -1,16 +1,16 @@
-// ████████╗ ██████╗ ██████╗  ██████╗ 
+// ████████╗ ██████╗ ██████╗  ██████╗
 // ╚══██╔══╝██╔═══██╗██╔══██╗██╔═══██╗
 //    ██║   ██║   ██║██║  ██║██║   ██║
 //    ██║   ██║   ██║██║  ██║██║   ██║
 //    ██║   ╚██████╔╝██████╔╝╚██████╔╝
-//    ╚═╝    ╚═════╝ ╚═════╝  ╚═════╝ 
+//    ╚═╝    ╚═════╝ ╚═════╝  ╚═════╝
 // TODO: Need to add a sort of status bar to the top of the screen. It should show the time and whether or not a person is detected. probably more.
 // TODO: we should monitor the CubeLog for errors and display them in the status bar. This will require a way to get the last error message from the CubeLog. <- this is done in CubeLog
 // TODO: setup notifications that pop up with a CubeMessageBox. this will need to have notifications.cpp fleshed out.
 // TODO: Instead of having the menu become visible with a single tap/click, it should only pop up when teh user holds
 // click or tap for a certain amount of time. This way we can use normal clicks for interacting with the on screen character.
 
-//#define _ENABLE_LAMBDAS
+// #define _ENABLE_LAMBDAS
 
 #include "./gui.h"
 
@@ -92,7 +92,10 @@ void GUI::eventLoop()
     ////////////////////////////////////////
     /// Here we build the menus
     ////////////////////////////////////////
-    CountingLatch countingLatch(43); // this value must be equal to count of "new MENUS::Menu()" calls in this method + 2 (for the message box and text box)
+
+    // this value must be equal to count of "new MENUS::Menu()" calls in this method + 2 (for the message box and text box)
+    // TODO: make this dynamic
+    CountingLatch countingLatch(43);
 
 // This ifdef is part of a hack to make intellisense play well with the lambda functions. This is defined in cmakelists.txt so that when we compile, the lambdas are enabled.
 // Intellisense struggles with lots of lambdas, so this is a workaround. Uncomment the define at the top of this file to enable intellisense to see the lambdas.
@@ -298,12 +301,11 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
         wifiMenu_Networks_AddNetwork->setup();
         wifiMenu_Networks_AddNetwork->setChildrenClickables_isClickable(false);
     });
-    
+
     ///////// Connections Menu - WiFi - WiFi Networks - Scan /////////
     auto wifiMenu_Networks_Scan = createANewSubMenu(_("Scan"), "Scan", wifiMenu_Networks);
     this->renderer->addSetupTask([&wifiMenu_Networks_Scan, addBackButton, addToParent]() {
@@ -321,13 +323,13 @@ void GUI::eventLoop()
                 return 0;
             },
             [entryIndex](void*) {
-                if(*entryIndex == UINT_MAX) return 0;
+                if (*entryIndex == UINT_MAX)
+                    return 0;
                 // if(wifi is scanning) MENUS::Menu::getMenuEntryByIndex(*entryIndex)->setEntryText("Scan - Scanning");
                 MENUS::Menu::getMenuEntryByIndex(*entryIndex)->setEntryText("Scan - Clicked");
-                return 0; 
+                return 0;
             },
-            nullptr
-        );
+            nullptr);
         wifiMenu_Networks_Scan->addHorizontalRule();
         wifiMenu_Networks_Scan->setup();
         addToParent(wifiMenu_Networks_Scan);
@@ -363,8 +365,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
         ///////// Connections Menu - WiFi - About WiFi - IP Address /////////
         auto entryIndex1 = std::make_shared<unsigned int>();
         *entryIndex1 = UINT_MAX;
@@ -380,8 +381,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
         ///////// Connections Menu - WiFi - About WiFi - Subnet Mask /////////
         auto entryIndex2 = std::make_shared<unsigned int>();
         *entryIndex2 = UINT_MAX;
@@ -397,8 +397,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
         ///////// Connections Menu - WiFi - About WiFi - Signal Strength /////////
         auto entryIndex3 = std::make_shared<unsigned int>();
         *entryIndex3 = UINT_MAX;
@@ -418,8 +417,7 @@ void GUI::eventLoop()
                 // MENUS::Menu::getMenuEntryByIndex(*entryIndex3)->setEntryText("Signal Strength - 0%");
                 return 0;
             },
-            nullptr
-        );
+            nullptr);
         ///////// Connections Menu - WiFi - About WiFi - Network Name /////////
         auto entryIndex4 = std::make_shared<unsigned int>();
         *entryIndex4 = UINT_MAX;
@@ -435,8 +433,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
         ///////// Connections Menu - WiFi - About WiFi - Network Type /////////
         auto entryIndex5 = std::make_shared<unsigned int>();
         *entryIndex5 = UINT_MAX;
@@ -452,8 +449,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
         ///////// Connections Menu - WiFi - About WiFi - Security Type /////////
         auto entryIndex6 = std::make_shared<unsigned int>();
         *entryIndex6 = UINT_MAX;
@@ -469,8 +465,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
         ///////// Connections Menu - WiFi - About WiFi - Frequency /////////
         auto entryIndex7 = std::make_shared<unsigned int>();
         *entryIndex7 = UINT_MAX;
@@ -486,8 +481,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
         ///////// Connections Menu - WiFi - About WiFi - Channel /////////
         auto entryIndex8 = std::make_shared<unsigned int>();
         *entryIndex8 = UINT_MAX;
@@ -503,8 +497,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
         ///////// Connections Menu - WiFi - About WiFi - BSSID /////////
         auto entryIndex9 = std::make_shared<unsigned int>();
         *entryIndex9 = UINT_MAX;
@@ -520,8 +513,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
         ///////// Connections Menu - WiFi - About WiFi - Gateway /////////
         auto entryIndex10 = std::make_shared<unsigned int>();
         *entryIndex10 = UINT_MAX;
@@ -537,8 +529,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
         ///////// Connections Menu - WiFi - About WiFi - DNS Servers /////////
         auto entryIndex11 = std::make_shared<unsigned int>();
         *entryIndex11 = UINT_MAX;
@@ -554,8 +545,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
         ///////// Connections Menu - WiFi - About WiFi - DHCP Server /////////
         auto entryIndex12 = std::make_shared<unsigned int>();
         *entryIndex12 = UINT_MAX;
@@ -571,8 +561,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
         ///////// Connections Menu - WiFi - About WiFi - Lease Time /////////
         auto entryIndex13 = std::make_shared<unsigned int>();
         *entryIndex13 = UINT_MAX;
@@ -588,8 +577,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
         ///////// Connections Menu - WiFi - About WiFi - Connection Time /////////
         auto entryIndex14 = std::make_shared<unsigned int>();
         *entryIndex14 = UINT_MAX;
@@ -605,8 +593,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
         ///////// Connections Menu - WiFi - About WiFi - Data Rate /////////
         auto entryIndex15 = std::make_shared<unsigned int>();
         *entryIndex15 = UINT_MAX;
@@ -622,14 +609,11 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
         wifiMenu_AboutWiFi->setup();
         addToParent(wifiMenu_AboutWiFi);
         wifiMenu_AboutWiFi->setChildrenClickables_isClickable(false);
     });
-
-    
 
     ///////// Connections Menu - Bluetooth /////////
     auto bluetoothMenu = createANewSubMenu(_("Bluetooth"), "Bluetooth", connectionsMenu);
@@ -637,13 +621,13 @@ void GUI::eventLoop()
         addBackButton(bluetoothMenu);
         ///////// Connections Menu - Bluetooth - Enable/Disable Bluetooth /////////
         // Options below should be greyed out and not clickable if bluetooth is disabled
-        
+
         ///////// Connections Menu - Bluetooth - Pairing Mode /////////
         // TODO: when pairing mode is clicked, bluetooth should go into pairing mode and show a list of devices that can be paired with.
-        
+
         ///////// Connections Menu - Bluetooth - Known devices /////////
         // TODO: list all the bluetooth devices that have been paired with the cube
-        
+
         ///////// Connections Menu - Bluetooth - About Bluetooth /////////
         bluetoothMenu->setup();
         addToParent(bluetoothMenu);
@@ -670,8 +654,7 @@ void GUI::eventLoop()
                 int random0or1 = rand() % 2;
                 return random0or1;
             },
-            nullptr
-        );
+            nullptr);
         ///////// Connections Menu - NFC - About NFC /////////
         nfcMenu->addMenuEntry(
             _("About NFC"),
@@ -683,8 +666,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
         nfcMenu->setup();
         addToParent(nfcMenu);
         nfcMenu->setChildrenClickables_isClickable(false);
@@ -706,8 +688,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
         ///////// Personality Menu - Personality reset /////////
         personalityMenu->addMenuEntry(
             _("Reset Personality"),
@@ -719,8 +700,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
         personalityMenu->setup();
         addToParent(personalityMenu);
         personalityMenu->setChildrenClickables_isClickable(false);
@@ -728,10 +708,9 @@ void GUI::eventLoop()
 
     ///////// Personality Menu - Personality Settings /////////
     auto personalityMenu_PersonalitySettings = createANewSubMenu(
-        _("Personality Settings"), 
-        "Personality Settings", 
-        personalityMenu
-    );
+        _("Personality Settings"),
+        "Personality Settings",
+        personalityMenu);
     this->renderer->addSetupTask([&personalityMenu_PersonalitySettings, addBackButton, addToParent]() {
         addBackButton(personalityMenu_PersonalitySettings);
         // list each attribute of the personality and provide a slider to adjust.
@@ -746,8 +725,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 50; },
-            nullptr
-        );
+            nullptr);
         // TODO: before adding the rest of these, we need to figure out the slider rendering and how to get/set the values
         // 2. Playfulness
         // 3. Empathy
@@ -755,7 +733,7 @@ void GUI::eventLoop()
         // 5. Productivity Focus / Encouragement
         // 6. Attentiveness
         // 7. Caution
-        
+
         personalityMenu_PersonalitySettings->setup();
         addToParent(personalityMenu_PersonalitySettings);
         personalityMenu_PersonalitySettings->setChildrenClickables_isClickable(false);
@@ -777,8 +755,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
         ///////// Sensors Menu - Presence Detection enable/disable /////////
         sensorsMenu->addMenuEntry(
             _("Presence Detection"),
@@ -791,8 +768,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
         sensorsMenu->setup();
         addToParent(sensorsMenu);
         sensorsMenu->setChildrenClickables_isClickable(false);
@@ -812,11 +788,11 @@ void GUI::eventLoop()
                 // TODO: set the volume
                 return 0;
             },
-            [](void* val) { 
+            [](void* val) {
                 // cast val to int
                 // int volume = *(int*)val;
                 // TODO: save the volume to the settings
-                return 50; 
+                return 50;
             },
             (void*)(int)(50) // TODO: we need to get the value from the settings and pass it in here.
         );
@@ -839,7 +815,7 @@ void GUI::eventLoop()
                 // TODO: set the volume
                 return 0;
             },
-            [](void* val) { 
+            [](void* val) {
                 // cast val to int
                 // int volume = *(int*)val;
                 // TODO: save the notification volume to the settings
@@ -875,7 +851,7 @@ void GUI::eventLoop()
                 // TODO: set the volume
                 return 0;
             },
-            [](void* val) { 
+            [](void* val) {
                 // cast val to int
                 // int volume = *(int*)val;
                 // TODO: save the alarm volume to the settings
@@ -911,7 +887,7 @@ void GUI::eventLoop()
                 // TODO: set the volume
                 return 0;
             },
-            [](void* val) { 
+            [](void* val) {
                 // cast val to int
                 // int volume = *(int*)val;
                 // TODO: save the voice command volume to the settings
@@ -949,13 +925,12 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
         notificationsMenu->setup();
         addToParent(notificationsMenu);
         notificationsMenu->setChildrenClickables_isClickable(false);
     });
-    
+
     ///////// Notifications Menu - Recent Notifications /////////
     auto notificationsMenu_RecentNotifications = createANewSubMenu(_("Recent Notifications"), "Recent Notifications", notificationsMenu);
     this->renderer->addSetupTask([&notificationsMenu_RecentNotifications, addBackButton, addToParent]() {
@@ -993,12 +968,11 @@ void GUI::eventLoop()
                 // GlobalSettings::setSetting(GlobalSettings::SettingType::REMOTE_ANIMATIONS_ENABLED, !GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::REMOTE_ANIMATIONS_ENABLED));
                 return 0;
             },
-            [](void*) { 
+            [](void*) {
                 int random0or1 = rand() % 2;
                 return random0or1;
             },
-            nullptr
-        );
+            nullptr);
         displayMenu_Animations->setup();
         addToParent(displayMenu_Animations);
         displayMenu_Animations->setChildrenClickables_isClickable(false);
@@ -1026,14 +1000,13 @@ void GUI::eventLoop()
                 // TODO: set the brightness
                 return 0;
             },
-            [](void* val) { 
+            [](void* val) {
                 // cast val to int
                 // int brightness = *(int*)val;
                 // TODO: save the brightness to the settings
                 return 50;
             },
-            nullptr
-        );
+            nullptr);
         displayMenu_Brightness->setup();
         addToParent(displayMenu_Brightness);
         displayMenu_Brightness->setChildrenClickables_isClickable(false);
@@ -1054,8 +1027,7 @@ void GUI::eventLoop()
                 return 0;
             },
             [](void*) { return 0; },
-            nullptr
-        );
+            nullptr);
         ///////// Display Menu - Auto Off - Set Time /////////
         auto sliderVisible = std::make_shared<bool>(false);
         auto entryIndex = std::make_shared<unsigned int>();
@@ -1068,7 +1040,8 @@ void GUI::eventLoop()
                 CubeLog::info("Auto Off - Set Time clicked");
                 // TODO: set the auto off time
                 *sliderVisible = !*sliderVisible;
-                if(*entryIndex == UINT_MAX) return 0;
+                if (*entryIndex == UINT_MAX)
+                    return 0;
                 MENUS::Menu::getMenuEntryByIndex(*entryIndex)->getFixedObjects().at(0)->setVisibility(*sliderVisible);
                 return 0;
             },
@@ -1077,12 +1050,13 @@ void GUI::eventLoop()
                 // unsigned int time = *(unsigned int*)val;
                 // TODO: save the auto off time to the settings
                 // CubeLog::info("Auto Off - Set Time: " + std::to_string(time));
-                if(*entryIndex == UINT_MAX) return 0;
-                if(!*sliderVisible) MENUS::Menu::getMenuEntryByIndex(*entryIndex)->getFixedObjects().at(0)->setVisibility(false);
+                if (*entryIndex == UINT_MAX)
+                    return 0;
+                if (!*sliderVisible)
+                    MENUS::Menu::getMenuEntryByIndex(*entryIndex)->getFixedObjects().at(0)->setVisibility(false);
                 return 50;
             },
-            nullptr
-        );
+            nullptr);
         displayMenu_AutoOff->setup();
         addToParent(displayMenu_AutoOff);
         displayMenu_AutoOff->setChildrenClickables_isClickable(false);
@@ -1508,7 +1482,7 @@ void GUI::eventLoop()
             touchChange = true;
         }
         if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left) && lastMouseY > INT_MIN) {
-            for (auto &[isVisible, action] : drag_y_actions) {
+            for (auto& [isVisible, action] : drag_y_actions) {
                 if (isVisible() && !touchChange) {
                     action(-(event->mouseMove.y - lastMouseY));
                 }
@@ -1848,7 +1822,7 @@ HttpEndPointData_t GUI::getHttpEndpointData()
                 // TODO: anything that gets displayed needs to be logged in the DB->notifications
                 std::string mes = "";
                 std::string title = "";
-                for (auto &[paramName, paramValue] : req.params) {
+                for (auto& [paramName, paramValue] : req.params) {
                     if (paramName == "text") {
                         mes = paramValue;
                     } else if (paramName == "title") {
@@ -2731,7 +2705,7 @@ bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry)
                     return (unsigned int)2;
                 }
                 unsigned int retValue = 0;
-                if(j.contains("value") && j["value"].is_number_integer()) {
+                if (j.contains("value") && j["value"].is_number_integer()) {
                     retValue = j["value"];
                 }
                 return retValue + 100;
@@ -2739,8 +2713,7 @@ bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry)
             (void*)new int(0));
         break;
     }
-    case MENUS::EntryType::MENUENTRY_TYPE_INLINE_TEXT:
-    {
+    case MENUS::EntryType::MENUENTRY_TYPE_INLINE_TEXT: {
         // TODO: Implement
         break;
     }
