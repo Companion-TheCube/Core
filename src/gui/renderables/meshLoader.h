@@ -161,7 +161,8 @@ class ExpressionLoader {
 private:
     std::map<Expressions::ExpressionNames_enum, ExpressionDefinition> expressionsMap;
     std::vector<std::string> getFileNames();
-    std::vector<ExpressionDefinition> loadExpressions(std::vector<std::string> fileNames);
+    void loadExpressions(std::vector<std::string> fileNames);
+    ExpressionDefinition loadExpression(const std::string& fileName);
     std::string folderName;
 
 public:

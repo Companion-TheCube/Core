@@ -79,6 +79,7 @@ private:
     ExpressionLoader* expressionLoader;
     std::vector<CharacterPart*> parts;
     unsigned long long animationFrame;
+    unsigned long long expressionFrame;
     bool visible;
     Expressions::ExpressionNames_enum currentExpression;
     Expressions::ExpressionNames_enum nextExpression;

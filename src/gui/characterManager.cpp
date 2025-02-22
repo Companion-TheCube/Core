@@ -390,8 +390,6 @@ Character_generic::~Character_generic()
 
 void Character_generic::animate()
 {
-    // get a high accuracy time point
-    // std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
     std::lock_guard<std::mutex> lock(this->currentMutex);
     if (this->currentAnimationName == Animations::AnimationNames_enum::COUNT || this->nextAnimationName != Animations::AnimationNames_enum::COUNT) {
         CubeLog::info("Character_generic::animate: No current animation. Setting animation to NEUTRAL");
@@ -474,6 +472,140 @@ void Character_generic::animate()
 void Character_generic::expression()
 {
     // TODO: do the stuff that needs to be done to change the expression of the character based on the currentExpression
+    std::lock_guard<std::mutex> lock(this->currentMutex);
+    if (this->currentExpression == Expressions::ExpressionNames_enum::COUNT || this->nextExpression != Expressions::ExpressionNames_enum::COUNT) {
+        CubeLog::info("Character_generic::expression: No current expression. Setting expression to NEUTRAL");
+        std::lock_guard<std::mutex> lock(this->nextMutex);
+        this->currentExpressionDef = this->nextExpressionDef;
+        this->currentExpression = this->nextExpression;
+        this->nextExpressionDef = { Expressions::ExpressionNames_enum::COUNT, "", {} };
+        this->nextExpression = Expressions::ExpressionNames_enum::COUNT;
+        this->expressionFrame = 0;
+    }
+    bool foundKeyframe = false;
+    for (auto i = 0; i < this->currentExpressionDef.animationKeyframes.size(); i++) {
+        auto keyframe = this->currentExpressionDef.animationKeyframes.at(i);
+        if (keyframe.timeStart <= this->expressionFrame && keyframe.timeEnd > this->expressionFrame) {
+            // get the visibility of the objects for this keyframe
+            std::vector<bool> visibility = this->currentExpressionDef.visibility.at(i);
+            if(visibility.size() != this->currentExpressionDef.objects.size()) {
+                CubeLog::error("Character_generic::expression: Visibility vector size does not match objects vector size.");
+                continue;
+            }
+            for (auto j = 0; j < visibility.size(); j++) {
+                auto objName = this->currentExpressionDef.objects.at(j);
+                auto object = this->getPartByName(objName);
+                if(object == nullptr) {
+                    CubeLog::error("Character_generic::expression: Object not found: " + objName);
+                    continue;
+                }
+                if (object != nullptr) {
+                    for(auto obj : object->objects) {
+                        obj->setVisibility(visibility.at(j));
+                    }
+                }
+            }
+            foundKeyframe = true;
+            double f = this->animationFrame;
+            double s = keyframe.timeStart;
+            double e = keyframe.timeEnd;
+            double f_normal = (f - s) / (e - s);
+            double f2_normal = (f > 0) ? (f - s - 1) / (e - s) : 0.f;
+            double fn_eased = keyframe.easingFunction(f_normal);
+            double fn2_eased = keyframe.easingFunction(f2_normal);
+            double calcValue = (double)keyframe.value * (fn_eased - fn2_eased);
+            switch (keyframe.type) {
+            case Animations::AnimationType::TRANSLATE: {
+                for (auto objName : this->currentExpressionDef.objects) {
+                    auto object = this->getPartByName(objName);
+                    if (object != nullptr) {
+                        for(auto obj : object->objects) {
+                            obj->translate(glm::vec3(keyframe.axis.x * calcValue, keyframe.axis.y * calcValue, keyframe.axis.z * calcValue));
+                        }
+                    }
+                }
+                // this->translate(keyframe.axis.x * calcValue, keyframe.axis.y * calcValue, keyframe.axis.z * calcValue);
+                break;
+            }
+            case Animations::AnimationType::ROTATE: {
+                // this->rotate(calcValue, keyframe.axis.x, keyframe.axis.y, keyframe.axis.z);
+                for (auto objName : this->currentExpressionDef.objects) {
+                    auto object = this->getPartByName(objName);
+                    if (object != nullptr) {
+                        for(auto obj : object->objects) {
+                            obj->rotate(calcValue, glm::vec3(keyframe.axis.x, keyframe.axis.y, keyframe.axis.z));
+                        }
+                    }
+                }
+                break;
+            }
+            case Animations::AnimationType::SCALE_XYZ: {
+                calcValue = calcValue + 1.f;
+                // this->scale((keyframe.axis.x > 0 ? 1 * calcValue : 1), (keyframe.axis.y > 0 ? 1 * calcValue : 1), (keyframe.axis.z > 0 ? 1 * calcValue : 1));
+                for (auto objName : this->currentExpressionDef.objects) {
+                    auto object = this->getPartByName(objName);
+                    if (object != nullptr) {
+                        for(auto obj : object->objects) {
+                            obj->scale(glm::vec3((keyframe.axis.x > 0 ? 1 * calcValue : 1), (keyframe.axis.y > 0 ? 1 * calcValue : 1), (keyframe.axis.z > 0 ? 1 * calcValue : 1)));
+                        }
+                    }
+                }
+                break;
+            }
+            case Animations::AnimationType::UNIFORM_SCALE: {
+                calcValue = calcValue + 1.f;
+                // this->scale(calcValue, calcValue, calcValue);
+                for (auto objName : this->currentExpressionDef.objects) {
+                    auto object = this->getPartByName(objName);
+                    if (object != nullptr) {
+                        for(auto obj : object->objects) {
+                            obj->scale(glm::vec3(calcValue, calcValue, calcValue));
+                        }
+                    }
+                }
+                break;
+            }
+            case Animations::AnimationType::ROTATE_ABOUT: {
+                // for (auto object : this->objects) {
+                //     object->rotateAbout(calcValue, keyframe.axis, keyframe.point);
+                // }
+                for (auto objName : this->currentExpressionDef.objects) {
+                    auto object = this->getPartByName(objName);
+                    if (object != nullptr) {
+                        for(auto obj : object->objects) {
+                            obj->rotateAbout(calcValue, keyframe.axis, keyframe.point);
+                        }
+                    }
+                }
+                break;
+            }
+            case Animations::AnimationType::RETURN_HOME: {
+                // glm::mat4 modelDiff, projectionDiff, viewDiff;
+                // glm::mat4 calcValueMat4 = glm::mat4(calcValue);
+                // for (auto object : this->objects) {
+                //     // get the differences between the current position and the captured position
+                //     object->getRestorePositionDiff(&modelDiff, &viewDiff, &projectionDiff);
+                //     // apply the differences to the object
+                //     object->setModelMatrix(object->getModelMatrix() + (modelDiff * calcValueMat4));
+                //     object->setViewMatrix(object->getViewMatrix() + (viewDiff * calcValueMat4));
+                //     object->setProjectionMatrix(object->getProjectionMatrix() + (projectionDiff * calcValueMat4));
+                // }
+                break;
+            }
+            default:
+                CubeLog::error("Character_generic::animate: Invalid animation type");
+                break;
+            }
+        }
+    }
+    this->expressionFrame++;
+    if (!foundKeyframe) {
+        this->triggerExpression(Expressions::ExpressionNames_enum::NEUTRAL);
+        this->expressionFrame = 0;
+        // for (auto object : this->objects) {
+        //     object->restorePosition();
+        // }
+    }
 }
 
 CharacterPart* Character_generic::getPartByName(const std::string& name)

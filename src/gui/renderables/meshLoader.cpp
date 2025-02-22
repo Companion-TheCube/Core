@@ -440,7 +440,6 @@ Animation AnimationLoader::loadAnimation(const std::string& fileName)
     return animation;
 }
 
-
 // TODO: Move this function to bottom of file.
 /**
  * @brief Parse a json object into an AnimationKeyframe object
@@ -635,6 +634,37 @@ std::map<Animations::AnimationNames_enum, Animation> AnimationLoader::getAnimati
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// Map from string to Expressions enum
+static const std::unordered_map<std::string, Expressions::ExpressionNames_enum> nameToExpression = {
+    { "neutral", Expressions::ExpressionNames_enum::NEUTRAL },
+    { "default", Expressions::ExpressionNames_enum::NEUTRAL },
+    { "happy", Expressions::ExpressionNames_enum::HAPPY },
+    { "sad", Expressions::ExpressionNames_enum::SAD },
+    { "angry", Expressions::ExpressionNames_enum::ANGRY },
+    { "surprised", Expressions::ExpressionNames_enum::SURPRISED },
+    { "disgusted", Expressions::ExpressionNames_enum::DISGUSTED },
+    { "scared", Expressions::ExpressionNames_enum::SCARED },
+    { "confused", Expressions::ExpressionNames_enum::CONFUSED },
+    { "dizzy", Expressions::ExpressionNames_enum::DIZZY },
+    { "sick", Expressions::ExpressionNames_enum::SICK },
+    { "sleepy", Expressions::ExpressionNames_enum::SLEEPY },
+    { "confused", Expressions::ExpressionNames_enum::CONFUSED },
+    { "shocked", Expressions::ExpressionNames_enum::SHOCKED },
+    { "injured", Expressions::ExpressionNames_enum::INJURED },
+    { "dead", Expressions::ExpressionNames_enum::DEAD },
+    { "screaming", Expressions::ExpressionNames_enum::SCREAMING },
+    { "talking", Expressions::ExpressionNames_enum::TALKING },
+    { "listening", Expressions::ExpressionNames_enum::LISTENING },
+    { "sleeping", Expressions::ExpressionNames_enum::SLEEPING },
+    { "dead", Expressions::ExpressionNames_enum::DEAD },
+    { "funny_index", Expressions::ExpressionNames_enum::FUNNY_INDEX },
+    { "funny_bounce", Expressions::ExpressionNames_enum::FUNNY_BOUNCE },
+    { "funny_spin", Expressions::ExpressionNames_enum::FUNNY_SPIN },
+    { "funny_shrink", Expressions::ExpressionNames_enum::FUNNY_SHRINK },
+    { "funny_expand", Expressions::ExpressionNames_enum::FUNNY_EXPAND },
+    { "funny_jump", Expressions::ExpressionNames_enum::FUNNY_JUMP },
+};
+
 ExpressionLoader::ExpressionLoader(const std::string& folderName, std::vector<std::string> expressionFileNames)
 {
     this->folderName = folderName;
@@ -643,7 +673,7 @@ ExpressionLoader::ExpressionLoader(const std::string& folderName, std::vector<st
         if (std::find(fileNames.begin(), fileNames.end(), name) == fileNames.end()) {
             CubeLog::warning("ExpressionLoader: Expression file not found: " + name);
         }
-        // if the filename is not in the expressionFilesNames list, remove it from fileNames
+        // if the filename is not in the expressionFileNames list, remove it from fileNames
     }
     this->loadExpressions(fileNames);
 }
@@ -669,37 +699,107 @@ std::vector<std::string> ExpressionLoader::getFileNames()
     return names;
 }
 
-std::vector<ExpressionDefinition> ExpressionLoader::loadExpressions(std::vector<std::string> fileNames)
+void ExpressionLoader::loadExpressions(std::vector<std::string> fileNames)
 {
-    std::vector<ExpressionDefinition> expressions;
     for (auto filename : fileNames) {
-        CubeLog::info("ExpressionLoader: Loading expression file: " + filename);
-        std::ifstream file(filename);
-        if (!file.is_open()) {
-            CubeLog::info("ExpressionLoader: Failed to open file: " + filename);
+        ExpressionDefinition expression = loadExpression(filename);
+        expressionsMap[expression.name] = expression;
+    }
+}
+
+ExpressionDefinition ExpressionLoader::loadExpression(const std::string& filename)
+{
+    ExpressionDefinition newExpression = { Expressions::ExpressionNames_enum::NEUTRAL, "", {}, {} };
+    CubeLog::info("ExpressionLoader: Loading expression file: " + filename);
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        CubeLog::info("ExpressionLoader: Failed to open file: " + filename);
+        return newExpression;
+    }
+    CubeLog::info("ExpressionLoader: Opened file: " + filename);
+    nlohmann::json jsonObject;
+    try {
+        file >> jsonObject;
+    } catch (nlohmann::json::parse_error& e) {
+        CubeLog::error("ExpressionLoader: Failed to parse json file: " + filename);
+        CubeLog::error(e.what());
+        return newExpression;
+    } catch (nlohmann::json::exception& e) {
+        CubeLog::error("ExpressionLoader: Failed to load expression from file: " + filename);
+        CubeLog::error(e.what());
+        return newExpression;
+    } catch (std::exception& e) {
+        CubeLog::error("ExpressionLoader: Failed to load expression from file: " + filename);
+        CubeLog::error(e.what());
+        return newExpression;
+    }
+    CubeLog::info("ExpressionLoader: Loaded json object from file: " + filename);
+    if (!jsonObject.contains("name")) {
+        CubeLog::error("ExpressionLoader: Expression missing name in file: " + filename);
+        return newExpression;
+    }
+    if (!jsonObject.contains("objects")) {
+        CubeLog::error("ExpressionLoader: Expression missing animations in file: " + filename);
+        return newExpression;
+    }
+    if (!jsonObject.contains("visibility")) {
+        CubeLog::error("ExpressionLoader: Expression missing visibility in file: " + filename);
+        return newExpression;
+    }
+    if (!jsonObject.contains("frames")) {
+        CubeLog::error("ExpressionLoader: Expression missing frames in file: " + filename);
+        return newExpression;
+    }
+    if (!jsonObject.contains("expression")) {
+        CubeLog::error("ExpressionLoader: Expression missing expression in file: " + filename);
+        return newExpression;
+    }
+    CubeLog::info("ExpressionLoader: all keys found in file: " + filename);
+    std::string name = jsonObject["name"];
+    // convert expression name string to enum
+    newExpression.name = nameToExpression.at(name);
+    newExpression.expression = jsonObject["expression"];
+    for (auto visible : jsonObject["visibility"]) {
+        std::vector<bool> vis;
+        for (auto v : visible) {
+            vis.push_back(v);
+        }
+        if (vis.size() == 0) {
+            CubeLog::error("ExpressionLoader: Visibility vector is empty in file: " + filename);
             continue;
         }
-        nlohmann::json jsonObject;
+        newExpression.visibility.push_back(vis);
+    }
+    newExpression.objects = jsonObject["objects"];
+    CubeLog::info("ExpressionLoader: Loaded expression metadata: " + name);
+    CubeLog::info("ExpressionLoader: Loading keyframes for expression: " + name);
+    for (auto keyframe : jsonObject["frames"]) {
         try {
-            file >> jsonObject;
-        } catch (nlohmann::json::parse_error& e) {
-            CubeLog::error("ExpressionLoader: Failed to parse json file: " + filename);
+            newExpression.animationKeyframes.push_back(loadKeyframe(keyframe));
+        } catch (nlohmann::json::type_error& e) {
+            CubeLog::error("ExpressionLoader: Failed to load keyframe from file: " + filename);
             CubeLog::error(e.what());
             continue;
-        } catch (nlohmann::json::exception& e) {
-            CubeLog::error("ExpressionLoader: Failed to load expression from file: " + filename);
+        } catch (nlohmann::json::parse_error& e) {
+            CubeLog::error("ExpressionLoader: Failed to load keyframe from file: " + filename);
             CubeLog::error(e.what());
+            continue;
+        } catch (nlohmann::json::other_error& e) {
+            CubeLog::error("ExpressionLoader: Failed to load keyframe from file: " + filename);
+            CubeLog::error(e.what());
+            continue;
+        } catch (AnimationLoaderException& e) {
+            std::string mes = e.what();
+            CubeLog::error("ExpressionLoader encountered an error: \n" + mes);
             continue;
         } catch (std::exception& e) {
-            CubeLog::error("ExpressionLoader: Failed to load expression from file: " + filename);
+            CubeLog::error("ExpressionLoader: Failed to load keyframe from file: " + filename);
             CubeLog::error(e.what());
             continue;
         }
-        for (auto expression : jsonObject) {
-            // TODO: parse the animations in the expression and add them to the object we just pushed back.
-        }
     }
-    return expressions;
+    CubeLog::info("ExpressionLoader: Loaded " + std::to_string(newExpression.animationKeyframes.size()) + " keyframes for expression: " + name);
+    return newExpression;
 }
 
 std::vector<ExpressionDefinition> ExpressionLoader::getExpressionsVector()
@@ -715,37 +815,6 @@ ExpressionDefinition ExpressionLoader::getExpressionByName(std::string name)
 {
     // Convert name to lowercase
     std::transform(name.begin(), name.end(), name.begin(), ::tolower);
-
-    // Map from string to Expressions enum
-    static const std::unordered_map<std::string, Expressions::ExpressionNames_enum> nameToExpression = {
-        { "neutral", Expressions::ExpressionNames_enum::NEUTRAL },
-        { "default", Expressions::ExpressionNames_enum::NEUTRAL },
-        { "happy", Expressions::ExpressionNames_enum::HAPPY },
-        { "sad", Expressions::ExpressionNames_enum::SAD },
-        { "angry", Expressions::ExpressionNames_enum::ANGRY },
-        { "surprised", Expressions::ExpressionNames_enum::SURPRISED },
-        { "disgusted", Expressions::ExpressionNames_enum::DISGUSTED },
-        { "scared", Expressions::ExpressionNames_enum::SCARED },
-        { "confused", Expressions::ExpressionNames_enum::CONFUSED },
-        { "dizzy", Expressions::ExpressionNames_enum::DIZZY },
-        { "sick", Expressions::ExpressionNames_enum::SICK },
-        { "sleepy", Expressions::ExpressionNames_enum::SLEEPY },
-        { "confused", Expressions::ExpressionNames_enum::CONFUSED },
-        { "shocked", Expressions::ExpressionNames_enum::SHOCKED },
-        { "injured", Expressions::ExpressionNames_enum::INJURED },
-        { "dead", Expressions::ExpressionNames_enum::DEAD },
-        { "screaming", Expressions::ExpressionNames_enum::SCREAMING },
-        { "talking", Expressions::ExpressionNames_enum::TALKING },
-        { "listening", Expressions::ExpressionNames_enum::LISTENING },
-        { "sleeping", Expressions::ExpressionNames_enum::SLEEPING },
-        { "dead", Expressions::ExpressionNames_enum::DEAD },
-        { "funny_index", Expressions::ExpressionNames_enum::FUNNY_INDEX },
-        { "funny_bounce", Expressions::ExpressionNames_enum::FUNNY_BOUNCE },
-        { "funny_spin", Expressions::ExpressionNames_enum::FUNNY_SPIN },
-        { "funny_shrink", Expressions::ExpressionNames_enum::FUNNY_SHRINK },
-        { "funny_expand", Expressions::ExpressionNames_enum::FUNNY_EXPAND },
-        { "funny_jump", Expressions::ExpressionNames_enum::FUNNY_JUMP },
-    };
 
     // Find the expression in the map
     auto it = nameToExpression.find(name);

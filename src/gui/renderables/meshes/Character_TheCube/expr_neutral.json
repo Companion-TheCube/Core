@@ -4,10 +4,10 @@
     "expression": "neutral",
     "visibility":[
         [
-            true,false
+            false,true
         ],
         [
-            false,true
+            true, false
         ]
     ],
     "frames": [
@@ -16,7 +16,7 @@
             "value": 0.0,
             "time": {
                 "start": 0,
-                "end": 500
+                "end": 300
             },
             "easing": "easeIn",
             "axis": {
@@ -34,8 +34,8 @@
             "type": "SCALE_XYZ",
             "value": 0.0,
             "time": {
-                "start": 0,
-                "end": 30
+                "start": 300,
+                "end": 325
             },
             "easing": "easeIn",
             "axis": {
