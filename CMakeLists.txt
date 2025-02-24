@@ -639,6 +639,9 @@ target_link_libraries(CubeCoreTests PRIVATE
     OpenSSL::Crypto
 )
 
+# Set compiler flags to output assembly
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -save-temps")
+
 enable_testing()
 add_test(NAME CubeCoreTests COMMAND CubeCoreTests)
 
