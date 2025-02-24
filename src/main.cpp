@@ -40,7 +40,8 @@ int main(int argc, char* argv[])
 #endif
     std::cout << "Starting..." << std::endl;
 #ifdef __linux__
-    // TODO: rather than set this environment variable in this application, set it in the manager application.
+    // TODO: rather than set this environment variable in this application, set it in the manager application. The manager app
+    // should also verify if a symbolic link is needed and create it if necessary.
     if (setenv("DISPLAY", ":0", 1) != 0) {
         std::cout << "Error setting DISPLAY=:0 environment variable. Exiting." << std::endl;
         return 1;
