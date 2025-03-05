@@ -1,0 +1,55 @@
+{
+    "objects": [
+        "LilFlame-Main",
+        "LilFlame-expr-neutral-1",
+        "LilFlame-expr-neutral-2"
+    ],
+    "animations": [
+        "anim_neutral.json",
+        "anim_funnyBounce.json",
+        "anim_funnyExpand.json",
+        "anim_funnyJump.json",
+        "anim_funnyShrink.json",
+        "anim_funnySpin.json",
+        "anim_jumpUp.json",
+        "anim_jumpLeft.json",
+        "anim_jumpRight.json",
+        "anim_jumpLeftThroughWall.json",
+        "anim_jumpRightThroughWall.json",
+        "anim_jumpUpThroughCeil.json"
+    ],
+    "expressions": [
+        "expr_neutral.json",
+        "expr_happy.json",
+        "expr_sad.json",
+        "expr_angry.json",
+        "expr_frustrated.json",
+        "expr_surprised.json",
+        "expr_scared.json",
+        "expr_disgusted.json",
+        "expr_dizzy.json",
+        "expr_sick.json",
+        "expr_sleepy.json",
+        "expr_confused.json",
+        "expr_shocked.json",
+        "expr_injured.json",
+        "expr_dead.json"
+    ],
+    "name": "LilFlame",
+    "initPos": {
+        "x": 3.5,
+        "y": -2.5,
+        "z": -20.0
+    },
+    "initRot": {
+        "x": 0.0,
+        "y": 1.0,
+        "z": 0.0,
+        "value": -90.0
+    },
+    "initScale": {
+        "x": 7.0,
+        "y": 7.0,
+        "z": 7.0
+    }
+}
