@@ -413,11 +413,14 @@ void Character_generic::animate()
             double fn2_eased = keyframe.easingFunction(f2_normal);
             double calcValue = (double)keyframe.value * (fn_eased - fn2_eased);
             switch (keyframe.type) {
+                // TODO: Add a NOP action to fill in the frames where no keyframe is defined. Either that or make this thing
+                // work with gaps in the keyframes.
             case Animations::AnimationType::TRANSLATE: {
                 this->translate(keyframe.axis.x * calcValue, keyframe.axis.y * calcValue, keyframe.axis.z * calcValue);
                 break;
             }
             case Animations::AnimationType::ROTATE: {
+                // TODO: this needs to compensate for the position of the object so that it rotates about its own axiseses
                 this->rotate(calcValue, keyframe.axis.x, keyframe.axis.y, keyframe.axis.z);
                 break;
             }
@@ -438,6 +441,10 @@ void Character_generic::animate()
                 break;
             }
             case Animations::AnimationType::RETURN_HOME: {
+                // TODO: This is not working correctly. We need to calculate the remaining move based based on:
+                // the current position of the object
+                // the captured position of the object
+                // the number of frames remaining in this animation
                 glm::mat4 modelDiff, projectionDiff, viewDiff;
                 glm::mat4 calcValueMat4 = glm::mat4(calcValue);
                 for (auto object : this->objects) {
@@ -488,19 +495,19 @@ void Character_generic::expression()
         if (keyframe.timeStart <= this->expressionFrame && keyframe.timeEnd > this->expressionFrame) {
             // get the visibility of the objects for this keyframe
             std::vector<bool> visibility = this->currentExpressionDef.visibility.at(i);
-            if(visibility.size() != this->currentExpressionDef.objects.size()) {
+            if (visibility.size() != this->currentExpressionDef.objects.size()) {
                 CubeLog::error("Character_generic::expression: Visibility vector size does not match objects vector size.");
                 continue;
             }
             for (auto j = 0; j < visibility.size(); j++) {
                 auto objName = this->currentExpressionDef.objects.at(j);
                 auto object = this->getPartByName(objName);
-                if(object == nullptr) {
+                if (object == nullptr) {
                     CubeLog::error("Character_generic::expression: Object not found: " + objName);
                     continue;
                 }
                 if (object != nullptr) {
-                    for(auto obj : object->objects) {
+                    for (auto obj : object->objects) {
                         obj->setVisibility(visibility.at(j));
                     }
                 }
@@ -519,7 +526,7 @@ void Character_generic::expression()
                 for (auto objName : this->currentExpressionDef.objects) {
                     auto object = this->getPartByName(objName);
                     if (object != nullptr) {
-                        for(auto obj : object->objects) {
+                        for (auto obj : object->objects) {
                             obj->translate(glm::vec3(keyframe.axis.x * calcValue, keyframe.axis.y * calcValue, keyframe.axis.z * calcValue));
                         }
                     }
@@ -532,7 +539,7 @@ void Character_generic::expression()
                 for (auto objName : this->currentExpressionDef.objects) {
                     auto object = this->getPartByName(objName);
                     if (object != nullptr) {
-                        for(auto obj : object->objects) {
+                        for (auto obj : object->objects) {
                             obj->rotate(calcValue, glm::vec3(keyframe.axis.x, keyframe.axis.y, keyframe.axis.z));
                         }
                     }
@@ -545,7 +552,7 @@ void Character_generic::expression()
                 for (auto objName : this->currentExpressionDef.objects) {
                     auto object = this->getPartByName(objName);
                     if (object != nullptr) {
-                        for(auto obj : object->objects) {
+                        for (auto obj : object->objects) {
                             obj->scale(glm::vec3((keyframe.axis.x > 0 ? 1 * calcValue : 1), (keyframe.axis.y > 0 ? 1 * calcValue : 1), (keyframe.axis.z > 0 ? 1 * calcValue : 1)));
                         }
                     }
@@ -558,7 +565,7 @@ void Character_generic::expression()
                 for (auto objName : this->currentExpressionDef.objects) {
                     auto object = this->getPartByName(objName);
                     if (object != nullptr) {
-                        for(auto obj : object->objects) {
+                        for (auto obj : object->objects) {
                             obj->scale(glm::vec3(calcValue, calcValue, calcValue));
                         }
                     }
@@ -572,7 +579,7 @@ void Character_generic::expression()
                 for (auto objName : this->currentExpressionDef.objects) {
                     auto object = this->getPartByName(objName);
                     if (object != nullptr) {
-                        for(auto obj : object->objects) {
+                        for (auto obj : object->objects) {
                             obj->rotateAbout(calcValue, keyframe.axis, keyframe.point);
                         }
                     }

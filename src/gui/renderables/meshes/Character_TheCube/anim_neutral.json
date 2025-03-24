@@ -4,10 +4,10 @@
     "frames": [
         {
             "type": "ROTATE_ABOUT",
-            "value": -30,
+            "value": 360,
             "time": {
                 "start": 0,
-                "end": 60
+                "end": 90
             },
             "easing": "easeInOut",
             "axis": {
@@ -15,36 +15,17 @@
                 "y": 1,
                 "z": 0
             },
-            "point": {
+            "point":{
                 "x": 0,
                 "y": 0,
-                "z": -7
+                "z": -16.5
             }
         },
         {
-            "type": "ROTATE_ABOUT",
-            "value": 60,
+            "type": "TRANSLATE",
+            "value": 0,
             "time": {
-                "start": 60,
-                "end": 180
-            },
-            "easing": "easeInOut",
-            "axis": {
-                "x": 0,
-                "y": 1,
-                "z": 0
-            },
-            "point": {
-                "x": 0,
-                "y": 0,
-                "z": -7
-            }
-        },
-        {
-            "type": "ROTATE_ABOUT",
-            "value": -30,
-            "time": {
-                "start": 180,
+                "start": 90,
                 "end": 240
             },
             "easing": "easeInOut",
@@ -54,85 +35,9 @@
                 "z": 0
             },
             "point": {
-                "x": 0,
-                "y": 0,
-                "z": -7
-            }
-        },
-        {
-            "type": "SCALE_XYZ",
-            "value": -0.5,
-            "time": {
-                "start": 60,
-                "end": 120
-            },
-            "easing": "easeIn",
-            "axis": {
-                "x": 0,
-                "y": 1,
-                "z": 0
-            },
-            "point": {
-                "x": 0,
-                "y": 0,
-                "z": 0
-            }
-        },
-        {
-            "type": "SCALE_XYZ",
-            "value": 0.5,
-            "time": {
-                "start": 120,
-                "end": 180
-            },
-            "easing": "easeOut",
-            "axis": {
-                "x": 0,
-                "y": 1,
-                "z": 0
-            },
-            "point": {
-                "x": 0,
-                "y": 0,
-                "z": 0
-            }
-        },
-        {
-            "type": "SCALE_XYZ",
-            "value": 0.5,
-            "time": {
-                "start": 60,
-                "end": 120
-            },
-            "easing": "easeIn",
-            "axis": {
                 "x": 1,
                 "y": 0,
-                "z": 0
-            },
-            "point": {
-                "x": 0,
-                "y": 0,
-                "z": 0
-            }
-        },
-        {
-            "type": "SCALE_XYZ",
-            "value": -0.5,
-            "time": {
-                "start": 120,
-                "end": 180
-            },
-            "easing": "easeOut",
-            "axis": {
-                "x": 1,
-                "y": 0,
-                "z": 0
-            },
-            "point": {
-                "x": 0,
-                "y": 0,
-                "z": 0
+                "z": 1
             }
         },
         {
