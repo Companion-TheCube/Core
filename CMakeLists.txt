@@ -20,6 +20,9 @@ add_definitions(-DPATCH_VERSION=${PROJECT_VERSION_PATCH})
 
 add_definitions(-DDOCTEST_CONFIG_DISABLE)
 
+# Comment out the follwoing line to disable building the BTManager application
+set(BUILD_BT_MANAGER ON)
+
 # Comment out the following line to disable translation
 set(TRANSLATE_ENABLED ON)
 
