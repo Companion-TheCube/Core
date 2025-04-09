@@ -1,5 +1,5 @@
 {
-    "name": "neutral",
+    "name": "neutral_1",
     "expression": "neutral",
     "frames": [
         {
@@ -15,7 +15,7 @@
                 "y": 1,
                 "z": 0
             },
-            "point":{
+            "point": {
                 "x": 0,
                 "y": 0,
                 "z": -16.5

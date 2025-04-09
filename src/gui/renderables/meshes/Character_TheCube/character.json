@@ -1,7 +1,11 @@
 {
     "objects": ["ClosedEyesSmile", "OpenEyesSmile", "TheCubeMain"],
     "animations": [
-        "anim_neutral.json",
+        "anim_neutral_1.json",
+        "anim_neutral_2.json",
+        "anim_neutral_3.json",
+        "anim_neutral_4.json",
+        "anim_neutral_5.json",
         "anim_funnyBounce.json",
         "anim_funnyExpand.json",
         "anim_funnyJump.json",
