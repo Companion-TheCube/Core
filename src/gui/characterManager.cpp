@@ -425,6 +425,7 @@ void Character_generic::animate()
                 break;
             }
             case Animations::AnimationType::SCALE_XYZ: {
+                // TODO: this needs work. the calculated value needs to be on the range of 0 to infinity.
                 calcValue = calcValue + 1.f;
                 this->scale((keyframe.axis.x > 0 ? 1 * calcValue : 1), (keyframe.axis.y > 0 ? 1 * calcValue : 1), (keyframe.axis.z > 0 ? 1 * calcValue : 1));
                 break;
