@@ -194,7 +194,7 @@
             }
         },
         {
-            "type": "TRANSLATE",
+            "type": "NOP",
             "value": 0,
             "time": {
                 "start": 100,

@@ -455,6 +455,10 @@ void Character_generic::animate()
                 }
                 break;
             }
+            case Animations::AnimationType::NOP: {
+                // do nothing
+                break;
+            }
             default:
                 CubeLog::error("Character_generic::animate: Invalid animation type");
                 break;
@@ -595,6 +599,10 @@ void Character_generic::expression()
                 //     object->setViewMatrix(object->getViewMatrix() + (viewDiff * calcValueMat4));
                 //     object->setProjectionMatrix(object->getProjectionMatrix() + (projectionDiff * calcValueMat4));
                 // }
+                break;
+            }
+            case Animations::AnimationType::NOP: {
+                // do nothing
                 break;
             }
             default:
