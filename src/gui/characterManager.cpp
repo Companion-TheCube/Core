@@ -413,8 +413,6 @@ void Character_generic::animate()
             double fn2_eased = keyframe.easingFunction(f2_normal);
             double calcValue = (double)keyframe.value * (fn_eased - fn2_eased);
             switch (keyframe.type) {
-                // TODO: Add a NOP action to fill in the frames where no keyframe is defined. Either that or make this thing
-                // work with gaps in the keyframes.
             case Animations::AnimationType::TRANSLATE: {
                 this->translate(keyframe.axis.x * calcValue, keyframe.axis.y * calcValue, keyframe.axis.z * calcValue);
                 break;
@@ -685,8 +683,8 @@ void Character_generic::scale(float x, float y, float z)
     }
 }
 
-// TODO: create an overloaded version of this that allows to interrupt the current animation
-void Character_generic::triggerAnimation(Animations::AnimationNames_enum name)
+// TODO: by default, this method will not interrupt the current animation. Need to implement interrupting.
+void Character_generic::triggerAnimation(Animations::AnimationNames_enum name, bool interrupt = false)
 {
     std::lock_guard<std::mutex> lock(this->nextMutex);
     for (auto animation : this->animationLoader->getAnimationsVector()) {
@@ -698,8 +696,8 @@ void Character_generic::triggerAnimation(Animations::AnimationNames_enum name)
     }
 }
 
-// TODO: create an overloaded version of this that allows to interrupt the current expression
-void Character_generic::triggerExpression(Expressions::ExpressionNames_enum e)
+// TODO: by default, this method will not interrupt the current expression. Need to implement interrupting.
+void Character_generic::triggerExpression(Expressions::ExpressionNames_enum e, bool interrupt = false)
 {
     std::lock_guard<std::mutex> lock(this->nextMutex);
     for (auto expression : this->expressionLoader->getExpressionsVector()) {
