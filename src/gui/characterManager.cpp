@@ -443,7 +443,7 @@ void Character_generic::animate()
             }
             case Animations::AnimationType::RETURN_HOME: {
                 glm::mat4 modelDiff, projectionDiff, viewDiff;
-                glm::mat4 calcValueMat4 = glm::mat4(calcValue * (f - s));
+                glm::mat4 calcValueMat4 = glm::mat4(calcValue * (f - s)); // TODO: this only works for linear easing. Might need to fix. Might not care.
                 for (auto object : this->objects) {
                     // get the differences between the current position and the captured position
                     object->getRestorePositionDiff(&modelDiff, &viewDiff, &projectionDiff);
