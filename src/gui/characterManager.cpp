@@ -442,16 +442,13 @@ void Character_generic::animate()
                 break;
             }
             case Animations::AnimationType::RETURN_HOME: {
-                // TODO: This is not working correctly. We need to calculate the remaining move based based on:
-                // the current position of the object
-                // the captured position of the object
-                // the number of frames remaining in this animation
                 glm::mat4 modelDiff, projectionDiff, viewDiff;
-                glm::mat4 calcValueMat4 = glm::mat4(calcValue);
+                glm::mat4 calcValueMat4 = glm::mat4(calcValue * (f - s));
                 for (auto object : this->objects) {
                     // get the differences between the current position and the captured position
                     object->getRestorePositionDiff(&modelDiff, &viewDiff, &projectionDiff);
                     // apply the differences to the object
+                    auto newModelMatrix = object->getModelMatrix() + (modelDiff * calcValueMat4);
                     object->setModelMatrix(object->getModelMatrix() + (modelDiff * calcValueMat4));
                     object->setViewMatrix(object->getViewMatrix() + (viewDiff * calcValueMat4));
                     object->setProjectionMatrix(object->getProjectionMatrix() + (projectionDiff * calcValueMat4));

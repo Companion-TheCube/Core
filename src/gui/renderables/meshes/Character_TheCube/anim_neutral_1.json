@@ -1,5 +1,5 @@
 {
-    "name": "neutral_1",
+    "name": "neutral",
     "expression": "neutral",
     "frames": [
         {
@@ -15,7 +15,7 @@
                 "y": 1,
                 "z": 0
             },
-            "point":{
+            "point": {
                 "x": 0,
                 "y": 0,
                 "z": -16.5
@@ -34,7 +34,7 @@
                 "y": 1,
                 "z": 0
             },
-            "point":{
+            "point": {
                 "x": 1,
                 "y": 1,
                 "z": 1
@@ -53,7 +53,7 @@
                 "y": 1,
                 "z": 0
             },
-            "point":{
+            "point": {
                 "x": 0,
                 "y": 0,
                 "z": -16.5
@@ -72,7 +72,7 @@
                 "y": 1,
                 "z": 0
             },
-            "point":{
+            "point": {
                 "x": 1,
                 "y": 1,
                 "z": 1
@@ -80,7 +80,7 @@
         },
         {
             "type": "SCALE_XYZ",
-            "value": -0.5,
+            "value": -0.25,
             "time": {
                 "start": 35,
                 "end": 45
@@ -91,7 +91,7 @@
                 "y": 1,
                 "z": 0
             },
-            "point":{
+            "point": {
                 "x": 1,
                 "y": 1,
                 "z": 1
@@ -118,7 +118,7 @@
         },
         {
             "type": "TRANSLATE",
-            "value": -0.5,
+            "value": -0.51,
             "time": {
                 "start": 50,
                 "end": 75
@@ -148,7 +148,7 @@
                 "y": 1,
                 "z": 0
             },
-            "point":{
+            "point": {
                 "x": 0,
                 "y": 0,
                 "z": -16.5
@@ -156,7 +156,7 @@
         },
         {
             "type": "ROTATE_ABOUT",
-            "value": 30,
+            "value": 35,
             "time": {
                 "start": 75,
                 "end": 85
@@ -167,7 +167,7 @@
                 "y": 1,
                 "z": 0
             },
-            "point":{
+            "point": {
                 "x": 0,
                 "y": 0,
                 "z": -16.5
@@ -218,7 +218,7 @@
             "value": 1,
             "time": {
                 "start": 240,
-                "end": 300
+                "end": 330
             },
             "easing": "linear",
             "axis": {
