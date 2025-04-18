@@ -99,8 +99,8 @@ public:
     void draw();
     void animate();
     void expression();
-    void triggerExpression(Expressions::ExpressionNames_enum, bool);
-    void triggerAnimation(Animations::AnimationNames_enum, bool);
+    void triggerExpression(Expressions::ExpressionNames_enum, bool interrupt = false);
+    void triggerAnimation(Animations::AnimationNames_enum, bool interrupt = false);
     std::string getName();
     CharacterPart* getPartByName(const std::string& name);
     bool setVisible(bool visible);

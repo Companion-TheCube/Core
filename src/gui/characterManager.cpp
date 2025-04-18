@@ -3,6 +3,9 @@
 // TODO: Character manager needs some static methods that handle changing / triggering animations and expressions.
 // These methods should be called from the GUI and should be able to handle any character that is loaded.
 // TODO: scratch that todo above. we'll provide api endpoints for this stuff.
+
+// TODO: As it is, all the characters are loaded regardless of whether they are used or not. We need to make it so that
+// only the currently enabled character is loaded and any others are unloaded.
 /**
  * @brief Construct a new Character Manager object
  *
@@ -285,6 +288,7 @@ Character_generic::Character_generic(Shader* sh, const std::string& folder)
         CubeLog::warning("Center point for " + collection->name + " is " + std::to_string(x) + ", " + std::to_string(y) + ", " + std::to_string(z));
         this->parts.at(this->parts.size() - 1)->centerPoint = glm::vec3(x, y, z);
     }
+    delete meshLoader;
 
     this->animationLoader = new AnimationLoader(folder, animationsToLoad);
     this->expressionLoader = new ExpressionLoader(folder, expressionsToLoad);
@@ -684,7 +688,7 @@ void Character_generic::scale(float x, float y, float z)
 }
 
 // TODO: by default, this method will not interrupt the current animation. Need to implement interrupting.
-void Character_generic::triggerAnimation(Animations::AnimationNames_enum name, bool interrupt = false)
+void Character_generic::triggerAnimation(Animations::AnimationNames_enum name, bool interrupt)
 {
     std::lock_guard<std::mutex> lock(this->nextMutex);
     for (auto animation : this->animationLoader->getAnimationsVector()) {
@@ -697,7 +701,7 @@ void Character_generic::triggerAnimation(Animations::AnimationNames_enum name, b
 }
 
 // TODO: by default, this method will not interrupt the current expression. Need to implement interrupting.
-void Character_generic::triggerExpression(Expressions::ExpressionNames_enum e, bool interrupt = false)
+void Character_generic::triggerExpression(Expressions::ExpressionNames_enum e, bool interrupt)
 {
     std::lock_guard<std::mutex> lock(this->nextMutex);
     for (auto expression : this->expressionLoader->getExpressionsVector()) {
