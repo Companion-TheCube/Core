@@ -59,3 +59,5 @@ if __name__ == "__main__":
         print("Usage: get_build_number.py <output_file> <.env file location>", file=sys.stderr)
         sys.exit(1)
     main(sys.argv[1], sys.argv[2])
+
+# TODO: need to upload the executable file to the build info server so that we can pull it later on in case we need a specific build.

@@ -449,6 +449,7 @@ Animation AnimationLoader::loadAnimation(const std::string& fileName)
  */
 AnimationKeyframe loadKeyframe(nlohmann::json keyframe)
 {
+    // TODO: rework this method so that we only parse for the values we need for each type of keyframe
     static const std::unordered_map<std::string, Animations::AnimationType> nameToAnimType = {
         { "TRANSLATE", Animations::AnimationType::TRANSLATE },
         { "ROTATE", Animations::AnimationType::ROTATE },
@@ -456,6 +457,7 @@ AnimationKeyframe loadKeyframe(nlohmann::json keyframe)
         { "UNIFORM_SCALE", Animations::AnimationType::UNIFORM_SCALE },
         { "ROTATE_ABOUT", Animations::AnimationType::ROTATE_ABOUT },
         { "RETURN_HOME", Animations::AnimationType::RETURN_HOME },
+        { "NOP", Animations::AnimationType::NOP },
     };
     std::string type;
     try {

@@ -3,6 +3,9 @@
 // TODO: Character manager needs some static methods that handle changing / triggering animations and expressions.
 // These methods should be called from the GUI and should be able to handle any character that is loaded.
 // TODO: scratch that todo above. we'll provide api endpoints for this stuff.
+
+// TODO: As it is, all the characters are loaded regardless of whether they are used or not. We need to make it so that
+// only the currently enabled character is loaded and any others are unloaded.
 /**
  * @brief Construct a new Character Manager object
  *
@@ -285,6 +288,7 @@ Character_generic::Character_generic(Shader* sh, const std::string& folder)
         CubeLog::warning("Center point for " + collection->name + " is " + std::to_string(x) + ", " + std::to_string(y) + ", " + std::to_string(z));
         this->parts.at(this->parts.size() - 1)->centerPoint = glm::vec3(x, y, z);
     }
+    delete meshLoader;
 
     this->animationLoader = new AnimationLoader(folder, animationsToLoad);
     this->expressionLoader = new ExpressionLoader(folder, expressionsToLoad);
@@ -418,10 +422,12 @@ void Character_generic::animate()
                 break;
             }
             case Animations::AnimationType::ROTATE: {
+                // TODO: this needs to compensate for the position of the object so that it rotates about its own axiseses
                 this->rotate(calcValue, keyframe.axis.x, keyframe.axis.y, keyframe.axis.z);
                 break;
             }
             case Animations::AnimationType::SCALE_XYZ: {
+                // TODO: this needs work. the calculated value needs to be on the range of 0 to infinity.
                 calcValue = calcValue + 1.f;
                 this->scale((keyframe.axis.x > 0 ? 1 * calcValue : 1), (keyframe.axis.y > 0 ? 1 * calcValue : 1), (keyframe.axis.z > 0 ? 1 * calcValue : 1));
                 break;
@@ -439,15 +445,20 @@ void Character_generic::animate()
             }
             case Animations::AnimationType::RETURN_HOME: {
                 glm::mat4 modelDiff, projectionDiff, viewDiff;
-                glm::mat4 calcValueMat4 = glm::mat4(calcValue);
+                glm::mat4 calcValueMat4 = glm::mat4(calcValue * (f - s)); // TODO: this only works for linear easing. Might need to fix. Might not care.
                 for (auto object : this->objects) {
                     // get the differences between the current position and the captured position
                     object->getRestorePositionDiff(&modelDiff, &viewDiff, &projectionDiff);
                     // apply the differences to the object
+                    auto newModelMatrix = object->getModelMatrix() + (modelDiff * calcValueMat4);
                     object->setModelMatrix(object->getModelMatrix() + (modelDiff * calcValueMat4));
                     object->setViewMatrix(object->getViewMatrix() + (viewDiff * calcValueMat4));
                     object->setProjectionMatrix(object->getProjectionMatrix() + (projectionDiff * calcValueMat4));
                 }
+                break;
+            }
+            case Animations::AnimationType::NOP: {
+                // do nothing
                 break;
             }
             default:
@@ -488,19 +499,19 @@ void Character_generic::expression()
         if (keyframe.timeStart <= this->expressionFrame && keyframe.timeEnd > this->expressionFrame) {
             // get the visibility of the objects for this keyframe
             std::vector<bool> visibility = this->currentExpressionDef.visibility.at(i);
-            if(visibility.size() != this->currentExpressionDef.objects.size()) {
+            if (visibility.size() != this->currentExpressionDef.objects.size()) {
                 CubeLog::error("Character_generic::expression: Visibility vector size does not match objects vector size.");
                 continue;
             }
             for (auto j = 0; j < visibility.size(); j++) {
                 auto objName = this->currentExpressionDef.objects.at(j);
                 auto object = this->getPartByName(objName);
-                if(object == nullptr) {
+                if (object == nullptr) {
                     CubeLog::error("Character_generic::expression: Object not found: " + objName);
                     continue;
                 }
                 if (object != nullptr) {
-                    for(auto obj : object->objects) {
+                    for (auto obj : object->objects) {
                         obj->setVisibility(visibility.at(j));
                     }
                 }
@@ -519,7 +530,7 @@ void Character_generic::expression()
                 for (auto objName : this->currentExpressionDef.objects) {
                     auto object = this->getPartByName(objName);
                     if (object != nullptr) {
-                        for(auto obj : object->objects) {
+                        for (auto obj : object->objects) {
                             obj->translate(glm::vec3(keyframe.axis.x * calcValue, keyframe.axis.y * calcValue, keyframe.axis.z * calcValue));
                         }
                     }
@@ -532,7 +543,7 @@ void Character_generic::expression()
                 for (auto objName : this->currentExpressionDef.objects) {
                     auto object = this->getPartByName(objName);
                     if (object != nullptr) {
-                        for(auto obj : object->objects) {
+                        for (auto obj : object->objects) {
                             obj->rotate(calcValue, glm::vec3(keyframe.axis.x, keyframe.axis.y, keyframe.axis.z));
                         }
                     }
@@ -545,7 +556,7 @@ void Character_generic::expression()
                 for (auto objName : this->currentExpressionDef.objects) {
                     auto object = this->getPartByName(objName);
                     if (object != nullptr) {
-                        for(auto obj : object->objects) {
+                        for (auto obj : object->objects) {
                             obj->scale(glm::vec3((keyframe.axis.x > 0 ? 1 * calcValue : 1), (keyframe.axis.y > 0 ? 1 * calcValue : 1), (keyframe.axis.z > 0 ? 1 * calcValue : 1)));
                         }
                     }
@@ -558,7 +569,7 @@ void Character_generic::expression()
                 for (auto objName : this->currentExpressionDef.objects) {
                     auto object = this->getPartByName(objName);
                     if (object != nullptr) {
-                        for(auto obj : object->objects) {
+                        for (auto obj : object->objects) {
                             obj->scale(glm::vec3(calcValue, calcValue, calcValue));
                         }
                     }
@@ -572,7 +583,7 @@ void Character_generic::expression()
                 for (auto objName : this->currentExpressionDef.objects) {
                     auto object = this->getPartByName(objName);
                     if (object != nullptr) {
-                        for(auto obj : object->objects) {
+                        for (auto obj : object->objects) {
                             obj->rotateAbout(calcValue, keyframe.axis, keyframe.point);
                         }
                     }
@@ -590,6 +601,10 @@ void Character_generic::expression()
                 //     object->setViewMatrix(object->getViewMatrix() + (viewDiff * calcValueMat4));
                 //     object->setProjectionMatrix(object->getProjectionMatrix() + (projectionDiff * calcValueMat4));
                 // }
+                break;
+            }
+            case Animations::AnimationType::NOP: {
+                // do nothing
                 break;
             }
             default:
@@ -672,8 +687,8 @@ void Character_generic::scale(float x, float y, float z)
     }
 }
 
-// TODO: create an overloaded version of this that allows to interrupt the current animation
-void Character_generic::triggerAnimation(Animations::AnimationNames_enum name)
+// TODO: by default, this method will not interrupt the current animation. Need to implement interrupting.
+void Character_generic::triggerAnimation(Animations::AnimationNames_enum name, bool interrupt)
 {
     std::lock_guard<std::mutex> lock(this->nextMutex);
     for (auto animation : this->animationLoader->getAnimationsVector()) {
@@ -685,8 +700,8 @@ void Character_generic::triggerAnimation(Animations::AnimationNames_enum name)
     }
 }
 
-// TODO: create an overloaded version of this that allows to interrupt the current expression
-void Character_generic::triggerExpression(Expressions::ExpressionNames_enum e)
+// TODO: by default, this method will not interrupt the current expression. Need to implement interrupting.
+void Character_generic::triggerExpression(Expressions::ExpressionNames_enum e, bool interrupt)
 {
     std::lock_guard<std::mutex> lock(this->nextMutex);
     for (auto expression : this->expressionLoader->getExpressionsVector()) {

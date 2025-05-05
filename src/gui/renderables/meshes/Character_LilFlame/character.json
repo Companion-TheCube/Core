@@ -1,11 +1,11 @@
 {
-    "objects": ["ClosedEyesSmile", "OpenEyesSmile", "TheCubeMain"],
+    "objects": [
+        "LilFlame-Main",
+        "LilFlame-expr-neutral-1",
+        "LilFlame-expr-neutral-2"
+    ],
     "animations": [
-        "anim_neutral_1.json",
-        "anim_neutral_2.json",
-        "anim_neutral_3.json",
-        "anim_neutral_4.json",
-        "anim_neutral_5.json",
+        "anim_neutral.json",
         "anim_funnyBounce.json",
         "anim_funnyExpand.json",
         "anim_funnyJump.json",
@@ -35,10 +35,10 @@
         "expr_injured.json",
         "expr_dead.json"
     ],
-    "name": "TheCube",
+    "name": "LilFlame",
     "initPos": {
         "x": 3.5,
-        "y": -2.5,
+        "y": -3.5,
         "z": -20.0
     },
     "initRot": {
@@ -48,8 +48,8 @@
         "value": -90.0
     },
     "initScale": {
-        "x": 7.0,
-        "y": 7.0,
-        "z": 7.0
+        "x": 1.5,
+        "y": 1.5,
+        "z": 1.5
     }
 }

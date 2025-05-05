@@ -101,7 +101,8 @@ enum class AnimationType {
     SCALE_XYZ, // uses type, value, axis, and time
     UNIFORM_SCALE, // uses type, value, and time
     ROTATE_ABOUT, // uses type, value, point, and time
-    RETURN_HOME // uses type, and time
+    RETURN_HOME, // uses type, and time
+    NOP // no operation
 };
 }
 

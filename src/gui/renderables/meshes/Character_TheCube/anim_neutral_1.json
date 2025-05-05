@@ -1,0 +1,236 @@
+{
+    "name": "neutral",
+    "expression": "neutral",
+    "frames": [
+        {
+            "type": "ROTATE_ABOUT",
+            "value": -30,
+            "time": {
+                "start": 0,
+                "end": 20
+            },
+            "easing": "easeInOut",
+            "axis": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+            },
+            "point": {
+                "x": 0,
+                "y": 0,
+                "z": -16.5
+            }
+        },
+        {
+            "type": "SCALE_XYZ",
+            "value": -0.9,
+            "time": {
+                "start": 0,
+                "end": 20
+            },
+            "easing": "linear",
+            "axis": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+            },
+            "point": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+            }
+        },
+        {
+            "type": "ROTATE_ABOUT",
+            "value": 30,
+            "time": {
+                "start": 20,
+                "end": 25
+            },
+            "easing": "easeIn",
+            "axis": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+            },
+            "point": {
+                "x": 0,
+                "y": 0,
+                "z": -16.5
+            }
+        },
+        {
+            "type": "SCALE_XYZ",
+            "value": 1.2,
+            "time": {
+                "start": 20,
+                "end": 35
+            },
+            "easing": "linear",
+            "axis": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+            },
+            "point": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+            }
+        },
+        {
+            "type": "SCALE_XYZ",
+            "value": -0.25,
+            "time": {
+                "start": 35,
+                "end": 45
+            },
+            "easing": "linear",
+            "axis": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+            },
+            "point": {
+                "x": 1,
+                "y": 1,
+                "z": 1
+            }
+        },
+        {
+            "type": "TRANSLATE",
+            "value": 0.5,
+            "time": {
+                "start": 25,
+                "end": 50
+            },
+            "easing": "easeInOut",
+            "axis": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+            },
+            "point": {
+                "x": 1,
+                "y": 0,
+                "z": 1
+            }
+        },
+        {
+            "type": "TRANSLATE",
+            "value": -0.55,
+            "time": {
+                "start": 50,
+                "end": 75
+            },
+            "easing": "easeInOut",
+            "axis": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+            },
+            "point": {
+                "x": 1,
+                "y": 0,
+                "z": 1
+            }
+        },
+        {
+            "type": "ROTATE_ABOUT",
+            "value": 360,
+            "time": {
+                "start": 25,
+                "end": 75
+            },
+            "easing": "linear",
+            "axis": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+            },
+            "point": {
+                "x": 0,
+                "y": 0,
+                "z": -16.5
+            }
+        },
+        {
+            "type": "ROTATE_ABOUT",
+            "value": 35,
+            "time": {
+                "start": 75,
+                "end": 85
+            },
+            "easing": "easeOut",
+            "axis": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+            },
+            "point": {
+                "x": 0,
+                "y": 0,
+                "z": -16.5
+            }
+        },
+
+        {
+            "type": "ROTATE_ABOUT",
+            "value": -30,
+            "time": {
+                "start": 85,
+                "end": 105
+            },
+            "easing": "easeInOut",
+            "axis": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+            },
+            "point": {
+                "x": 0,
+                "y": 0,
+                "z": -16.5
+            }
+        },
+        {
+            "type": "NOP",
+            "value": 0,
+            "time": {
+                "start": 100,
+                "end": 240
+            },
+            "easing": "easeInOut",
+            "axis": {
+                "x": 0,
+                "y": 1,
+                "z": 0
+            },
+            "point": {
+                "x": 1,
+                "y": 0,
+                "z": 1
+            },
+            "comment": "This translate is effectively a null movement since the value is 0. It is here to make sure that the animation runs for the proper number of frames."
+        },
+        {
+            "type": "RETURN_HOME",
+            "value": 1,
+            "time": {
+                "start": 240,
+                "end": 330
+            },
+            "easing": "linear",
+            "axis": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "point": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            }
+        }
+    ]
+}
