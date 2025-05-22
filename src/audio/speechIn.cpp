@@ -33,6 +33,7 @@ When the wake word is detected, we'll need to tell the audioOutput class to play
 std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> SpeechIn::audioQueue = std::make_shared<ThreadSafeQueue<std::vector<int16_t>>>();
 std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> SpeechIn::preTriggerAudioData = std::make_shared<ThreadSafeQueue<std::vector<int16_t>>>();
 int audioInputCallback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData);
+std::string  checkForControl(int conn_fd);
 
 SpeechIn::~SpeechIn()
 {
@@ -136,7 +137,7 @@ void SpeechIn::audioInputThreadFn(std::stop_token st)
 
     RtAudio::StreamParameters params;
     params.deviceId = soundInInd;
-    params.nChannels = 1;
+    params.nChannels = 2;
     params.firstChannel = 0;
 
     RtAudio::StreamOptions options;
@@ -144,7 +145,7 @@ void SpeechIn::audioInputThreadFn(std::stop_token st)
     options.streamName = "SpeechIn";
     options.numberOfBuffers = 1;
 
-    unsigned int bufferFrames = 512;
+    unsigned int bufferFrames = 1280;
     unsigned int sampleRate = 16000;
 
     try {
@@ -166,26 +167,19 @@ void SpeechIn::audioInputThreadFn(std::stop_token st)
 
 void SpeechIn::writeAudioDataToSocket()
 {
-    using base64 = cppcodec::base64_rfc4648;
+    // using base64 = cppcodec::base64_rfc4648;
     auto data = this->audioQueue->pop();
 
-    // TODO: if there is data in the queue, we need to get the correct number of int16_t values from the queue
-    // and send them to openWW via a unix socket. OpenWW expects a certain number of samples at a time, so if there are not
-    // enough samples in the queue, we need to wait until there are enough samples.
+    // openwakeword creates a unix socket at /tmp/openww. We send the audio data to this socket.
+    // The socket is created by the openwakeword python script, which is started by the app manager.
 
     int sockfd;
-#ifdef __linux__
-    sockaddr_un serverAddr;
+    struct sockaddr_un serverAddr;
+    std::memset(&serverAddr, 0, sizeof(serverAddr));
     serverAddr.sun_family = AF_UNIX;
-    strcpy(serverAddr.sun_path, "/home/andrew/Documents/projects/openwakeword/openww.sock");
-#else
-    sockaddr serverAddr;
-    serverAddr.sa_family = AF_UNIX;
-    strcpy(serverAddr.sa_data, "/home/andrew/Documents/projects/openwakeword/openww.sock");
-#endif
-    
-    
-    
+    const char* socket_path = "/tmp/openww";
+    // copy the path into sun_path (ensure null-termination)
+    std::strncpy(serverAddr.sun_path, socket_path, sizeof(serverAddr.sun_path) - 1);
 
     sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (sockfd < 0) {
@@ -193,24 +187,28 @@ void SpeechIn::writeAudioDataToSocket()
         return;
     }
 
-    if (connect(sockfd, (sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
+    if (connect(sockfd, reinterpret_cast<sockaddr*>(&serverAddr), sizeof(serverAddr)) < 0) {
         CubeLog::error("Error connecting to socket");
+        close(sockfd);
         return;
     }
 
     while (data) {
-        // base64 encode the audio data
-        std::string encodedData = base64::encode((const unsigned char*)data->data(), data->size() * sizeof(int16_t));
-
         // send the data to the server
-        if (write(sockfd, encodedData.c_str(), encodedData.size()) < 0) {
+        if (write(sockfd, data->data(), data->size() * sizeof(int16_t)) < 0) {
             CubeLog::error("Error sending data to socket");
             return;
         }
 
         data = this->audioQueue->pop();
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        
+        auto result = checkForControl(sockfd);
+        if(result.find("DETECTED____") != std::string::npos) {
+            CubeLog::fatal("Wake word detected");
+        }
     }
-
+    CubeLog::fatal("No data in queue");
     close(sockfd);
 }
 
@@ -220,4 +218,26 @@ int audioInputCallback(void* outputBuffer, void* inputBuffer, unsigned int nBuff
     std::vector<int16_t> audioData(buffer, buffer + nBufferFrames);
     SpeechIn::audioQueue->push(audioData);
     return 0;
+}
+
+std::string checkForControl(int conn_fd) {
+    // simple line-buffered read:
+    constexpr size_t BUF_SIZE = 128;
+    char buf[BUF_SIZE];
+    ssize_t got = recv(conn_fd, buf, BUF_SIZE-1, 0);
+    if (got > 0) {
+        buf[got] = '\0';
+        std::string line(buf);
+        // strip newline if present
+        if (!line.empty() && line.back() == '\n')
+            line.pop_back();
+        // CubeLog::info("Received: " + line);
+        return line;
+    }
+    else if (got == 0) {
+        std::cerr << "Python closed the socket\n";
+    }
+    else {
+        std::cerr << "recv() error: " << strerror(errno) << "\n";
+    }
 }
