@@ -230,7 +230,7 @@ int main(int argc, char* argv[])
         bool allInsertionsSuccess = true;
         long dbInsertReturnVal = -1;
         // TODO: All the base apps should be inserted into the database and/or verified in the database here.
-        // TODO: Start the openwakeword python script here. This will be a native app and will use the python executable in the openwakeword/bin directory.
+        // TODO: Add the openwakeword python script to the DB here. This will be a native app and will use the python executable in the openwakeword/bin directory.
         dbInsertReturnVal = CubeDB::getDBManager()->getDatabase("apps")->insertData(
             DB_NS::TableNames::APPS,
             { { "app_id", "2" },
