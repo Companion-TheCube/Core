@@ -33,7 +33,14 @@ When the wake word is detected, we'll need to tell the audioOutput class to play
 std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> SpeechIn::audioQueue = std::make_shared<ThreadSafeQueue<std::vector<int16_t>>>();
 std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> SpeechIn::preTriggerAudioData = std::make_shared<ThreadSafeQueue<std::vector<int16_t>>>();
 int audioInputCallback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData);
-std::string  checkForControl(int conn_fd);
+std::string checkForControl(int conn_fd);
+std::vector<std::function<void()>> SpeechIn::wakeWordDetectionCallbacks;
+
+int16_t runningAvgSample = 0;
+int64_t runningAvgCount = 0;
+
+// Last time we detected the wake word
+std::chrono::time_point<std::chrono::high_resolution_clock> lastDetectedTime = std::chrono::high_resolution_clock::now();
 
 SpeechIn::~SpeechIn()
 {
@@ -52,64 +59,6 @@ void SpeechIn::stop()
 {
     this->audioInputThread.request_stop();
     this->audioInputThread.join();
-}
-
-size_t SpeechIn::getAudioDataSize()
-{
-    return 0;
-}
-
-size_t SpeechIn::getPreTriggerAudioDataSize()
-{
-    return 0;
-}
-
-void SpeechIn::clearAudioData()
-{
-}
-
-void SpeechIn::clearPreTriggerAudioData()
-{
-}
-
-size_t SpeechIn::getFifoSize()
-{
-    return 0;
-}
-
-size_t SpeechIn::getPreTriggerFifoSize()
-{
-    return 0;
-}
-
-unsigned int SpeechIn::getSampleRate()
-{
-    return sampleRate;
-}
-
-unsigned int SpeechIn::getNumChannels()
-{
-    return numChannels;
-}
-
-unsigned int SpeechIn::getBitsPerSample()
-{
-    return bitsPerSample;
-}
-
-unsigned int SpeechIn::getBytesPerSample()
-{
-    return bytesPerSample;
-}
-
-unsigned int SpeechIn::getNumSamples()
-{
-    return numSamples;
-}
-
-unsigned int SpeechIn::getNumBytes()
-{
-    return numSamples * bytesPerSample;
 }
 
 void SpeechIn::audioInputThreadFn(std::stop_token st)
@@ -137,7 +86,7 @@ void SpeechIn::audioInputThreadFn(std::stop_token st)
 
     RtAudio::StreamParameters params;
     params.deviceId = soundInInd;
-    params.nChannels = 2;
+    params.nChannels = NUM_CHANNELS;
     params.firstChannel = 0;
 
     RtAudio::StreamOptions options;
@@ -145,11 +94,10 @@ void SpeechIn::audioInputThreadFn(std::stop_token st)
     options.streamName = "SpeechIn";
     options.numberOfBuffers = 1;
 
-    unsigned int bufferFrames = 1280;
-    unsigned int sampleRate = 16000;
+    unsigned int bufferFrames = ROUTER_FIFO_SIZE;
 
     try {
-        audio->openStream(nullptr, &params, RTAUDIO_SINT16, sampleRate, &bufferFrames, &audioInputCallback, nullptr, &options);
+        audio->openStream(nullptr, &params, RTAUDIO_SINT16, SAMPLE_RATE, &bufferFrames, &audioInputCallback, nullptr, &options);
         audio->startStream();
     } catch (RtAudioErrorType& e) {
         CubeLog::error("Error starting audio stream");
@@ -194,6 +142,15 @@ void SpeechIn::writeAudioDataToSocket()
     }
 
     while (data) {
+        // Add the audio data to the 5 second buffer
+        // for (size_t i = 0; i < data->size(); i++) {
+        //     preTriggerAudioData->push(data);
+        // }
+        // truncate the audio data to 5 seconds
+        // while (preTriggerAudioData->size() > PRE_TRIGGER_FIFO_SIZE) {
+        //     preTriggerAudioData->pop();
+        // }
+
         // send the data to the server
         if (write(sockfd, data->data(), data->size() * sizeof(int16_t)) < 0) {
             CubeLog::error("Error sending data to socket");
@@ -202,15 +159,28 @@ void SpeechIn::writeAudioDataToSocket()
 
         data = this->audioQueue->pop();
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
-        
+
         auto result = checkForControl(sockfd);
-        if(result.find("DETECTED____") != std::string::npos) {
-            CubeLog::fatal("Wake word detected");
+        if (result.find("DETECTED____") != std::string::npos) {
+            // get current time
+            auto now = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastDetectedTime).count();
+            lastDetectedTime = now;
+            CubeLog::info("Wake word detected. Duration since last detection: " + std::to_string(duration) + "ms");
+            if (duration > WAKEWORD_RETRIGGER_TIME) {
+                // call all the callbacks
+                // TODO: this needs to happen in another thread so that we don't block the audio input thread
+                for (auto& callback : this->wakeWordDetectionCallbacks) {
+                    callback();
+                }
+            }
         }
     }
     CubeLog::fatal("No data in queue");
     close(sockfd);
 }
+
+
 
 int audioInputCallback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData)
 {
@@ -220,11 +190,12 @@ int audioInputCallback(void* outputBuffer, void* inputBuffer, unsigned int nBuff
     return 0;
 }
 
-std::string checkForControl(int conn_fd) {
+std::string checkForControl(int conn_fd)
+{
     // simple line-buffered read:
     constexpr size_t BUF_SIZE = 128;
     char buf[BUF_SIZE];
-    ssize_t got = recv(conn_fd, buf, BUF_SIZE-1, 0);
+    ssize_t got = recv(conn_fd, buf, BUF_SIZE - 1, 0);
     if (got > 0) {
         buf[got] = '\0';
         std::string line(buf);
@@ -233,11 +204,12 @@ std::string checkForControl(int conn_fd) {
             line.pop_back();
         // CubeLog::info("Received: " + line);
         return line;
-    }
-    else if (got == 0) {
+    } else if (got == 0) {
         std::cerr << "Python closed the socket\n";
-    }
-    else {
+    } else {
         std::cerr << "recv() error: " << strerror(errno) << "\n";
     }
+    return "";
 }
+
+// TODO: implement silence detection to determine when the user is done speaking.

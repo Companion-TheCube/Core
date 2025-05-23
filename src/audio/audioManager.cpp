@@ -16,8 +16,11 @@ AudioManager::AudioManager()
 {
     audioOutput = std::make_unique<AudioOutput>();
     audioInQueue = std::make_shared<ThreadSafeQueue<std::vector<int16_t>>>();
-    speechIn = std::make_shared<SpeechIn>(audioInQueue);
+    speechIn = std::make_shared<SpeechIn>();
     speechIn->start();
+    SpeechIn::subscribeToWakeWordDetection([this]() {
+        CubeLog::info("Wake word detected.");
+    });
 }
 
 AudioManager::~AudioManager()
@@ -33,6 +36,7 @@ void AudioManager::start()
 void AudioManager::stop()
 {
     audioOutput->stop();
+    speechIn->stop();
 }
 
 void AudioManager::toggleSound()
