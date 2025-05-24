@@ -68,6 +68,7 @@ FetchContent_Declare(
     stduuid
     GIT_REPOSITORY https://github.com/mariusbancila/stduuid.git
     GIT_TAG master
+    UPDATE_DISCONNECTED FALSE
 )
 FetchContent_MakeAvailable(stduuid)
 include_directories(${stduuid_SOURCE_DIR}/include)
@@ -77,23 +78,29 @@ FetchContent_Declare(
     infoware
     GIT_REPOSITORY https://github.com/ThePhD/infoware.git
     GIT_TAG main
+    UPDATE_DISCONNECTED FALSE
 )
 FetchContent_MakeAvailable(infoware)
 include_directories(${infoware_SOURCE_DIR}/include)
 
 include(FetchContent)
-FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
+FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz)
 FetchContent_MakeAvailable(json)
 
 include(FetchContent)
-FetchContent_Declare(SFML
+FetchContent_Declare(
+    SFML
     GIT_REPOSITORY https://github.com/SFML/SFML.git
-    GIT_TAG 2.6.x)
+    GIT_TAG 2.6.x
+    UPDATE_DISCONNECTED FALSE
+)
 FetchContent_MakeAvailable(SFML)
 include(FetchContent)
-FetchContent_Declare(WhisperCPP
+FetchContent_Declare(
+    WhisperCPP
     GIT_REPOSITORY https://github.com/ggerganov/whisper.cpp.git
     GIT_TAG master
+    UPDATE_DISCONNECTED FALSE
 )
 FetchContent_MakeAvailable(WhisperCPP)
 include(FetchContent)
@@ -101,6 +108,7 @@ FetchContent_Declare(
     cppcodec
     GIT_REPOSITORY https://github.com/tplgy/cppcodec.git
     GIT_TAG master
+    UPDATE_DISCONNECTED FALSE
 )
 FetchContent_MakeAvailable(cppcodec)
 include_directories(${cppcodec_SOURCE_DIR}/cppcodec)
