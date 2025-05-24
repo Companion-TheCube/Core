@@ -121,7 +121,8 @@ std::unique_ptr<RunningApp> NativeAPI::startApp(const std::string& execPath, con
     std::string command = execPath + " " + execArgs;
 
     auto temp = std::make_unique<RunningApp>(0, appID, appName, execPath, execArgs, appSource, updatePath, "native", "", "", "", "", 0);
-#ifdef _WIN32
+
+    #ifdef _WIN32
     SECURITY_ATTRIBUTES saAttr;
     saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
     saAttr.bInheritHandle = TRUE;

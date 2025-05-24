@@ -88,7 +88,7 @@ std::unique_ptr<RunningApp> PythonAPI::startApp(const std::string& execPath, con
         return nullptr;
     }
     std::string command = execPath + " " + execArgs;
-    auto temp = std::make_unique<RunningApp>(execPath, execArgs, appID, appName, appSource, updatePath);
+    auto temp = std::make_unique<RunningApp>(0, appID, appName, execPath, execArgs, appSource, updatePath, "native", "", "", "", "", 0);
     pid_t pid = fork();
     if (pid == -1) {
         CubeLog::error("Failed to fork process");
