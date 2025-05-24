@@ -69,3 +69,11 @@ public:
     bool appsManagerThreadRunning();
     static void setConsoleLoggingEnabled(bool enabled);
 };
+
+class Installer {
+public:
+    static bool installApp(const std::string& appID);
+    static bool uninstallApp(const std::string& appID);
+    static bool updateApp(const std::string& appID);
+    static bool isAppInstalled(const std::string& appID);
+};

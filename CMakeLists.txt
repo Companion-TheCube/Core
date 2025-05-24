@@ -270,6 +270,13 @@ else()
     set(DATA_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/data")
 endif()
 
+# apps directory
+if(WIN32)
+    set(APPS_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Debug/apps")
+else()
+    set(APPS_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/apps")
+endif()
+
 # Create the destination directories if they don't exist
 file(MAKE_DIRECTORY ${SHADER_DEST_DIR})
 file(MAKE_DIRECTORY ${MESHES_DEST_DIR})
@@ -277,8 +284,7 @@ file(MAKE_DIRECTORY ${FONTS_DEST_DIR})
 file(MAKE_DIRECTORY ${HTTP_DEST_DIR})
 file(MAKE_DIRECTORY ${MTL_DEST_DIR})
 file(MAKE_DIRECTORY ${DATA_DEST_DIR})
-
-
+file(MAKE_DIRECTORY ${APPS_DEST_DIR})
 
 # Define the regex pattern that matches AutoRegisterAPI<XXXX> where XXXX is the class name
 set(MACRO_REGEX "public AutoRegisterAPI<([a-zA-Z_][a-zA-Z0-9_:]*)>")
@@ -538,12 +544,29 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E echo "Copying http to output directory"
 )
 
+# Add a custom command to copy the data directory
 add_custom_command(
     TARGET CubeCore POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${CMAKE_SOURCE_DIR}/data
     ${DATA_DEST_DIR}
     COMMAND ${CMAKE_COMMAND} -E echo "Copying data to output directory"
+)
+
+# copy base apps to the apps directory
+add_custom_command(
+    TARGET CubeCore POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_HOME_DIRECTORY}/BTManager/
+    ${APPS_DEST_DIR}/BTManager/
+    COMMAND ${CMAKE_COMMAND} -E echo "Copying BTManager to apps directory"
+)
+add_custom_command(
+    TARGET CubeCore POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_HOME_DIRECTORY}/openwakeword/
+    ${APPS_DEST_DIR}/openwakeword/
+    COMMAND ${CMAKE_COMMAND} -E echo "Copying openwakeword to apps directory"
 )
 
 # Variables

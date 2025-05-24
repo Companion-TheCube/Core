@@ -1322,3 +1322,31 @@ void AppsManager::setConsoleLoggingEnabled(bool enabled)
 {
     AppsManager::consoleLoggingEnabled = enabled;
 }
+
+bool Installer::installApp(const std::string& appID)
+{
+    CubeLog::info("Installing app: " + appID);
+    // TODO: Implement app installation
+    return true;
+}
+
+bool Installer::uninstallApp(const std::string& appID)
+{
+    CubeLog::info("Uninstalling app: " + appID);
+    // TODO: Implement app uninstallation
+    return true;
+}
+
+bool Installer::updateApp(const std::string& appID)
+{
+    CubeLog::info("Updating app: " + appID);
+    // TODO: Implement app update
+    return true;
+}
+
+bool Installer::isAppInstalled(const std::string& appID)
+{
+    CubeLog::info("Checking if app is installed: " + appID);
+    // TODO: Implement app installation check
+    return true;
+}
