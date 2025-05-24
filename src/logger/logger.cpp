@@ -109,6 +109,10 @@ std::string CUBE_LOG_ENTRY::getMessageFull()
     return this->messageFull;
 }
 
+void CUBE_LOG_ENTRY::repeat(){
+    repeatCount++;
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 Logger::LogVerbosity CubeLog::staticVerbosity = Logger::LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE_AND_FUNCTION_AND_NUMBEROFLOGS;
@@ -136,6 +140,20 @@ void CubeLog::log(const std::string& message, bool print, Logger::LogLevel level
 {
     if(CubeLog::shutdown) return;
     CUBE_LOG_ENTRY entry = CUBE_LOG_ENTRY(message, &location, CubeLog::staticVerbosity, level);
+    if(CubeLog::logEntries.size() > 0 && CubeLog::logEntries.at(CubeLog::logEntries.size() - 1).getMessage() == entry.getMessage()){
+        Color::Modifier blink(Color::TEXT_BLINK);
+        Color::Modifier no_blink(Color::TEXT_NO_BLINK);
+        CubeLog::logEntries.at(CubeLog::logEntries.size() - 1).repeat();
+        if(CubeLog::logEntries.at(CubeLog::logEntries.size() - 1).getRepeatCount() == 1)
+            std::cout << "Previous log entry repeated " << CubeLog::logEntries.at(CubeLog::logEntries.size() - 1).getRepeatCount() << " times." << std::endl << std::flush;
+        else
+        {
+            std::cout << "\033[1A\033[G";
+            std::cout << "\r";
+            std::cout << "Previous log entry repeated " << CubeLog::logEntries.at(CubeLog::logEntries.size() - 1).getRepeatCount() << " times.    "  << std::endl << std::flush; 
+        }
+        return;
+    }
     CubeLog::logEntries.push_back(entry);
     Color::Modifier colorDebug(Color::FG_GREEN);
     Color::Modifier colorInfo(Color::FG_WHITE);

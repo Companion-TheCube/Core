@@ -94,6 +94,7 @@ private:
     std::string message;
     std::chrono::time_point<std::chrono::system_clock> timestamp;
     std::string messageFull;
+    int repeatCount = 0;
 
 public:
     unsigned int logEntryNumber;
@@ -106,6 +107,8 @@ public:
     std::string getEntry();
     std::string getMessageFull();
     unsigned long long getTimestampAsLong();
+    void repeat();
+    int getRepeatCount(){return repeatCount;}
 };
 
 class CubeLog : public AutoRegisterAPI<CubeLog> {

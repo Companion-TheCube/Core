@@ -105,7 +105,7 @@ void SpeechIn::audioInputThreadFn(std::stop_token st)
     }
 
     while (!st.stop_requested()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // Wait one second before trying to connect to the socket.
         this->writeAudioDataToSocket();
     }
 
