@@ -89,6 +89,14 @@ FetchContent_MakeAvailable(json)
 
 include(FetchContent)
 FetchContent_Declare(
+    pqxx
+    GIT_REPOSITORY https://github.com/jtv/libpqxx
+    GIT_TAG master
+)
+FetchContent_MakeAvailable(pqxx)
+
+include(FetchContent)
+FetchContent_Declare(
     SFML
     GIT_REPOSITORY https://github.com/SFML/SFML.git
     GIT_TAG 2.6.x
@@ -380,6 +388,8 @@ target_link_libraries(CubeCore PRIVATE
     OpenSSL::SSL
     OpenSSL::Crypto
     infoware
+    pqxx
+    pq
 )
 
 # set_target_properties(CubeCore PROPERTIES
@@ -408,6 +418,7 @@ else()
         ${GLEW_INCLUDE_DIRS}
         ${SFML_INCLUDE_DIR}
         ${whispercpp_SOURCE_DIR}
+        ${PQXX_INCLUDE_DIRS}
     )
 endif()
 

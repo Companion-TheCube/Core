@@ -105,6 +105,17 @@ bool NativeAPI::isProcessRunning(long pid)
 }
 #endif
 
+/**
+ * @brief Start a native app
+ * 
+ * @param execPath 
+ * @param execArgs 
+ * @param appID 
+ * @param appName 
+ * @param appSource 
+ * @param updatePath 
+ * @return std::unique_ptr<RunningApp> 
+ */
 std::unique_ptr<RunningApp> NativeAPI::startApp(const std::string& execPath, const std::string& execArgs, const std::string& appID, const std::string& appName, const std::string& appSource, const std::string& updatePath)
 {
     CubeLog::info("Starting app: " + execPath + " " + execArgs);
