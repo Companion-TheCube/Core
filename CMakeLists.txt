@@ -12,7 +12,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 # Project name and the language used
-project(CubeCore VERSION 1.0.0 LANGUAGES CXX)
+project(CubeCore VERSION 0.1.0 LANGUAGES CXX)
 
 add_definitions(-DMAJOR_VERSION=${PROJECT_VERSION_MAJOR})
 add_definitions(-DMINOR_VERSION=${PROJECT_VERSION_MINOR})
