@@ -433,7 +433,7 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
 }
 
 /**
- * @brief Get the Inteface Name for the database endpoints
+ * @brief Get the Interface Name for the database endpoints
  *
  * @return std::string
  */
