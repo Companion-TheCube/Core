@@ -34,7 +34,7 @@
 - [src/apps/appsManager.cpp:44] Any app that is not found at the location specified in the database should be marked as "not installed" or removed from the database
 - [src/apps/appsManager.cpp:45] isAppInstalled() should check once and then keep track of the installed status so that repeated calls to this method are faster and don't require filesystem accesses. Any changes to apps installed status will need to noted.
 - [src/apps/appsManager.cpp:47] App installation needs to be handled somehow. Apps that come from trusted sources may have scripts that need to 
-- [src/apps/appsManager.cpp:133]     this->killAbandonedProcesses(); // TODO: these methods not be needed here since nothing should be running yet
+- [src/apps/appsManager.cpp:133]     this->killAbandonedProcesses(); // these methods not be needed here since nothing should be running yet
 - [src/apps/appsManager.cpp:161] check is app is enabled before starting. each app has an "enabled" flag in the database.
 - [src/apps/appsManager.cpp:318] check that app is enabled before starting
 - [src/apps/appsManager.cpp:468] Implement updating docker apps
@@ -54,14 +54,14 @@
 - [src/apps/appsDBManager.cpp:110] add the interfaces for HTTP server
 - [src/logger/logger.cpp:34] implement a way to check if a message is identical to the previous one and if so, print "repeated x times" on the previous message instead of th message
 - [src/logger/logger.cpp:411] modify this to use std::stop_token
-- [src/logger/logger.cpp:443]     this->logEntries.shrink_to_fit(); // TODO: this may not be needed since the log is just going to grow again
+- [src/logger/logger.cpp:443]     this->logEntries.shrink_to_fit(); // this may not be needed since the log is just going to grow again
 - [src/logger/logger.cpp:534] theres a bug here where the logs are being written to the file and existing logs are being overwritten. FIXME
 - [src/logger/logger.cpp:779] add endpoint(s) to get logs. perhaps have the ability to get logs by level, by date, etc. and/or logs from memory or from file
 - [src/logger/logger.cpp:824] source string should be prepended with the name of the source app or it's IP or something. That way, we know
 - [src/utils.cpp:163] fix this
-- [src/database/cubeDB.cpp:214]             cv.wait(lk, [&] { return !wait; }); // TODO: use this as an example for the mutex lock below.
+- [src/database/cubeDB.cpp:214]             cv.wait(lk, [&] { return !wait; }); // use this as an example for the mutex lock below.
 - [src/database/cubeDB.cpp:230] fix this endpoint. It has testing data in it.
-- [src/database/cubeDB.cpp:272]         "Insert data into the database. This is a test endpoint." }); // TODO: fix this endpoint. It has testing data in it.
+- [src/database/cubeDB.cpp:272]         "Insert data into the database. This is a test endpoint." }); // fix this endpoint. It has testing data in it.
 - [src/database/cubeDB.cpp:422] endpoints to write:
 - [src/database/db.cpp:34] this file needs a line by line evaluation
 - [src/database/db.h:247] make sure all the data is sanitized before being inserted into the database.
@@ -93,7 +93,7 @@
 - [src/gui/characterManager.cpp:418] load character data from the database
 - [src/gui/characterManager.cpp:458] this needs to compensate for the position of the object so that it rotates about its own axiseses
 - [src/gui/characterManager.cpp:463] this needs work. the calculated value needs to be on the range of 0 to infinity.
-- [src/gui/characterManager.cpp:481]                 glm::mat4 calcValueMat4 = glm::mat4(calcValue * (f - s)); // TODO: this only works for linear easing. Might need to fix. Might not care.
+- [src/gui/characterManager.cpp:481]                 glm::mat4 calcValueMat4 = glm::mat4(calcValue * (f - s)); // this only works for linear easing. Might need to fix. Might not care.
 - [src/gui/characterManager.cpp:518] do the stuff that needs to be done to change the expression of the character based on the currentExpression
 - [src/gui/characterManager.cpp:723] by default, this method will not interrupt the current animation. Need to implement interrupting.
 - [src/gui/characterManager.cpp:736] by default, this method will not interrupt the current expression. Need to implement interrupting.
@@ -101,7 +101,7 @@
 - [src/gui/renderer.cpp:34] migrate from SFML to GLFW since we aren't using any SFML specific features
 - [src/gui/renderer.cpp:95] maybe one day, support a second window that renders on the second screen.
 - [src/gui/renderer.cpp:98] figure out how to pause rendering and close the window when the emulator starts up.
-- [src/gui/renderer.cpp:135]     Character_generic* character = characterManager->getCharacterByName("TheCube"); // TODO: this call should return a nullptr if the character is not found. Then we should throw an error.
+- [src/gui/renderer.cpp:135]     Character_generic* character = characterManager->getCharacterByName("TheCube"); // this call should return a nullptr if the character is not found. Then we should throw an error.
 - [src/gui/renderer.cpp:159] replace this with a CountingLatch. This will be cleaner.
 - [src/gui/renderables/shapes.h:559] create a generic object class that can utilize vertex and face data loaded from a file
 - [src/gui/renderables/shapes.cpp:34] the font is being loaded for each instance of an M_Text object and should be made static so that it only gets loaded once and is shared between all instances of M_Text
@@ -128,8 +128,8 @@
 - [src/gui/gui.cpp:41] we should monitor the CubeLog for errors and display them in the status bar. This will require a way to get the last error message from the CubeLog. <- this is done in CubeLog
 - [src/gui/gui.cpp:42] setup notifications that pop up with a CubeMessageBox. this will need to have notifications.cpp fleshed out.
 - [src/gui/gui.cpp:43] Instead of having the menu become visible with a single tap/click, it should only pop up when teh user holds
-- [src/gui/gui.cpp:89]     /// Test events TODO: remove this
-- [src/gui/gui.cpp:116]     /// TESTING FUNCTION TODO: remove this or move to utils
+- [src/gui/gui.cpp:89]     /// Test events remove this
+- [src/gui/gui.cpp:116]     /// TESTING FUNCTION remove this or move to utils
 - [src/gui/gui.cpp:130] make this dynamic
 - [src/gui/gui.cpp:261] make this actually enable/disable wifi. the settings should have a callback registered with the GlobalSettings class that will enable/disable wifi when the setting is changed.
 - [src/gui/gui.cpp:266] return GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::WIFI_ENABLED);
@@ -168,18 +168,18 @@
 - [src/gui/gui.cpp:799] make this actually enable/disable the presence detection. the settings should have a callback registered with the GlobalSettings class that will enable/disable the presence detection when the setting is changed.
 - [src/gui/gui.cpp:821] set the volume
 - [src/gui/gui.cpp:827] save the volume to the settings
-- [src/gui/gui.cpp:830]             (void*)(int)(50) // TODO: we need to get the value from the settings and pass it in here.
+- [src/gui/gui.cpp:830]             (void*)(int)(50) // we need to get the value from the settings and pass it in here.
 - [src/gui/gui.cpp:848] set the volume
 - [src/gui/gui.cpp:854] save the notification volume to the settings
-- [src/gui/gui.cpp:857]             (void*)(int)(50) // TODO: we need to get the value from the settings and pass it in here.
+- [src/gui/gui.cpp:857]             (void*)(int)(50) // we need to get the value from the settings and pass it in here.
 - [src/gui/gui.cpp:867] list all the notification sounds
 - [src/gui/gui.cpp:884] set the volume
 - [src/gui/gui.cpp:890] save the alarm volume to the settings
-- [src/gui/gui.cpp:893]             (void*)(int)(50) // TODO: we need to get the value from the settings and pass it in here.
+- [src/gui/gui.cpp:893]             (void*)(int)(50) // we need to get the value from the settings and pass it in here.
 - [src/gui/gui.cpp:903] list all the alarm sounds
 - [src/gui/gui.cpp:920] set the volume
 - [src/gui/gui.cpp:926] save the voice command volume to the settings
-- [src/gui/gui.cpp:929]             (void*)(int)(50) // TODO: we need to get the value from the settings and pass it in here.
+- [src/gui/gui.cpp:929]             (void*)(int)(50) // we need to get the value from the settings and pass it in here.
 - [src/gui/gui.cpp:939] list all the voice command sounds
 - [src/gui/gui.cpp:956] make this actually enable/disable notifications from network sources. the settings should have a callback registered with the GlobalSettings class that will enable/disable notifications from network sources when the setting is changed.
 - [src/gui/gui.cpp:971] list all the recent notifications. we'll need to determine the max number of notifications to show,
@@ -244,7 +244,7 @@
 - [src/gui/gui.cpp:1483] (no description)
 - [src/gui/gui.cpp:1486] (no description)
 - [src/gui/gui.cpp:1489] (no description)
-- [src/gui/gui.cpp:1579]         std::vector<sf::Event> events = this->renderer->getEvents(); // TODO: change this to be a reference
+- [src/gui/gui.cpp:1579]         std::vector<sf::Event> events = this->renderer->getEvents(); // change this to be a reference
 - [src/gui/gui.cpp:1813] show a notification
 - [src/gui/gui.cpp:1818] show a notification with a callback
 - [src/gui/gui.cpp:1823] show a notification with a callback for yes and no
@@ -300,7 +300,7 @@
 - [src/api/builder.cpp:136] refactor to get rid of staticFiles vector. update: maybe not?
 - [src/api/api.h:197] We need to make the API server is able to handle new interfaces being added at runtime.
 - [src/api/authentication.cpp:133] add checkAuth function that only takes the app_id and returns bool if the app_id has been allowed by the user
-- [src/api/authentication.cpp:523]             GUI::showMessageBox("Authorization Code", "Your authorization code is:\n" + initialCode); // TODO: verify/test that this is thread safe
+- [src/api/authentication.cpp:523]             GUI::showMessageBox("Authorization Code", "Your authorization code is:\n" + initialCode); // verify/test that this is thread safe
 - [src/api/api.cpp:50] Since we need to make sure that the entire API is built before letting any clients connect,
 - [src/api/api.cpp:57] // TESTING AUTHENTICATION //// remove
 - [src/api/api.cpp:101] add checks to make sure these are valid calls.
@@ -315,9 +315,9 @@
 - [src/hardware/peripheralManager.cpp:36] Implement the peripheral manager. This class will be responsible for managing all the hardware and providing the API endpoints.
 - [src/hardware/mmWave.h:49] add some ifdefs and defines for the port name on RasPi
 - [src/hardware/mmWave.h:50] add ifdefs for Windows so that this will compile on Windows
-- [src/hardware/mmWave.cpp:353]         if (data.size() != 33) { // TODO: Check this
+- [src/hardware/mmWave.cpp:353]         if (data.size() != 33) { // Check this
 - [src/hardware/bluetooth.cpp:43] since the BT_Manager app is far from complete, we should just mock the bluetooth functions for now.
-- [src/hardware/bluetooth.cpp:65]  *  TODO: In order to comply with Qt licensing, we will have to have all the code that interfaces
+- [src/hardware/bluetooth.cpp:65]  *  In order to comply with Qt licensing, we will have to have all the code that interfaces
 - [src/hardware/bluetooth.cpp:83] Need to check if the port is available
 - [src/hardware/bluetooth.cpp:98] create a default config for basic functionality in the event the file is not found
 - [src/hardware/bluetooth.cpp:125] Setup all the callback endpoints
