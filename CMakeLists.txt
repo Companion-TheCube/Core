@@ -660,7 +660,11 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest)
 
 # Add test executable
-file(GLOB_RECURSE TEST_SOURCES "tests/*.cpp" "tests/**/*.cpp")
+file(GLOB_RECURSE TEST_SOURCES
+    "tests/*.cpp" "tests/**/*.cpp"
+    "src/*.cpp" "src/**/*.cpp" "src/**/**/*.cpp")
+# Exclude the application entry point from the test build
+list(FILTER TEST_SOURCES EXCLUDE REGEX "/main\\.cpp$")
 add_executable(CubeCoreTests ${TEST_SOURCES})
 target_link_libraries(CubeCoreTests PRIVATE
     gtest
