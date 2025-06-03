@@ -212,6 +212,10 @@ bool EventManager::removeEvent(EventHandler* event)
  */
 bool EventManager::removeEvent(int index)
 {
+    if (index < 0 || index >= static_cast<int>(this->events.size())) {
+        CubeLog::error("Index out of range when removing event");
+        return false;
+    }
     delete this->events[index];
     this->events.erase(this->events.begin() + index);
     return true;
