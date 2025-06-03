@@ -255,7 +255,7 @@ void API::httpApiThreadFn()
                         return;
                     }
                     // if the authorization header is present, we check if it is valid
-                    if (CubeAuth::isAuthorized_authHeader(authHeader)) {
+                    if (!CubeAuth::isAuthorized_authHeader(authHeader)) {
                         res.set_content("Authorization header not valid", "text/plain");
                         res.status = httplib::StatusCode::Forbidden_403;
                         return;
