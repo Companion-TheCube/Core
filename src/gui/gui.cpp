@@ -1953,7 +1953,7 @@ HttpEndPointData_t GUI::getHttpEndpointData()
 }
 
 /**
- * @brief Get the Inteface Name
+ * @brief Get the Interface Name
  *
  * @return std::string the name of the interface
  */
