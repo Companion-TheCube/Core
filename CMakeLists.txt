@@ -186,6 +186,16 @@ if(NOT EXISTS ${HTTPLIB_HEADER})
 endif()
 
 find_package(OpenSSL REQUIRED)
+####### spdlog library (for file logging) #######
+include(FetchContent)
+FetchContent_Declare(
+    spdlog
+    GIT_REPOSITORY https://github.com/gabime/spdlog.git
+    GIT_TAG v1.13.0
+    UPDATE_DISCONNECTED FALSE
+)
+FetchContent_MakeAvailable(spdlog)
+# note: provides targets spdlog::spdlog and spdlog::spdlog_header_only
 
 set(ARGPARSE_HEADER ${CMAKE_SOURCE_DIR}/libraries/argparse.hpp)
 
@@ -390,6 +400,7 @@ target_link_libraries(CubeCore PRIVATE
     infoware
     pqxx
     pq
+    spdlog::spdlog_header_only
 )
 
 # set_target_properties(CubeCore PROPERTIES

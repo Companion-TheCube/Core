@@ -48,6 +48,8 @@ SOFTWARE.
 #include <sstream>
 #include <utils.h>
 #include <vector>
+#include <memory>
+#include <spdlog/logger.h>
 
 #define LOGGER_TRACE_ENABLED
 #ifdef LOGGER_TRACE_ENABLED
@@ -152,6 +154,8 @@ private:
     static Logger::LogLevel staticPrintLevel;
     static bool consoleLoggingEnabled;
     static bool shutdown;
+    // spdlog file logger
+    static std::shared_ptr<spdlog::logger> fileLogger;
     Logger::LogLevel fileLevel;
     bool savingInProgress;
     void saveLogsInterval();

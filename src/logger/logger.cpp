@@ -34,6 +34,8 @@ SOFTWARE.
 // TODO: implement a way to check if a message is identical to the previous one and if so, print "repeated x times" on the previous message instead of th message
 
 #include "logger.h"
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/rotating_file_sink.h>
 
 #define COUNTER_MOD 1000 // determines how many dots we print while saving the logs
 #define CUBE_LOG_ENTRY_MAX 100000 // maximum number of log entries in log file
@@ -160,6 +162,8 @@ std::vector<unsigned int> CubeLog::readLogIDs;
 std::string CubeLog::screenMessage = "";
 int CubeLog::advancedColorsEnabled = 0;
 bool CubeLog::shutdown = false;
+// spdlog file logger instance
+std::shared_ptr<spdlog::logger> CubeLog::fileLogger = nullptr;
 
 /**
  * @brief Log a message
@@ -177,13 +181,24 @@ void CubeLog::log(const std::string& message, bool print, Logger::LogLevel level
         Color::Modifier blink(Color::TEXT_BLINK);
         Color::Modifier no_blink(Color::TEXT_NO_BLINK);
         CubeLog::logEntries.at(CubeLog::logEntries.size() - 1).repeat();
-        if(CubeLog::logEntries.at(CubeLog::logEntries.size() - 1).getRepeatCount() == 1)
-            std::cout << "Previous log entry repeated " << CubeLog::logEntries.at(CubeLog::logEntries.size() - 1).getRepeatCount() << " times." << std::endl << std::flush;
+        if (CubeLog::logEntries.at(CubeLog::logEntries.size() - 1).getRepeatCount() == 1)
+            std::cout << Color::Modifier(Color::TEXT_DEFAULT)
+                      << "Previous log entry repeated "
+                      << CubeLog::logEntries.at(CubeLog::logEntries.size() - 1).getRepeatCount()
+                      << " times."
+                      << Color::Modifier(Color::TEXT_DEFAULT)
+                      << std::endl << std::flush;
         else
         {
+            // Move cursor up and to line start, then reset colors
             std::cout << "\033[1A\033[G";
             std::cout << "\r";
-            std::cout << "Previous log entry repeated " << CubeLog::logEntries.at(CubeLog::logEntries.size() - 1).getRepeatCount() << " times.    "  << std::endl << std::flush; 
+            std::cout << Color::Modifier(Color::TEXT_DEFAULT)
+                      << "Previous log entry repeated "
+                      << CubeLog::logEntries.at(CubeLog::logEntries.size() - 1).getRepeatCount()
+                      << " times.    "
+                      << Color::Modifier(Color::TEXT_DEFAULT)
+                      << std::endl << std::flush;
         }
         return;
     }
@@ -201,41 +216,77 @@ void CubeLog::log(const std::string& message, bool print, Logger::LogLevel level
         switch (level) {
 #ifdef LOGGER_TRACE_ENABLED
         case Logger::LogLevel::LOGGER_TRACE:
-            std::cout << colorDebugSilly << entry.getMessageFull() << std::endl;
+            std::cout << colorDebugSilly << entry.getMessageFull() << Color::Modifier(Color::TEXT_DEFAULT) << std::endl;
             break;
 #endif
         case Logger::LogLevel::LOGGER_DEBUG_SILLY:
-            std::cout << colorDebugSilly << entry.getMessageFull() << std::endl;
+            std::cout << colorDebugSilly << entry.getMessageFull() << Color::Modifier(Color::TEXT_DEFAULT) << std::endl;
             break;
         case Logger::LogLevel::LOGGER_DEBUG:
-            std::cout << colorDebug << entry.getMessageFull() << std::endl;
+            std::cout << colorDebug << entry.getMessageFull() << Color::Modifier(Color::TEXT_DEFAULT) << std::endl;
             break;
         case Logger::LogLevel::LOGGER_INFO:
-            std::cout << colorInfo << entry.getMessageFull() << std::endl;
+            std::cout << colorInfo << entry.getMessageFull() << Color::Modifier(Color::TEXT_DEFAULT) << std::endl;
             break;
         case Logger::LogLevel::LOGGER_WARNING:
-            std::cout << colorWarning << entry.getMessageFull() << std::endl;
+            std::cout << colorWarning << entry.getMessageFull() << Color::Modifier(Color::TEXT_DEFAULT) << std::endl;
             break;
         case Logger::LogLevel::LOGGER_ERROR:
-            std::cout << colorError << entry.getMessageFull() << std::endl;
+            std::cout << colorError << entry.getMessageFull() << Color::Modifier(Color::TEXT_DEFAULT) << std::endl;
             break;
         case Logger::LogLevel::LOGGER_CRITICAL:
-            std::cout << colorCritical << entry.getMessageFull() << std::endl;
+            std::cout << colorCritical << entry.getMessageFull() << Color::Modifier(Color::TEXT_DEFAULT) << std::endl;
             break;
         case Logger::LogLevel::LOGGER_FATAL:
-            std::cout << colorFatal << entry.getMessageFull() << std::endl;
+            std::cout << colorFatal << entry.getMessageFull() << Color::Modifier(Color::TEXT_DEFAULT) << std::endl;
             break;
         case Logger::LogLevel::LOGGER_MORE_INFO:
-            std::cout << colorMoreInfo << entry.getMessageFull() << std::endl;
+            std::cout << colorMoreInfo << entry.getMessageFull() << Color::Modifier(Color::TEXT_DEFAULT) << std::endl;
             break;
         case Logger::LogLevel::LOGGER_OFF:
             break;
         default:
-            std::cout << colorDefault << entry.getMessageFull() << std::endl;
+            std::cout << colorDefault << entry.getMessageFull() << Color::Modifier(Color::TEXT_DEFAULT) << std::endl;
             break;
         }
     } else if (level != Logger::LogLevel::LOGGER_OFF && print && level >= CubeLog::staticPrintLevel && CubeLog::consoleLoggingEnabled && message.length() < 1000) {
         std::cout << entry.getMessageFull() << std::endl;
+    }
+    // file logging via spdlog
+    if (CubeLog::fileLogger) {
+        spdlog::level::level_enum spd_level = spdlog::level::info;
+        switch (level) {
+#ifdef LOGGER_TRACE_ENABLED
+        case Logger::LogLevel::LOGGER_TRACE:
+            spd_level = spdlog::level::trace;
+            break;
+#endif
+        case Logger::LogLevel::LOGGER_DEBUG_SILLY:
+        case Logger::LogLevel::LOGGER_DEBUG:
+            spd_level = spdlog::level::debug;
+            break;
+        case Logger::LogLevel::LOGGER_INFO:
+        case Logger::LogLevel::LOGGER_MORE_INFO:
+            spd_level = spdlog::level::info;
+            break;
+        case Logger::LogLevel::LOGGER_WARNING:
+            spd_level = spdlog::level::warn;
+            break;
+        case Logger::LogLevel::LOGGER_ERROR:
+            spd_level = spdlog::level::err;
+            break;
+        case Logger::LogLevel::LOGGER_CRITICAL:
+        case Logger::LogLevel::LOGGER_FATAL:
+            spd_level = spdlog::level::critical;
+            break;
+        case Logger::LogLevel::LOGGER_OFF:
+            spd_level = spdlog::level::off;
+            break;
+        default:
+            spd_level = spdlog::level::info;
+            break;
+        }
+        CubeLog::fileLogger->log(spd_level, entry.getMessageFull());
     }
 }
 
@@ -377,9 +428,42 @@ CubeLog::CubeLog(int advancedColorsEnabled, Logger::LogVerbosity verbosity, Logg
     CubeLog::staticVerbosity = verbosity;
     CubeLog::staticPrintLevel = printLevel;
     this->fileLevel = fileLevel;
-    this->saveLogsThread = std::jthread([this] {
-        this->saveLogsInterval();
-    });
+    // initialize spdlog file logger if needed
+    if (!CubeLog::fileLogger) {
+        auto sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>("logs.txt", 1048576 * 5, 3);
+        CubeLog::fileLogger = std::make_shared<spdlog::logger>("file_logger", sink);
+        // set file logger level based on configured fileLevel
+        spdlog::level::level_enum fl = spdlog::level::info;
+        switch (fileLevel) {
+#ifdef LOGGER_TRACE_ENABLED
+        case Logger::LogLevel::LOGGER_TRACE:
+            fl = spdlog::level::trace;    break;
+#endif
+        case Logger::LogLevel::LOGGER_DEBUG_SILLY:
+        case Logger::LogLevel::LOGGER_DEBUG:
+            fl = spdlog::level::debug;    break;
+        case Logger::LogLevel::LOGGER_INFO:
+        case Logger::LogLevel::LOGGER_MORE_INFO:
+            fl = spdlog::level::info;     break;
+        case Logger::LogLevel::LOGGER_WARNING:
+            fl = spdlog::level::warn;     break;
+        case Logger::LogLevel::LOGGER_ERROR:
+            fl = spdlog::level::err;      break;
+        case Logger::LogLevel::LOGGER_CRITICAL:
+        case Logger::LogLevel::LOGGER_FATAL:
+            fl = spdlog::level::critical; break;
+        case Logger::LogLevel::LOGGER_OFF:
+            fl = spdlog::level::off;      break;
+        default:
+            fl = spdlog::level::info;     break;
+        }
+        CubeLog::fileLogger->set_level(fl);
+        // flush on the configured file logging level to ensure debug_silly logs are flushed promptly
+        CubeLog::fileLogger->flush_on(fl);
+    }
+    // this->saveLogsThread = std::jthread([this] {
+    //     this->saveLogsInterval();
+    // });
     CubeLog::log("Logger initialized", true);
     // create a signal to the thread that will kill the loop when we exit
 
@@ -412,9 +496,9 @@ void CubeLog::saveLogsInterval()
     while (true) {
         for (size_t i = 0; i < LOG_WRITE_OUT_INTERVAL; i++) {
             std::this_thread::sleep_for(std::chrono::seconds(1));
-            if (this->logEntries.size() > LOG_WRITE_OUT_COUNT + this->savedLogsCount) {
-                this->writeOutLogs();
-            }
+            // if (this->logEntries.size() > LOG_WRITE_OUT_COUNT + this->savedLogsCount) {
+            //     // this->writeOutLogs();
+            // }
             std::lock_guard<std::mutex> lock(this->saveLogsThreadRunMutex);
             if (!saveLogsThreadRun)
                 break;
@@ -424,7 +508,7 @@ void CubeLog::saveLogsInterval()
             if (!saveLogsThreadRun)
                 break;
         }
-        this->writeOutLogs();
+        // this->writeOutLogs();
         this->purgeOldLogs();
         this->savedLogsCount = 0;
     }
@@ -450,7 +534,7 @@ void CubeLog::purgeOldLogs()
 CubeLog::~CubeLog()
 {
     CubeLog::info("Logger shutting down");
-    this->writeOutLogs();
+    // this->writeOutLogs();
     CubeLog::shutdown = true;
     resetThread->request_stop();
     if(resetThread->joinable())
@@ -651,6 +735,35 @@ void CubeLog::setLogLevel(Logger::LogLevel printLevel, Logger::LogLevel fileLeve
 {
     CubeLog::staticPrintLevel = printLevel;
     this->fileLevel = fileLevel;
+    // update the spdlog file logger level and flush threshold if it's already initialized
+    if (CubeLog::fileLogger) {
+        spdlog::level::level_enum fl = spdlog::level::info;
+        switch (fileLevel) {
+#ifdef LOGGER_TRACE_ENABLED
+        case Logger::LogLevel::LOGGER_TRACE:
+            fl = spdlog::level::trace; break;
+#endif
+        case Logger::LogLevel::LOGGER_DEBUG_SILLY:
+        case Logger::LogLevel::LOGGER_DEBUG:
+            fl = spdlog::level::debug; break;
+        case Logger::LogLevel::LOGGER_INFO:
+        case Logger::LogLevel::LOGGER_MORE_INFO:
+            fl = spdlog::level::info; break;
+        case Logger::LogLevel::LOGGER_WARNING:
+            fl = spdlog::level::warn; break;
+        case Logger::LogLevel::LOGGER_ERROR:
+            fl = spdlog::level::err; break;
+        case Logger::LogLevel::LOGGER_CRITICAL:
+        case Logger::LogLevel::LOGGER_FATAL:
+            fl = spdlog::level::critical; break;
+        case Logger::LogLevel::LOGGER_OFF:
+            fl = spdlog::level::off; break;
+        default:
+            fl = spdlog::level::info; break;
+        }
+        CubeLog::fileLogger->set_level(fl);
+        CubeLog::fileLogger->flush_on(fl);
+    }
 }
 
 /**
