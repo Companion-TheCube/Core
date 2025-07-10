@@ -83,6 +83,7 @@ SpeechIn::~SpeechIn()
 void SpeechIn::start()
 {
     // Start the audio input thread that handles rtaudio and streams audio to openwakeword
+    stopFlag.store(false);
     this->audioInputThread = std::jthread([this](std::stop_token st) {
         this->audioInputThreadFn(st);
     });
@@ -90,8 +91,9 @@ void SpeechIn::start()
 
 void SpeechIn::stop()
 {
+    stopFlag.store(true);
     this->audioInputThread.request_stop();
-    this->audioInputThread.join();
+    // this->audioInputThread.join();
 }
 
 void SpeechIn::audioInputThreadFn(std::stop_token st)
@@ -149,18 +151,13 @@ void SpeechIn::audioInputThreadFn(std::stop_token st)
 void SpeechIn::writeAudioDataToSocket()
 {
     // using base64 = cppcodec::base64_rfc4648;
-    auto data = this->audioQueue->pop();
-
+    auto dataOpt = this->audioQueue->pop();
     // openwakeword creates a unix socket at /tmp/openww. We send the audio data to this socket.
-    // The socket is created by the openwakeword python script, which is started by the app manager.
-
     int sockfd;
     struct sockaddr_un serverAddr;
     std::memset(&serverAddr, 0, sizeof(serverAddr));
     serverAddr.sun_family = AF_UNIX;
-    const char* socket_path = "/tmp/openww";
-    // copy the path into sun_path (ensure null-termination)
-    std::strncpy(serverAddr.sun_path, socket_path, sizeof(serverAddr.sun_path) - 1);
+    std::strncpy(serverAddr.sun_path, "/tmp/openww", sizeof(serverAddr.sun_path) - 1);
 
     sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (sockfd < 0) {
@@ -174,7 +171,8 @@ void SpeechIn::writeAudioDataToSocket()
         return;
     }
 
-    while (data) {
+    while (dataOpt && !stopFlag.load()) {
+        auto& data = *dataOpt;
         // Add the audio data to the 5 second buffer
         // for (size_t i = 0; i < data->size(); i++) {
         //     preTriggerAudioData->push(data);
@@ -185,12 +183,13 @@ void SpeechIn::writeAudioDataToSocket()
         // }
 
         // send the data to the server
-        if (write(sockfd, data->data(), data->size() * sizeof(int16_t)) < 0) {
+        if (write(sockfd, data.data(), data.size() * sizeof(int16_t)) < 0) {
             CubeLog::error("Error sending data to socket");
+            close(sockfd);
             return;
         }
 
-        data = this->audioQueue->pop();
+        dataOpt = this->audioQueue->pop();
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
         auto result = checkForControl(sockfd);
@@ -208,6 +207,10 @@ void SpeechIn::writeAudioDataToSocket()
                 }
             }
         }
+    }
+    if (stopFlag.load()) {
+        close(sockfd);
+        return;
     }
     CubeLog::fatal("No data in queue");
     close(sockfd);

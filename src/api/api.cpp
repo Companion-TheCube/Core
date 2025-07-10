@@ -491,8 +491,9 @@ void CubeHttpServer::stop()
     while (this->server->is_running()) {
         genericSleep(100);
     }
-    // Ensure that the resources are released
     this->server.reset();
+    serverThread->request_stop();
+    serverThread->join();
 }
 
 /**

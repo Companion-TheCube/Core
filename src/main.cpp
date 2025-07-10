@@ -216,8 +216,7 @@ int main(int argc, char* argv[])
     }
     CubeLog::info("Logger initialized.");
     CubeLog::info("Settings loaded.");
-    CubeLog::info("Loading GUI...");
-    auto gui = std::make_shared<GUI>();
+    
     /////////////////////////////////////////////////////////////////
     // CPU and memory monitor thread
     /////////////////////////////////////////////////////////////////
@@ -251,6 +250,8 @@ int main(int argc, char* argv[])
     // Main loop
     /////////////////////////////////////////////////////////////////
     {
+        CubeLog::info("Loading GUI...");
+    auto gui = std::make_shared<GUI>();
         auto audioManager = std::make_shared<AudioManager>();
         auto db_manager = std::make_shared<CubeDatabaseManager>();
         auto blobs = std::make_shared<BlobsManager>(db_manager, "data/blobs.db");
@@ -321,11 +322,14 @@ int main(int argc, char* argv[])
         }
         CubeLog::info("Entering main loop...");
         std::chrono::milliseconds aSecond(1000);
-        while (true) {
-            // genericSleep(100);
+        while (!breakMain) {
             std::string input;
-            std::cin >> input;
+            if (!(std::cin >> input)) {
+                breakMain = true;
+                break;
+            }
             if (input == "exit" || input == "quit" || input == "q" || input == "e" || input == "x") {
+                breakMain = true;
                 break;
             } else if (input == "sound") {
                 audioManager->toggleSound();
@@ -333,8 +337,10 @@ int main(int argc, char* argv[])
         }
         CubeLog::info("Exited main loop...");
         CubeLog::info("CubeLog reference count: " + std::to_string(logger.use_count()));
+        cpuAndMemoryThread.request_stop();
+        CubeLog::info("Stopping GUI...");
+        gui->stop();
     }
-    gui.reset();
     std::cout << "Exiting..." << std::endl;
     return 0;
     // TODO: any other place where main() might return, change the return value to something meaningful. this way, when

@@ -75,6 +75,7 @@ GUI::GUI()
 GUI::~GUI()
 {
     delete this->renderer;
+    this->eventLoopThread.request_stop();
     this->eventLoopThread.join();
     CubeLog::info("GUI destroyed");
 }

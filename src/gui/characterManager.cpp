@@ -32,6 +32,7 @@ SOFTWARE.
 */
 
 #include "characterManager.h"
+#include <mutex>
 
 // TODO: Character manager needs some static methods that handle changing / triggering animations and expressions.
 // These methods should be called from the GUI and should be able to handle any character that is loaded.
@@ -101,11 +102,13 @@ CharacterManager::~CharacterManager()
         delete character;
     }
 
-    this->animationMutex.lock();
-    this->expressionMutex.lock();
-    this->exitThreads = true;
-    this->animationCV.notify_one();
-    this->expressionCV.notify_one();
+    {
+        std::lock_guard<std::mutex> animLock(this->animationMutex);
+        std::lock_guard<std::mutex> exprLock(this->expressionMutex);
+        this->exitThreads = true;
+        this->animationCV.notify_one();
+        this->expressionCV.notify_one();
+    }
     this->animationThread->join();
     this->expressionThread->join();
 }
