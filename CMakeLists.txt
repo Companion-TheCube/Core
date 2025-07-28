@@ -739,3 +739,17 @@ else()
     message(WARNING "Google Benchmark not found, skipping benchmarks.")
     message(WARNING "To build benchmarks, install Google Benchmark and re-run CMake.")
 endif()
+
+# ─── TODO synchronisation ────────────────────────────────────────────────────
+set(UPDATE_TODOS_SCRIPT "${CMAKE_SOURCE_DIR}/update_todos.py")
+set(TODO_MARKDOWN_FILE  "${CMAKE_SOURCE_DIR}/TODO's.md")
+
+add_custom_target(update_todos
+    COMMAND ${Python3_EXECUTABLE} "${UPDATE_TODOS_SCRIPT}"
+    BYPRODUCTS "${TODO_MARKDOWN_FILE}"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    COMMENT "Scanning source tree and refreshing TODO's.md"
+)
+
+# Always refresh the TODO list before we compile anything else
+add_dependencies(CubeCore update_todos)
