@@ -379,7 +379,7 @@ void CubeLog::warning(const std::string& message, CustomSourceLocation location)
 }
 
 /**
- * @brief Log a critical message
+ * @brief Log a critical message, those where something failed and some functionality is now unavailable, but the application can still run.
  *
  * @param message The message to log
  * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
@@ -391,7 +391,7 @@ void CubeLog::critical(const std::string& message, CustomSourceLocation location
 }
 
 /**
- * @brief Log a "more info" message
+ * @brief Log a "more info" message, those that are not errors, but provide additional information about the application state.
  *
  * @param message The message to log
  * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
@@ -403,7 +403,7 @@ void CubeLog::moreInfo(const std::string& message, CustomSourceLocation location
 }
 
 /**
- * @brief Log a fatal message
+ * @brief Log a fatal message, those where the application cannot continue running and must exit.
  *
  * @param message The message to log
  * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
