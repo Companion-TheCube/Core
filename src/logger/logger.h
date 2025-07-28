@@ -158,7 +158,6 @@ private:
     static std::shared_ptr<spdlog::logger> fileLogger;
     Logger::LogLevel fileLevel;
     bool savingInProgress;
-    void saveLogsInterval();
     std::jthread saveLogsThread;
     std::mutex saveLogsMutex;
     unsigned long long savedLogsCount = 0;
@@ -189,7 +188,6 @@ public:
     std::vector<std::string> getLogsAndErrorsAsStrings(bool fullMessages = true);
     CubeLog(int advancedColorsEnabled = 2, Logger::LogVerbosity verbosity = Logger::LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE_AND_FUNCTION, Logger::LogLevel printLevel = Logger::LogLevel::LOGGER_INFO, Logger::LogLevel fileLevel = Logger::LogLevel::LOGGER_INFO);
     ~CubeLog();
-    void writeOutLogs();
     void setVerbosity(Logger::LogVerbosity verbosity);
     void setLogLevel(Logger::LogLevel printLevel, Logger::LogLevel fileLevel);
     static void setConsoleLoggingEnabled(bool enabled);

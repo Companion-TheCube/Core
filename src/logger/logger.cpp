@@ -31,8 +31,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-// TODO: implement a way to check if a message is identical to the previous one and if so, print "repeated x times" on the previous message instead of th message
-
 #include "logger.h"
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/rotating_file_sink.h>
@@ -461,9 +459,7 @@ CubeLog::CubeLog(int advancedColorsEnabled, Logger::LogVerbosity verbosity, Logg
         // flush on the configured file logging level to ensure debug_silly logs are flushed promptly
         CubeLog::fileLogger->flush_on(fl);
     }
-    // this->saveLogsThread = std::jthread([this] {
-    //     this->saveLogsInterval();
-    // });
+
     CubeLog::log("Logger initialized", true);
     // create a signal to the thread that will kill the loop when we exit
 
@@ -486,33 +482,6 @@ CubeLog::CubeLog(int advancedColorsEnabled, Logger::LogVerbosity verbosity, Logg
     });
 }
 
-/**
- * @brief Save logs to file every LOG_WRITE_OUT_INTERVAL seconds
- *
- */
-void CubeLog::saveLogsInterval()
-{
-    // TODO: modify this to use std::stop_token
-    while (true) {
-        for (size_t i = 0; i < LOG_WRITE_OUT_INTERVAL; i++) {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            // if (this->logEntries.size() > LOG_WRITE_OUT_COUNT + this->savedLogsCount) {
-            //     // this->writeOutLogs();
-            // }
-            std::lock_guard<std::mutex> lock(this->saveLogsThreadRunMutex);
-            if (!saveLogsThreadRun)
-                break;
-        }
-        {
-            std::lock_guard<std::mutex> lock(this->saveLogsThreadRunMutex);
-            if (!saveLogsThreadRun)
-                break;
-        }
-        // this->writeOutLogs();
-        this->purgeOldLogs();
-        this->savedLogsCount = 0;
-    }
-}
 
 /**
  * @brief Purge old logs from memory. The number of logs in memory will be limited to CUBE_LOG_MEMORY_LIMIT.
@@ -534,7 +503,6 @@ void CubeLog::purgeOldLogs()
 CubeLog::~CubeLog()
 {
     CubeLog::info("Logger shutting down");
-    // this->writeOutLogs();
     CubeLog::shutdown = true;
     resetThread->request_stop();
     if(resetThread->joinable())
@@ -607,83 +575,6 @@ std::vector<std::string> CubeLog::getLogsAndErrorsAsStrings(bool fullMessages)
     std::chrono::duration<double> duration = end - start;
     std::cout << "getLogsAndErrorsAsStrings took " << duration.count() << " seconds" << std::endl;
     return logsAndErrorsAsStrings;
-}
-
-/**
- * @brief Write out logs to file
- *
- */
-void CubeLog::writeOutLogs()
-{
-    // TODO: theres a bug here where the logs are being written to the file and existing logs are being overwritten. FIXME
-    if (this->fileLevel == Logger::LogLevel::LOGGER_OFF)
-        return;
-    std::cout << "Size of CubeLog: " << CubeLog::getSizeOfCubeLog() << std::endl;
-    std::cout << "Memory footprint: " << getMemoryFootprint() << std::endl;
-    std::lock_guard<std::mutex> lock(this->saveLogsMutex);
-    if (this->savingInProgress)
-        return;
-    this->savingInProgress = true;
-    std::cout << "Writing logs to file..." << std::endl;
-    std::vector<std::string> logsAndErrors = this->getLogsAndErrorsAsStrings();
-    // write to file
-    this->savedLogsCount = logsAndErrors.size();
-    std::filesystem::path p("logs.txt");
-    if (!std::filesystem::exists(p)) {
-        std::ofstream file("logs.txt");
-        file.close();
-    }
-    std::ifstream file("logs.txt");
-    std::string line;
-    std::vector<std::string> existingLogs;
-    size_t counter = 0;
-    if (file.is_open()) {
-        while (std::getline(file, line)) {
-            existingLogs.push_back(line);
-            counter++;
-            if (counter % COUNTER_MOD == 0)
-                std::cout << ".";
-        }
-        file.close();
-    }
-    std::ofstream outFile("logs.txt"); // overwrites the file
-    // get count of existing logs
-    long long existingLogsCount = existingLogs.size();
-    // add to count of new logs
-    long long newLogsCount = logsAndErrors.size();
-    // if the total number of logs is greater than CUBE_LOG_ENTRY_MAX, remove the oldest logs
-    if (existingLogsCount + newLogsCount > CUBE_LOG_ENTRY_MAX) {
-        long long numToRemove = existingLogsCount + newLogsCount - CUBE_LOG_ENTRY_MAX;
-        if (numToRemove > existingLogsCount) {
-            existingLogs.clear();
-            numToRemove = 0;
-        } else {
-            existingLogs.erase(existingLogs.begin(), existingLogs.begin() + numToRemove);
-        }
-    }
-    // write the existing logs to the file
-    counter = 0;
-    for (; counter < existingLogs.size(); counter++) {
-        outFile << existingLogs[counter] << std::endl;
-        if (counter % COUNTER_MOD == 0)
-            std::cout << ".";
-    }
-    // find the first log entry in logsAndErrors that is not in existingLogs
-    counter = 0;
-    while (counter < logsAndErrors.size() && std::find(existingLogs.begin(), existingLogs.end(), logsAndErrors.at(counter)) != existingLogs.end()) {
-        counter++;
-        if (counter % COUNTER_MOD == 0)
-            std::cout << ".";
-    }
-    // write the new logs to the file
-    for (; counter < logsAndErrors.size(); counter++) {
-        outFile << logsAndErrors[counter] << std::endl;
-        if (counter % COUNTER_MOD == 0)
-            std::cout << ".";
-    }
-    outFile.close();
-    std::cout << "\nLogs written to file" << std::endl;
-    this->savingInProgress = false;
 }
 
 /**
@@ -893,7 +784,7 @@ const std::string sanitizeString(std::string str)
 HttpEndPointData_t CubeLog::getHttpEndpointData()
 {
     HttpEndPointData_t data;
-    data.push_back({ PUBLIC_ENDPOINT | POST_ENDPOINT,
+    data.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,
         [](const httplib::Request& req, httplib::Response& res) {
             // log info
             CubeLog::info("Logging message from endpoint");
