@@ -314,11 +314,10 @@
 - [src/logger/logger.cpp:496] : this may not be needed since the log is just going to grow again
 - [src/logger/logger.cpp:783] : add endpoint(s) to get logs. perhaps have the ability to get logs by level, by date, etc. and/or logs from memory or from file
 - [src/logger/logger.cpp:828] : source string should be prepended with the name of the source app or it's IP or something. That way, we know
-- [src/main.cpp:266] : All the base apps should be inserted into the database and/or verified in the database here.
-- [src/main.cpp:267] : Add the openwakeword python script to the DB here. This will be a native app and will use the python executable in the openwakeword/bin directory.
-- [src/main.cpp:304] : add the insert for the openwakeword python script here. This will be a native app and will use the python executable in the openwakeword/venv/bin(Linux) or openwakeword/Scripts(Windows) directory.
-- [src/main.cpp:346] : any other place where main() might return, change the return value to something meaningful. this way, when
-- [src/main.cpp:351] : this probably needs a mutex for breakMain
+- [src/main.cpp:277] : All the base apps should be inserted into the database and/or verified in the database here.
+- [src/main.cpp:332] : add the insert for the openwakeword python script here. This will be a native app and will use the python executable in the openwakeword/venv/bin(Linux) or openwakeword/Scripts(Windows) directory.
+- [src/main.cpp:374] : any other place where main() might return, change the return value to something meaningful. this way, when
+- [src/main.cpp:379] : this probably needs a mutex for breakMain
 - [src/main.cpp:76] : rather than set this environment variable in this application, set it in the manager application. The manager app
 - [src/telemetry/telemetry.cpp:34] : Implement telemetry.cpp
 - [src/telemetry/telemetry.cpp:38] : Implement telemetry.cpp
