@@ -47,7 +47,7 @@ make
 * [SQLiteCpp](https://github.com/SRombauts/SQLiteCpp) - C++ wrapper around SQLite.
 * [Cpp-Base64](https://github.com/ReneNyffenegger/cpp-base64) - Base64 encoding and decoding with c++. **Currently using a version based on code from [here](https://renenyffenegger.ch/notes/development/Base64/Encoding-and-decoding-base-64-with-cpp)**
 * [GetText](https://www.gnu.org/software/gettext/) - GNU `gettext` for internationalization.
-* [spdlog] ?
+* [spdlog](https://github.com/gabime/spdlog) - Fast C++ logging library (used for disk logging).
 * [fmt] ?
 * [doctest] ?
 * [Catch2] ?

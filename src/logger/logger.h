@@ -1,3 +1,36 @@
+/*
+██╗      ██████╗  ██████╗  ██████╗ ███████╗██████╗    ██╗  ██╗
+██║     ██╔═══██╗██╔════╝ ██╔════╝ ██╔════╝██╔══██╗   ██║  ██║
+██║     ██║   ██║██║  ███╗██║  ███╗█████╗  ██████╔╝   ███████║
+██║     ██║   ██║██║   ██║██║   ██║██╔══╝  ██╔══██╗   ██╔══██║
+███████╗╚██████╔╝╚██████╔╝╚██████╔╝███████╗██║  ██║██╗██║  ██║
+╚══════╝ ╚═════╝  ╚═════╝  ╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝
+*/
+
+/*
+MIT License
+
+Copyright (c) 2025 A-McD Technology LLC
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
 #ifndef LOGGER_H
 #define LOGGER_H
 #define WIN32_LEAN_AND_MEAN
@@ -15,6 +48,8 @@
 #include <sstream>
 #include <utils.h>
 #include <vector>
+#include <memory>
+#include <spdlog/logger.h>
 
 #define LOGGER_TRACE_ENABLED
 #ifdef LOGGER_TRACE_ENABLED
@@ -94,6 +129,7 @@ private:
     std::string message;
     std::chrono::time_point<std::chrono::system_clock> timestamp;
     std::string messageFull;
+    int repeatCount = 0;
 
 public:
     unsigned int logEntryNumber;
@@ -106,6 +142,8 @@ public:
     std::string getEntry();
     std::string getMessageFull();
     unsigned long long getTimestampAsLong();
+    void repeat();
+    int getRepeatCount(){return repeatCount;}
 };
 
 class CubeLog : public AutoRegisterAPI<CubeLog> {
@@ -116,9 +154,10 @@ private:
     static Logger::LogLevel staticPrintLevel;
     static bool consoleLoggingEnabled;
     static bool shutdown;
+    // spdlog file logger
+    static std::shared_ptr<spdlog::logger> fileLogger;
     Logger::LogLevel fileLevel;
     bool savingInProgress;
-    void saveLogsInterval();
     std::jthread saveLogsThread;
     std::mutex saveLogsMutex;
     unsigned long long savedLogsCount = 0;
@@ -149,7 +188,6 @@ public:
     std::vector<std::string> getLogsAndErrorsAsStrings(bool fullMessages = true);
     CubeLog(int advancedColorsEnabled = 2, Logger::LogVerbosity verbosity = Logger::LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE_AND_FUNCTION, Logger::LogLevel printLevel = Logger::LogLevel::LOGGER_INFO, Logger::LogLevel fileLevel = Logger::LogLevel::LOGGER_INFO);
     ~CubeLog();
-    void writeOutLogs();
     void setVerbosity(Logger::LogVerbosity verbosity);
     void setLogLevel(Logger::LogLevel printLevel, Logger::LogLevel fileLevel);
     static void setConsoleLoggingEnabled(bool enabled);

@@ -1,4 +1,37 @@
 /*
+███████╗██████╗ ███████╗███████╗ ██████╗██╗  ██╗██╗███╗   ██╗    ██████╗██████╗ ██████╗ 
+██╔════╝██╔══██╗██╔════╝██╔════╝██╔════╝██║  ██║██║████╗  ██║   ██╔════╝██╔══██╗██╔══██╗
+███████╗██████╔╝█████╗  █████╗  ██║     ███████║██║██╔██╗ ██║   ██║     ██████╔╝██████╔╝
+╚════██║██╔═══╝ ██╔══╝  ██╔══╝  ██║     ██╔══██║██║██║╚██╗██║   ██║     ██╔═══╝ ██╔═══╝ 
+███████║██║     ███████╗███████╗╚██████╗██║  ██║██║██║ ╚████║██╗╚██████╗██║     ██║     
+╚══════╝╚═╝     ╚══════╝╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝╚═╝ ╚═════╝╚═╝     ╚═╝
+*/
+
+/*
+MIT License
+
+Copyright (c) 2025 A-McD Technology LLC
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+/*
 
 In this file we will interact with the wake word detector to get wake word events.
 We will also interact with the server API to:
@@ -33,6 +66,14 @@ When the wake word is detected, we'll need to tell the audioOutput class to play
 std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> SpeechIn::audioQueue = std::make_shared<ThreadSafeQueue<std::vector<int16_t>>>();
 std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> SpeechIn::preTriggerAudioData = std::make_shared<ThreadSafeQueue<std::vector<int16_t>>>();
 int audioInputCallback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData);
+std::string checkForControl(int conn_fd);
+std::vector<std::function<void()>> SpeechIn::wakeWordDetectionCallbacks;
+
+int16_t runningAvgSample = 0;
+int64_t runningAvgCount = 0;
+
+// Last time we detected the wake word
+std::chrono::time_point<std::chrono::high_resolution_clock> lastDetectedTime = std::chrono::high_resolution_clock::now();
 
 SpeechIn::~SpeechIn()
 {
@@ -42,6 +83,7 @@ SpeechIn::~SpeechIn()
 void SpeechIn::start()
 {
     // Start the audio input thread that handles rtaudio and streams audio to openwakeword
+    stopFlag.store(false);
     this->audioInputThread = std::jthread([this](std::stop_token st) {
         this->audioInputThreadFn(st);
     });
@@ -49,66 +91,9 @@ void SpeechIn::start()
 
 void SpeechIn::stop()
 {
+    stopFlag.store(true);
     this->audioInputThread.request_stop();
-    this->audioInputThread.join();
-}
-
-size_t SpeechIn::getAudioDataSize()
-{
-    return 0;
-}
-
-size_t SpeechIn::getPreTriggerAudioDataSize()
-{
-    return 0;
-}
-
-void SpeechIn::clearAudioData()
-{
-}
-
-void SpeechIn::clearPreTriggerAudioData()
-{
-}
-
-size_t SpeechIn::getFifoSize()
-{
-    return 0;
-}
-
-size_t SpeechIn::getPreTriggerFifoSize()
-{
-    return 0;
-}
-
-unsigned int SpeechIn::getSampleRate()
-{
-    return sampleRate;
-}
-
-unsigned int SpeechIn::getNumChannels()
-{
-    return numChannels;
-}
-
-unsigned int SpeechIn::getBitsPerSample()
-{
-    return bitsPerSample;
-}
-
-unsigned int SpeechIn::getBytesPerSample()
-{
-    return bytesPerSample;
-}
-
-unsigned int SpeechIn::getNumSamples()
-{
-    return numSamples;
-}
-
-unsigned int SpeechIn::getNumBytes()
-{
-    return numSamples * bytesPerSample;
+    // this->audioInputThread.join();
 }
 
 void SpeechIn::audioInputThreadFn(std::stop_token st)
@@ -136,7 +121,7 @@ void SpeechIn::audioInputThreadFn(std::stop_token st)
 
     RtAudio::StreamParameters params;
     params.deviceId = soundInInd;
-    params.nChannels = 1;
+    params.nChannels = NUM_CHANNELS;
     params.firstChannel = 0;
 
     RtAudio::StreamOptions options;
@@ -144,11 +129,10 @@ void SpeechIn::audioInputThreadFn(std::stop_token st)
     options.streamName = "SpeechIn";
     options.numberOfBuffers = 1;
 
-    unsigned int bufferFrames = 512;
-    unsigned int sampleRate = 16000;
+    unsigned int bufferFrames = ROUTER_FIFO_SIZE;
 
     try {
-        audio->openStream(nullptr, &params, RTAUDIO_SINT16, sampleRate, &bufferFrames, &audioInputCallback, nullptr, &options);
+        audio->openStream(nullptr, &params, RTAUDIO_SINT16, SAMPLE_RATE, &bufferFrames, &audioInputCallback, nullptr, &options);
         audio->startStream();
     } catch (RtAudioErrorType& e) {
         CubeLog::error("Error starting audio stream");
@@ -156,7 +140,7 @@ void SpeechIn::audioInputThreadFn(std::stop_token st)
     }
 
     while (!st.stop_requested()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // Wait one second before trying to connect to the socket.
         this->writeAudioDataToSocket();
     }
 
@@ -166,26 +150,14 @@ void SpeechIn::audioInputThreadFn(std::stop_token st)
 
 void SpeechIn::writeAudioDataToSocket()
 {
-    using base64 = cppcodec::base64_rfc4648;
-    auto data = this->audioQueue->pop();
-
-    // TODO: if there is data in the queue, we need to get the correct number of int16_t values from the queue
-    // and send them to openWW via a unix socket. OpenWW expects a certain number of samples at a time, so if there are not
-    // enough samples in the queue, we need to wait until there are enough samples.
-
+    // using base64 = cppcodec::base64_rfc4648;
+    auto dataOpt = this->audioQueue->pop();
+    // openwakeword creates a unix socket at /tmp/openww. We send the audio data to this socket.
     int sockfd;
-#ifdef __linux__
-    sockaddr_un serverAddr;
+    struct sockaddr_un serverAddr;
+    std::memset(&serverAddr, 0, sizeof(serverAddr));
     serverAddr.sun_family = AF_UNIX;
-    strcpy(serverAddr.sun_path, "/home/andrew/Documents/projects/openwakeword/openww.sock");
-#else
-    sockaddr serverAddr;
-    serverAddr.sa_family = AF_UNIX;
-    strcpy(serverAddr.sa_data, "/home/andrew/Documents/projects/openwakeword/openww.sock");
-#endif
-    
-    
-    
+    std::strncpy(serverAddr.sun_path, "/tmp/openww", sizeof(serverAddr.sun_path) - 1);
 
     sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (sockfd < 0) {
@@ -193,26 +165,58 @@ void SpeechIn::writeAudioDataToSocket()
         return;
     }
 
-    if (connect(sockfd, (sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
+    if (connect(sockfd, reinterpret_cast<sockaddr*>(&serverAddr), sizeof(serverAddr)) < 0) {
         CubeLog::error("Error connecting to socket");
+        close(sockfd);
         return;
     }
 
-    while (data) {
-        // base64 encode the audio data
-        std::string encodedData = base64::encode((const unsigned char*)data->data(), data->size() * sizeof(int16_t));
+    while (dataOpt && !stopFlag.load()) {
+        auto& data = *dataOpt;
+        // Add the audio data to the 5 second buffer
+        // for (size_t i = 0; i < data->size(); i++) {
+        //     preTriggerAudioData->push(data);
+        // }
+        // truncate the audio data to 5 seconds
+        // while (preTriggerAudioData->size() > PRE_TRIGGER_FIFO_SIZE) {
+        //     preTriggerAudioData->pop();
+        // }
 
         // send the data to the server
-        if (write(sockfd, encodedData.c_str(), encodedData.size()) < 0) {
+        if (write(sockfd, data.data(), data.size() * sizeof(int16_t)) < 0) {
             CubeLog::error("Error sending data to socket");
+            close(sockfd);
             return;
         }
 
-        data = this->audioQueue->pop();
-    }
+        dataOpt = this->audioQueue->pop();
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
+        auto result = checkForControl(sockfd);
+        if (result.find("DETECTED____") != std::string::npos) {
+            // get current time
+            auto now = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastDetectedTime).count();
+            lastDetectedTime = now;
+            CubeLog::info("Wake word detected. Duration since last detection: " + std::to_string(duration) + "ms");
+            if (duration > WAKEWORD_RETRIGGER_TIME) {
+                // call all the callbacks
+                // TODO: this needs to happen in another thread so that we don't block the audio input thread
+                for (auto& callback : this->wakeWordDetectionCallbacks) {
+                    callback();
+                }
+            }
+        }
+    }
+    if (stopFlag.load()) {
+        close(sockfd);
+        return;
+    }
+    CubeLog::fatal("No data in queue");
     close(sockfd);
 }
+
+
 
 int audioInputCallback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData)
 {
@@ -221,3 +225,27 @@ int audioInputCallback(void* outputBuffer, void* inputBuffer, unsigned int nBuff
     SpeechIn::audioQueue->push(audioData);
     return 0;
 }
+
+std::string checkForControl(int conn_fd)
+{
+    // simple line-buffered read:
+    constexpr size_t BUF_SIZE = 128;
+    char buf[BUF_SIZE];
+    ssize_t got = recv(conn_fd, buf, BUF_SIZE - 1, 0);
+    if (got > 0) {
+        buf[got] = '\0';
+        std::string line(buf);
+        // strip newline if present
+        if (!line.empty() && line.back() == '\n')
+            line.pop_back();
+        // CubeLog::info("Received: " + line);
+        return line;
+    } else if (got == 0) {
+        std::cerr << "Python closed the socket\n";
+    } else {
+        std::cerr << "recv() error: " << strerror(errno) << "\n";
+    }
+    return "";
+}
+
+// TODO: implement silence detection to determine when the user is done speaking.

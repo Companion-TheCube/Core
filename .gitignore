@@ -6,3 +6,4 @@ vcpkg*
 libraries
 .codechecker
 .env
+minimaps

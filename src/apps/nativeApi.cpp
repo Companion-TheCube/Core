@@ -1,3 +1,36 @@
+/*
+███╗   ██╗ █████╗ ████████╗██╗██╗   ██╗███████╗ █████╗ ██████╗ ██╗    ██████╗██████╗ ██████╗ 
+████╗  ██║██╔══██╗╚══██╔══╝██║██║   ██║██╔════╝██╔══██╗██╔══██╗██║   ██╔════╝██╔══██╗██╔══██╗
+██╔██╗ ██║███████║   ██║   ██║██║   ██║█████╗  ███████║██████╔╝██║   ██║     ██████╔╝██████╔╝
+██║╚██╗██║██╔══██║   ██║   ██║╚██╗ ██╔╝██╔══╝  ██╔══██║██╔═══╝ ██║   ██║     ██╔═══╝ ██╔═══╝ 
+██║ ╚████║██║  ██║   ██║   ██║ ╚████╔╝ ███████╗██║  ██║██║     ██║██╗╚██████╗██║     ██║     
+╚═╝  ╚═══╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝ ╚═════╝╚═╝     ╚═╝
+*/
+
+/*
+MIT License
+
+Copyright (c) 2025 A-McD Technology LLC
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
 #include "nativeApi.h"
 
 #ifdef __linux__
@@ -105,6 +138,17 @@ bool NativeAPI::isProcessRunning(long pid)
 }
 #endif
 
+/**
+ * @brief Start a native app
+ * 
+ * @param execPath 
+ * @param execArgs 
+ * @param appID 
+ * @param appName 
+ * @param appSource 
+ * @param updatePath 
+ * @return std::unique_ptr<RunningApp> 
+ */
 std::unique_ptr<RunningApp> NativeAPI::startApp(const std::string& execPath, const std::string& execArgs, const std::string& appID, const std::string& appName, const std::string& appSource, const std::string& updatePath)
 {
     CubeLog::info("Starting app: " + execPath + " " + execArgs);
@@ -121,7 +165,8 @@ std::unique_ptr<RunningApp> NativeAPI::startApp(const std::string& execPath, con
     std::string command = execPath + " " + execArgs;
 
     auto temp = std::make_unique<RunningApp>(0, appID, appName, execPath, execArgs, appSource, updatePath, "native", "", "", "", "", 0);
-#ifdef _WIN32
+
+    #ifdef _WIN32
     SECURITY_ATTRIBUTES saAttr;
     saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
     saAttr.bInheritHandle = TRUE;

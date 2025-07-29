@@ -1,6 +1,39 @@
-// TODO: implement a way to check if a message is identical to the previous one and if so, print "repeated x times" on the previous message instead of th message
+/*
+██╗      ██████╗  ██████╗  ██████╗ ███████╗██████╗     ██████╗██████╗ ██████╗ 
+██║     ██╔═══██╗██╔════╝ ██╔════╝ ██╔════╝██╔══██╗   ██╔════╝██╔══██╗██╔══██╗
+██║     ██║   ██║██║  ███╗██║  ███╗█████╗  ██████╔╝   ██║     ██████╔╝██████╔╝
+██║     ██║   ██║██║   ██║██║   ██║██╔══╝  ██╔══██╗   ██║     ██╔═══╝ ██╔═══╝ 
+███████╗╚██████╔╝╚██████╔╝╚██████╔╝███████╗██║  ██║██╗╚██████╗██║     ██║     
+╚══════╝ ╚═════╝  ╚═════╝  ╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝ ╚═════╝╚═╝     ╚═╝
+*/
+
+/*
+MIT License
+
+Copyright (c) 2025 A-McD Technology LLC
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
 
 #include "logger.h"
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/rotating_file_sink.h>
 
 #define COUNTER_MOD 1000 // determines how many dots we print while saving the logs
 #define CUBE_LOG_ENTRY_MAX 100000 // maximum number of log entries in log file
@@ -109,6 +142,10 @@ std::string CUBE_LOG_ENTRY::getMessageFull()
     return this->messageFull;
 }
 
+void CUBE_LOG_ENTRY::repeat(){
+    repeatCount++;
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 Logger::LogVerbosity CubeLog::staticVerbosity = Logger::LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE_AND_FUNCTION_AND_NUMBEROFLOGS;
@@ -123,6 +160,8 @@ std::vector<unsigned int> CubeLog::readLogIDs;
 std::string CubeLog::screenMessage = "";
 int CubeLog::advancedColorsEnabled = 0;
 bool CubeLog::shutdown = false;
+// spdlog file logger instance
+std::shared_ptr<spdlog::logger> CubeLog::fileLogger = nullptr;
 
 /**
  * @brief Log a message
@@ -136,6 +175,31 @@ void CubeLog::log(const std::string& message, bool print, Logger::LogLevel level
 {
     if(CubeLog::shutdown) return;
     CUBE_LOG_ENTRY entry = CUBE_LOG_ENTRY(message, &location, CubeLog::staticVerbosity, level);
+    if(CubeLog::logEntries.size() > 0 && CubeLog::logEntries.at(CubeLog::logEntries.size() - 1).getMessage() == entry.getMessage()){
+        Color::Modifier blink(Color::TEXT_BLINK);
+        Color::Modifier no_blink(Color::TEXT_NO_BLINK);
+        CubeLog::logEntries.at(CubeLog::logEntries.size() - 1).repeat();
+        if (CubeLog::logEntries.at(CubeLog::logEntries.size() - 1).getRepeatCount() == 1)
+            std::cout << Color::Modifier(Color::TEXT_DEFAULT)
+                      << "Previous log entry repeated "
+                      << CubeLog::logEntries.at(CubeLog::logEntries.size() - 1).getRepeatCount()
+                      << " times."
+                      << Color::Modifier(Color::TEXT_DEFAULT)
+                      << std::endl << std::flush;
+        else
+        {
+            // Move cursor up and to line start, then reset colors
+            std::cout << "\033[1A\033[G";
+            std::cout << "\r";
+            std::cout << Color::Modifier(Color::TEXT_DEFAULT)
+                      << "Previous log entry repeated "
+                      << CubeLog::logEntries.at(CubeLog::logEntries.size() - 1).getRepeatCount()
+                      << " times.    "
+                      << Color::Modifier(Color::TEXT_DEFAULT)
+                      << std::endl << std::flush;
+        }
+        return;
+    }
     CubeLog::logEntries.push_back(entry);
     Color::Modifier colorDebug(Color::FG_GREEN);
     Color::Modifier colorInfo(Color::FG_WHITE);
@@ -150,41 +214,77 @@ void CubeLog::log(const std::string& message, bool print, Logger::LogLevel level
         switch (level) {
 #ifdef LOGGER_TRACE_ENABLED
         case Logger::LogLevel::LOGGER_TRACE:
-            std::cout << colorDebugSilly << entry.getMessageFull() << std::endl;
+            std::cout << colorDebugSilly << entry.getMessageFull() << Color::Modifier(Color::TEXT_DEFAULT) << std::endl;
             break;
 #endif
         case Logger::LogLevel::LOGGER_DEBUG_SILLY:
-            std::cout << colorDebugSilly << entry.getMessageFull() << std::endl;
+            std::cout << colorDebugSilly << entry.getMessageFull() << Color::Modifier(Color::TEXT_DEFAULT) << std::endl;
             break;
         case Logger::LogLevel::LOGGER_DEBUG:
-            std::cout << colorDebug << entry.getMessageFull() << std::endl;
+            std::cout << colorDebug << entry.getMessageFull() << Color::Modifier(Color::TEXT_DEFAULT) << std::endl;
             break;
         case Logger::LogLevel::LOGGER_INFO:
-            std::cout << colorInfo << entry.getMessageFull() << std::endl;
+            std::cout << colorInfo << entry.getMessageFull() << Color::Modifier(Color::TEXT_DEFAULT) << std::endl;
             break;
         case Logger::LogLevel::LOGGER_WARNING:
-            std::cout << colorWarning << entry.getMessageFull() << std::endl;
+            std::cout << colorWarning << entry.getMessageFull() << Color::Modifier(Color::TEXT_DEFAULT) << std::endl;
             break;
         case Logger::LogLevel::LOGGER_ERROR:
-            std::cout << colorError << entry.getMessageFull() << std::endl;
+            std::cout << colorError << entry.getMessageFull() << Color::Modifier(Color::TEXT_DEFAULT) << std::endl;
             break;
         case Logger::LogLevel::LOGGER_CRITICAL:
-            std::cout << colorCritical << entry.getMessageFull() << std::endl;
+            std::cout << colorCritical << entry.getMessageFull() << Color::Modifier(Color::TEXT_DEFAULT) << std::endl;
             break;
         case Logger::LogLevel::LOGGER_FATAL:
-            std::cout << colorFatal << entry.getMessageFull() << std::endl;
+            std::cout << colorFatal << entry.getMessageFull() << Color::Modifier(Color::TEXT_DEFAULT) << std::endl;
             break;
         case Logger::LogLevel::LOGGER_MORE_INFO:
-            std::cout << colorMoreInfo << entry.getMessageFull() << std::endl;
+            std::cout << colorMoreInfo << entry.getMessageFull() << Color::Modifier(Color::TEXT_DEFAULT) << std::endl;
             break;
         case Logger::LogLevel::LOGGER_OFF:
             break;
         default:
-            std::cout << colorDefault << entry.getMessageFull() << std::endl;
+            std::cout << colorDefault << entry.getMessageFull() << Color::Modifier(Color::TEXT_DEFAULT) << std::endl;
             break;
         }
     } else if (level != Logger::LogLevel::LOGGER_OFF && print && level >= CubeLog::staticPrintLevel && CubeLog::consoleLoggingEnabled && message.length() < 1000) {
         std::cout << entry.getMessageFull() << std::endl;
+    }
+    // file logging via spdlog
+    if (CubeLog::fileLogger) {
+        spdlog::level::level_enum spd_level = spdlog::level::info;
+        switch (level) {
+#ifdef LOGGER_TRACE_ENABLED
+        case Logger::LogLevel::LOGGER_TRACE:
+            spd_level = spdlog::level::trace;
+            break;
+#endif
+        case Logger::LogLevel::LOGGER_DEBUG_SILLY:
+        case Logger::LogLevel::LOGGER_DEBUG:
+            spd_level = spdlog::level::debug;
+            break;
+        case Logger::LogLevel::LOGGER_INFO:
+        case Logger::LogLevel::LOGGER_MORE_INFO:
+            spd_level = spdlog::level::info;
+            break;
+        case Logger::LogLevel::LOGGER_WARNING:
+            spd_level = spdlog::level::warn;
+            break;
+        case Logger::LogLevel::LOGGER_ERROR:
+            spd_level = spdlog::level::err;
+            break;
+        case Logger::LogLevel::LOGGER_CRITICAL:
+        case Logger::LogLevel::LOGGER_FATAL:
+            spd_level = spdlog::level::critical;
+            break;
+        case Logger::LogLevel::LOGGER_OFF:
+            spd_level = spdlog::level::off;
+            break;
+        default:
+            spd_level = spdlog::level::info;
+            break;
+        }
+        CubeLog::fileLogger->log(spd_level, entry.getMessageFull());
     }
 }
 
@@ -277,7 +377,7 @@ void CubeLog::warning(const std::string& message, CustomSourceLocation location)
 }
 
 /**
- * @brief Log a critical message
+ * @brief Log a critical message, those where something failed and some functionality is now unavailable, but the application can still run.
  *
  * @param message The message to log
  * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
@@ -289,7 +389,7 @@ void CubeLog::critical(const std::string& message, CustomSourceLocation location
 }
 
 /**
- * @brief Log a "more info" message
+ * @brief Log a "more info" message, those that are not errors, but provide additional information about the application state.
  *
  * @param message The message to log
  * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
@@ -301,7 +401,7 @@ void CubeLog::moreInfo(const std::string& message, CustomSourceLocation location
 }
 
 /**
- * @brief Log a fatal message
+ * @brief Log a fatal message, those where the application cannot continue running and must exit.
  *
  * @param message The message to log
  * @param location *optional* The source location of the log message. If not provided, the location will be automatically determined.
@@ -326,9 +426,40 @@ CubeLog::CubeLog(int advancedColorsEnabled, Logger::LogVerbosity verbosity, Logg
     CubeLog::staticVerbosity = verbosity;
     CubeLog::staticPrintLevel = printLevel;
     this->fileLevel = fileLevel;
-    this->saveLogsThread = std::jthread([this] {
-        this->saveLogsInterval();
-    });
+    // initialize spdlog file logger if needed
+    if (!CubeLog::fileLogger) {
+        auto sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>("logs.txt", 1048576 * 5, 3);
+        CubeLog::fileLogger = std::make_shared<spdlog::logger>("file_logger", sink);
+        // set file logger level based on configured fileLevel
+        spdlog::level::level_enum fl = spdlog::level::info;
+        switch (fileLevel) {
+#ifdef LOGGER_TRACE_ENABLED
+        case Logger::LogLevel::LOGGER_TRACE:
+            fl = spdlog::level::trace;    break;
+#endif
+        case Logger::LogLevel::LOGGER_DEBUG_SILLY:
+        case Logger::LogLevel::LOGGER_DEBUG:
+            fl = spdlog::level::debug;    break;
+        case Logger::LogLevel::LOGGER_INFO:
+        case Logger::LogLevel::LOGGER_MORE_INFO:
+            fl = spdlog::level::info;     break;
+        case Logger::LogLevel::LOGGER_WARNING:
+            fl = spdlog::level::warn;     break;
+        case Logger::LogLevel::LOGGER_ERROR:
+            fl = spdlog::level::err;      break;
+        case Logger::LogLevel::LOGGER_CRITICAL:
+        case Logger::LogLevel::LOGGER_FATAL:
+            fl = spdlog::level::critical; break;
+        case Logger::LogLevel::LOGGER_OFF:
+            fl = spdlog::level::off;      break;
+        default:
+            fl = spdlog::level::info;     break;
+        }
+        CubeLog::fileLogger->set_level(fl);
+        // flush on the configured file logging level to ensure debug_silly logs are flushed promptly
+        CubeLog::fileLogger->flush_on(fl);
+    }
+
     CubeLog::log("Logger initialized", true);
     // create a signal to the thread that will kill the loop when we exit
 
@@ -351,33 +482,6 @@ CubeLog::CubeLog(int advancedColorsEnabled, Logger::LogVerbosity verbosity, Logg
     });
 }
 
-/**
- * @brief Save logs to file every LOG_WRITE_OUT_INTERVAL seconds
- *
- */
-void CubeLog::saveLogsInterval()
-{
-    // TODO: modify this to use std::stop_token
-    while (true) {
-        for (size_t i = 0; i < LOG_WRITE_OUT_INTERVAL; i++) {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            if (this->logEntries.size() > LOG_WRITE_OUT_COUNT + this->savedLogsCount) {
-                this->writeOutLogs();
-            }
-            std::lock_guard<std::mutex> lock(this->saveLogsThreadRunMutex);
-            if (!saveLogsThreadRun)
-                break;
-        }
-        {
-            std::lock_guard<std::mutex> lock(this->saveLogsThreadRunMutex);
-            if (!saveLogsThreadRun)
-                break;
-        }
-        this->writeOutLogs();
-        this->purgeOldLogs();
-        this->savedLogsCount = 0;
-    }
-}
 
 /**
  * @brief Purge old logs from memory. The number of logs in memory will be limited to CUBE_LOG_MEMORY_LIMIT.
@@ -399,7 +503,6 @@ void CubeLog::purgeOldLogs()
 CubeLog::~CubeLog()
 {
     CubeLog::info("Logger shutting down");
-    this->writeOutLogs();
     CubeLog::shutdown = true;
     resetThread->request_stop();
     if(resetThread->joinable())
@@ -475,83 +578,6 @@ std::vector<std::string> CubeLog::getLogsAndErrorsAsStrings(bool fullMessages)
 }
 
 /**
- * @brief Write out logs to file
- *
- */
-void CubeLog::writeOutLogs()
-{
-    // TODO: theres a bug here where the logs are being written to the file and existing logs are being overwritten. FIXME
-    if (this->fileLevel == Logger::LogLevel::LOGGER_OFF)
-        return;
-    std::cout << "Size of CubeLog: " << CubeLog::getSizeOfCubeLog() << std::endl;
-    std::cout << "Memory footprint: " << getMemoryFootprint() << std::endl;
-    std::lock_guard<std::mutex> lock(this->saveLogsMutex);
-    if (this->savingInProgress)
-        return;
-    this->savingInProgress = true;
-    std::cout << "Writing logs to file..." << std::endl;
-    std::vector<std::string> logsAndErrors = this->getLogsAndErrorsAsStrings();
-    // write to file
-    this->savedLogsCount = logsAndErrors.size();
-    std::filesystem::path p("logs.txt");
-    if (!std::filesystem::exists(p)) {
-        std::ofstream file("logs.txt");
-        file.close();
-    }
-    std::ifstream file("logs.txt");
-    std::string line;
-    std::vector<std::string> existingLogs;
-    size_t counter = 0;
-    if (file.is_open()) {
-        while (std::getline(file, line)) {
-            existingLogs.push_back(line);
-            counter++;
-            if (counter % COUNTER_MOD == 0)
-                std::cout << ".";
-        }
-        file.close();
-    }
-    std::ofstream outFile("logs.txt"); // overwrites the file
-    // get count of existing logs
-    long long existingLogsCount = existingLogs.size();
-    // add to count of new logs
-    long long newLogsCount = logsAndErrors.size();
-    // if the total number of logs is greater than CUBE_LOG_ENTRY_MAX, remove the oldest logs
-    if (existingLogsCount + newLogsCount > CUBE_LOG_ENTRY_MAX) {
-        long long numToRemove = existingLogsCount + newLogsCount - CUBE_LOG_ENTRY_MAX;
-        if (numToRemove > existingLogsCount) {
-            existingLogs.clear();
-            numToRemove = 0;
-        } else {
-            existingLogs.erase(existingLogs.begin(), existingLogs.begin() + numToRemove);
-        }
-    }
-    // write the existing logs to the file
-    counter = 0;
-    for (; counter < existingLogs.size(); counter++) {
-        outFile << existingLogs[counter] << std::endl;
-        if (counter % COUNTER_MOD == 0)
-            std::cout << ".";
-    }
-    // find the first log entry in logsAndErrors that is not in existingLogs
-    counter = 0;
-    while (counter < logsAndErrors.size() && std::find(existingLogs.begin(), existingLogs.end(), logsAndErrors.at(counter)) != existingLogs.end()) {
-        counter++;
-        if (counter % COUNTER_MOD == 0)
-            std::cout << ".";
-    }
-    // write the new logs to the file
-    for (; counter < logsAndErrors.size(); counter++) {
-        outFile << logsAndErrors[counter] << std::endl;
-        if (counter % COUNTER_MOD == 0)
-            std::cout << ".";
-    }
-    outFile.close();
-    std::cout << "\nLogs written to file" << std::endl;
-    this->savingInProgress = false;
-}
-
-/**
  * @brief Set the verbosity of the log messages
  *
  * @param verbosity The verbosity of the log messages
@@ -600,6 +626,35 @@ void CubeLog::setLogLevel(Logger::LogLevel printLevel, Logger::LogLevel fileLeve
 {
     CubeLog::staticPrintLevel = printLevel;
     this->fileLevel = fileLevel;
+    // update the spdlog file logger level and flush threshold if it's already initialized
+    if (CubeLog::fileLogger) {
+        spdlog::level::level_enum fl = spdlog::level::info;
+        switch (fileLevel) {
+#ifdef LOGGER_TRACE_ENABLED
+        case Logger::LogLevel::LOGGER_TRACE:
+            fl = spdlog::level::trace; break;
+#endif
+        case Logger::LogLevel::LOGGER_DEBUG_SILLY:
+        case Logger::LogLevel::LOGGER_DEBUG:
+            fl = spdlog::level::debug; break;
+        case Logger::LogLevel::LOGGER_INFO:
+        case Logger::LogLevel::LOGGER_MORE_INFO:
+            fl = spdlog::level::info; break;
+        case Logger::LogLevel::LOGGER_WARNING:
+            fl = spdlog::level::warn; break;
+        case Logger::LogLevel::LOGGER_ERROR:
+            fl = spdlog::level::err; break;
+        case Logger::LogLevel::LOGGER_CRITICAL:
+        case Logger::LogLevel::LOGGER_FATAL:
+            fl = spdlog::level::critical; break;
+        case Logger::LogLevel::LOGGER_OFF:
+            fl = spdlog::level::off; break;
+        default:
+            fl = spdlog::level::info; break;
+        }
+        CubeLog::fileLogger->set_level(fl);
+        CubeLog::fileLogger->flush_on(fl);
+    }
 }
 
 /**
@@ -729,7 +784,7 @@ const std::string sanitizeString(std::string str)
 HttpEndPointData_t CubeLog::getHttpEndpointData()
 {
     HttpEndPointData_t data;
-    data.push_back({ PUBLIC_ENDPOINT | POST_ENDPOINT,
+    data.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,
         [](const httplib::Request& req, httplib::Response& res) {
             // log info
             CubeLog::info("Logging message from endpoint");

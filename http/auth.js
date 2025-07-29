@@ -17,7 +17,8 @@ fetch("/getEndpoints")
                 // if an endpoint has params, we should have a way for the user to input them
                 const endpointForm = document.createElement("form");
                 endpointForm.action = `/${category}-${endpoint.name}`;
-                endpointForm.method = "POST";
+                endpointForm.method = endpoint.endpoint_type;
+                console.log(endpoint);
                 for (const param of endpoint.params) {
                     const input = document.createElement("input");
                     input.type = "text";
@@ -30,19 +31,33 @@ fetch("/getEndpoints")
                 submit.value = "Submit";
                 submit.addEventListener("click", (event) => {
                     event.preventDefault();
-                    fetch(endpointForm.action, {
-                        method: "POST",
-                        // body is json of the form {param1: value1, param2: value2}
-                        body: JSON.stringify(Object.fromEntries(new FormData(endpointForm))),
-                        // must have header to tell the server that the body is json
-                        headers: {
-                            "Content-Type": "application/json",
-                        }
-                    })
-                        .then((response) => response.json())
-                        .then((data) => {
-                            console.log(data);
-                        });
+                    if (endpoint.endpoint_type == "GET") {
+                        fetch(
+                            endpointForm.action +
+                                "?" +
+                                new URLSearchParams(new FormData(endpointForm))
+                        )
+                            .then((response) => response)
+                            .then((data) => {
+                                console.log(data);
+                            });
+                    } else {
+                        fetch(endpointForm.action, {
+                            method: endpoint.endpoint_type,
+                            // body is json of the form {param1: value1, param2: value2}
+                            body: JSON.stringify(
+                                Object.fromEntries(new FormData(endpointForm))
+                            ),
+                            // must have header to tell the server that the body is json
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                        })
+                            .then((response) => response.json())
+                            .then((data) => {
+                                console.log(data);
+                            });
+                    }
                 });
                 endpointForm.appendChild(submit);
                 endpoints.appendChild(endpointForm);

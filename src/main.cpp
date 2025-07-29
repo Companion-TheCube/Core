@@ -1,4 +1,37 @@
 /*
+███╗   ███╗ █████╗ ██╗███╗   ██╗    ██████╗██████╗ ██████╗ 
+████╗ ████║██╔══██╗██║████╗  ██║   ██╔════╝██╔══██╗██╔══██╗
+██╔████╔██║███████║██║██╔██╗ ██║   ██║     ██████╔╝██████╔╝
+██║╚██╔╝██║██╔══██║██║██║╚██╗██║   ██║     ██╔═══╝ ██╔═══╝ 
+██║ ╚═╝ ██║██║  ██║██║██║ ╚████║██╗╚██████╗██║     ██║     
+╚═╝     ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝╚═╝ ╚═════╝╚═╝     ╚═╝
+*/
+
+/*
+MIT License
+
+Copyright (c) 2025 A-McD Technology LLC
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+/*
  ██████╗ ██████╗ ███╗   ███╗██████╗  █████╗ ███╗   ██╗██╗ ██████╗ ███╗   ██╗       ████████╗██╗  ██╗███████╗ ██████╗██╗   ██╗██████╗ ███████╗
 ██╔════╝██╔═══██╗████╗ ████║██╔══██╗██╔══██╗████╗  ██║██║██╔═══██╗████╗  ██║       ╚══██╔══╝██║  ██║██╔════╝██╔════╝██║   ██║██╔══██╗██╔════╝
 ██║     ██║   ██║██╔████╔██║██████╔╝███████║██╔██╗ ██║██║██║   ██║██╔██╗ ██║          ██║   ███████║█████╗  ██║     ██║   ██║██████╔╝█████╗
@@ -23,8 +56,8 @@ bool breakMain = false;
 
 int main(int argc, char* argv[])
 {
-    std::signal(SIGINT, signalHandler);
-    std::signal(SIGTERM, signalHandler);
+    // std::signal(SIGINT, signalHandler);
+    // std::signal(SIGTERM, signalHandler);
     std::signal(SIGABRT, signalHandler);
     std::signal(SIGSEGV, signalHandler);
     std::signal(SIGILL, signalHandler);
@@ -183,8 +216,7 @@ int main(int argc, char* argv[])
     }
     CubeLog::info("Logger initialized.");
     CubeLog::info("Settings loaded.");
-    CubeLog::info("Loading GUI...");
-    auto gui = std::make_shared<GUI>();
+    
     /////////////////////////////////////////////////////////////////
     // CPU and memory monitor thread
     /////////////////////////////////////////////////////////////////
@@ -218,6 +250,8 @@ int main(int argc, char* argv[])
     // Main loop
     /////////////////////////////////////////////////////////////////
     {
+        CubeLog::info("Loading GUI...");
+    auto gui = std::make_shared<GUI>();
         auto audioManager = std::make_shared<AudioManager>();
         auto db_manager = std::make_shared<CubeDatabaseManager>();
         auto blobs = std::make_shared<BlobsManager>(db_manager, "data/blobs.db");
@@ -230,6 +264,7 @@ int main(int argc, char* argv[])
         bool allInsertionsSuccess = true;
         long dbInsertReturnVal = -1;
         // TODO: All the base apps should be inserted into the database and/or verified in the database here.
+        // TODO: Add the openwakeword python script to the DB here. This will be a native app and will use the python executable in the openwakeword/bin directory.
         dbInsertReturnVal = CubeDB::getDBManager()->getDatabase("apps")->insertData(
             DB_NS::TableNames::APPS,
             { { "app_id", "2" },
@@ -287,11 +322,14 @@ int main(int argc, char* argv[])
         }
         CubeLog::info("Entering main loop...");
         std::chrono::milliseconds aSecond(1000);
-        while (true) {
-            // genericSleep(100);
+        while (!breakMain) {
             std::string input;
-            std::cin >> input;
+            if (!(std::cin >> input)) {
+                breakMain = true;
+                break;
+            }
             if (input == "exit" || input == "quit" || input == "q" || input == "e" || input == "x") {
+                breakMain = true;
                 break;
             } else if (input == "sound") {
                 audioManager->toggleSound();
@@ -299,8 +337,10 @@ int main(int argc, char* argv[])
         }
         CubeLog::info("Exited main loop...");
         CubeLog::info("CubeLog reference count: " + std::to_string(logger.use_count()));
+        cpuAndMemoryThread.request_stop();
+        CubeLog::info("Stopping GUI...");
+        gui->stop();
     }
-    gui.reset();
     std::cout << "Exiting..." << std::endl;
     return 0;
     // TODO: any other place where main() might return, change the return value to something meaningful. this way, when
@@ -319,10 +359,12 @@ void signalHandler(int signal)
         break;
     case SIGTERM:
         CubeLog::info("Caught SIGTERM signal.");
+        //printStackTrace();
         breakMain = true;
         break;
     case SIGABRT:
         CubeLog::info("Caught SIGABRT signal.");
+        printStackTrace();
         breakMain = true;
         break;
     case SIGSEGV:
@@ -334,15 +376,18 @@ void signalHandler(int signal)
         break;
     case SIGILL:
         CubeLog::info("Caught SIGILL signal.");
+        printStackTrace();
         breakMain = true;
         break;
     case SIGFPE:
         CubeLog::info("Caught SIGFPE signal.");
+        printStackTrace();
         breakMain = true;
         break;
 #ifdef __linux__
     case SIGKILL:
         CubeLog::info("Caught SIGKILL signal.");
+        // Note: SIGKILL cannot be caught or ignored, so this will not actually execute.
         breakMain = true;
         break;
     case SIGQUIT:
@@ -367,6 +412,7 @@ void signalHandler(int signal)
         break;
     case SIGHUP:
         CubeLog::info("Caught SIGHUP signal.");
+        printStackTrace();
         breakMain = true;
         break;
 #endif

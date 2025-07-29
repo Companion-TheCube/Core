@@ -12,7 +12,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 # Project name and the language used
-project(CubeCore VERSION 1.0.0 LANGUAGES CXX)
+project(CubeCore VERSION 0.1.0 LANGUAGES CXX)
 
 add_definitions(-DMAJOR_VERSION=${PROJECT_VERSION_MAJOR})
 add_definitions(-DMINOR_VERSION=${PROJECT_VERSION_MINOR})
@@ -68,6 +68,7 @@ FetchContent_Declare(
     stduuid
     GIT_REPOSITORY https://github.com/mariusbancila/stduuid.git
     GIT_TAG master
+    UPDATE_DISCONNECTED FALSE
 )
 FetchContent_MakeAvailable(stduuid)
 include_directories(${stduuid_SOURCE_DIR}/include)
@@ -77,23 +78,37 @@ FetchContent_Declare(
     infoware
     GIT_REPOSITORY https://github.com/ThePhD/infoware.git
     GIT_TAG main
+    UPDATE_DISCONNECTED FALSE
 )
 FetchContent_MakeAvailable(infoware)
 include_directories(${infoware_SOURCE_DIR}/include)
 
 include(FetchContent)
-FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
+FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz)
 FetchContent_MakeAvailable(json)
 
 include(FetchContent)
-FetchContent_Declare(SFML
+FetchContent_Declare(
+    pqxx
+    GIT_REPOSITORY https://github.com/jtv/libpqxx
+    GIT_TAG master
+)
+FetchContent_MakeAvailable(pqxx)
+
+include(FetchContent)
+FetchContent_Declare(
+    SFML
     GIT_REPOSITORY https://github.com/SFML/SFML.git
-    GIT_TAG 2.6.x)
+    GIT_TAG 2.6.x
+    UPDATE_DISCONNECTED FALSE
+)
 FetchContent_MakeAvailable(SFML)
 include(FetchContent)
-FetchContent_Declare(WhisperCPP
+FetchContent_Declare(
+    WhisperCPP
     GIT_REPOSITORY https://github.com/ggerganov/whisper.cpp.git
     GIT_TAG master
+    UPDATE_DISCONNECTED FALSE
 )
 FetchContent_MakeAvailable(WhisperCPP)
 include(FetchContent)
@@ -101,6 +116,7 @@ FetchContent_Declare(
     cppcodec
     GIT_REPOSITORY https://github.com/tplgy/cppcodec.git
     GIT_TAG master
+    UPDATE_DISCONNECTED FALSE
 )
 FetchContent_MakeAvailable(cppcodec)
 include_directories(${cppcodec_SOURCE_DIR}/cppcodec)
@@ -170,6 +186,16 @@ if(NOT EXISTS ${HTTPLIB_HEADER})
 endif()
 
 find_package(OpenSSL REQUIRED)
+####### spdlog library (for file logging) #######
+include(FetchContent)
+FetchContent_Declare(
+    spdlog
+    GIT_REPOSITORY https://github.com/gabime/spdlog.git
+    GIT_TAG v1.13.0
+    UPDATE_DISCONNECTED FALSE
+)
+FetchContent_MakeAvailable(spdlog)
+# note: provides targets spdlog::spdlog and spdlog::spdlog_header_only
 
 set(ARGPARSE_HEADER ${CMAKE_SOURCE_DIR}/libraries/argparse.hpp)
 
@@ -270,6 +296,13 @@ else()
     set(DATA_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/data")
 endif()
 
+# apps directory
+if(WIN32)
+    set(APPS_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Debug/apps")
+else()
+    set(APPS_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/apps")
+endif()
+
 # Create the destination directories if they don't exist
 file(MAKE_DIRECTORY ${SHADER_DEST_DIR})
 file(MAKE_DIRECTORY ${MESHES_DEST_DIR})
@@ -277,8 +310,7 @@ file(MAKE_DIRECTORY ${FONTS_DEST_DIR})
 file(MAKE_DIRECTORY ${HTTP_DEST_DIR})
 file(MAKE_DIRECTORY ${MTL_DEST_DIR})
 file(MAKE_DIRECTORY ${DATA_DEST_DIR})
-
-
+file(MAKE_DIRECTORY ${APPS_DEST_DIR})
 
 # Define the regex pattern that matches AutoRegisterAPI<XXXX> where XXXX is the class name
 set(MACRO_REGEX "public AutoRegisterAPI<([a-zA-Z_][a-zA-Z0-9_:]*)>")
@@ -366,6 +398,9 @@ target_link_libraries(CubeCore PRIVATE
     OpenSSL::SSL
     OpenSSL::Crypto
     infoware
+    pqxx
+    pq
+    spdlog::spdlog_header_only
 )
 
 # set_target_properties(CubeCore PROPERTIES
@@ -394,6 +429,7 @@ else()
         ${GLEW_INCLUDE_DIRS}
         ${SFML_INCLUDE_DIR}
         ${whispercpp_SOURCE_DIR}
+        ${PQXX_INCLUDE_DIRS}
     )
 endif()
 
@@ -538,12 +574,29 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E echo "Copying http to output directory"
 )
 
+# Add a custom command to copy the data directory
 add_custom_command(
     TARGET CubeCore POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${CMAKE_SOURCE_DIR}/data
     ${DATA_DEST_DIR}
     COMMAND ${CMAKE_COMMAND} -E echo "Copying data to output directory"
+)
+
+# copy base apps to the apps directory
+add_custom_command(
+    TARGET CubeCore POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_HOME_DIRECTORY}/BTManager/
+    ${APPS_DEST_DIR}/BTManager/
+    COMMAND ${CMAKE_COMMAND} -E echo "Copying BTManager to apps directory"
+)
+add_custom_command(
+    TARGET CubeCore POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_HOME_DIRECTORY}/openwakeword/
+    ${APPS_DEST_DIR}/openwakeword/
+    COMMAND ${CMAKE_COMMAND} -E echo "Copying openwakeword to apps directory"
 )
 
 # Variables
@@ -618,7 +671,11 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest)
 
 # Add test executable
-file(GLOB_RECURSE TEST_SOURCES "tests/*.cpp" "tests/**/*.cpp")
+file(GLOB_RECURSE TEST_SOURCES
+    "tests/*.cpp" "tests/**/*.cpp"
+    "src/*.cpp" "src/**/*.cpp" "src/**/**/*.cpp")
+# Exclude the application entry point from the test build
+list(FILTER TEST_SOURCES EXCLUDE REGEX "/main\\.cpp$")
 add_executable(CubeCoreTests ${TEST_SOURCES})
 target_link_libraries(CubeCoreTests PRIVATE
     gtest
@@ -682,3 +739,17 @@ else()
     message(WARNING "Google Benchmark not found, skipping benchmarks.")
     message(WARNING "To build benchmarks, install Google Benchmark and re-run CMake.")
 endif()
+
+# ─── TODO synchronisation ────────────────────────────────────────────────────
+set(UPDATE_TODOS_SCRIPT "${CMAKE_SOURCE_DIR}/update_todos.py")
+set(TODO_MARKDOWN_FILE  "${CMAKE_SOURCE_DIR}/TODO's.md")
+
+add_custom_target(update_todos
+    COMMAND ${Python3_EXECUTABLE} "${UPDATE_TODOS_SCRIPT}"
+    BYPRODUCTS "${TODO_MARKDOWN_FILE}"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    COMMENT "Scanning source tree and refreshing TODO's.md"
+)
+
+# Always refresh the TODO list before we compile anything else
+add_dependencies(CubeCore update_todos)
