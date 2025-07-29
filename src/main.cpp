@@ -359,10 +359,12 @@ void signalHandler(int signal)
         break;
     case SIGTERM:
         CubeLog::info("Caught SIGTERM signal.");
+        //printStackTrace();
         breakMain = true;
         break;
     case SIGABRT:
         CubeLog::info("Caught SIGABRT signal.");
+        printStackTrace();
         breakMain = true;
         break;
     case SIGSEGV:
@@ -374,15 +376,18 @@ void signalHandler(int signal)
         break;
     case SIGILL:
         CubeLog::info("Caught SIGILL signal.");
+        printStackTrace();
         breakMain = true;
         break;
     case SIGFPE:
         CubeLog::info("Caught SIGFPE signal.");
+        printStackTrace();
         breakMain = true;
         break;
 #ifdef __linux__
     case SIGKILL:
         CubeLog::info("Caught SIGKILL signal.");
+        // Note: SIGKILL cannot be caught or ignored, so this will not actually execute.
         breakMain = true;
         break;
     case SIGQUIT:
@@ -407,6 +412,7 @@ void signalHandler(int signal)
         break;
     case SIGHUP:
         CubeLog::info("Caught SIGHUP signal.");
+        printStackTrace();
         breakMain = true;
         break;
 #endif
