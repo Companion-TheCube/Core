@@ -341,7 +341,7 @@ private:
     static std::mutex settingChangeMutex;
     static nlohmann::json settings;
 
-    static std::vector<std::string> loadFontPaths(std::filesystem::path fontPath = "./fonts")
+    static std::vector<std::string> loadFontPaths(std::filesystem::path fontPath = "fonts")
     {
         std::vector<std::string> fontPaths = {};
         for (const auto& entry : std::filesystem::directory_iterator(fontPath)) {
