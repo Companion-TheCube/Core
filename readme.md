@@ -8,6 +8,16 @@ What things you need to install the software and how to install them:
 sudo apt-get update
 sudo apt-get install build-essential
 sudo apt-get install cmake
+sudo apt-get install pkg-config libglew-dev libfreetype6-dev libgl1-mesa-dev \
+libglu1-mesa-dev libasound2-dev libpulse-dev libssl-dev libsodium-dev \
+libsqlite3-dev libglm-dev libpq-dev gettext python3 git
+```
+
+You can also run the included `install.sh` script to automatically install all
+required packages:
+
+```bash
+./install.sh
 ```
 ### Installing
 A step-by-step series of examples that tell you how to get a development environment running:
@@ -53,6 +63,11 @@ make
 * [Catch2] ?
 * [GoogleTest] ?
 * [GoogleBenchmark] ?
+
+All required system packages for these dependencies can be installed with:
+```bash
+./install.sh
+```
 
 The following fonts are used in the application and have been obtained from [Google Fonts](https://fonts.google.com/):
 * [Roboto](https://fonts.google.com/specimen/Roboto)
