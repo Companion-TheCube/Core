@@ -105,6 +105,8 @@ public:
 
 private:
     std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioBuffer;
+    // TODO: When starting a stream, include the current emotional state with
+    //       the initial request payload so the server can adjust responses.
     httplib::Client* cli;
     std::string apiKey;
     std::string authKey;

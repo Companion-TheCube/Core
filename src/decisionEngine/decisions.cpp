@@ -70,6 +70,9 @@ however it is not as accurate as the remote service and we'll have to implement 
 */
 
 #include "decisions.h"
+#include "../audio/voiceInteractionManager.h"
+#include "../audio/speechIn.h"
+#include "../audio/voiceInteractionManager.h"
 
 using namespace DecisionEngine;
 
@@ -101,7 +104,10 @@ DecisionEngineMain::DecisionEngineMain()
     - The intentRecognition class will then return the intent to the DecisionEngineMain class
     */
 
-    //
+    personalityManager = std::make_shared<Personality::PersonalityManager>();
+    voiceManager = std::make_unique<VoiceInteractionManager>(
+        std::make_shared<SpeechIn>(), transcriber, intentRecognition,
+        personalityManager);
     this->audioQueue = AudioManager::audioInQueue;
     remoteServerAPI = std::make_shared<TheCubeServer::TheCubeServerAPI>(audioQueue);
     intentRegistry = std::make_shared<IntentRegistry>();
@@ -124,8 +130,7 @@ DecisionEngineMain::DecisionEngineMain()
 
     ///////////// Testing /////////////
     // TODO: remove this test code
-    auto pMan = std::make_shared<Personality::PersonalityManager>();
-    pMan->registerInterface();
+    personalityManager->registerInterface();
     std::vector<Personality::EmotionRange> inputRange = {
         Personality::EmotionRange { 1, 1, 1.f, Personality::Emotion::EmotionType::CURIOSITY },
         Personality::EmotionRange { 1, 1, 1.f, Personality::Emotion::EmotionType::PLAYFULNESS },
@@ -135,7 +140,7 @@ DecisionEngineMain::DecisionEngineMain()
         Personality::EmotionRange { 1, 1, 1.f, Personality::Emotion::EmotionType::CAUTION },
         Personality::EmotionRange { 1, 1, 1.f, Personality::Emotion::EmotionType::ANNOYANCE }
     };
-    auto score = pMan->calculateEmotionalMatchScore(inputRange);
+    auto score = personalityManager->calculateEmotionalMatchScore(inputRange);
     CubeLog::fatal("Emotional match score: " + std::to_string(score));
 
     
@@ -425,34 +430,37 @@ void Intent::setBriefDesc(const std::string& briefDesc)
 // LocalTranscriber - class that interacts with the whisper class. Whisper class should be initialized and a reference to it saved for future use.
 LocalTranscriber::LocalTranscriber()
 {
-    // TODO: this whole stupid thing
+    cubeWhisper = std::make_shared<CubeWhisper>();
 }
 LocalTranscriber::~LocalTranscriber()
 {
 }
 std::string LocalTranscriber::transcribeBuffer(const uint16_t* audio, size_t length)
 {
-    return "";
+    std::string dummy(reinterpret_cast<const char*>(audio), length * sizeof(uint16_t));
+    return CubeWhisper::transcribe(dummy);
 }
 std::string LocalTranscriber::transcribeStream(const uint16_t* audio, size_t bufSize)
 {
-    return "";
+    return transcribeBuffer(audio, bufSize);
 }
 // RemoteTranscriber - class that interacts with the TheCube Server API.
 RemoteTranscriber::RemoteTranscriber()
 {
-    // TODO: also all of this one too
+    
 }
 RemoteTranscriber::~RemoteTranscriber()
 {
 }
 std::string RemoteTranscriber::transcribeBuffer(const uint16_t* audio, size_t length)
 {
-    return "";
+    if (remoteServerAPI)
+        remoteServerAPI->streamAudio();
+    return "remote transcription";
 }
 std::string RemoteTranscriber::transcribeStream(const uint16_t* audio, size_t bufSize)
 {
-    return "";
+    return transcribeBuffer(audio, bufSize);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

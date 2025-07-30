@@ -78,6 +78,17 @@ public:
     // Pre-trigger audio data FIFO buffer. Maintains 5 seconds of audio data.
     static std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> preTriggerAudioData;
 
+    // Control whether audio should be forwarded to the wake word engine
+    static void pauseWakeWordStreaming()
+    {
+        streamToWakeWord.store(false);
+    }
+
+    static void resumeWakeWordStreaming()
+    {
+        streamToWakeWord.store(true);
+    }
+
     // Subscribe to wake word detection events
     static void subscribeToWakeWordDetection(std::function<void()> callback)
     {
@@ -117,6 +128,12 @@ private:
     std::jthread audioInputThread;
     // Wake word detection callback vector
     static std::vector<std::function<void()>> wakeWordDetectionCallbacks;
+
+    // Flag that controls routing to openwakeword
+    static std::atomic<bool> streamToWakeWord;
+
+    // Drain audio when wake word streaming is disabled
+    void drainAudioQueue();
 
     // Audio input thread
     void audioInputThreadFn(std::stop_token st);

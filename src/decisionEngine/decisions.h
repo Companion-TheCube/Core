@@ -64,6 +64,7 @@ SOFTWARE.
 #define CPPHTTPLIB_OPENSSL_SUPPORT
 #include "../api/autoRegister.h"
 #include "../audio/audioManager.h"
+#include "../audio/voiceInteractionManager.h"
 #include "../threadsafeQueue.h"
 #include "globalSettings.h"
 #include "httplib.h"
@@ -480,6 +481,7 @@ private:
     std::shared_ptr<TriggerManager> triggerManager;
     std::shared_ptr<Personality::PersonalityManager> personalityManager;
     std::shared_ptr<TheCubeServer::TheCubeServerAPI> remoteServerAPI;
+    std::unique_ptr<VoiceInteractionManager> voiceManager;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////

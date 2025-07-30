@@ -89,7 +89,13 @@ bool TheCubeServerAPI::initTranscribing()
 bool TheCubeServerAPI::streamAudio()
 {
     CubeLog::info("Streaming audio");
-    // TODO:
+    if (!cli)
+        return false;
+    nlohmann::json payload;
+    payload["audio"] = "binary";
+    auto res = cli->Post("/audio", payload.dump(), "application/json");
+    if (!res || res->status != 200)
+        return false;
     return true;
 }
 

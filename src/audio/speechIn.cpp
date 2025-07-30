@@ -62,9 +62,13 @@ When the wake word is detected, we'll need to tell the audioOutput class to play
 // The audio router will also have a method to get the number of audio samples in the queue.
 
 // Wake word detector monitor (for making sure that the wake word detector is running)
+// TODO: When VoiceInteractionManager is implemented, this class will notify it
+//       when a wake word is detected so that audio routing can be switched from
+//       openwakeword to the decision engine/STT pipeline.
 
 std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> SpeechIn::audioQueue = std::make_shared<ThreadSafeQueue<std::vector<int16_t>>>();
 std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> SpeechIn::preTriggerAudioData = std::make_shared<ThreadSafeQueue<std::vector<int16_t>>>();
+std::atomic<bool> SpeechIn::streamToWakeWord = true;
 int audioInputCallback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData);
 std::string checkForControl(int conn_fd);
 std::vector<std::function<void()>> SpeechIn::wakeWordDetectionCallbacks;
@@ -141,7 +145,10 @@ void SpeechIn::audioInputThreadFn(std::stop_token st)
 
     while (!st.stop_requested()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // Wait one second before trying to connect to the socket.
-        this->writeAudioDataToSocket();
+        if (streamToWakeWord.load())
+            this->writeAudioDataToSocket();
+        else
+            this->drainAudioQueue();
     }
 
     audio->stopStream();
@@ -151,6 +158,10 @@ void SpeechIn::audioInputThreadFn(std::stop_token st)
 void SpeechIn::writeAudioDataToSocket()
 {
     // using base64 = cppcodec::base64_rfc4648;
+    if (!streamToWakeWord.load()) {
+        this->drainAudioQueue();
+        return;
+    }
     auto dataOpt = this->audioQueue->pop();
     // openwakeword creates a unix socket at /tmp/openww. We send the audio data to this socket.
     int sockfd;
@@ -205,6 +216,8 @@ void SpeechIn::writeAudioDataToSocket()
                 for (auto& callback : this->wakeWordDetectionCallbacks) {
                     callback();
                 }
+                // TODO: Integrate with VoiceInteractionManager so that wake
+                //       word events initiate a voice interaction session.
             }
         }
     }
@@ -249,3 +262,18 @@ std::string checkForControl(int conn_fd)
 }
 
 // TODO: implement silence detection to determine when the user is done speaking.
+
+void SpeechIn::drainAudioQueue()
+{
+    auto dataOpt = this->audioQueue->pop();
+    while (dataOpt && !stopFlag.load() && !streamToWakeWord.load()) {
+        auto& data = *dataOpt;
+        for (size_t i = 0; i < data.size(); i++) {
+            preTriggerAudioData->push(data);
+        }
+        while (preTriggerAudioData->size() > PRE_TRIGGER_FIFO_SIZE) {
+            preTriggerAudioData->pop();
+        }
+        dataOpt = this->audioQueue->pop();
+    }
+}
