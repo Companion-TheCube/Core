@@ -71,6 +71,11 @@ public:
         return std::nullopt;
     }
 
+    size_t size() {
+        std::unique_lock<std::mutex> lock(mutex_);
+        return queue_.size();
+    }
+
 private:
     std::queue<T> queue_;
     std::mutex mutex_;
