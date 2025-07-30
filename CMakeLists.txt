@@ -599,12 +599,21 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E echo "Copying openwakeword to apps directory"
 )
 
-# Variables
-set(BUILD_NUMBER_HEADER "${CMAKE_SOURCE_DIR}/libraries/build_number.h")
-set(GET_BUILD_NUMBER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/get_next_build_number.py")
 
 # Ensure Python is found
 find_package(Python3 REQUIRED)
+# Variables
+set(BUILD_NUMBER_HEADER "${CMAKE_SOURCE_DIR}/libraries/build_number.h")
+set(UPLOAD_ARTIFACT_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/upload_artifact.py")
+
+add_custom_command(
+    TARGET CubeCore POST_BUILD
+    COMMAND ${PYTHON_EXECUTABLE} "${UPLOAD_ARTIFACT_SCRIPT}" "${CMAKE_SOURCE_DIR}" "${BUILD_NUMBER_HEADER}"
+    DEPENDS "${UPLOAD_ARTIFACT_SCRIPT}"
+    COMMENT "Uploading build to server..."
+)
+
+set(GET_BUILD_NUMBER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/get_next_build_number.py")
 
 # Custom command to generate the build number header
 add_custom_command(
@@ -615,14 +624,7 @@ add_custom_command(
     COMMENT "Fetching build number from server..."
 )
 
-set(UPLOAD_ARTIFACT_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/upload_artifact.py")
 
-add_custom_command(
-    TARGET CubeCore POST_BUILD
-    COMMAND ${PYTHON_EXECUTABLE} "${UPLOAD_ARTIFACT_SCRIPT}" "${CMAKE_SOURCE_DIR}"
-    DEPENDS "${UPLOAD_ARTIFACT_SCRIPT}"
-    COMMENT "Uploading build to server..."
-)
 
 # Custom target that depends on the custom command
 # add_custom_target(
