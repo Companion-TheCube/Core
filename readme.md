@@ -6,9 +6,7 @@ These instructions will get you a copy of the project up and running on your loc
 What things you need to install the software and how to install them:
 ```bash
 sudo apt-get update
-sudo apt-get install build-essential
-sudo apt-get install cmake
-sudo apt-get install pkg-config libglew-dev libfreetype6-dev libgl1-mesa-dev \
+sudo apt-get install build-essential cmake pkg-config libglew-dev libfreetype6-dev libgl1-mesa-dev \
 libglu1-mesa-dev libasound2-dev libpulse-dev libssl-dev libsodium-dev \
 libsqlite3-dev libglm-dev libpq-dev gettext python3 git
 ```
