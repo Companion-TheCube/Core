@@ -1,0 +1,238 @@
+openapi: 3.0.3
+info:
+  title: TheCube Remote Server API
+  description: |
+    This specification describes the REST API exposed by the remote
+    server used by TheCube CORE for audio transcription and
+    intent interpretation.
+  version: "0.1.0"
+servers:
+  - url: https://api.4thecube.com
+
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: ApiKey
+    bearerAuth:
+      type: http
+      scheme: bearer
+    basicAuth:
+      type: http
+      scheme: basic
+
+paths:
+  /test:
+    get:
+      summary: Test connectivity with the server
+      responses:
+        "200":
+          description: Server is reachable
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: "Hello."
+
+  /user/profile:
+    get:
+      summary: Retrieve account details
+      security:
+        - apiKey: []
+        - bearerAuth: []
+        - basicAuth: []
+      responses:
+        "200":
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscription_level:
+                    type: integer
+                    description: Bitmask of available services
+        "401":
+          description: Authentication failure
+
+  /transcribe/start:
+    post:
+      summary: Start a new transcription session
+      security:
+        - apiKey: []
+        - bearerAuth: []
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                language:
+                  type: string
+                  example: "en"
+                sample_rate:
+                  type: integer
+                  example: 16000
+                personality:
+                  type: object
+                app_functions:
+                  type: array
+                  items:
+                    type: object
+      responses:
+        "200":
+          description: Session created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session_id:
+                    type: string
+
+  /transcribe/{session_id}:
+    post:
+      summary: Stream raw audio for transcription
+      security:
+        - apiKey: []
+        - bearerAuth: []
+        - basicAuth: []
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: Chunk received
+
+  /transcribe/{session_id}/stop:
+    post:
+      summary: End streaming and return final transcription
+      security:
+        - apiKey: []
+        - bearerAuth: []
+        - basicAuth: []
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Transcription completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transcription:
+                    type: string
+
+  /chat/{session_id}:
+    post:
+      summary: Begin interpretation of text
+      security:
+        - apiKey: []
+        - bearerAuth: []
+        - basicAuth: []
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: Final transcription or user message
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+      responses:
+        "200":
+          description: Acknowledged
+          content:
+            text/plain:
+              schema:
+                type: string
+              examples:
+                waiting:
+                  value: "waiting"
+    get:
+      summary: Poll for chat response
+      security:
+        - apiKey: []
+        - bearerAuth: []
+        - basicAuth: []
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Current status or final reply
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [waiting, complete]
+                  message:
+                    type: string
+
+  /function/{session_id}:
+    post:
+      summary: Provide results of a function call
+      security:
+        - apiKey: []
+        - bearerAuth: []
+        - basicAuth: []
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Data accepted
+
+  /server/status:
+    get:
+      summary: Query server status
+      responses:
+        "200":
+          description: Current server status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  services:
+                    type: integer
+

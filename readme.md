@@ -42,6 +42,9 @@ make
 **TODO** Explain how to run the automated tests for this system:
 ## Deployment
 **TODO** Add additional notes about how to deploy this on a live system.
+
+## API Documentation
+The REST API is documented in [docs/openapi.yaml](docs/openapi.yaml). Use any OpenAPI compatible viewer to explore the endpoints.
 ## Dependencies
 * [SFML](https://www.sfml-dev.org/) - Simple and Fast Multimedia Library. **to be replaced with GLFW**
 * [OpenGL](https://www.opengl.org/) - The Industry's Foundation for High Performance Graphics.
