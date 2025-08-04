@@ -74,29 +74,29 @@
 - [src/database/db.h:247] : make sure all the data is sanitized before being inserted into the database.
 - [src/decisionEngine/cubeWhisper.cpp:38] : initialize whisper.cpp library and make sure it has the model loaded.
 - [src/decisionEngine/decisions.cpp:126] : remove this test code
-- [src/decisionEngine/decisions.cpp:284] : add TTS support
-- [src/decisionEngine/decisions.cpp:305] : Implement this
-- [src/decisionEngine/decisions.cpp:311] : This needs checks to ensure properly formatted JSON
-- [src/decisionEngine/decisions.cpp:423] :
-- [src/decisionEngine/decisions.cpp:428] : this whole stupid thing
-- [src/decisionEngine/decisions.cpp:444] : also all of this one too
-- [src/decisionEngine/decisions.cpp:485] : although this code works, we need to implement a more advanced pattern matching system and we need to
-- [src/decisionEngine/decisions.cpp:488] : This function should somehow return a score for the match so that when multiple intents match, we can
-- [src/decisionEngine/decisions.cpp:536] : convert this to std::future and make callback the progress callback or remove it
-- [src/decisionEngine/decisions.cpp:579] : convert this to std::future
-- [src/decisionEngine/decisions.cpp:585] : convert this to std::future and make callback the progress callback or remove it
-- [src/decisionEngine/decisions.cpp:590] :
-- [src/decisionEngine/decisions.cpp:597] :
-- [src/decisionEngine/decisions.cpp:612] : remove this. Testing only.
-- [src/decisionEngine/decisions.cpp:667] :
-- [src/decisionEngine/decisions.cpp:699] : define all the system intents. this should include things like "What time is it?" and "What apps are installed?"
-- [src/decisionEngine/decisions.cpp:722] :
+- [src/decisionEngine/decisions.cpp:167] :
+- [src/decisionEngine/decisions.cpp:172] : this whole stupid thing
+- [src/decisionEngine/decisions.cpp:188] : also all of this one too
+- [src/decisionEngine/decisions.cpp:229] : although this code works, we need to implement a more advanced pattern matching system and we need to
+- [src/decisionEngine/decisions.cpp:232] : This function should somehow return a score for the match so that when multiple intents match, we can
+- [src/decisionEngine/decisions.cpp:280] : convert this to std::future and make callback the progress callback or remove it
+- [src/decisionEngine/decisions.cpp:323] : convert this to std::future
+- [src/decisionEngine/decisions.cpp:329] : convert this to std::future and make callback the progress callback or remove it
+- [src/decisionEngine/decisions.cpp:334] :
+- [src/decisionEngine/decisions.cpp:341] :
+- [src/decisionEngine/decisions.cpp:356] : remove this. Testing only.
+- [src/decisionEngine/decisions.cpp:411] :
+- [src/decisionEngine/decisions.cpp:443] : define all the system intents. this should include things like "What time is it?" and "What apps are installed?"
+- [src/decisionEngine/decisions.cpp:466] :
+- [src/decisionEngine/decisions.cpp:640] : check if the task should be repeated and if so, add it back to the scheduledTasks list
+- [src/decisionEngine/decisions.cpp:651] :
+- [src/decisionEngine/decisions.cpp:664] :
 - [src/decisionEngine/decisions.cpp:80] :
-- [src/decisionEngine/decisions.cpp:896] : check if the task should be repeated and if so, add it back to the scheduledTasks list
-- [src/decisionEngine/decisions.cpp:907] :
-- [src/decisionEngine/decisions.cpp:920] :
-- [src/decisionEngine/decisions.h:106] : add a mutex so that the calling of execute can be thread safe
-- [src/decisionEngine/decisions.h:304] : the stream that this is reading from may need to be a more complex
+- [src/decisionEngine/decisions.h:92] : the stream that this is reading from may need to be a more complex
+- [src/decisionEngine/intentRegistry.cpp:121] : add TTS support
+- [src/decisionEngine/intentRegistry.cpp:142] : Implement this
+- [src/decisionEngine/intentRegistry.cpp:148] : This needs checks to ensure properly formatted JSON
+- [src/decisionEngine/intentRegistry.h:49] : add a mutex so that the calling of execute can be thread safe
 - [src/decisionEngine/personalityManager.h:147] : add methods that allow for ramp type of expiration
 - [src/decisionEngine/remoteServer.cpp:196] :
 - [src/decisionEngine/remoteServer.cpp:37] : Implement this class
@@ -314,11 +314,10 @@
 - [src/logger/logger.cpp:496] : this may not be needed since the log is just going to grow again
 - [src/logger/logger.cpp:783] : add endpoint(s) to get logs. perhaps have the ability to get logs by level, by date, etc. and/or logs from memory or from file
 - [src/logger/logger.cpp:828] : source string should be prepended with the name of the source app or it's IP or something. That way, we know
-- [src/main.cpp:266] : All the base apps should be inserted into the database and/or verified in the database here.
-- [src/main.cpp:267] : Add the openwakeword python script to the DB here. This will be a native app and will use the python executable in the openwakeword/bin directory.
-- [src/main.cpp:304] : add the insert for the openwakeword python script here. This will be a native app and will use the python executable in the openwakeword/venv/bin(Linux) or openwakeword/Scripts(Windows) directory.
-- [src/main.cpp:346] : any other place where main() might return, change the return value to something meaningful. this way, when
-- [src/main.cpp:351] : this probably needs a mutex for breakMain
+- [src/main.cpp:277] : All the base apps should be inserted into the database and/or verified in the database here.
+- [src/main.cpp:332] : add the insert for the openwakeword python script here. This will be a native app and will use the python executable in the openwakeword/venv/bin(Linux) or openwakeword/Scripts(Windows) directory.
+- [src/main.cpp:374] : any other place where main() might return, change the return value to something meaningful. this way, when
+- [src/main.cpp:379] : this probably needs a mutex for breakMain
 - [src/main.cpp:76] : rather than set this environment variable in this application, set it in the manager application. The manager app
 - [src/telemetry/telemetry.cpp:34] : Implement telemetry.cpp
 - [src/telemetry/telemetry.cpp:38] : Implement telemetry.cpp

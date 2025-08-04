@@ -174,13 +174,13 @@ void SpeechIn::writeAudioDataToSocket()
     while (dataOpt && !stopFlag.load()) {
         auto& data = *dataOpt;
         // Add the audio data to the 5 second buffer
-        // for (size_t i = 0; i < data->size(); i++) {
-        //     preTriggerAudioData->push(data);
-        // }
+        for (size_t i = 0; i < data.size(); i++) {
+            preTriggerAudioData->push(data);
+        }
         // truncate the audio data to 5 seconds
-        // while (preTriggerAudioData->size() > PRE_TRIGGER_FIFO_SIZE) {
-        //     preTriggerAudioData->pop();
-        // }
+        while (preTriggerAudioData->size() > PRE_TRIGGER_FIFO_SIZE) {
+            preTriggerAudioData->pop();
+        }
 
         // send the data to the server
         if (write(sockfd, data.data(), data.size() * sizeof(int16_t)) < 0) {
@@ -212,7 +212,7 @@ void SpeechIn::writeAudioDataToSocket()
         close(sockfd);
         return;
     }
-    CubeLog::fatal("No data in queue");
+    CubeLog::error("No data in queue");
     close(sockfd);
 }
 

@@ -198,7 +198,7 @@
             "value": 0,
             "time": {
                 "start": 100,
-                "end": 240
+                "end": 180
             },
             "easing": "easeInOut",
             "axis": {
@@ -217,8 +217,8 @@
             "type": "RETURN_HOME",
             "value": 1,
             "time": {
-                "start": 240,
-                "end": 330
+                "start": 180,
+                "end": 200
             },
             "easing": "linear",
             "axis": {

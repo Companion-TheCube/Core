@@ -1,9 +1,9 @@
 /*
-███╗   ███╗ █████╗ ██╗███╗   ██╗    ██████╗██████╗ ██████╗ 
+███╗   ███╗ █████╗ ██╗███╗   ██╗    ██████╗██████╗ ██████╗
 ████╗ ████║██╔══██╗██║████╗  ██║   ██╔════╝██╔══██╗██╔══██╗
 ██╔████╔██║███████║██║██╔██╗ ██║   ██║     ██████╔╝██████╔╝
-██║╚██╔╝██║██╔══██║██║██║╚██╗██║   ██║     ██╔═══╝ ██╔═══╝ 
-██║ ╚═╝ ██║██║  ██║██║██║ ╚████║██╗╚██████╗██║     ██║     
+██║╚██╔╝██║██╔══██║██║██║╚██╗██║   ██║     ██╔═══╝ ██╔═══╝
+██║ ╚═╝ ██║██║  ██║██║██║ ╚████║██╗╚██████╗██║     ██║
 ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝╚═╝ ╚═════╝╚═╝     ╚═╝
 */
 
@@ -49,8 +49,8 @@ SOFTWARE.
 #ifndef LOGGER_H
 #include <logger.h>
 #endif
-#include "main.h"
 #include "build_number.h"
+#include "main.h"
 
 bool breakMain = false;
 
@@ -216,7 +216,7 @@ int main(int argc, char* argv[])
     }
     CubeLog::info("Logger initialized.");
     CubeLog::info("Settings loaded.");
-    
+
     /////////////////////////////////////////////////////////////////
     // CPU and memory monitor thread
     /////////////////////////////////////////////////////////////////
@@ -251,7 +251,7 @@ int main(int argc, char* argv[])
     /////////////////////////////////////////////////////////////////
     {
         CubeLog::info("Loading GUI...");
-    auto gui = std::make_shared<GUI>();
+        auto gui = std::make_shared<GUI>();
         auto audioManager = std::make_shared<AudioManager>();
         auto db_manager = std::make_shared<CubeDatabaseManager>();
         auto blobs = std::make_shared<BlobsManager>(db_manager, "data/blobs.db");
@@ -263,8 +263,18 @@ int main(int argc, char* argv[])
         CubeLog::info("Blob ID: " + std::to_string(blobID));
         bool allInsertionsSuccess = true;
         long dbInsertReturnVal = -1;
+        // create string for apps db delete where clause so that it catches all apps with app_id 0 to 9
+        std::string deleteWhereClause = "app_id IN (";
+        for (int i = 0; i < 10; ++i) {
+            deleteWhereClause += std::to_string(i);
+            if (i < 9)
+                deleteWhereClause += ", ";
+        }
+        deleteWhereClause += ")";
+        // delete all apps with app_id 0 to 9
+        CubeLog::info("Deleting all apps with app_id 0 to 9 from apps database.");
+        CubeDB::getDBManager()->getDatabase("apps")->deleteData(DB_NS::TableNames::APPS, deleteWhereClause);
         // TODO: All the base apps should be inserted into the database and/or verified in the database here.
-        // TODO: Add the openwakeword python script to the DB here. This will be a native app and will use the python executable in the openwakeword/bin directory.
         dbInsertReturnVal = CubeDB::getDBManager()->getDatabase("apps")->insertData(
             DB_NS::TableNames::APPS,
             { { "app_id", "2" },
@@ -294,6 +304,24 @@ int main(int argc, char* argv[])
                 { "exec_path", "apps/consoleApp1/consoleApp1" },
 #endif
                 { "exec_args", "arg5 arg6 arg7 arg8" },
+                { "app_source", "test source" },
+                { "update_path", "test update path" },
+                { "update_last_check", "test last check" },
+                { "update_last_update", "test last update" },
+                { "update_last_fail", "test last fail" },
+                { "update_last_fail_reason", "test last fail reason" } }); // test insert
+        allInsertionsSuccess &= (-1 < dbInsertReturnVal);
+        dbInsertReturnVal = CubeDB::getDBManager()->getDatabase("apps")->insertData(
+            DB_NS::TableNames::APPS,
+            { { "app_id", "5" },
+                { "app_name", "openwakeword" },
+                { "role", DB_NS::Roles::NATIVE_APP },
+#ifdef _WIN32
+                { "exec_path", "apps/consoleApp1.exe" },
+#else
+                { "exec_path", "apps/openwakeword/bin/python3" },
+#endif
+                { "exec_args", "apps/openwakeword/openww.py --model_path apps/openwakeword/hey_cube.onnx,apps/openwakeword/hey_cuba.onnx,apps/openwakeword/hey_cube2.onnx,apps/openwakeword/hey_cue.onnx --inference_framework onnx" },
                 { "app_source", "test source" },
                 { "update_path", "test update path" },
                 { "update_last_check", "test last check" },
@@ -359,7 +387,7 @@ void signalHandler(int signal)
         break;
     case SIGTERM:
         CubeLog::info("Caught SIGTERM signal.");
-        //printStackTrace();
+        // printStackTrace();
         breakMain = true;
         break;
     case SIGABRT:
