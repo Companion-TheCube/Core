@@ -17,7 +17,7 @@
 - [src/api/api.h:197] : We need to make the API server is able to handle new interfaces being added at runtime.
 - [src/api/authentication.cpp:133] : add checkAuth function that only takes the app_id and returns bool if the app_id has been allowed by the user
 - [src/api/authentication.cpp:523] : verify/test that this is thread safe
-- [src/api/builder.cpp:134] : refactor to get rid of staticFiles vector. update: maybe not?
+- [src/api/builder.cpp:140] : refactor to get rid of staticFiles vector. update: maybe not?
 - [src/apps/appsDBManager.cpp:110] : add the interfaces for HTTP server
 - [src/apps/appsManager.cpp:1180] : Implement checking if app update is available
 - [src/apps/appsManager.cpp:1193] : Implement checking if app update is required
@@ -74,23 +74,23 @@
 - [src/database/db.h:247] : make sure all the data is sanitized before being inserted into the database.
 - [src/decisionEngine/cubeWhisper.cpp:38] : initialize whisper.cpp library and make sure it has the model loaded.
 - [src/decisionEngine/decisions.cpp:126] : remove this test code
-- [src/decisionEngine/decisions.cpp:167] :
-- [src/decisionEngine/decisions.cpp:172] : this whole stupid thing
-- [src/decisionEngine/decisions.cpp:188] : also all of this one too
-- [src/decisionEngine/decisions.cpp:229] : although this code works, we need to implement a more advanced pattern matching system and we need to
-- [src/decisionEngine/decisions.cpp:232] : This function should somehow return a score for the match so that when multiple intents match, we can
-- [src/decisionEngine/decisions.cpp:280] : convert this to std::future and make callback the progress callback or remove it
-- [src/decisionEngine/decisions.cpp:323] : convert this to std::future
-- [src/decisionEngine/decisions.cpp:329] : convert this to std::future and make callback the progress callback or remove it
-- [src/decisionEngine/decisions.cpp:334] :
-- [src/decisionEngine/decisions.cpp:341] :
-- [src/decisionEngine/decisions.cpp:356] : remove this. Testing only.
-- [src/decisionEngine/decisions.cpp:411] :
-- [src/decisionEngine/decisions.cpp:443] : define all the system intents. this should include things like "What time is it?" and "What apps are installed?"
-- [src/decisionEngine/decisions.cpp:466] :
-- [src/decisionEngine/decisions.cpp:640] : check if the task should be repeated and if so, add it back to the scheduledTasks list
-- [src/decisionEngine/decisions.cpp:651] :
-- [src/decisionEngine/decisions.cpp:664] :
+- [src/decisionEngine/decisions.cpp:168] :
+- [src/decisionEngine/decisions.cpp:173] : this whole stupid thing
+- [src/decisionEngine/decisions.cpp:189] : also all of this one too
+- [src/decisionEngine/decisions.cpp:230] : although this code works, we need to implement a more advanced pattern matching system and we need to
+- [src/decisionEngine/decisions.cpp:233] : This function should somehow return a score for the match so that when multiple intents match, we can
+- [src/decisionEngine/decisions.cpp:281] : convert this to std::future and make callback the progress callback or remove it
+- [src/decisionEngine/decisions.cpp:324] : convert this to std::future
+- [src/decisionEngine/decisions.cpp:330] : convert this to std::future and make callback the progress callback or remove it
+- [src/decisionEngine/decisions.cpp:335] :
+- [src/decisionEngine/decisions.cpp:342] :
+- [src/decisionEngine/decisions.cpp:357] : remove this. Testing only.
+- [src/decisionEngine/decisions.cpp:412] :
+- [src/decisionEngine/decisions.cpp:444] : define all the system intents. this should include things like "What time is it?" and "What apps are installed?"
+- [src/decisionEngine/decisions.cpp:467] :
+- [src/decisionEngine/decisions.cpp:641] : check if the task should be repeated and if so, add it back to the scheduledTasks list
+- [src/decisionEngine/decisions.cpp:652] :
+- [src/decisionEngine/decisions.cpp:665] :
 - [src/decisionEngine/decisions.cpp:80] :
 - [src/decisionEngine/decisions.h:92] : the stream that this is reading from may need to be a more complex
 - [src/decisionEngine/intentRegistry.cpp:121] : add TTS support
