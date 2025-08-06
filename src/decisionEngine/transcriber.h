@@ -1,8 +1,4 @@
 #pragma once
-#ifndef INTERFACE_DEFS_HPP
-#define INTERFACE_DEFS_HPP
-
-
 #include "../database/cubeDB.h"
 #include "utils.h"
 #ifndef LOGGER_H
@@ -10,7 +6,6 @@
 #endif
 #ifndef API_I_H
 #include "../api/api.h"
-
 #endif
 #include "cubeWhisper.h"
 #include "nlohmann/json.hpp"
@@ -35,26 +30,14 @@
 #include "../threadsafeQueue.h"
 #include "globalSettings.h"
 #include "httplib.h"
+#include "personalityManager.h"
+#include "intentRegistry.h"
+#include "functionRegistry.h"
+#include "remoteApi.h"
+
+namespace DecisionEngine{
 
 
-namespace DecisionEngine {
-
-class I_RemoteApi {
-public:
-    using Server = TheCubeServer::TheCubeServerAPI;
-    virtual ~I_RemoteApi() = default;
-    bool resetServerConnection();
-    Server::ServerStatus getServerStatus();
-    Server::ServerError getServerError();
-    Server::ServerState getServerState();
-    Server::FourBit getAvailableServices();
-    void setRemoteServerAPIObject(std::shared_ptr<Server> remoteServerAPI);
-
-protected:
-    std::shared_ptr<Server> remoteServerAPI;
-};
-
-/////////////////////////////////////////////////////////////////////////////////////
 
 class I_AudioQueue {
 public:
@@ -72,7 +55,6 @@ protected:
     std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue;
 };
 
-/////////////////////////////////////////////////////////////////////////////////////
 
 class I_Transcriber: public I_AudioQueue {
 public:
@@ -81,6 +63,34 @@ public:
     virtual std::string transcribeStream(const uint16_t* audio, size_t bufSize) = 0;
 };
 
-}
+/////////////////////////////////////////////////////////////////////////////////////
 
-#endif // INTERFACE_DEFS_HPP
+class LocalTranscriber : public I_Transcriber {
+public:
+    LocalTranscriber();
+    ~LocalTranscriber();
+    std::string transcribeBuffer(const uint16_t* audio, size_t length) override;
+    std::string transcribeStream(const uint16_t* audio, size_t bufSize) override;
+    // TODO: the stream that this is reading from may need to be a more complex
+    // datatype that has read and write pointers and a mutex to protect them.
+
+private:
+    std::shared_ptr<CubeWhisper> cubeWhisper;
+};
+
+/////////////////////////////////////////////////////////////////////////////////////
+
+class RemoteTranscriber : public I_Transcriber, public I_RemoteApi {
+public:
+    RemoteTranscriber();
+    ~RemoteTranscriber();
+    std::string transcribeBuffer(const uint16_t* audio, size_t length) override;
+    std::string transcribeStream(const uint16_t* audio, size_t bufSize) override;
+
+private:
+    bool initTranscribing();
+    bool streamAudio();
+    bool stopTranscribing();
+};
+
+}

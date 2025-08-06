@@ -17,7 +17,7 @@
 - [src/api/api.h:197] : We need to make the API server is able to handle new interfaces being added at runtime.
 - [src/api/authentication.cpp:133] : add checkAuth function that only takes the app_id and returns bool if the app_id has been allowed by the user
 - [src/api/authentication.cpp:523] : verify/test that this is thread safe
-- [src/api/builder.cpp:140] : refactor to get rid of staticFiles vector. update: maybe not?
+- [src/api/builder.cpp:139] : refactor to get rid of staticFiles vector. update: maybe not?
 - [src/apps/appsDBManager.cpp:110] : add the interfaces for HTTP server
 - [src/apps/appsManager.cpp:1180] : Implement checking if app update is available
 - [src/apps/appsManager.cpp:1193] : Implement checking if app update is required
@@ -74,29 +74,22 @@
 - [src/database/db.h:247] : make sure all the data is sanitized before being inserted into the database.
 - [src/decisionEngine/cubeWhisper.cpp:38] : initialize whisper.cpp library and make sure it has the model loaded.
 - [src/decisionEngine/decisions.cpp:126] : remove this test code
-- [src/decisionEngine/decisions.cpp:168] :
-- [src/decisionEngine/decisions.cpp:173] : this whole stupid thing
-- [src/decisionEngine/decisions.cpp:189] : also all of this one too
-- [src/decisionEngine/decisions.cpp:230] : although this code works, we need to implement a more advanced pattern matching system and we need to
-- [src/decisionEngine/decisions.cpp:233] : This function should somehow return a score for the match so that when multiple intents match, we can
-- [src/decisionEngine/decisions.cpp:281] : convert this to std::future and make callback the progress callback or remove it
-- [src/decisionEngine/decisions.cpp:324] : convert this to std::future
-- [src/decisionEngine/decisions.cpp:330] : convert this to std::future and make callback the progress callback or remove it
-- [src/decisionEngine/decisions.cpp:335] :
-- [src/decisionEngine/decisions.cpp:342] :
-- [src/decisionEngine/decisions.cpp:357] : remove this. Testing only.
-- [src/decisionEngine/decisions.cpp:412] :
-- [src/decisionEngine/decisions.cpp:444] : define all the system intents. this should include things like "What time is it?" and "What apps are installed?"
-- [src/decisionEngine/decisions.cpp:467] :
-- [src/decisionEngine/decisions.cpp:641] : check if the task should be repeated and if so, add it back to the scheduledTasks list
-- [src/decisionEngine/decisions.cpp:652] :
-- [src/decisionEngine/decisions.cpp:665] :
+- [src/decisionEngine/decisions.cpp:170] :
 - [src/decisionEngine/decisions.cpp:80] :
-- [src/decisionEngine/decisions.h:92] : the stream that this is reading from may need to be a more complex
 - [src/decisionEngine/intentRegistry.cpp:121] : add TTS support
 - [src/decisionEngine/intentRegistry.cpp:142] : Implement this
 - [src/decisionEngine/intentRegistry.cpp:148] : This needs checks to ensure properly formatted JSON
-- [src/decisionEngine/intentRegistry.h:49] : add a mutex so that the calling of execute can be thread safe
+- [src/decisionEngine/intentRegistry.cpp:278] : define all the system intents. this should include things like "What time is it?" and "What apps are installed?"
+- [src/decisionEngine/intentRegistry.cpp:308] : although this code works, we need to implement a more advanced pattern matching system and we need to
+- [src/decisionEngine/intentRegistry.cpp:311] : This function should somehow return a score for the match so that when multiple intents match, we can
+- [src/decisionEngine/intentRegistry.cpp:359] : convert this to std::future and make callback the progress callback or remove it
+- [src/decisionEngine/intentRegistry.cpp:402] : convert this to std::future
+- [src/decisionEngine/intentRegistry.cpp:408] : convert this to std::future and make callback the progress callback or remove it
+- [src/decisionEngine/intentRegistry.cpp:413] :
+- [src/decisionEngine/intentRegistry.cpp:420] :
+- [src/decisionEngine/intentRegistry.cpp:435] : remove this. Testing only.
+- [src/decisionEngine/intentRegistry.cpp:490] :
+- [src/decisionEngine/intentRegistry.h:52] : add a mutex so that the calling of execute can be thread safe
 - [src/decisionEngine/personalityManager.h:147] : add methods that allow for ramp type of expiration
 - [src/decisionEngine/remoteServer.cpp:196] :
 - [src/decisionEngine/remoteServer.cpp:37] : Implement this class
@@ -105,6 +98,13 @@
 - [src/decisionEngine/remoteServer.cpp:85] :
 - [src/decisionEngine/remoteServer.cpp:92] :
 - [src/decisionEngine/remoteServer.cpp:99] :
+- [src/decisionEngine/scheduler.cpp:197] : check if the task should be repeated and if so, add it back to the scheduledTasks list
+- [src/decisionEngine/scheduler.cpp:208] :
+- [src/decisionEngine/scheduler.cpp:23] :
+- [src/decisionEngine/transcriber.cpp:10] : this whole stupid thing
+- [src/decisionEngine/transcriber.cpp:28] : also all of this one too
+- [src/decisionEngine/transcriber.cpp:5] :
+- [src/decisionEngine/transcriber.h:74] : the stream that this is reading from may need to be a more complex
 - [src/gui/characterManager.cpp:144] : This will need to interface with the list of registered apps and find the ones
 - [src/gui/characterManager.cpp:239] : fill in the endpoints
 - [src/gui/characterManager.cpp:302] : move the actual loading of character data into a separate method so that we can call it

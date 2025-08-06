@@ -32,8 +32,11 @@
 #include "globalSettings.h"
 #include "httplib.h"
 #include "personalityManager.h"
-#include "decisionsError.hpp"
-#include "interfaceDefs.hpp"
+// #include "decisionsError.hpp"
+#include "remoteApi.h"
+
+#define LOCAL_INTENT_RECOGNITION_THREAD_COUNT 4
+#define LOCAL_INTENT_RECOGNITION_THREAD_SLEEP_MS 100
 
 namespace DecisionEngine {
 

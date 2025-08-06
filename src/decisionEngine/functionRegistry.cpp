@@ -23,4 +23,10 @@ Functions are registered with the following information:
 
 namespace DecisionEngine {
 
+FunctionRegistry& FunctionRegistry::instance()
+{
+    static FunctionRegistry instance;
+    return instance;
+}
+
 }
