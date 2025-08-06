@@ -121,7 +121,11 @@ void Intent::execute() const
         // TODO: add TTS support
         action(parameters, *this);
     } 
-        //throw DecisionEngine::DecisionEngineError("No action set for intent: " + intentName, DecisionEngine::DecisionErrorType::NO_ACTION_SET);
+    // DecisionEngineError has been removed. opt for a simple log message instead
+    //throw DecisionEngine::DecisionEngineError("No action set for intent: " + intentName, DecisionEngine::DecisionErrorType::NO_ACTION_SET);
+    else {
+        CubeLog::error("No action set for intent: " + intentName);
+    }
 }
 
 const std::string Intent::serialize()
