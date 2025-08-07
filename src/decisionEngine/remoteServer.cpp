@@ -32,6 +32,7 @@ SOFTWARE.
 */
 
 #include "remoteServer.h"
+#include <random>
 
 // TheCubeServerAPI - class to interact with TheCube Server API. Will use API key stored in CubeDB. Key is stored encrypted and will be decrypted at load time.
 // TODO: Implement this class
@@ -235,7 +236,7 @@ TheCubeServerAPI::FourBit TheCubeServerAPI::getAvailableServices()
  * @param progressCB A callback function that will be called with the progress of the chat session. (optional)
  * @return std::future<std::string> A future that will contain the chat response when it is ready. Use .get() to retrieve the response and .wait_for() to check if the response is ready.
  */
-std::future<std::string> TheCubeServerAPI::getChatResponseAsync(const std::string& message, const std::function<void(std::string)>& progressCB = [](std::string s) -> void {})
+std::future<std::string> TheCubeServerAPI::getChatResponseAsync(const std::string& message, const std::function<void(std::string)>& progressCB)
 {
     CubeLog::info("Getting chat response async");
     // generate a random number between 1 and 1000000

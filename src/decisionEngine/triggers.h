@@ -50,13 +50,17 @@ public:
     void setTriggerFunction(std::function<void()> triggerFunction);
     void setCheckTrigger(std::function<bool()> checkTrigger);
     virtual void setScheduler(std::shared_ptr<Scheduler> scheduler) = 0;
+    bool hasCheck() const;
+    bool evaluateCheck() const;
 
 private:
     bool enabled = false;
-    bool triggerState = false;
     bool schedulerSet = false;
+protected:
+    bool triggerState = false;
     std::function<void()> triggerFunction;
     std::function<bool()> checkTrigger;
+    std::weak_ptr<Scheduler> scheduler;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -70,6 +74,7 @@ public:
     void trigger() override;
     void setTime(const TimePoint& time);
     const TimePoint& getTime() const;
+    void setScheduler(std::shared_ptr<Scheduler> scheduler) override;
 
 private:
     TimePoint time;
@@ -83,6 +88,7 @@ public:
     EventTrigger(const std::function<void()>& triggerFunction);
     EventTrigger(const std::function<void()>& triggerFunction, const std::function<bool()>& checkTrigger);
     void trigger() override;
+    void setScheduler(std::shared_ptr<Scheduler> scheduler) override;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -93,12 +99,19 @@ public:
     TriggerManager(const std::shared_ptr<Scheduler>& scheduler);
     ~TriggerManager();
     void setScheduler(std::shared_ptr<Scheduler> scheduler);
+    void setIntentRegistry(std::shared_ptr<IntentRegistry> intentRegistry);
     // API Interface
     HttpEndPointData_t getHttpEndpointData() override;
-    std::string getInterfaceName() const override;
+    constexpr std::string getInterfaceName() const override;
 
 private:
     std::shared_ptr<Scheduler> scheduler;
+    std::weak_ptr<IntentRegistry> intentRegistry;
+    using TriggerHandle = uint32_t;
+    std::unordered_map<TriggerHandle, std::shared_ptr<I_Trigger>> triggers;
+    std::jthread* pollThread{ nullptr };
+    std::mutex mtx;
+    static TriggerHandle nextHandle;
 };
 
 }

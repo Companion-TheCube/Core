@@ -143,6 +143,11 @@ void Scheduler::setIntentRecognition(std::shared_ptr<I_IntentRecognition> intent
     this->intentRecognition = intentRecognition;
 }
 
+void Scheduler::setIntentRegistry(std::shared_ptr<IntentRegistry> intentRegistry)
+{
+    this->intentRegistry = intentRegistry;
+}
+
 uint32_t Scheduler::addTask(const ScheduledTask& task)
 {
     std::unique_lock<std::mutex> lock(schedulerMutex);
@@ -205,8 +210,128 @@ void Scheduler::schedulerThreadFunction(std::stop_token st)
 HttpEndPointData_t Scheduler::getHttpEndpointData()
 {
     HttpEndPointData_t data;
-    // TODO:
-    // 1. Add a task
+    // Control endpoints
+    data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
+        [&](const httplib::Request& req, httplib::Response& res) {
+            this->start();
+            nlohmann::json j; j["success"] = true; j["message"] = "Scheduler started";
+            res.set_content(j.dump(), "application/json");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Scheduler started");
+        },
+        "start", {}, "Start scheduler" });
+
+    data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
+        [&](const httplib::Request& req, httplib::Response& res) {
+            this->stop();
+            nlohmann::json j; j["success"] = true; j["message"] = "Scheduler stopped";
+            res.set_content(j.dump(), "application/json");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Scheduler stopped");
+        },
+        "stop", {}, "Stop scheduler" });
+
+    data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
+        [&](const httplib::Request& req, httplib::Response& res) {
+            this->pause();
+            nlohmann::json j; j["success"] = true; j["message"] = "Scheduler paused";
+            res.set_content(j.dump(), "application/json");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Scheduler paused");
+        },
+        "pause", {}, "Pause scheduler" });
+
+    data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
+        [&](const httplib::Request& req, httplib::Response& res) {
+            this->resume();
+            nlohmann::json j; j["success"] = true; j["message"] = "Scheduler resumed";
+            res.set_content(j.dump(), "application/json");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Scheduler resumed");
+        },
+        "resume", {}, "Resume scheduler" });
+
+    // List tasks
+    data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
+        [&](const httplib::Request& req, httplib::Response& res) {
+            std::scoped_lock lk(this->schedulerMutex);
+            nlohmann::json j; j["success"] = true; j["tasks"] = nlohmann::json::array();
+            for (auto& t : scheduledTasks) {
+                nlohmann::json tj;
+                auto tp = std::chrono::time_point_cast<std::chrono::milliseconds>(t.getSchedule().time);
+                tj["handle"] = t.getHandle();
+                tj["enabled"] = t.isEnabled();
+                tj["timeEpochMs"] = tp.time_since_epoch().count();
+                tj["repeatSeconds"] = t.getSchedule().repeat.toSeconds();
+                if (auto in = t.getIntent()) tj["intentName"] = in->getIntentName();
+                j["tasks"].push_back(tj);
+            }
+            res.set_content(j.dump(), "application/json");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Listed tasks");
+        },
+        "listTasks", {}, "List scheduled tasks" });
+
+    // Add task (one-shot or repeating)
+    data.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,
+        [&](const httplib::Request& req, httplib::Response& res) {
+            if (!(req.has_header("Content-Type") && req.get_header_value("Content-Type") == "application/json")) {
+                nlohmann::json j; j["success"] = false; j["message"] = "Content-Type must be application/json";
+                res.set_content(j.dump(), "application/json");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, "Content-Type must be application/json");
+            }
+            try {
+                auto j = nlohmann::json::parse(req.body);
+                auto intentName = j.value("intentName", std::string(""));
+                auto epochMs = j.value("timeEpochMs", (int64_t)0);
+                auto delayMs = j.value("delayMs", (int64_t)0);
+                auto repeatSec = j.value("repeatSeconds", (uint32_t)0);
+                if (intentName.empty()) throw std::runtime_error("intentName is required");
+                auto reg = intentRegistry.lock();
+                if (!reg) throw std::runtime_error("IntentRegistry not available");
+                auto intent = reg->getIntent(intentName);
+                if (!intent) throw std::runtime_error("Intent not found: " + intentName);
+                TimePoint tp;
+                if (epochMs > 0) {
+                    tp = TimePoint(std::chrono::milliseconds(epochMs));
+                } else {
+                    tp = std::chrono::system_clock::now() + std::chrono::milliseconds(delayMs);
+                }
+                ScheduledTask task;
+                if (repeatSec > 0) {
+                    task = ScheduledTask(intent, tp, { ScheduledTask::RepeatInterval::Interval::REPEAT_CUSTOM, repeatSec });
+                } else {
+                    task = ScheduledTask(intent, tp);
+                }
+                auto handle = this->addTask(task);
+                nlohmann::json out; out["success"] = true; out["handle"] = handle;
+                res.set_content(out.dump(), "application/json");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Task added");
+            } catch (std::exception& e) {
+                nlohmann::json out; out["success"] = false; out["message"] = e.what();
+                res.set_content(out.dump(), "application/json");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, e.what());
+            }
+        },
+        "addTask", { "intentName", "timeEpochMs|delayMs", "repeatSeconds" }, "Add a scheduled task" });
+
+    // Remove task by handle
+    data.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,
+        [&](const httplib::Request& req, httplib::Response& res) {
+            if (!(req.has_header("Content-Type") && req.get_header_value("Content-Type") == "application/json")) {
+                nlohmann::json j; j["success"] = false; j["message"] = "Content-Type must be application/json";
+                res.set_content(j.dump(), "application/json");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, "Content-Type must be application/json");
+            }
+            try {
+                auto j = nlohmann::json::parse(req.body);
+                auto handle = j.at("handle").get<uint32_t>();
+                this->removeTask(handle);
+                nlohmann::json out; out["success"] = true;
+                res.set_content(out.dump(), "application/json");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Task removed");
+            } catch (std::exception& e) {
+                nlohmann::json out; out["success"] = false; out["message"] = e.what();
+                res.set_content(out.dump(), "application/json");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, e.what());
+            }
+        },
+        "removeTask", { "handle" }, "Remove a task by handle" });
 
     return data;
 }

@@ -98,7 +98,7 @@ public:
     bool stopTranscribing();
     bool initServerConnection();
     bool resetServerConnection();
-    std::future<std::string> getChatResponseAsync(const std::string& message, const std::function<void(std::string)>& progressCB);
+    std::future<std::string> getChatResponseAsync(const std::string& message, const std::function<void(std::string)>& progressCB = [](std::string){});
     ServerStatus getServerStatus();
     ServerError getServerError();
     ServerState getServerState();

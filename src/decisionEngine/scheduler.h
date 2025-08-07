@@ -133,6 +133,7 @@ public:
     void resume();
     void restart();
     void setIntentRecognition(std::shared_ptr<I_IntentRecognition> intentRecognition);
+    void setIntentRegistry(std::shared_ptr<IntentRegistry> intentRegistry);
     uint32_t addTask(const ScheduledTask& task);
     void removeTask(const std::shared_ptr<Intent>& intent);
     void removeTask(const std::string& intentName);
@@ -144,6 +145,7 @@ public:
 
 private:
     std::shared_ptr<I_IntentRecognition> intentRecognition;
+    std::weak_ptr<IntentRegistry> intentRegistry;
     ScheduledTaskList scheduledTasks;
     std::jthread* schedulerThread;
     std::mutex schedulerMutex;
