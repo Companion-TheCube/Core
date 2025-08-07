@@ -1,5 +1,58 @@
 let test = "nothing";
+let authToken = null;
+let clientId = "webui"; // default; user can override below
 console.log("auth.js is loaded");
+
+// Build simple auth UI
+const toolbar = document.getElementById("toolbar") || (function(){
+    const t = document.createElement("div");
+    t.id = "toolbar";
+    document.body.prepend(t);
+    return t;
+})();
+
+const clientIdInput = document.createElement("input");
+clientIdInput.type = "text";
+clientIdInput.placeholder = "client_id (e.g., webui)";
+clientIdInput.value = clientId;
+toolbar.appendChild(clientIdInput);
+
+const initBtn = document.createElement("button");
+initBtn.textContent = "Get Initial Code";
+initBtn.addEventListener("click", () => {
+    clientId = clientIdInput.value || "webui";
+    fetch(`/CubeAuth-initCode?client_id=${encodeURIComponent(clientId)}`)
+        .then(r => r.json())
+        .then(j => {
+            if (j.success) {
+                alert("Initial code generated on the device. Enter that code here to finish authentication.");
+            } else {
+                alert("Failed to get initial code: " + (j.message || "unknown error"));
+            }
+        })
+        .catch(e => alert("Error: " + e));
+});
+toolbar.appendChild(initBtn);
+
+const authBtn = document.createElement("button");
+authBtn.textContent = "Authenticate";
+authBtn.addEventListener("click", () => {
+    clientId = clientIdInput.value || "webui";
+    const code = prompt("Enter the initial code shown on the device:");
+    if (!code) return;
+    fetch(`/CubeAuth-authHeader?client_id=${encodeURIComponent(clientId)}&initial_code=${encodeURIComponent(code)}`)
+        .then(r => r.json())
+        .then(j => {
+            if (j.success && j.auth_code) {
+                authToken = j.auth_code;
+                alert("Authenticated. Private endpoints will include Authorization automatically.");
+            } else {
+                alert("Auth failed: " + (j.message || "unknown error"));
+            }
+        })
+        .catch(e => alert("Error: " + e));
+});
+toolbar.appendChild(authBtn);
 // load the json from /getEndpoints and use that to create links on the page
 fetch("/getEndpoints")
     .then((response) => response.json())
@@ -31,32 +84,23 @@ fetch("/getEndpoints")
                 submit.value = "Submit";
                 submit.addEventListener("click", (event) => {
                     event.preventDefault();
+                    const headers = {};
+                    if (endpoint.public !== "true" && authToken) {
+                        headers["Authorization"] = `Bearer ${authToken}`;
+                    }
                     if (endpoint.endpoint_type == "GET") {
-                        fetch(
-                            endpointForm.action +
-                                "?" +
-                                new URLSearchParams(new FormData(endpointForm))
-                        )
-                            .then((response) => response)
-                            .then((data) => {
-                                console.log(data);
-                            });
+                        const url = endpointForm.action + "?" + new URLSearchParams(new FormData(endpointForm));
+                        fetch(url, { method: "GET", headers })
+                            .then((response) => response.json().catch(() => ({ status: response.status })))
+                            .then((data) => { console.log(data); alert(JSON.stringify(data)); })
+                            .catch((e) => alert("Error: " + e));
                     } else {
-                        fetch(endpointForm.action, {
-                            method: endpoint.endpoint_type,
-                            // body is json of the form {param1: value1, param2: value2}
-                            body: JSON.stringify(
-                                Object.fromEntries(new FormData(endpointForm))
-                            ),
-                            // must have header to tell the server that the body is json
-                            headers: {
-                                "Content-Type": "application/json",
-                            },
-                        })
+                        const body = JSON.stringify(Object.fromEntries(new FormData(endpointForm)));
+                        headers["Content-Type"] = "application/json";
+                        fetch(endpointForm.action, { method: endpoint.endpoint_type, headers, body })
                             .then((response) => response.json())
-                            .then((data) => {
-                                console.log(data);
-                            });
+                            .then((data) => { console.log(data); alert(JSON.stringify(data)); })
+                            .catch((e) => alert("Error: " + e));
                     }
                 });
                 endpointForm.appendChild(submit);

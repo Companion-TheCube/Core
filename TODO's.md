@@ -15,8 +15,8 @@
 - [src/api/api.cpp:50] : Since we need to make sure that the entire API is built before letting any clients connect,
 - [src/api/api.cpp:57] : // TESTING AUTHENTICATION //// remove
 - [src/api/api.h:197] : We need to make the API server is able to handle new interfaces being added at runtime.
-- [src/api/authentication.cpp:133] : add checkAuth function that only takes the app_id and returns bool if the app_id has been allowed by the user
-- [src/api/authentication.cpp:523] : verify/test that this is thread safe
+- [src/api/authentication.cpp:155] : add checkAuth function that only takes the app_id and returns bool if the app_id has been allowed by the user
+- [src/api/authentication.cpp:643] : verify/test that this is thread safe
 - [src/api/builder.cpp:139] : refactor to get rid of staticFiles vector. update: maybe not?
 - [src/apps/appsDBManager.cpp:110] : add the interfaces for HTTP server
 - [src/apps/appsManager.cpp:1180] : Implement checking if app update is available
@@ -73,8 +73,6 @@
 - [src/database/db.cpp:34] : this file needs a line by line evaluation
 - [src/database/db.h:247] : make sure all the data is sanitized before being inserted into the database.
 - [src/decisionEngine/cubeWhisper.cpp:38] : initialize whisper.cpp library and make sure it has the model loaded.
-- [src/decisionEngine/decisions.cpp:126] : remove this test code
-- [src/decisionEngine/decisions.cpp:170] :
 - [src/decisionEngine/decisions.cpp:80] :
 - [src/decisionEngine/intentRegistry.cpp:121] : add TTS support
 - [src/decisionEngine/intentRegistry.cpp:146] : Implement this
@@ -91,15 +89,14 @@
 - [src/decisionEngine/intentRegistry.cpp:494] :
 - [src/decisionEngine/intentRegistry.h:52] : add a mutex so that the calling of execute can be thread safe
 - [src/decisionEngine/personalityManager.h:147] : add methods that allow for ramp type of expiration
-- [src/decisionEngine/remoteServer.cpp:196] :
-- [src/decisionEngine/remoteServer.cpp:37] : Implement this class
-- [src/decisionEngine/remoteServer.cpp:43] :
-- [src/decisionEngine/remoteServer.cpp:58] : Read the setting for which AI service the user wants to use.
-- [src/decisionEngine/remoteServer.cpp:85] :
-- [src/decisionEngine/remoteServer.cpp:92] :
-- [src/decisionEngine/remoteServer.cpp:99] :
-- [src/decisionEngine/scheduler.cpp:197] : check if the task should be repeated and if so, add it back to the scheduledTasks list
-- [src/decisionEngine/scheduler.cpp:208] :
+- [src/decisionEngine/remoteServer.cpp:100] :
+- [src/decisionEngine/remoteServer.cpp:197] :
+- [src/decisionEngine/remoteServer.cpp:38] : Implement this class
+- [src/decisionEngine/remoteServer.cpp:44] :
+- [src/decisionEngine/remoteServer.cpp:59] : Read the setting for which AI service the user wants to use.
+- [src/decisionEngine/remoteServer.cpp:86] :
+- [src/decisionEngine/remoteServer.cpp:93] :
+- [src/decisionEngine/scheduler.cpp:202] : check if the task should be repeated and if so, add it back to the scheduledTasks list
 - [src/decisionEngine/scheduler.cpp:23] :
 - [src/decisionEngine/transcriber.cpp:10] : this whole stupid thing
 - [src/decisionEngine/transcriber.cpp:28] : also all of this one too

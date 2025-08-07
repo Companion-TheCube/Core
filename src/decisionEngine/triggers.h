@@ -52,6 +52,7 @@ public:
     virtual void setScheduler(std::shared_ptr<Scheduler> scheduler) = 0;
     bool hasCheck() const;
     bool evaluateCheck() const;
+    std::function<bool()> checkTrigger;
 
 private:
     bool enabled = false;
@@ -59,7 +60,6 @@ private:
 protected:
     bool triggerState = false;
     std::function<void()> triggerFunction;
-    std::function<bool()> checkTrigger;
     std::weak_ptr<Scheduler> scheduler;
 };
 
