@@ -1,118 +1,200 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Companion, TheCube</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>TheCube • Control Panel</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header>
-    <h1>TheCube Control Panel</h1>
-    <button id="themeToggle">🌙</button>
+  <div class="bgfx"></div>
+
+  <header class="appbar">
+    <div class="brand">
+      <span class="cube-dot"></span>
+      <h1>TheCube Control Panel</h1>
+    </div>
+    <div class="toolbar">
+      <label class="switch">
+        <input id="themeToggle" type="checkbox" aria-label="Toggle dark mode">
+        <span class="slider"></span>
+      </label>
+    </div>
   </header>
-  <main>
-    <!-- 1. Dashboard Overview -->
+
+  <main class="grid">
+
+    <!-- Dashboard -->
     <section id="dashboard" class="card">
-      <h2>Dashboard</h2>
-      <div class="status-row">
-        <div>Status: <span id="statusText">Offline</span></div>
-        <div>Personality: <span id="personalityMode">Default</span></div>
-        <div>Network: <span id="networkInfo">--</span></div>
+      <div class="card-head">
+        <h2>Dashboard</h2>
+        <div class="pill" id="onlinePill">Offline</div>
       </div>
-      <div class="mood-row">
-        <div id="clock"></div>
-        <div id="moodIndicator" class="mood">🙂</div>
-        <div id="heartbeat" class="heartbeat"></div>
+
+      <div class="dash-top">
+        <!-- Animated Cube Face -->
+        <div class="cube-face" id="cubeFace" aria-hidden="true">
+          <div class="eye left"></div>
+          <div class="eye right"></div>
+          <div class="mouth"></div>
+        </div>
+
+        <div class="dash-meta">
+          <div class="kv"><span>Personality</span><strong id="personalityMode">Balanced</strong></div>
+          <div class="kv"><span>Network</span><strong id="networkInfo">—</strong></div>
+          <div class="kv"><span>Clock</span><strong id="clock">--:--:--</strong></div>
+          <div class="kv"><span>Heartbeat</span>
+            <span class="heartbeat" title="alive"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <span>Uptime</span>
+          <strong id="uptime">—</strong>
+        </div>
+        <div class="stat">
+          <span>CPU Temp</span>
+          <strong id="temp">—</strong>
+        </div>
+        <div class="stat">
+          <span>Memory</span>
+          <strong id="mem">—</strong>
+        </div>
+        <div class="stat">
+          <span>Mode</span>
+          <strong id="modeText">Local Only</strong>
+        </div>
       </div>
     </section>
 
-    <!-- 2. Personality Settings -->
+    <!-- Personality -->
     <section id="personality" class="card">
-      <h2>Personality Settings</h2>
-      <div class="slider-row" data-trait="playfulness">
-        <label>Playfulness</label>
-        <input type="range" min="1" max="10" value="5">
+      <div class="card-head">
+        <h2>Personality Settings</h2>
+        <small id="traitSummary">🙂 Balanced</small>
       </div>
-      <div class="slider-row" data-trait="cheekiness">
-        <label>Cheekiness</label>
-        <input type="range" min="1" max="10" value="5">
+
+      <div class="sliders">
+        <div class="slider-row" data-trait="playfulness">
+          <label>Playfulness</label>
+          <input type="range" min="1" max="10" value="6">
+          <output>6</output>
+        </div>
+        <div class="slider-row" data-trait="cheekiness">
+          <label>Cheekiness</label>
+          <input type="range" min="1" max="10" value="5">
+          <output>5</output>
+        </div>
+        <div class="slider-row" data-trait="seriousness">
+          <label>Seriousness</label>
+          <input type="range" min="1" max="10" value="5">
+          <output>5</output>
+        </div>
+        <div class="slider-row" data-trait="empathy">
+          <label>Empathy</label>
+          <input type="range" min="1" max="10" value="7">
+          <output>7</output>
+        </div>
+        <div class="slider-row" data-trait="responsiveness">
+          <label>Responsiveness</label>
+          <input type="range" min="1" max="10" value="7">
+          <output>7</output>
+        </div>
       </div>
-      <div class="slider-row" data-trait="seriousness">
-        <label>Seriousness</label>
-        <input type="range" min="1" max="10" value="5">
-      </div>
-      <div class="slider-row" data-trait="empathy">
-        <label>Empathy</label>
-        <input type="range" min="1" max="10" value="5">
-      </div>
-      <div class="slider-row" data-trait="responsiveness">
-        <label>Responsiveness</label>
-        <input type="range" min="1" max="10" value="5">
-      </div>
-      <div id="personalityPreview" class="preview">🙂</div>
+      <div class="hint">Tip: sliders update the Cube Face and save automatically.</div>
     </section>
 
-    <!-- 3. Schedule & Reminders -->
+    <!-- Reminders -->
     <section id="schedule" class="card">
-      <h2>Reminders</h2>
-      <ul id="reminderList"></ul>
-      <form id="reminderForm">
-        <input type="time" id="reminderTime" required>
-        <input type="text" id="reminderText" placeholder="Description" required>
-        <button type="submit">Add</button>
+      <div class="card-head">
+        <h2>Reminders</h2>
+        <button id="exportRem" class="ghost">Export</button>
+      </div>
+
+      <ul id="reminderList" class="list"></ul>
+
+      <form id="reminderForm" class="row add-form" autocomplete="off">
+        <input type="time" id="remTime" required>
+        <input type="text" id="remText" placeholder="Description or 'in 10m' / 'tomorrow 7:30am'" required>
+        <button type="submit" class="accent">Add</button>
       </form>
     </section>
 
-    <!-- 4. Trigger Panel -->
+    <!-- Triggers -->
     <section id="triggers" class="card">
-      <h2>Trigger Events</h2>
+      <h2 class="card-head">Trigger Panel</h2>
       <div class="button-grid">
         <button data-event="greeting">Play Greeting</button>
         <button data-event="animation">Run Animation</button>
-        <button data-event="hydration">Show Hydration Reminder</button>
+        <button data-event="hydration">Hydration Reminder</button>
         <button data-event="mood">Trigger Mood Change</button>
-        <button data-event="flash">Flash Lights</button>
+        <button data-event="flash">Flash Display Lights</button>
       </div>
     </section>
 
-    <!-- 5. Developer Tools -->
+    <!-- Developer Tools -->
     <section id="developer" class="card">
-      <h2>Developer Tools</h2>
-      <pre id="logs" class="logs">Loading logs…</pre>
-      <button id="restartBtn">Restart Services</button>
-      <div>
-        <label><input type="checkbox" id="modeToggle"> Cloud + Local</label>
+      <div class="card-head">
+        <h2>Developer Tools</h2>
+        <div class="row">
+          <label class="switch small">
+            <input id="modeToggle" type="checkbox">
+            <span class="slider"></span>
+          </label>
+          <span class="switch-label">Cloud + Local</span>
+          <button id="restartBtn" class="danger">Restart Services</button>
+        </div>
       </div>
-      <div id="systemInfo"></div>
+
+      <pre id="logs" class="logs" aria-live="polite">Connecting logs…</pre>
     </section>
 
-    <!-- 6. Network Settings -->
+    <!-- Network -->
     <section id="network" class="card">
-      <h2>Network Settings</h2>
-      <div>IP: <span id="ipAddr">--</span></div>
-      <div>Host: <span id="hostName">--</span></div>
-      <button id="scanBtn">Scan Wi-Fi</button>
-      <select id="ssidList"></select>
-      <input type="password" id="wifiPass" placeholder="Password">
-      <button id="wifiSave">Save</button>
-      <div>
+      <h2 class="card-head">Network Settings</h2>
+
+      <div class="kv"><span>IP</span><strong id="ipAddr">—</strong></div>
+      <div class="kv"><span>Host</span><strong id="hostName">—</strong></div>
+
+      <div class="row">
+        <button id="scanBtn" class="ghost">Scan Wi-Fi</button>
+        <select id="ssidList" title="Wi-Fi networks"></select>
+      </div>
+
+      <div class="row">
+        <input type="password" id="wifiPass" placeholder="Wi-Fi password">
+        <button id="wifiSave" class="accent">Save</button>
+      </div>
+
+      <fieldset class="ipmode">
+        <legend>IP Mode</legend>
         <label><input type="radio" name="ipMode" value="dhcp" checked> DHCP</label>
         <label><input type="radio" name="ipMode" value="static"> Static</label>
+      </fieldset>
+
+      <div id="staticFields" class="row hidden">
+        <input id="staticIp" placeholder="Static IP">
+        <input id="staticGw" placeholder="Gateway">
+        <input id="staticDns" placeholder="DNS">
       </div>
     </section>
 
-    <!-- 7. Cube-to-Cube Messaging (Optional) -->
+    <!-- Messaging -->
     <section id="messaging" class="card">
-      <h2>Cube Messaging</h2>
-      <form id="msgForm">
-        <input type="text" id="targetId" placeholder="Cube ID" required>
-        <input type="text" id="msgText" placeholder="Message" required>
-        <button type="submit">Send</button>
+      <h2 class="card-head">Cube-to-Cube Messaging</h2>
+      <form id="msgForm" class="row">
+        <input type="text" id="targetId" placeholder="Target Cube ID" required>
+        <input type="text" id="msgText" placeholder="Say hello 👋 or send an emoji" required>
+        <button type="submit" class="accent">Send</button>
       </form>
-      <ul id="messageHistory"></ul>
+      <ul id="messageHistory" class="list compact"></ul>
     </section>
+
   </main>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
 
   <script src="app.js"></script>
 </body>
