@@ -256,15 +256,13 @@
 - [src/gui/menu/menu.cpp:722] : add the rest of the MENU_ENTRY_TYPEs
 - [src/gui/menu/menu.cpp:876] : add slider drawing
 - [src/gui/menu/menu.h:275] : add bool: border to constructor
-- [src/gui/messageBox/messageBox.cpp:198] :
-- [src/gui/messageBox/messageBox.cpp:208] :
+- [src/gui/messageBox/messageBox.cpp:100] : the character to needs to be aligned with the box in a way that makes it look like a speech bubble
 - [src/gui/messageBox/messageBox.cpp:34] : make a "Do you want to authorize this app? Yes/No" message box
 - [src/gui/messageBox/messageBox.cpp:35] : add auto wrapping of text in message box
 - [src/gui/messageBox/messageBox.cpp:36] : close message bos when clicked / touched
 - [src/gui/messageBox/messageBox.cpp:37] : disable menu click listener when message box is visible
-- [src/gui/messageBox/messageBox.cpp:532] : this was copy/pasted from CubeTextBox::setText. We need to refactor this so that is renders the text field names and a text input box for each.
-- [src/gui/messageBox/messageBox.cpp:87] : make the outline more like a speech bubble
-- [src/gui/messageBox/messageBox.cpp:88] : the character to needs to be aligned with the box in a way that makes it look like a speech bubble
+- [src/gui/messageBox/messageBox.cpp:554] : this was copy/pasted from CubeTextBox::setText. We need to refactor this so that is renders the text field names and a text input box for each.
+- [src/gui/messageBox/messageBox.cpp:99] : make the outline more like a speech bubble
 - [src/gui/messageBox/messageBox.h:65] : make a generic message box class that can be inherited from to make different types of message boxes
 - [src/gui/renderables/meshLoader.cpp:240] : change this to use RRGGBB data for shape type
 - [src/gui/renderables/meshLoader.cpp:476] : Move this function to bottom of file.

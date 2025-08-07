@@ -55,6 +55,18 @@ CubeMessageBox::CubeMessageBox(Shader* shader, Shader* textShader, Renderer* ren
     this->renderer = renderer;
     CubeLog::info("MessageBox initialized");
     this->callback = [&]() { return; };
+    // Initialize sensible defaults so text renders in the box
+    // The box geometry in setup() currently draws a ~1x1 area centered using normalized coords
+    // Map that roughly to pixel coordinates for text placement: position (288,288), size (360,360)
+    this->position = { 288, 288 };
+    this->size = { 360, 360 };
+    // Initialize a reasonable clickable area matching the pixel box
+    this->clickArea = ClickableArea();
+    this->clickArea.clickableObject = nullptr;
+    this->clickArea.xMin = (unsigned int)this->position.x;
+    this->clickArea.xMax = (unsigned int)(this->position.x + this->size.x);
+    this->clickArea.yMin = (unsigned int)this->position.y;
+    this->clickArea.yMax = (unsigned int)(this->position.y + this->size.y);
 }
 
 /**
@@ -195,7 +207,12 @@ void CubeMessageBox::draw()
  */
 void CubeMessageBox::setPosition(glm::vec2 position)
 {
-    // TODO:
+    this->position = position;
+    // keep clickable area in sync
+    this->clickArea.xMin = (unsigned int)this->position.x;
+    this->clickArea.xMax = (unsigned int)(this->position.x + this->size.x);
+    this->clickArea.yMin = (unsigned int)this->position.y;
+    this->clickArea.yMax = (unsigned int)(this->position.y + this->size.y);
 }
 
 /**
@@ -205,7 +222,12 @@ void CubeMessageBox::setPosition(glm::vec2 position)
  */
 void CubeMessageBox::setSize(glm::vec2 size)
 {
-    // TODO:
+    this->size = size;
+    // keep clickable area in sync
+    this->clickArea.xMin = (unsigned int)this->position.x;
+    this->clickArea.xMax = (unsigned int)(this->position.x + this->size.x);
+    this->clickArea.yMin = (unsigned int)this->position.y;
+    this->clickArea.yMax = (unsigned int)(this->position.y + this->size.y);
 }
 
 /**
