@@ -137,15 +137,32 @@ void CubeMessageBox::setText(const std::string& text, const std::string& title)
         this->textObjects.clear();
         this->textObjects.push_back(new M_Text(textShader, title, (this->messageTextSize * MESSAGEBOX_TITLE_TEXT_MULT), { 1.f, 1.f, 1.f }, { this->position.x + STENCIL_INSET_PX, (this->position.y + this->size.y) - this->messageTextSize - STENCIL_INSET_PX }));
         std::vector<std::string> lines;
-        std::string line;
+        size_t maxCharsPerLine = (size_t)((this->size.x - (2 * STENCIL_INSET_PX)) / (this->messageTextSize * 0.55f));
         std::istringstream textStream(text);
-        while (std::getline(textStream, line)) {
-            lines.push_back(line);
+        std::string paragraph;
+        while (std::getline(textStream, paragraph)) {
+            if (paragraph.empty()) {
+                lines.push_back("");
+                continue;
+            }
+            std::istringstream wordStream(paragraph);
+            std::string word;
+            std::string current;
+            while (wordStream >> word) {
+                if (current.empty()) {
+                    current = word;
+                } else if ((current.size() + 1 + word.size()) <= maxCharsPerLine) {
+                    current += " " + word;
+                } else {
+                    lines.push_back(current);
+                    current = word;
+                }
+            }
+            if (!current.empty())
+                lines.push_back(current);
         }
         if (lines.size() == 0)
             lines.push_back(text);
-        if (lines[0].size() == 0)
-            lines[0] = text;
         for (size_t i = 0; i < lines.size(); i++) {
             float shiftForPreviousLines = ((float)(i + 1) * this->messageTextSize) + (this->messageTextSize * MESSAGEBOX_TITLE_TEXT_MULT);
             float shiftForMargin = (float)(i + 1) * MESSAGEBOX_LINE_SPACING * this->messageTextSize;
