@@ -57,9 +57,9 @@ CubeMessageBox::CubeMessageBox(Shader* shader, Shader* textShader, Renderer* ren
     this->callback = [&]() { return; };
     // Initialize sensible defaults so text renders in the box
     // The box geometry in setup() currently draws a ~1x1 area centered using normalized coords
-    // Map that roughly to pixel coordinates for text placement: position (288,288), size (360,360)
-    this->position = { 288, 288 };
-    this->size = { 360, 360 };
+    // Map that roughly to pixel coordinates for text placement: position (252,252), size (432,432)
+    this->position = { 252, 252 };
+    this->size = { 432, 432 };
     // Initialize a reasonable clickable area matching the pixel box
     this->clickArea = ClickableArea();
     this->clickArea.clickableObject = nullptr;
@@ -93,9 +93,9 @@ void CubeMessageBox::setup()
 
     float radius = BOX_RADIUS;
     float diameter = radius * 2;
-    float xStart = -0.2;
-    float yStart = -0.2;
-    glm::vec2 size_ = { 1.f, 1.f };
+    float xStart = -0.3;
+    float yStart = -0.3;
+    glm::vec2 size_ = { 1.2f, 1.2f };
     // TODO: make the outline more like a speech bubble
     // TODO: the character to needs to be aligned with the box in a way that makes it look like a speech bubble
     this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart + radius, Z_DISTANCE + this->index }, { size_.x - diameter, size_.y - diameter }, 0.0, 0.0)); // main box
@@ -135,17 +135,39 @@ void CubeMessageBox::setText(const std::string& text, const std::string& title)
             delete this->textObjects[index];
         }
         this->textObjects.clear();
-        this->textObjects.push_back(new M_Text(textShader, title, (this->messageTextSize * MESSAGEBOX_TITLE_TEXT_MULT), { 1.f, 1.f, 1.f }, { this->position.x + STENCIL_INSET_PX, (this->position.y + this->size.y) - this->messageTextSize - STENCIL_INSET_PX }));
+        auto titleText = new M_Text(textShader, title, (this->messageTextSize * MESSAGEBOX_TITLE_TEXT_MULT), { 1.f, 1.f, 1.f }, { 0.f, 0.f });
+        float titleWidth = titleText->getWidth();
+        float titleX = this->position.x + (this->size.x - titleWidth) / 2.f;
+        float titleY = (this->position.y + this->size.y) - this->messageTextSize - STENCIL_INSET_PX;
+        titleText->setPosition({ titleX, titleY });
+        this->textObjects.push_back(titleText);
         std::vector<std::string> lines;
-        std::string line;
+        size_t maxCharsPerLine = (size_t)((this->size.x - (2 * STENCIL_INSET_PX)) / (this->messageTextSize * 0.55f));
         std::istringstream textStream(text);
-        while (std::getline(textStream, line)) {
-            lines.push_back(line);
+        std::string paragraph;
+        while (std::getline(textStream, paragraph)) {
+            if (paragraph.empty()) {
+                lines.push_back("");
+                continue;
+            }
+            std::istringstream wordStream(paragraph);
+            std::string word;
+            std::string current;
+            while (wordStream >> word) {
+                if (current.empty()) {
+                    current = word;
+                } else if ((current.size() + 1 + word.size()) <= maxCharsPerLine) {
+                    current += " " + word;
+                } else {
+                    lines.push_back(current);
+                    current = word;
+                }
+            }
+            if (!current.empty())
+                lines.push_back(current);
         }
         if (lines.size() == 0)
             lines.push_back(text);
-        if (lines[0].size() == 0)
-            lines[0] = text;
         for (size_t i = 0; i < lines.size(); i++) {
             float shiftForPreviousLines = ((float)(i + 1) * this->messageTextSize) + (this->messageTextSize * MESSAGEBOX_TITLE_TEXT_MULT);
             float shiftForMargin = (float)(i + 1) * MESSAGEBOX_LINE_SPACING * this->messageTextSize;
