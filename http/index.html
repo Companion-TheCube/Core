@@ -1,1 +1,119 @@
-this is the index
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Companion, TheCube</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>TheCube Control Panel</h1>
+    <button id="themeToggle">🌙</button>
+  </header>
+  <main>
+    <!-- 1. Dashboard Overview -->
+    <section id="dashboard" class="card">
+      <h2>Dashboard</h2>
+      <div class="status-row">
+        <div>Status: <span id="statusText">Offline</span></div>
+        <div>Personality: <span id="personalityMode">Default</span></div>
+        <div>Network: <span id="networkInfo">--</span></div>
+      </div>
+      <div class="mood-row">
+        <div id="clock"></div>
+        <div id="moodIndicator" class="mood">🙂</div>
+        <div id="heartbeat" class="heartbeat"></div>
+      </div>
+    </section>
+
+    <!-- 2. Personality Settings -->
+    <section id="personality" class="card">
+      <h2>Personality Settings</h2>
+      <div class="slider-row" data-trait="playfulness">
+        <label>Playfulness</label>
+        <input type="range" min="1" max="10" value="5">
+      </div>
+      <div class="slider-row" data-trait="cheekiness">
+        <label>Cheekiness</label>
+        <input type="range" min="1" max="10" value="5">
+      </div>
+      <div class="slider-row" data-trait="seriousness">
+        <label>Seriousness</label>
+        <input type="range" min="1" max="10" value="5">
+      </div>
+      <div class="slider-row" data-trait="empathy">
+        <label>Empathy</label>
+        <input type="range" min="1" max="10" value="5">
+      </div>
+      <div class="slider-row" data-trait="responsiveness">
+        <label>Responsiveness</label>
+        <input type="range" min="1" max="10" value="5">
+      </div>
+      <div id="personalityPreview" class="preview">🙂</div>
+    </section>
+
+    <!-- 3. Schedule & Reminders -->
+    <section id="schedule" class="card">
+      <h2>Reminders</h2>
+      <ul id="reminderList"></ul>
+      <form id="reminderForm">
+        <input type="time" id="reminderTime" required>
+        <input type="text" id="reminderText" placeholder="Description" required>
+        <button type="submit">Add</button>
+      </form>
+    </section>
+
+    <!-- 4. Trigger Panel -->
+    <section id="triggers" class="card">
+      <h2>Trigger Events</h2>
+      <div class="button-grid">
+        <button data-event="greeting">Play Greeting</button>
+        <button data-event="animation">Run Animation</button>
+        <button data-event="hydration">Show Hydration Reminder</button>
+        <button data-event="mood">Trigger Mood Change</button>
+        <button data-event="flash">Flash Lights</button>
+      </div>
+    </section>
+
+    <!-- 5. Developer Tools -->
+    <section id="developer" class="card">
+      <h2>Developer Tools</h2>
+      <pre id="logs" class="logs">Loading logs…</pre>
+      <button id="restartBtn">Restart Services</button>
+      <div>
+        <label><input type="checkbox" id="modeToggle"> Cloud + Local</label>
+      </div>
+      <div id="systemInfo"></div>
+    </section>
+
+    <!-- 6. Network Settings -->
+    <section id="network" class="card">
+      <h2>Network Settings</h2>
+      <div>IP: <span id="ipAddr">--</span></div>
+      <div>Host: <span id="hostName">--</span></div>
+      <button id="scanBtn">Scan Wi-Fi</button>
+      <select id="ssidList"></select>
+      <input type="password" id="wifiPass" placeholder="Password">
+      <button id="wifiSave">Save</button>
+      <div>
+        <label><input type="radio" name="ipMode" value="dhcp" checked> DHCP</label>
+        <label><input type="radio" name="ipMode" value="static"> Static</label>
+      </div>
+    </section>
+
+    <!-- 7. Cube-to-Cube Messaging (Optional) -->
+    <section id="messaging" class="card">
+      <h2>Cube Messaging</h2>
+      <form id="msgForm">
+        <input type="text" id="targetId" placeholder="Cube ID" required>
+        <input type="text" id="msgText" placeholder="Message" required>
+        <button type="submit">Send</button>
+      </form>
+      <ul id="messageHistory"></ul>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

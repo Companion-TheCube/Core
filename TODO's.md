@@ -77,18 +77,18 @@
 - [src/decisionEngine/decisions.cpp:170] :
 - [src/decisionEngine/decisions.cpp:80] :
 - [src/decisionEngine/intentRegistry.cpp:121] : add TTS support
-- [src/decisionEngine/intentRegistry.cpp:142] : Implement this
-- [src/decisionEngine/intentRegistry.cpp:148] : This needs checks to ensure properly formatted JSON
-- [src/decisionEngine/intentRegistry.cpp:278] : define all the system intents. this should include things like "What time is it?" and "What apps are installed?"
-- [src/decisionEngine/intentRegistry.cpp:308] : although this code works, we need to implement a more advanced pattern matching system and we need to
-- [src/decisionEngine/intentRegistry.cpp:311] : This function should somehow return a score for the match so that when multiple intents match, we can
-- [src/decisionEngine/intentRegistry.cpp:359] : convert this to std::future and make callback the progress callback or remove it
-- [src/decisionEngine/intentRegistry.cpp:402] : convert this to std::future
-- [src/decisionEngine/intentRegistry.cpp:408] : convert this to std::future and make callback the progress callback or remove it
-- [src/decisionEngine/intentRegistry.cpp:413] :
-- [src/decisionEngine/intentRegistry.cpp:420] :
-- [src/decisionEngine/intentRegistry.cpp:435] : remove this. Testing only.
-- [src/decisionEngine/intentRegistry.cpp:490] :
+- [src/decisionEngine/intentRegistry.cpp:146] : Implement this
+- [src/decisionEngine/intentRegistry.cpp:152] : This needs checks to ensure properly formatted JSON
+- [src/decisionEngine/intentRegistry.cpp:282] : define all the system intents. this should include things like "What time is it?" and "What apps are installed?"
+- [src/decisionEngine/intentRegistry.cpp:312] : although this code works, we need to implement a more advanced pattern matching system and we need to
+- [src/decisionEngine/intentRegistry.cpp:315] : This function should somehow return a score for the match so that when multiple intents match, we can
+- [src/decisionEngine/intentRegistry.cpp:363] : convert this to std::future and make callback the progress callback or remove it
+- [src/decisionEngine/intentRegistry.cpp:406] : convert this to std::future
+- [src/decisionEngine/intentRegistry.cpp:412] : convert this to std::future and make callback the progress callback or remove it
+- [src/decisionEngine/intentRegistry.cpp:417] :
+- [src/decisionEngine/intentRegistry.cpp:424] :
+- [src/decisionEngine/intentRegistry.cpp:439] : remove this. Testing only.
+- [src/decisionEngine/intentRegistry.cpp:494] :
 - [src/decisionEngine/intentRegistry.h:52] : add a mutex so that the calling of execute can be thread safe
 - [src/decisionEngine/personalityManager.h:147] : add methods that allow for ramp type of expiration
 - [src/decisionEngine/remoteServer.cpp:196] :
