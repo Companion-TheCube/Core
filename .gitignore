@@ -8,3 +8,7 @@ libraries
 .env
 minimaps
 src/api/InterfaceCount.h
+testing/
+!testing/*.md
+!testing/*.sh
+!testing/Dockerfile.*
