@@ -254,8 +254,10 @@ HttpEndPointData_t Scheduler::getHttpEndpointData()
 {
     HttpEndPointData_t data;
     // Control endpoints
+    // GET /start: Transition scheduler to running state. No request body required.
     data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
+            // Flip the running flag and wake the thread; respond with JSON result.
             this->start();
             nlohmann::json j; j["success"] = true; j["message"] = "Scheduler started";
             res.set_content(j.dump(), "application/json");
@@ -263,8 +265,10 @@ HttpEndPointData_t Scheduler::getHttpEndpointData()
         },
         "start", {}, "Start scheduler" });
 
+    // GET /stop: Stop the scheduler thread and clear running state.
     data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
+            // Signal stop and acknowledge. Safe to call idempotently.
             this->stop();
             nlohmann::json j; j["success"] = true; j["message"] = "Scheduler stopped";
             res.set_content(j.dump(), "application/json");
@@ -272,8 +276,10 @@ HttpEndPointData_t Scheduler::getHttpEndpointData()
         },
         "stop", {}, "Stop scheduler" });
 
+    // GET /pause: Temporarily halt evaluation without destroying the thread.
     data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
+            // Set paused=true; scheduler loop will stop evaluating pending tasks.
             this->pause();
             nlohmann::json j; j["success"] = true; j["message"] = "Scheduler paused";
             res.set_content(j.dump(), "application/json");
@@ -281,8 +287,10 @@ HttpEndPointData_t Scheduler::getHttpEndpointData()
         },
         "pause", {}, "Pause scheduler" });
 
+    // GET /resume: Resume evaluation after a pause.
     data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
+            // Clear paused flag and wake loop to continue.
             this->resume();
             nlohmann::json j; j["success"] = true; j["message"] = "Scheduler resumed";
             res.set_content(j.dump(), "application/json");
@@ -290,9 +298,10 @@ HttpEndPointData_t Scheduler::getHttpEndpointData()
         },
         "resume", {}, "Resume scheduler" });
 
-    // List tasks
+    // GET /listTasks: Emit a JSON array of scheduled tasks.
     data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
+            // Take a snapshot under mutex; include handle, enable state, due time, repeat interval, and intent name.
             std::scoped_lock lk(this->schedulerMutex);
             nlohmann::json j; j["success"] = true; j["tasks"] = nlohmann::json::array();
             for (auto& t : scheduledTasks) {
@@ -310,9 +319,13 @@ HttpEndPointData_t Scheduler::getHttpEndpointData()
         },
         "listTasks", {}, "List scheduled tasks" });
 
-    // Add task (one-shot or repeating)
+    // POST /addTask: Create a one-shot or repeating task.
+    // Body (application/json): { intentName: string, timeEpochMs?: number, delayMs?: number, repeatSeconds?: number }
+    // - timeEpochMs wins over delayMs if provided; delayMs is relative to now.
+    // - repeatSeconds>0 creates a repeating schedule at that interval; else one-shot.
     data.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
+            // Enforce JSON content; parse and validate required fields.
             if (!(req.has_header("Content-Type") && req.get_header_value("Content-Type") == "application/json")) {
                 nlohmann::json j; j["success"] = false; j["message"] = "Content-Type must be application/json";
                 res.set_content(j.dump(), "application/json");
@@ -329,23 +342,27 @@ HttpEndPointData_t Scheduler::getHttpEndpointData()
                 if (!reg) throw std::runtime_error("IntentRegistry not available");
                 auto intent = reg->getIntent(intentName);
                 if (!intent) throw std::runtime_error("Intent not found: " + intentName);
+                // Compute due time from epoch or relative delay.
                 TimePoint tp;
                 if (epochMs > 0) {
                     tp = TimePoint(std::chrono::milliseconds(epochMs));
                 } else {
                     tp = std::chrono::system_clock::now() + std::chrono::milliseconds(delayMs);
                 }
+                // Construct task according to repeatSeconds.
                 ScheduledTask task;
                 if (repeatSec > 0) {
                     task = ScheduledTask(intent, tp, { ScheduledTask::RepeatInterval::Interval::REPEAT_CUSTOM, repeatSec });
                 } else {
                     task = ScheduledTask(intent, tp);
                 }
+                // Insert task and return handle of created entry.
                 auto handle = this->addTask(task);
                 nlohmann::json out; out["success"] = true; out["handle"] = handle;
                 res.set_content(out.dump(), "application/json");
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Task added");
             } catch (std::exception& e) {
+                // Normalize errors to JSON with message; reflect invalid params.
                 nlohmann::json out; out["success"] = false; out["message"] = e.what();
                 res.set_content(out.dump(), "application/json");
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, e.what());
@@ -353,9 +370,11 @@ HttpEndPointData_t Scheduler::getHttpEndpointData()
         },
         "addTask", { "intentName", "timeEpochMs|delayMs", "repeatSeconds" }, "Add a scheduled task" });
 
-    // Remove task by handle
+    // POST /removeTask: Remove a task by numeric handle.
+    // Body: { handle: number }
     data.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
+            // Require JSON and a valid handle field; ignore missing handles with error.
             if (!(req.has_header("Content-Type") && req.get_header_value("Content-Type") == "application/json")) {
                 nlohmann::json j; j["success"] = false; j["message"] = "Content-Type must be application/json";
                 res.set_content(j.dump(), "application/json");
@@ -364,6 +383,7 @@ HttpEndPointData_t Scheduler::getHttpEndpointData()
             try {
                 auto j = nlohmann::json::parse(req.body);
                 auto handle = j.at("handle").get<uint32_t>();
+                // Perform removal under lock inside removeTask(); return success regardless of prior existence.
                 this->removeTask(handle);
                 nlohmann::json out; out["success"] = true;
                 res.set_content(out.dump(), "application/json");

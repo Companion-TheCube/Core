@@ -181,9 +181,13 @@ void TriggerManager::setIntentRegistry(std::shared_ptr<IntentRegistry> reg)
 HttpEndPointData_t TriggerManager::getHttpEndpointData()
 {
     HttpEndPointData_t data;
-    // Create a time trigger
+    // POST /createTimeTrigger: Create a one-shot time trigger.
+    // Body (application/json): { timeEpochMs?: number, delayMs?: number, intentName?: string }
+    // - timeEpochMs (absolute) wins over delayMs (relative). If intentName is provided and found,
+    //   the trigger will execute that intent when it fires; otherwise only sets triggerState.
     data.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
+            // Validate content type and parse body; compute the trigger time.
             if (!(req.has_header("Content-Type") && req.get_header_value("Content-Type") == "application/json")) {
                 nlohmann::json j; j["success"] = false; j["message"] = "Content-Type must be application/json";
                 res.set_content(j.dump(), "application/json");
@@ -197,6 +201,7 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
                 TimePoint tp;
                 if (epochMs > 0) tp = TimePoint(std::chrono::milliseconds(epochMs));
                 else tp = std::chrono::system_clock::now() + std::chrono::milliseconds(delayMs);
+                // Instantiate and enable the trigger; optionally bind to an intent.
                 auto trig = std::make_shared<TimeTrigger>(tp);
                 trig->setEnabled(true);
                 trig->setScheduler(scheduler);
@@ -207,6 +212,7 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
                         }
                     }
                 }
+                // Store trigger under a unique handle; return it to the client.
                 std::scoped_lock lk(mtx);
                 TriggerHandle h = ++nextHandle;
                 triggers[h] = trig;
@@ -221,9 +227,10 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
         },
         "createTimeTrigger", { "timeEpochMs|delayMs", "intentName?" }, "Create a one-shot time trigger" });
 
-    // Create an event trigger
+    // POST /createEventTrigger: Create an event trigger with an optional bound intent.
     data.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
+            // Validate content type; if intentName is provided and registered, bind it to the trigger action.
             if (!(req.has_header("Content-Type") && req.get_header_value("Content-Type") == "application/json")) {
                 nlohmann::json j; j["success"] = false; j["message"] = "Content-Type must be application/json";
                 res.set_content(j.dump(), "application/json");
@@ -256,7 +263,8 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
         },
         "createEventTrigger", { "intentName?" }, "Create an event trigger" });
 
-    // Enable/disable trigger
+    // POST /setTriggerEnabled: Enable or disable an existing trigger by handle.
+    // Body: { handle: number, enable: boolean }
     data.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
             try {
@@ -277,7 +285,7 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
         },
         "setTriggerEnabled", { "handle", "enable" }, "Enable/disable a trigger" });
 
-    // Fire trigger (useful for event triggers)
+    // POST /fireTrigger: Manually fire a trigger by handle (useful for event-type triggers).
     data.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
             try {
@@ -285,6 +293,7 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
                 auto handle = j.at("handle").get<TriggerHandle>();
                 std::shared_ptr<I_Trigger> trig;
                 {
+                    // Acquire trigger under lock, then release before invoking to avoid holding mutex during execution.
                     std::scoped_lock lk(mtx);
                     if (!triggers.count(handle)) throw std::runtime_error("Trigger not found");
                     trig = triggers[handle];
@@ -301,9 +310,10 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
         },
         "fireTrigger", { "handle" }, "Fire a trigger" });
 
-    // List triggers
+    // GET /listTriggers: Return a summary of registered triggers.
     data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
+            // Each entry includes handle, enabled flag, whether a predicate exists, and type (time/event).
             nlohmann::json j; j["success"] = true; j["triggers"] = nlohmann::json::array();
             std::scoped_lock lk(mtx);
             for (auto& kv : triggers) {
