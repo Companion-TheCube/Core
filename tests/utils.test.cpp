@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "../src/utils.cpp"
+#include "../src/utils.h"
 
 TEST(utils, GenericSleep_Time){
     // get the current time
