@@ -18,7 +18,6 @@ add_definitions(-DMAJOR_VERSION=${PROJECT_VERSION_MAJOR})
 add_definitions(-DMINOR_VERSION=${PROJECT_VERSION_MINOR})
 add_definitions(-DPATCH_VERSION=${PROJECT_VERSION_PATCH})
 
-add_definitions(-DDOCTEST_CONFIG_DISABLE)
 
 # Comment out the follwoing line to disable building the BTManager application
 set(BUILD_BT_MANAGER ON)
@@ -121,6 +120,8 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(cppcodec)
 include_directories(${cppcodec_SOURCE_DIR}/cppcodec)
 
+
+
 file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/libraries)
 file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/libraries/whisper_models)
 set(WHISPER_MODELS_DIR ${CMAKE_SOURCE_DIR}/libraries/whisper_models)
@@ -166,14 +167,6 @@ endif()
 
 
 
-set(DOCTEST_HEADER ${CMAKE_SOURCE_DIR}/libraries/doctest.h)
-
-if(NOT EXISTS ${DOCTEST_HEADER})
-    file(DOWNLOAD
-    https://raw.githubusercontent.com/doctest/doctest/master/doctest/doctest.h
-        ${DOCTEST_HEADER}
-    )
-endif()
 
 # Download httplib.h if not already downloaded
 set(HTTPLIB_HEADER ${CMAKE_SOURCE_DIR}/libraries/httplib.h)
@@ -317,8 +310,17 @@ set(MACRO_REGEX "public AutoRegisterAPI<([a-zA-Z_][a-zA-Z0-9_:]*)>")
 
 
 # Add the executable
-file(GLOB_RECURSE SOURCES "src/*.cpp" "src/**/*.cpp" "src/**/**/*.cpp")
-add_executable(CubeCore ${SOURCES})
+file(GLOB_RECURSE ALL_SOURCES "src/*.cpp" "src/**/*.cpp" "src/**/**/*.cpp")
+# Split main from library sources
+set(MAIN_SOURCE "${CMAKE_SOURCE_DIR}/src/main.cpp")
+set(LIB_SOURCES ${ALL_SOURCES})
+list(REMOVE_ITEM LIB_SOURCES ${MAIN_SOURCE})
+
+# Core library with most of the code
+add_library(CubeCoreLib STATIC ${LIB_SOURCES})
+
+# Application executable contains only main and links the core library
+add_executable(CubeCore ${MAIN_SOURCE})
 
 
 set(InterfaceCount_OUTPUTFILE "${CMAKE_SOURCE_DIR}/src/api/InterfaceCount.h")
@@ -359,6 +361,7 @@ add_custom_target(
 )
 
 # add dependency of count_interfaces target to CubeCore target
+add_dependencies(CubeCoreLib count_interfaces)
 add_dependencies(CubeCore count_interfaces)
 
 
@@ -378,8 +381,8 @@ else()
     # set(WIRINGPI_LIB "wiringPi") # Commented out for building on Ubuntu. Uncomment for building on Raspberry Pi.
     set(WIRINGPI_LIB "")
 endif()
-# Link libraries
-target_link_libraries(CubeCore PRIVATE
+# Link libraries to the core library so consumers inherit them
+target_link_libraries(CubeCoreLib PUBLIC
     sfml-graphics
     sfml-audio
     sfml-network
@@ -403,15 +406,18 @@ target_link_libraries(CubeCore PRIVATE
     spdlog::spdlog_header_only
 )
 
+# Executable links the core library
+target_link_libraries(CubeCore PRIVATE CubeCoreLib)
+
 # set_target_properties(CubeCore PROPERTIES
 #     WIN32_EXECUTABLE TRUE
 # )
 
-target_compile_features(CubeCore PRIVATE cxx_std_17)
+target_compile_features(CubeCoreLib PUBLIC cxx_std_17)
 
 # Include directories
 if(WIN32)
-    target_include_directories(CubeCore PRIVATE
+    target_include_directories(CubeCoreLib PUBLIC
         ${RTAUDIO_INCLUDE_DIR}
         ${PROJECT_SOURCE_DIR}/src/libs
         ${FREETYPE_INCLUDE_DIRS}
@@ -422,7 +428,7 @@ if(WIN32)
         ${whispercpp_SOURCE_DIR}
    )
 else()
-    target_include_directories(CubeCore PRIVATE
+    target_include_directories(CubeCoreLib PUBLIC
         ${PROJECT_SOURCE_DIR}/src/libs
         ${FREETYPE_INCLUDE_DIRS}
         ${OPENGL_INCLUDE_DIRS}
@@ -681,33 +687,16 @@ FetchContent_Declare(
 # Fetch googletest
 FetchContent_MakeAvailable(googletest)
 
-# Add test executable
+# Add test executable (tests only)
 file(GLOB_RECURSE TEST_SOURCES
-    "tests/*.cpp" "tests/**/*.cpp"
-    "src/*.cpp" "src/**/*.cpp" "src/**/**/*.cpp")
-# Exclude the application entry point from the test build
-list(FILTER TEST_SOURCES EXCLUDE REGEX "/main\\.cpp$")
+    "tests/*.cpp" "tests/**/*.cpp")
 add_executable(CubeCoreTests ${TEST_SOURCES})
 target_link_libraries(CubeCoreTests PRIVATE
     gtest
     gtest_main
     gmock
     gmock_main
-    sfml-graphics
-    sfml-audio
-    sfml-network
-    rtaudio
-    ${ALSA_LIBRARIES}
-    ${FREETYPE_LIBRARY}
-    ${OPENGL_LIBRARIES}
-    ${GLEW_LIBRARIES}
-    nlohmann_json::nlohmann_json
-    SQLiteCpp
-    sqlite3
-    ${SODIUM_LIBRARIES}
-    whisper
-    OpenSSL::SSL
-    OpenSSL::Crypto
+    CubeCoreLib
 )
 
 # Set compiler flags to output assembly
@@ -731,20 +720,26 @@ if(benchmark_FOUND)
         benchmark::benchmark
         benchmark::benchmark_main
         sfml-graphics
-        sfml-audio
-        sfml-network
-        rtaudio
-        ${ALSA_LIBRARIES}
-        ${FREETYPE_LIBRARY}
-        ${OPENGL_LIBRARIES}
-        ${GLEW_LIBRARIES}
-        nlohmann_json::nlohmann_json
-        SQLiteCpp
-        sqlite3
-        ${SODIUM_LIBRARIES}
-        whisper
-        OpenSSL::SSL
-        OpenSSL::Crypto
+    sfml-audio
+    sfml-network
+    rtaudio
+    ${ALSA_LIBRARIES}
+    ${FREETYPE_LIBRARY}
+    ${OPENGL_LIBRARIES}
+    ${GLEW_LIBRARIES}
+    nlohmann_json::nlohmann_json
+    SQLiteCpp
+    sqlite3
+    ${SODIUM_LIBRARIES}
+    # Qt6::Core
+    # Qt6::SerialPort${WIRINGPI_LIB}
+    whisper
+    OpenSSL::SSL
+    OpenSSL::Crypto
+    infoware
+    pqxx
+    pq
+    spdlog::spdlog_header_only
     )
 else()
     message(WARNING "Google Benchmark not found, skipping benchmarks.")
