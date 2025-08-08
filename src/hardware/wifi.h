@@ -42,7 +42,6 @@ SOFTWARE.
 #include <string>
 #include <utils.h>
 #include <vector>
-#include "doctest.h"
 
 struct CIDR_Subnet {
     CIDR_Subnet()
