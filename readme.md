@@ -38,6 +38,24 @@ make
 ```bash
 ./CubeCore
 ```
+
+## Environment Configuration (.env)
+The application reads configuration from a `.env` file in the repo root. Values are loaded once at startup and are available anywhere via `Config::get("KEY")`. Environment variables (exported in your shell or CI) override values in `.env`.
+
+- HTTP: `HTTP_ADDRESS` (e.g., `0.0.0.0`), `HTTP_PORT` (e.g., `55280`).
+- IPC: `IPC_SOCKET_PATH` (UNIX domain socket path, e.g., `cube.sock`).
+- Tests: `HTTP_PORT_TEST` (e.g., `55281`), `IPC_SOCKET_PATH_TEST` (e.g., `test_ipc.sock`).
+
+Quick start:
+```bash
+cp .env.example .env
+# then edit .env as needed
+```
+
+Internals:
+- `.env` is parsed by `Config::loadFromDotEnv()` (called in `main.cpp`).
+- Access config anywhere with `#include "src/utils.h"` and `Config::get("KEY", "default")`.
+
 ## Running the tests
 **TODO** Explain how to run the automated tests for this system:
 ## Deployment
