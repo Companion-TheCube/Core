@@ -1820,17 +1820,56 @@ void GUI::showTextBox(const std::string& title, const std::string& message, glm:
 
 void GUI::showNotification(const std::string& title, const std::string& message, NotificationsManager::NotificationType type)
 {
-    // TODO: show a notification
+    // Minimal implementation: reuse the existing message box to display notifications.
+    // For YES_NO prompts, users can tap to close/accept or let it timeout to auto-dismiss.
+    try {
+        // Reasonable default size and position for visibility
+        glm::vec2 pos{ 144, 144 };   // top-left corner
+        glm::vec2 size{ 432, 432 };  // width x height
+        GUI::showMessageBox(title, message, size, pos);
+    } catch (...) {
+        CubeLog::error("Failed to display notification");
+    }
 }
 
 void GUI::showNotificationWithCallback(const std::string& title, const std::string& message, NotificationsManager::NotificationType type, std::function<void()> callback)
 {
-    // TODO: show a notification with a callback
+    // Forward to the yes/no variant with only a YES callback.
+    GUI::showNotificationWithCallback(title, message, type, callback, []() {});
 }
 
 void GUI::showNotificationWithCallback(const std::string& title, const std::string& message, NotificationsManager::NotificationType type, std::function<void()> callbackYes, std::function<void()> cancelNo)
 {
-    // TODO: show a notification with a callback for yes and no
+    // Strategy:
+    // - Reuse the message box widget as a prompt.
+    // - Consider any user tap that closes the box as approval (callbackYes).
+    // - Auto-dismiss after 60s if still visible and run cancelNo.
+    try {
+        glm::vec2 pos{ 144, 144 };
+        glm::vec2 size{ 432, 432 };
+        // Show the message box (no callback here; we manage lifecycle below)
+        GUI::showMessageBox(title, message, size, pos);
+
+        // Watcher thread: waits for either user dismissal or timeout.
+        std::thread([callbackYes, cancelNo]() {
+            using namespace std::chrono;
+            const auto start = steady_clock::now();
+            // Poll for up to 60 seconds for user dismissal
+            while (duration_cast<seconds>(steady_clock::now() - start).count() < 60) {
+                if (GUI::messageBox && !GUI::messageBox->getVisible()) {
+                    // User closed the box (tap); treat as approval
+                    if (callbackYes) callbackYes();
+                    return;
+                }
+                std::this_thread::sleep_for(milliseconds(50));
+            }
+            // Timeout reached; hide box if still visible and run cancel
+            GUI::hideMessageBox();
+            if (cancelNo) cancelNo();
+        }).detach();
+    } catch (...) {
+        CubeLog::error("Failed to display notification with callback");
+    }
 }
 
 void GUI::showTextInputBox(const std::string& title, std::vector<std::string> fields, std::function<void(std::vector<std::string>&)> callback)

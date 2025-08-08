@@ -191,16 +191,13 @@
 - [src/gui/gui.cpp:1487] :
 - [src/gui/gui.cpp:1490] :
 - [src/gui/gui.cpp:1580] : change this to be a reference
-- [src/gui/gui.cpp:1823] : show a notification
-- [src/gui/gui.cpp:1828] : show a notification with a callback
-- [src/gui/gui.cpp:1833] : show a notification with a callback for yes and no
-- [src/gui/gui.cpp:1838] : show a text input box
-- [src/gui/gui.cpp:1855] : Add the following endpoints:
-- [src/gui/gui.cpp:1865] : anything that gets displayed needs to be logged in the DB->notifications
-- [src/gui/gui.cpp:1889] : anything that gets displayed needs to be logged in the DB->notifications
+- [src/gui/gui.cpp:1877] : show a text input box
+- [src/gui/gui.cpp:1894] : Add the following endpoints:
+- [src/gui/gui.cpp:1904] : anything that gets displayed needs to be logged in the DB->notifications
+- [src/gui/gui.cpp:1928] : anything that gets displayed needs to be logged in the DB->notifications
 - [src/gui/gui.cpp:262] : make this actually enable/disable wifi. the settings should have a callback registered with the GlobalSettings class that will enable/disable wifi when the setting is changed.
 - [src/gui/gui.cpp:267] : return GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::WIFI_ENABLED);
-- [src/gui/gui.cpp:2760] : Implement
+- [src/gui/gui.cpp:2799] : Implement
 - [src/gui/gui.cpp:300] : add a text box to enter the SSID
 - [src/gui/gui.cpp:310] : add a dropdown to select the security type
 - [src/gui/gui.cpp:320] : add a text box to enter the password

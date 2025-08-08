@@ -644,10 +644,11 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
             }
             res.set_content(j.dump(), "application/json");
             if (returnCode) {
-                // Display the code on the device and allow confirmation
+                // Display the code on the device and allow confirmation (tap to approve, ignore to deny)
+                // Include the client ID so the user can identify the requester
                 GUI::showNotificationWithCallback(
-                    "Authorization Code",
-                    "Code: " + initialCode + "\nAuthorize?",
+                    "Authorization Request",
+                    std::string("Client: ") + clientID + "\nCode: " + initialCode + "\nTap to approve, or ignore to deny.",
                     NotificationsManager::NotificationType::NOTIFICATION_YES_NO,
                     []() {},
                     [clientID]() {
@@ -661,16 +662,14 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
                 // Manual entry: show code only on device
                 GUI::showMessageBox("Authorization Code", "Your authorization code is:\n" + initialCode);
             }
-            std::thread([clientID, returnCode]() {
+            std::thread([clientID]() {
                 std::this_thread::sleep_for(std::chrono::seconds(60));
                 Database* dbInner = CubeDB::getDBManager()->getDatabase("auth");
                 if (dbInner->isOpen()) {
                     dbInner->updateData(DB_NS::TableNames::CLIENTS, { "initial_code" }, { "" },
                         "client_id = '" + clientID + "'");
                 }
-                if (!returnCode) {
-                    GUI::hideMessageBox();
-                }
+                GUI::hideMessageBox();
             }).detach();
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
