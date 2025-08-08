@@ -43,8 +43,15 @@ TEST(ApiIntegration, PrivateEndpointHonorsResponseBody)
 
     // Build API and register CubeAuth endpoints + a temporary PRIVATE endpoint
     API api;
-    // Bind to test port 55281 to avoid clashes
-    api.setHttpBinding("127.0.0.1", 55281);
+    // Bind to test port from .env (HTTP_PORT_TEST) to keep configurable
+    int httpPort = 55281;
+    try {
+        auto s = Config::get("HTTP_PORT_TEST", "55281");
+        httpPort = std::stoi(s);
+    } catch (...) {
+        httpPort = 55281;
+    }
+    api.setHttpBinding("127.0.0.1", httpPort);
     // Use centralized Config to get test-specific IPC socket path
     std::string ipcPath = Config::get("IPC_SOCKET_PATH_TEST", "");
     if (ipcPath.empty()) ipcPath = "test_ipc.sock";
@@ -66,7 +73,7 @@ TEST(ApiIntegration, PrivateEndpointHonorsResponseBody)
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
     // 1) Get initial code (and ask it to be returned) to create client row
-    httplib::Client http("http://127.0.0.1:55281");
+    httplib::Client http((std::string("http://127.0.0.1:") + std::to_string(httpPort)).c_str());
     const std::string clientID = "test-client-123";
     auto resInit = http.Get(("/CubeAuth-initCode?client_id=" + clientID + "&return_code=true").c_str());
     ASSERT_TRUE(resInit);
