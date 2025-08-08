@@ -269,6 +269,7 @@
 - [src/gui/messageBox/messageBox.cpp:36] : close message bos when clicked / touched
 - [src/gui/messageBox/messageBox.cpp:37] : disable menu click listener when message box is visible
 - [src/gui/messageBox/messageBox.cpp:99] : make the outline more like a speech bubble
+- [src/gui/messageBox/messageBox.h:149] : This class is not rendering correctly. fix.
 - [src/gui/messageBox/messageBox.h:65] : make a generic message box class that can be inherited from to make different types of message boxes
 - [src/gui/renderables/meshLoader.cpp:240] : change this to use RRGGBB data for shape type
 - [src/gui/renderables/meshLoader.cpp:476] : Move this function to bottom of file.

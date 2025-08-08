@@ -481,6 +481,9 @@ void CubeNotificaionBox::setup()
     float xStart = -0.2;
     float yStart = -0.2;
     glm::vec2 size_ = { 1.f, 1.f };
+    // Fullscreen blackout backdrop to ensure content beneath is hidden
+    this->objects.push_back(new M_Rect(shader, { -1.f, -1.f, Z_DISTANCE + this->index - 0.0005f }, { 2.f, 2.f }, 0.0, 0.0));
+    // Main rounded box with outline
     this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart + radius, Z_DISTANCE + this->index }, { size_.x - diameter, size_.y - diameter }, 0.0, 0.0)); // main box
     this->objects.push_back(new M_Rect(shader, { xStart, yStart + radius, Z_DISTANCE + this->index }, { radius, size_.y - diameter }, 0.0, 0.0)); // left
     this->objects.push_back(new M_Rect(shader, { xStart + size_.x - radius, yStart + radius, Z_DISTANCE + this->index }, { radius, size_.y - diameter }, 0.0, 0.0)); // right
@@ -588,6 +591,16 @@ void CubeNotificaionBox::setCallbackYes(std::function<void()> callback)
 
 void CubeNotificaionBox::setText(const std::string& text, const std::string& title)
 {
+    // Precompute button rectangles synchronously so click handling works immediately
+    unsigned int btnHeight = (unsigned int)(this->messageTextSize * 2.2f);
+    unsigned int btnWidth = (unsigned int)((this->size.x - 3 * STENCIL_INSET_PX) / 2.f);
+    unsigned int yMin = (unsigned int)(this->position.y + STENCIL_INSET_PX);
+    unsigned int yMax = yMin + btnHeight;
+    unsigned int xLeft = (unsigned int)(this->position.x + STENCIL_INSET_PX);
+    unsigned int xRight = (unsigned int)(this->position.x + this->size.x - STENCIL_INSET_PX - btnWidth);
+    this->yesBtn_ = { xLeft, xLeft + btnWidth, yMin, yMax };
+    this->noBtn_ = { xRight, xRight + btnWidth, yMin, yMax };
+
     this->renderer->addSetupTask([&, text, title]() {
         // Clear old text
         for (auto* t : this->textObjects) delete t;
@@ -621,16 +634,12 @@ void CubeNotificaionBox::setText(const std::string& text, const std::string& tit
             float margin = (float)(i + 1) * MESSAGEBOX_LINE_SPACING * this->messageTextSize;
             this->textObjects.push_back(new M_Text(textShader, lines[i], this->messageTextSize, { 1.f, 1.f, 1.f }, { this->position.x + STENCIL_INSET_PX, (this->position.y + this->size.y) - STENCIL_INSET_PX - shiftForPrevious - margin }));
         }
-        // Buttons areas (pixel coordinates)
-        unsigned int btnHeight = (unsigned int)(this->messageTextSize * 2.2f);
-        unsigned int btnWidth = (unsigned int)((this->size.x - 3 * STENCIL_INSET_PX) / 2.f);
-        unsigned int yMin = (unsigned int)(this->position.y + STENCIL_INSET_PX);
-        unsigned int yMax = yMin + btnHeight;
-        unsigned int xLeft = (unsigned int)(this->position.x + STENCIL_INSET_PX);
-        unsigned int xRight = (unsigned int)(this->position.x + this->size.x - STENCIL_INSET_PX - btnWidth);
-        // store for click handling helpers (members declared in header)
-        this->yesBtn_.xMin = xLeft; this->yesBtn_.xMax = xLeft + btnWidth; this->yesBtn_.yMin = yMin; this->yesBtn_.yMax = yMax;
-        this->noBtn_.xMin = xRight; this->noBtn_.xMax = xRight + btnWidth; this->noBtn_.yMin = yMin; this->noBtn_.yMax = yMax;
+        // Use precomputed buttons rects for label placement
+        unsigned int btnHeight = this->yesBtn_.yMax - this->yesBtn_.yMin;
+        unsigned int btnWidth = this->yesBtn_.xMax - this->yesBtn_.xMin;
+        unsigned int xLeft = this->yesBtn_.xMin;
+        unsigned int xRight = this->noBtn_.xMin;
+        unsigned int yMin = this->yesBtn_.yMin;
         // Button labels
         auto yesText = new M_Text(textShader, std::string("Approve"), this->messageTextSize, { 0.1f, 1.f, 0.1f }, { 0.f, 0.f });
         float yW = yesText->getWidth();
