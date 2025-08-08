@@ -50,12 +50,15 @@ SOFTWARE.
 #include <logger.h>
 #endif
 #include "build_number.h"
+#include "utils.h"
 #include "main.h"
 
 bool breakMain = false;
 
 int main(int argc, char* argv[])
 {
+    // Load configuration from .env once (available globally via Config::get())
+    Config::loadFromDotEnv(".env");
     // std::signal(SIGINT, signalHandler);
     // std::signal(SIGTERM, signalHandler);
     std::signal(SIGABRT, signalHandler);

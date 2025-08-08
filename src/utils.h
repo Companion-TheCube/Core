@@ -180,6 +180,26 @@ void monitorMemoryAndCPU();
 std::string getMemoryFootprint();
 std::string getCpuUsage();
 
+// ------------------------------------------------------------
+// Global configuration loader (reads .env once, accessible app-wide)
+// ------------------------------------------------------------
+namespace Config {
+// Load key/value pairs from a .env file (KEY=VALUE per line). Environment
+// variables override file values. Safe to call multiple times; subsequent calls
+// merge/override.
+void loadFromDotEnv(const std::string& path = ".env");
+
+// Get a config value by key. If not loaded yet, performs a one-time lazy load
+// from ".env" automatically. Returns defaultValue if key is not present.
+std::string get(const std::string& key, const std::string& defaultValue = "");
+
+// Insert or override a key at runtime (useful for tests or dynamic config).
+void set(const std::string& key, const std::string& value);
+
+// Whether a key exists in the configuration map (after lazy load).
+bool has(const std::string& key);
+} // namespace Config
+
 #endif
 
 #ifndef _COUNTDOWN_LATCH_H_
