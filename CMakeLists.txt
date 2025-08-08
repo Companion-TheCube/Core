@@ -610,7 +610,7 @@ add_custom_command(
 find_package(Python3 REQUIRED)
 # Variables
 set(BUILD_NUMBER_HEADER "${CMAKE_SOURCE_DIR}/libraries/build_number.h")
-set(UPLOAD_ARTIFACT_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/upload_artifact.py")
+set(UPLOAD_ARTIFACT_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/tooling/upload_artifact.py")
 
 add_custom_command(
     TARGET CubeCore POST_BUILD
@@ -619,7 +619,7 @@ add_custom_command(
     COMMENT "Uploading build to server..."
 )
 
-set(GET_BUILD_NUMBER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/get_next_build_number.py")
+set(GET_BUILD_NUMBER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/tooling/get_next_build_number.py")
 
 # Custom command to generate the build number header
 add_custom_command(
@@ -629,47 +629,6 @@ add_custom_command(
     DEPENDS "${GET_BUILD_NUMBER_SCRIPT}"
     COMMENT "Fetching build number from server..."
 )
-
-
-
-# Custom target that depends on the custom command
-# add_custom_target(
-#     FetchBuildNumber ALL
-#     DEPENDS "${BUILD_NUMBER_HEADER}"
-# )
-
-
-# # Ensure the build number is fetched before building the executable
-# add_dependencies(CubeCore FetchBuildNumber)
-
-# Include the directory where the header is located
-# include_directories("${CMAKE_BINARY_DIR}")
-
-# Define path to the build number file
-# set(BUILD_NUMBER_FILE "${CMAKE_SOURCE_DIR}/build_number.txt")
-
-# Custom command to increment the build number and write it to the file
-# add_custom_command(
-#     TARGET CubeCore POST_BUILD
-#     COMMAND ${CMAKE_COMMAND} -P "${CMAKE_SOURCE_DIR}/incr_build_num.cmake"
-#     COMMENT "Incrementing build number..."
-# )
-
-# Custom target that will always run
-# add_custom_target(incr_build_num ALL
-#     DEPENDS "${BUILD_NUMBER_FILE}"
-#     COMMENT "Build number increment target"
-# )
-
-# Ensure that the build number target runs before your actual target
-# add_dependencies(CubeCore incr_build_num)
-
-# Optionally, you can define this build number as a preprocessor definition
-# file(READ "${BUILD_NUMBER_FILE}" BUILD_NUMBER)
-# add_definitions(-DBUILD_NUMBER=${BUILD_NUMBER})
-
-# # Print the build number in the output
-# message(STATUS "Build number: ${BUILD_NUMBER}")
 
 install(TARGETS CubeCore)
 
@@ -747,7 +706,7 @@ else()
 endif()
 
 # ─── TODO synchronisation ────────────────────────────────────────────────────
-set(UPDATE_TODOS_SCRIPT "${CMAKE_SOURCE_DIR}/update_todos.py")
+set(UPDATE_TODOS_SCRIPT "${CMAKE_SOURCE_DIR}/tooling/update_todos.py")
 set(TODO_MARKDOWN_FILE  "${CMAKE_SOURCE_DIR}/TODO's.md")
 
 add_custom_target(update_todos
