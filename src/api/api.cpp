@@ -191,11 +191,13 @@ void API::httpApiThreadFn()
 {
     CubeLog::info("API listener thread starting...");
     try {
-        this->server = std::make_unique<CubeHttpServer>("0.0.0.0", 55280); // listen on all interfaces
+        // Use configured binding for HTTP server (default 0.0.0.0:55280)
+        this->server = std::make_unique<CubeHttpServer>(this->httpAddress, this->httpPort);
         if (std::filesystem::exists(CUBE_SOCKET_PATH)) {
             std::filesystem::remove(CUBE_SOCKET_PATH);
         }
-        this->serverIPC = std::make_unique<CubeHttpServer>(CUBE_SOCKET_PATH, 0);
+        // Use configured IPC socket path (default cube.sock)
+        this->serverIPC = std::make_unique<CubeHttpServer>(this->ipcPath, 0);
         for (size_t i = 0; i < this->endpoints.size(); i++) {
             // Public endpoints are accessible by any device on the
             // network. Non public endpoints are only available to devices that have been authenticated. The authentication process is not yet implemented.
