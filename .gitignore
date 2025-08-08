@@ -7,3 +7,4 @@ libraries
 .codechecker
 .env
 minimaps
+src/api/InterfaceCount.h
