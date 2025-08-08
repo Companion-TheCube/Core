@@ -103,7 +103,7 @@ void API::stop()
     // TODO: add checks to make sure these are valid calls.
     // this->server->stop();
     // this->serverIPC->stop();
-    this->listenerThread.join();
+    //this->listenerThread.join();
     // delete this->server;
     // this->server = nullptr;
     CubeLog::info("API stopped");
