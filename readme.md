@@ -57,7 +57,26 @@ Internals:
 - Access config anywhere with `#include "src/utils.h"` and `Config::get("KEY", "default")`.
 
 ## Running the tests
-**TODO** Explain how to run the automated tests for this system:
+Tests use Google Test and are built as `CubeCoreTests`.
+
+Quick start (Debug):
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build -j --target CubeCoreTests
+ctest --test-dir build -C Debug -j
+```
+
+Notes:
+- Ensure you have a `.env` (copy `.env.example`), especially for integration tests.
+- Integration tests read `HTTP_PORT_TEST` and `IPC_SOCKET_PATH_TEST`; avoid conflicts with other processes.
+- Run a single test via CTest:
+  ```bash
+  ctest --test-dir build -C Debug -R ApiIntegration -VV
+  ```
+- Or run the binary directly with Google Test filters:
+  ```bash
+  ./build/bin/CubeCoreTests --gtest_filter=ApiIntegration.*
+  ```
 ## Deployment
 **TODO** Add additional notes about how to deploy this on a live system.
 ## Dependencies
@@ -74,11 +93,9 @@ Internals:
 * [Cpp-Base64](https://github.com/ReneNyffenegger/cpp-base64) - Base64 encoding and decoding with c++. **Currently using a version based on code from [here](https://renenyffenegger.ch/notes/development/Base64/Encoding-and-decoding-base-64-with-cpp)**
 * [GetText](https://www.gnu.org/software/gettext/) - GNU `gettext` for internationalization.
 * [spdlog](https://github.com/gabime/spdlog) - Fast C++ logging library (used for disk logging).
-* [fmt] ?
-* [doctest] ?
-* [Catch2] ?
-* [GoogleTest] ?
-* [GoogleBenchmark] ?
+* [fmt]() - A modern formatting library for C++.
+* [GoogleTest]() - Google Test framework for C++ unit testing.
+* [GoogleBenchmark]() - Google Benchmark library for performance testing.
 
 All required system packages for these dependencies can be installed with:
 ```bash
