@@ -18,6 +18,8 @@ add_definitions(-DMAJOR_VERSION=${PROJECT_VERSION_MAJOR})
 add_definitions(-DMINOR_VERSION=${PROJECT_VERSION_MINOR})
 add_definitions(-DPATCH_VERSION=${PROJECT_VERSION_PATCH})
 
+# Add definition to enable httplib SSL support
+add_definitions(-DCPPHTTPLIB_OPENSSL_SUPPORT)
 
 # Comment out the follwoing line to disable building the BTManager application
 set(BUILD_BT_MANAGER ON)

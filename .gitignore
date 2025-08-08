@@ -9,8 +9,6 @@ libraries
 minimaps
 src/api/InterfaceCount.h
 testing/
-!testing/*.md
-!testing/*.sh
-!testing/Dockerfile.*
-
-testing/
+ssl/*.key
+ssl/*.crt
+ssl/*.pem

@@ -123,7 +123,18 @@ void API_Builder::start()
         std::filesystem::path path = std::filesystem::current_path();
         // make a json object that contains the cube.socket path
         nlohmann::json j;
-        j["cube_socket_path"] = path.string() + "/" + "cube.sock";
+        std::string envSocketPath = Config::get("CUBE_SOCKET_PATH", std::getenv("CUBE_SOCKET_PATH"));
+        if( envSocketPath.empty() || envSocketPath == "CUBE_SOCKET_PATH") {
+            CubeLog::error("CUBE_SOCKET_PATH not set. Using default path.");
+            envSocketPath = "cube.sock";
+        }
+        // check to see if the path is absolute or relative
+        if (!std::filesystem::path(envSocketPath).is_absolute()) {
+            // if it's relative, make it relative to the current path
+            envSocketPath = path.string() + "/" + envSocketPath;
+        }
+        CubeLog::debug("Cube socket path: " + envSocketPath);
+        j["cube_socket_path"] = envSocketPath;
         res.set_content(j.dump(), "application/json");
         return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
     });
