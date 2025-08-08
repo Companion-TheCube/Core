@@ -261,7 +261,7 @@ HttpEndPointData_t Scheduler::getHttpEndpointData()
             this->start();
             nlohmann::json j; j["success"] = true; j["message"] = "Scheduler started";
             res.set_content(j.dump(), "application/json");
-            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Scheduler started");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
         "start", {}, "Start scheduler" });
 
@@ -272,7 +272,7 @@ HttpEndPointData_t Scheduler::getHttpEndpointData()
             this->stop();
             nlohmann::json j; j["success"] = true; j["message"] = "Scheduler stopped";
             res.set_content(j.dump(), "application/json");
-            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Scheduler stopped");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
         "stop", {}, "Stop scheduler" });
 
@@ -283,7 +283,7 @@ HttpEndPointData_t Scheduler::getHttpEndpointData()
             this->pause();
             nlohmann::json j; j["success"] = true; j["message"] = "Scheduler paused";
             res.set_content(j.dump(), "application/json");
-            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Scheduler paused");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
         "pause", {}, "Pause scheduler" });
 
@@ -294,7 +294,7 @@ HttpEndPointData_t Scheduler::getHttpEndpointData()
             this->resume();
             nlohmann::json j; j["success"] = true; j["message"] = "Scheduler resumed";
             res.set_content(j.dump(), "application/json");
-            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Scheduler resumed");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
         "resume", {}, "Resume scheduler" });
 
@@ -315,7 +315,7 @@ HttpEndPointData_t Scheduler::getHttpEndpointData()
                 j["tasks"].push_back(tj);
             }
             res.set_content(j.dump(), "application/json");
-            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Listed tasks");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
         "listTasks", {}, "List scheduled tasks" });
 
@@ -360,7 +360,7 @@ HttpEndPointData_t Scheduler::getHttpEndpointData()
                 auto handle = this->addTask(task);
                 nlohmann::json out; out["success"] = true; out["handle"] = handle;
                 res.set_content(out.dump(), "application/json");
-                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Task added");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
             } catch (std::exception& e) {
                 // Normalize errors to JSON with message; reflect invalid params.
                 nlohmann::json out; out["success"] = false; out["message"] = e.what();
@@ -387,7 +387,7 @@ HttpEndPointData_t Scheduler::getHttpEndpointData()
                 this->removeTask(handle);
                 nlohmann::json out; out["success"] = true;
                 res.set_content(out.dump(), "application/json");
-                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Task removed");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
             } catch (std::exception& e) {
                 nlohmann::json out; out["success"] = false; out["message"] = e.what();
                 res.set_content(out.dump(), "application/json");

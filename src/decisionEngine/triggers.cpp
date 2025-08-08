@@ -218,7 +218,7 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
                 triggers[h] = trig;
                 nlohmann::json out; out["success"] = true; out["handle"] = h;
                 res.set_content(out.dump(), "application/json");
-                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Time trigger created");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
             } catch (std::exception& e) {
                 nlohmann::json out; out["success"] = false; out["message"] = e.what();
                 res.set_content(out.dump(), "application/json");
@@ -254,7 +254,7 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
                 triggers[h] = trig;
                 nlohmann::json out; out["success"] = true; out["handle"] = h;
                 res.set_content(out.dump(), "application/json");
-                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Event trigger created");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
             } catch (std::exception& e) {
                 nlohmann::json out; out["success"] = false; out["message"] = e.what();
                 res.set_content(out.dump(), "application/json");
@@ -276,7 +276,7 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
                 triggers[handle]->setEnabled(enable);
                 nlohmann::json out; out["success"] = true;
                 res.set_content(out.dump(), "application/json");
-                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Trigger state updated");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
             } catch (std::exception& e) {
                 nlohmann::json out; out["success"] = false; out["message"] = e.what();
                 res.set_content(out.dump(), "application/json");
@@ -301,7 +301,7 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
                 if (trig) trig->trigger();
                 nlohmann::json out; out["success"] = true;
                 res.set_content(out.dump(), "application/json");
-                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Trigger fired");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
             } catch (std::exception& e) {
                 nlohmann::json out; out["success"] = false; out["message"] = e.what();
                 res.set_content(out.dump(), "application/json");
@@ -325,7 +325,7 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
                 j["triggers"].push_back(tj);
             }
             res.set_content(j.dump(), "application/json");
-            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Listed triggers");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
         "listTriggers", {}, "List triggers" });
     return data;

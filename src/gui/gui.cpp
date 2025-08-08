@@ -1878,7 +1878,7 @@ HttpEndPointData_t GUI::getHttpEndpointData()
                     GUI::showMessageBox(title, mes);
                 CubeLog::info("Endpoint stop called and message set to: " + mes + " with title: " + title);
                 res.set_content("Message set to: " + mes, "text/plain");
-                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Message set to: " + mes);
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
             },
             "messageBox",
             { "text", "title" },
@@ -1916,7 +1916,7 @@ HttpEndPointData_t GUI::getHttpEndpointData()
                     showTextBox(title, mes, { std::stoi(size_x), std::stoi(size_y) }, { std::stoi(position_x), std::stoi(position_y) });
                 CubeLog::info("Endpoint stop called and message set to: " + mes + " with title: " + title);
                 res.set_content("Message set to: " + mes, "text/plain");
-                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Message set to: " + mes);
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
             },
             "textBox",
             { "text", "title", "size-x", "size-y", "position-x", "position-y" },
@@ -1954,7 +1954,7 @@ HttpEndPointData_t GUI::getHttpEndpointData()
                 response["success"] = true;
                 response["message"] = "Menu added";
                 res.set_content(response.dump(), "application/json");
-                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Menu added");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
             },
             "addMenu",
             {},
@@ -2826,7 +2826,7 @@ HttpEndPointData_t NotificationsManager::getHttpEndpointData()
     actions.push_back(
         { PRIVATE_ENDPOINT | POST_ENDPOINT,
             [&](const httplib::Request& req, httplib::Response& res) {
-                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Notification shown with callback");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
             },
             "showNotificationOkayWarningError",
             {},
@@ -2834,7 +2834,7 @@ HttpEndPointData_t NotificationsManager::getHttpEndpointData()
     actions.push_back(
         { PRIVATE_ENDPOINT | POST_ENDPOINT,
             [&](const httplib::Request& req, httplib::Response& res) {
-                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Notification shown with callback");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
             },
             "showNotificationYesNo",
             {},

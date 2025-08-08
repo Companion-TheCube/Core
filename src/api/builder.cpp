@@ -114,7 +114,7 @@ void API_Builder::start()
         }
         CubeLog::debug("Returning endpoints JSON: " + j.dump());
         res.set_content(j.dump(), "application/json");
-        return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, j.dump());
+        return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
     });
 
     // add endpoint that will return the cube.socket path
@@ -125,7 +125,7 @@ void API_Builder::start()
         nlohmann::json j;
         j["cube_socket_path"] = path.string() + "/" + "cube.sock";
         res.set_content(j.dump(), "application/json");
-        return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, j.dump());
+        return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
     });
     // recursively search http folder for static files and add them to the server
     std::vector<std::filesystem::path> staticFiles;

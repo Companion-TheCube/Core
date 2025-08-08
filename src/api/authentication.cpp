@@ -554,7 +554,7 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
                 }
                 nlohmann::json out; out["success"] = true;
                 res.set_content(out.dump(), "application/json");
-                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Token(s) revoked");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
             } catch (std::exception& e) {
                 nlohmann::json out; out["success"] = false; out["message"] = e.what();
                 res.set_content(out.dump(), "application/json");
@@ -587,7 +587,7 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
                     { clientID, token, std::to_string(nowMs), std::to_string(expMs), std::to_string(nowMs), "0", "0" });
                 nlohmann::json out; out["success"] = true; out["token"] = token;
                 res.set_content(out.dump(), "application/json");
-                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Token rotated");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
             } catch (std::exception& e) {
                 nlohmann::json out; out["success"] = false; out["message"] = e.what();
                 res.set_content(out.dump(), "application/json");
