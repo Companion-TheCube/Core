@@ -161,7 +161,7 @@ private:
     EventManager* eventManager;
     static CubeMessageBox* messageBox;
     static CubeTextBox* fullScreenTextBox;
-    // static NotificationBox* notificationBox;
+    static CubeNotificaionBox* notificationBox;
     std::vector<MENUS::Menu*> menus;
     std::vector<std::pair<std::function<bool()>, std::function<void(int)>>> drag_y_actions; // bool is visibility. if the item is not visible, do not call the action.
     std::mutex addMenuMutex;

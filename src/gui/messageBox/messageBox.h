@@ -166,6 +166,10 @@ private:
     glm::vec2 position;
     glm::vec2 size;
     int textMeshCount = 0;
+    // Button rectangles (pixel coordinates in 720x720 space)
+    struct Rect { unsigned int xMin, xMax, yMin, yMax; };
+    Rect yesBtn_{};
+    Rect noBtn_{};
 
 public:
     CubeNotificaionBox(Shader* shader, Shader* textShader, Renderer* renderer, CountingLatch& latch);
@@ -187,6 +191,23 @@ public:
             this->callbackNo();
     };
     ClickableArea getClickableArea_() { return this->clickArea; };
+    // Helpers for click handling
+    bool isInsideYes(unsigned int x, unsigned int y) const
+    {
+        return x < yesBtn_.xMax && x > yesBtn_.xMin && y < yesBtn_.yMax && y > yesBtn_.yMin;
+    }
+    bool isInsideNo(unsigned int x, unsigned int y) const
+    {
+        return x < noBtn_.xMax && x > noBtn_.xMin && y < noBtn_.yMax && y > noBtn_.yMin;
+    }
+    void triggerYes()
+    {
+        if (callbackYes) callbackYes();
+    }
+    void triggerNo()
+    {
+        if (callbackNo) callbackNo();
+    }
 };
 
 template <class T>
@@ -230,6 +251,62 @@ public:
     bool getVisible() override { return object->getVisible(); };
     bool setIsClickable(bool isClickable) override { return object->getVisible(); };
     T* object;
+    ClickableArea* clickAreaPtr;
+};
+
+class NotificationBoxClickable : public Clickable {
+public:
+    explicit NotificationBoxClickable(CubeNotificaionBox* box)
+        : box_(box)
+    {
+        clickAreaPtr = new ClickableArea();
+        clickAreaPtr->clickableObject = this;
+    }
+    ~NotificationBoxClickable() override { delete clickAreaPtr; }
+    void onClick(void* data) override
+    {
+        if (!box_->getVisible()) return;
+        auto* ev = static_cast<sf::Event*>(data);
+        unsigned int x = ev ? static_cast<unsigned int>(ev->mouseButton.x) : 0;
+        unsigned int y = ev ? static_cast<unsigned int>(ev->mouseButton.y) : 0;
+        if (box_->isInsideYes(x, y)) {
+            box_->setVisible(false);
+            box_->triggerYes();
+        } else if (box_->isInsideNo(x, y)) {
+            box_->setVisible(false);
+            box_->triggerNo();
+        }
+    }
+    void onRelease(void* /*data*/) override {}
+    void onMouseDown(void* /*data*/) override {}
+    void onRightClick(void* /*data*/) override {}
+    ClickableArea* getClickableArea() override
+    {
+        // Sync area with box bounds
+        auto area = box_->getClickableArea_();
+        clickAreaPtr->clickableObject = this;
+        clickAreaPtr->xMin = area.xMin;
+        clickAreaPtr->xMax = area.xMax;
+        clickAreaPtr->yMin = area.yMin;
+        clickAreaPtr->yMax = area.yMax;
+        return clickAreaPtr;
+    }
+    void setOnClick(std::function<unsigned int(void*)> /*action*/) override {}
+    void setOnRightClick(std::function<unsigned int(void*)> /*action*/) override {}
+    bool getIsClickable() override { return box_->getVisible(); }
+    bool setIsClickable(bool /*isClickable*/) override { return box_->getVisible(); }
+    std::vector<MeshObject*> getObjects() override { return box_->getObjects(); }
+    void setVisibleWidth(float /*width*/) override {}
+    void setClickAreaSize(unsigned int /*xMin*/, unsigned int /*xMax*/, unsigned int /*yMin*/, unsigned int /*yMax*/) override {}
+    void capturePosition() override {}
+    void restorePosition() override {}
+    void resetScroll() override {}
+    bool setVisible(bool v) override { return box_->setVisible(v); }
+    bool getVisible() override { return box_->getVisible(); }
+    void draw() override {}
+
+private:
+    CubeNotificaionBox* box_;
     ClickableArea* clickAreaPtr;
 };
 

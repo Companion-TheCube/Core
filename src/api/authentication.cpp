@@ -662,14 +662,16 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
                 // Manual entry: show code only on device
                 GUI::showMessageBox("Authorization Code", "Your authorization code is:\n" + initialCode);
             }
-            std::thread([clientID]() {
+            std::thread([clientID, returnCode]() {
                 std::this_thread::sleep_for(std::chrono::seconds(60));
                 Database* dbInner = CubeDB::getDBManager()->getDatabase("auth");
                 if (dbInner->isOpen()) {
                     dbInner->updateData(DB_NS::TableNames::CLIENTS, { "initial_code" }, { "" },
                         "client_id = '" + clientID + "'");
                 }
-                GUI::hideMessageBox();
+                if (!returnCode) {
+                    GUI::hideMessageBox();
+                }
             }).detach();
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },

@@ -127,132 +127,132 @@
 - [src/gui/characterManager.cpp:726] : by default, this method will not interrupt the current animation. Need to implement interrupting.
 - [src/gui/characterManager.cpp:739] : by default, this method will not interrupt the current expression. Need to implement interrupting.
 - [src/gui/eventHandler/eventHandler.cpp:36] : Need to refactor so that the functions that take in "void* data" also take
-- [src/gui/gui.cpp:1001] : make this actually enable/disable remote animations. the settings should have a callback registered with the GlobalSettings class that will enable/disable remote animations when the setting is changed.
-- [src/gui/gui.cpp:1018] : list all the idle animations
-- [src/gui/gui.cpp:1034] : set the brightness
-- [src/gui/gui.cpp:1040] : save the brightness to the settings
-- [src/gui/gui.cpp:1059] : make this actually enable/disable auto off. the settings should have a callback registered with the GlobalSettings class that will enable/disable auto off when the setting is changed.
-- [src/gui/gui.cpp:1075] : set the auto off time
-- [src/gui/gui.cpp:1085] : save the auto off time to the settings
-- [src/gui/gui.cpp:1102] : list all the available fonts
-- [src/gui/gui.cpp:1105] :) with the GlobalSettings class that will set the font when the setting is changed.
-- [src/gui/gui.cpp:1121] : figure out what to put here: list apps that use microphone, presence detection, etc. and allow the user to disable them
-- [src/gui/gui.cpp:1134] : list all the accounts that have been added to the system. These are stored in the database.
-- [src/gui/gui.cpp:1137] :
-- [src/gui/gui.cpp:1140] :
-- [src/gui/gui.cpp:1143] : add a button to add an account
-- [src/gui/gui.cpp:1158] :
-- [src/gui/gui.cpp:1161] : for each installed app do the following
-- [src/gui/gui.cpp:1166] : each app will fill in the details here
-- [src/gui/gui.cpp:1169] :
-- [src/gui/gui.cpp:1172] : List all the available apps here. each app gets an install button and a details button
-- [src/gui/gui.cpp:117] : remove this or move to utils
-- [src/gui/gui.cpp:1207] :
+- [src/gui/gui.cpp:1002] : make this actually enable/disable remote animations. the settings should have a callback registered with the GlobalSettings class that will enable/disable remote animations when the setting is changed.
+- [src/gui/gui.cpp:1019] : list all the idle animations
+- [src/gui/gui.cpp:1035] : set the brightness
+- [src/gui/gui.cpp:1041] : save the brightness to the settings
+- [src/gui/gui.cpp:1060] : make this actually enable/disable auto off. the settings should have a callback registered with the GlobalSettings class that will enable/disable auto off when the setting is changed.
+- [src/gui/gui.cpp:1076] : set the auto off time
+- [src/gui/gui.cpp:1086] : save the auto off time to the settings
+- [src/gui/gui.cpp:1103] : list all the available fonts
+- [src/gui/gui.cpp:1106] :) with the GlobalSettings class that will set the font when the setting is changed.
+- [src/gui/gui.cpp:1122] : figure out what to put here: list apps that use microphone, presence detection, etc. and allow the user to disable them
+- [src/gui/gui.cpp:1135] : list all the accounts that have been added to the system. These are stored in the database.
+- [src/gui/gui.cpp:1138] :
+- [src/gui/gui.cpp:1141] :
+- [src/gui/gui.cpp:1144] : add a button to add an account
+- [src/gui/gui.cpp:1159] :
+- [src/gui/gui.cpp:1162] : for each installed app do the following
+- [src/gui/gui.cpp:1167] : each app will fill in the details here
+- [src/gui/gui.cpp:1170] :
+- [src/gui/gui.cpp:1173] : List all the available apps here. each app gets an install button and a details button
+- [src/gui/gui.cpp:118] : remove this or move to utils
 - [src/gui/gui.cpp:1208] :
 - [src/gui/gui.cpp:1209] :
 - [src/gui/gui.cpp:1210] :
-- [src/gui/gui.cpp:1217] :
-- [src/gui/gui.cpp:1219] : All the strings in the system should be in a language file that can be changed at runtime.
-- [src/gui/gui.cpp:1231] : figure out what should go here
-- [src/gui/gui.cpp:1238] :
-- [src/gui/gui.cpp:1240] :
-- [src/gui/gui.cpp:1244] :
-- [src/gui/gui.cpp:1261] : get the serial number from the hardware class
-- [src/gui/gui.cpp:1303] : Show the version, build number, and build date of TheCube-CORE
-- [src/gui/gui.cpp:1305] : Show the Raspbian version, kernel version, etc
-- [src/gui/gui.cpp:1307] : Show the versions of all the libraries used in the system
-- [src/gui/gui.cpp:1314] :
-- [src/gui/gui.cpp:1317] :
-- [src/gui/gui.cpp:131] : make this dynamic
-- [src/gui/gui.cpp:1320] :
-- [src/gui/gui.cpp:1323] :
-- [src/gui/gui.cpp:1326] :
-- [src/gui/gui.cpp:1329] :
-- [src/gui/gui.cpp:1332] :
-- [src/gui/gui.cpp:1335] :
-- [src/gui/gui.cpp:1338] :
-- [src/gui/gui.cpp:1341] :
-- [src/gui/gui.cpp:1344] : list all the open source licenses used in the system
-- [src/gui/gui.cpp:1347] : list all the legal notices
-- [src/gui/gui.cpp:1350] : list all the trademarks used in the system
-- [src/gui/gui.cpp:1353] : Read in the EULA from a file and display it
-- [src/gui/gui.cpp:1356] : Read in the privacy policy from a file and display it
-- [src/gui/gui.cpp:1394] : call some method that checks the SSD integrity
-- [src/gui/gui.cpp:1414] : call some method that resets the system to factory settings
-- [src/gui/gui.cpp:1431] : trigger a reboot
-- [src/gui/gui.cpp:1448] : trigger a shutdown
-- [src/gui/gui.cpp:1460] :
-- [src/gui/gui.cpp:1463] :
-- [src/gui/gui.cpp:1472] :
-- [src/gui/gui.cpp:1475] :
-- [src/gui/gui.cpp:1478] :
-- [src/gui/gui.cpp:1481] :
-- [src/gui/gui.cpp:1484] :
-- [src/gui/gui.cpp:1487] :
-- [src/gui/gui.cpp:1490] :
-- [src/gui/gui.cpp:1580] : change this to be a reference
-- [src/gui/gui.cpp:1877] : show a text input box
-- [src/gui/gui.cpp:1894] : Add the following endpoints:
-- [src/gui/gui.cpp:1904] : anything that gets displayed needs to be logged in the DB->notifications
-- [src/gui/gui.cpp:1928] : anything that gets displayed needs to be logged in the DB->notifications
-- [src/gui/gui.cpp:262] : make this actually enable/disable wifi. the settings should have a callback registered with the GlobalSettings class that will enable/disable wifi when the setting is changed.
-- [src/gui/gui.cpp:267] : return GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::WIFI_ENABLED);
-- [src/gui/gui.cpp:2799] : Implement
-- [src/gui/gui.cpp:300] : add a text box to enter the SSID
-- [src/gui/gui.cpp:310] : add a dropdown to select the security type
-- [src/gui/gui.cpp:320] : add a text box to enter the password
-- [src/gui/gui.cpp:334] : connect to the network
-- [src/gui/gui.cpp:355] : Trigger the wif manager to scan for networks and provide a way for it to return the list of networks.
-- [src/gui/gui.cpp:377] : list all the known networks
-- [src/gui/gui.cpp:396] : get the MAC address of the wifi adapter
+- [src/gui/gui.cpp:1211] :
+- [src/gui/gui.cpp:1218] :
+- [src/gui/gui.cpp:1220] : All the strings in the system should be in a language file that can be changed at runtime.
+- [src/gui/gui.cpp:1232] : figure out what should go here
+- [src/gui/gui.cpp:1239] :
+- [src/gui/gui.cpp:1241] :
+- [src/gui/gui.cpp:1245] :
+- [src/gui/gui.cpp:1262] : get the serial number from the hardware class
+- [src/gui/gui.cpp:1304] : Show the version, build number, and build date of TheCube-CORE
+- [src/gui/gui.cpp:1306] : Show the Raspbian version, kernel version, etc
+- [src/gui/gui.cpp:1308] : Show the versions of all the libraries used in the system
+- [src/gui/gui.cpp:1315] :
+- [src/gui/gui.cpp:1318] :
+- [src/gui/gui.cpp:1321] :
+- [src/gui/gui.cpp:1324] :
+- [src/gui/gui.cpp:1327] :
+- [src/gui/gui.cpp:132] : make this dynamic
+- [src/gui/gui.cpp:1330] :
+- [src/gui/gui.cpp:1333] :
+- [src/gui/gui.cpp:1336] :
+- [src/gui/gui.cpp:1339] :
+- [src/gui/gui.cpp:1342] :
+- [src/gui/gui.cpp:1345] : list all the open source licenses used in the system
+- [src/gui/gui.cpp:1348] : list all the legal notices
+- [src/gui/gui.cpp:1351] : list all the trademarks used in the system
+- [src/gui/gui.cpp:1354] : Read in the EULA from a file and display it
+- [src/gui/gui.cpp:1357] : Read in the privacy policy from a file and display it
+- [src/gui/gui.cpp:1395] : call some method that checks the SSD integrity
+- [src/gui/gui.cpp:1415] : call some method that resets the system to factory settings
+- [src/gui/gui.cpp:1432] : trigger a reboot
+- [src/gui/gui.cpp:1449] : trigger a shutdown
+- [src/gui/gui.cpp:1461] :
+- [src/gui/gui.cpp:1464] :
+- [src/gui/gui.cpp:1473] :
+- [src/gui/gui.cpp:1476] :
+- [src/gui/gui.cpp:1479] :
+- [src/gui/gui.cpp:1482] :
+- [src/gui/gui.cpp:1485] :
+- [src/gui/gui.cpp:1488] :
+- [src/gui/gui.cpp:1491] :
+- [src/gui/gui.cpp:1591] : change this to be a reference
+- [src/gui/gui.cpp:1888] : show a text input box
+- [src/gui/gui.cpp:1905] : Add the following endpoints:
+- [src/gui/gui.cpp:1915] : anything that gets displayed needs to be logged in the DB->notifications
+- [src/gui/gui.cpp:1939] : anything that gets displayed needs to be logged in the DB->notifications
+- [src/gui/gui.cpp:263] : make this actually enable/disable wifi. the settings should have a callback registered with the GlobalSettings class that will enable/disable wifi when the setting is changed.
+- [src/gui/gui.cpp:268] : return GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::WIFI_ENABLED);
+- [src/gui/gui.cpp:2810] : Implement
+- [src/gui/gui.cpp:301] : add a text box to enter the SSID
+- [src/gui/gui.cpp:311] : add a dropdown to select the security type
+- [src/gui/gui.cpp:321] : add a text box to enter the password
+- [src/gui/gui.cpp:335] : connect to the network
+- [src/gui/gui.cpp:356] : Trigger the wif manager to scan for networks and provide a way for it to return the list of networks.
+- [src/gui/gui.cpp:378] : list all the known networks
+- [src/gui/gui.cpp:397] : get the MAC address of the wifi adapter
 - [src/gui/gui.cpp:40] : Need to add a sort of status bar to the top of the screen. It should show the time and whether or not a person is detected. probably more.
-- [src/gui/gui.cpp:412] : get the IP address of the wifi adapter
+- [src/gui/gui.cpp:413] : get the IP address of the wifi adapter
 - [src/gui/gui.cpp:41] : we should monitor the CubeLog for errors and display them in the status bar. This will require a way to get the last error message from the CubeLog. <- this is done in CubeLog
-- [src/gui/gui.cpp:428] : get the subnet mask of the wifi adapter
+- [src/gui/gui.cpp:429] : get the subnet mask of the wifi adapter
 - [src/gui/gui.cpp:42] : setup notifications that pop up with a CubeMessageBox. this will need to have notifications.cpp fleshed out.
 - [src/gui/gui.cpp:43] : Instead of having the menu become visible with a single tap/click, it should only pop up when teh user holds
-- [src/gui/gui.cpp:444] : get the signal strength of the wifi adapter
-- [src/gui/gui.cpp:464] : get the name of the current network
-- [src/gui/gui.cpp:480] : get the type of the current network
-- [src/gui/gui.cpp:496] : get the security type of the current network
-- [src/gui/gui.cpp:512] : get the frequency of the current network
-- [src/gui/gui.cpp:528] : get the channel of the current network
-- [src/gui/gui.cpp:544] : get the BSSID of the current network
-- [src/gui/gui.cpp:560] : get the gateway of the current network
-- [src/gui/gui.cpp:576] : get the DNS servers of the current network
-- [src/gui/gui.cpp:592] : get the DHCP server of the current network
-- [src/gui/gui.cpp:608] : get the lease time of the current network
-- [src/gui/gui.cpp:624] : get the connection time of the current network
-- [src/gui/gui.cpp:640] : get the data rate of the current network
-- [src/gui/gui.cpp:660] : when pairing mode is clicked, bluetooth should go into pairing mode and show a list of devices that can be paired with.
-- [src/gui/gui.cpp:663] : list all the bluetooth devices that have been paired with the cube
-- [src/gui/gui.cpp:682] : make this actually enable/disable NFC. the settings should have a callback registered with the GlobalSettings class that will enable/disable NFC when the setting is changed.
-- [src/gui/gui.cpp:687] : return GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::NFC_ENABLED);
-- [src/gui/gui.cpp:699] : show a fullscreen message box with information about NFC
-- [src/gui/gui.cpp:720] : make this actually enable/disable personality. the settings should have a callback registered with the GlobalSettings class that will enable/disable personality when the setting is changed.
-- [src/gui/gui.cpp:733] : reset the personality to default
-- [src/gui/gui.cpp:758] : set the curiosity level
-- [src/gui/gui.cpp:763] : before adding the rest of these, we need to figure out the slider rendering and how to get/set the values
-- [src/gui/gui.cpp:787] : make this actually enable/disable the microphone. the settings should have a callback registered with the GlobalSettings class that will enable/disable the microphone when the setting is changed.
-- [src/gui/gui.cpp:800] : make this actually enable/disable the presence detection. the settings should have a callback registered with the GlobalSettings class that will enable/disable the presence detection when the setting is changed.
-- [src/gui/gui.cpp:822] : set the volume
-- [src/gui/gui.cpp:828] : save the volume to the settings
-- [src/gui/gui.cpp:831] : we need to get the value from the settings and pass it in here.
-- [src/gui/gui.cpp:849] : set the volume
-- [src/gui/gui.cpp:855] : save the notification volume to the settings
-- [src/gui/gui.cpp:858] : we need to get the value from the settings and pass it in here.
-- [src/gui/gui.cpp:868] : list all the notification sounds
-- [src/gui/gui.cpp:885] : set the volume
-- [src/gui/gui.cpp:891] : save the alarm volume to the settings
-- [src/gui/gui.cpp:894] : we need to get the value from the settings and pass it in here.
-- [src/gui/gui.cpp:904] : list all the alarm sounds
-- [src/gui/gui.cpp:90] : remove this
-- [src/gui/gui.cpp:921] : set the volume
-- [src/gui/gui.cpp:927] : save the voice command volume to the settings
-- [src/gui/gui.cpp:930] : we need to get the value from the settings and pass it in here.
-- [src/gui/gui.cpp:940] : list all the voice command sounds
-- [src/gui/gui.cpp:957] : make this actually enable/disable notifications from network sources. the settings should have a callback registered with the GlobalSettings class that will enable/disable notifications from network sources when the setting is changed.
-- [src/gui/gui.cpp:972] : list all the recent notifications. we'll need to determine the max number of notifications to show,
+- [src/gui/gui.cpp:445] : get the signal strength of the wifi adapter
+- [src/gui/gui.cpp:465] : get the name of the current network
+- [src/gui/gui.cpp:481] : get the type of the current network
+- [src/gui/gui.cpp:497] : get the security type of the current network
+- [src/gui/gui.cpp:513] : get the frequency of the current network
+- [src/gui/gui.cpp:529] : get the channel of the current network
+- [src/gui/gui.cpp:545] : get the BSSID of the current network
+- [src/gui/gui.cpp:561] : get the gateway of the current network
+- [src/gui/gui.cpp:577] : get the DNS servers of the current network
+- [src/gui/gui.cpp:593] : get the DHCP server of the current network
+- [src/gui/gui.cpp:609] : get the lease time of the current network
+- [src/gui/gui.cpp:625] : get the connection time of the current network
+- [src/gui/gui.cpp:641] : get the data rate of the current network
+- [src/gui/gui.cpp:661] : when pairing mode is clicked, bluetooth should go into pairing mode and show a list of devices that can be paired with.
+- [src/gui/gui.cpp:664] : list all the bluetooth devices that have been paired with the cube
+- [src/gui/gui.cpp:683] : make this actually enable/disable NFC. the settings should have a callback registered with the GlobalSettings class that will enable/disable NFC when the setting is changed.
+- [src/gui/gui.cpp:688] : return GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::NFC_ENABLED);
+- [src/gui/gui.cpp:700] : show a fullscreen message box with information about NFC
+- [src/gui/gui.cpp:721] : make this actually enable/disable personality. the settings should have a callback registered with the GlobalSettings class that will enable/disable personality when the setting is changed.
+- [src/gui/gui.cpp:734] : reset the personality to default
+- [src/gui/gui.cpp:759] : set the curiosity level
+- [src/gui/gui.cpp:764] : before adding the rest of these, we need to figure out the slider rendering and how to get/set the values
+- [src/gui/gui.cpp:788] : make this actually enable/disable the microphone. the settings should have a callback registered with the GlobalSettings class that will enable/disable the microphone when the setting is changed.
+- [src/gui/gui.cpp:801] : make this actually enable/disable the presence detection. the settings should have a callback registered with the GlobalSettings class that will enable/disable the presence detection when the setting is changed.
+- [src/gui/gui.cpp:823] : set the volume
+- [src/gui/gui.cpp:829] : save the volume to the settings
+- [src/gui/gui.cpp:832] : we need to get the value from the settings and pass it in here.
+- [src/gui/gui.cpp:850] : set the volume
+- [src/gui/gui.cpp:856] : save the notification volume to the settings
+- [src/gui/gui.cpp:859] : we need to get the value from the settings and pass it in here.
+- [src/gui/gui.cpp:869] : list all the notification sounds
+- [src/gui/gui.cpp:886] : set the volume
+- [src/gui/gui.cpp:892] : save the alarm volume to the settings
+- [src/gui/gui.cpp:895] : we need to get the value from the settings and pass it in here.
+- [src/gui/gui.cpp:905] : list all the alarm sounds
+- [src/gui/gui.cpp:91] : remove this
+- [src/gui/gui.cpp:922] : set the volume
+- [src/gui/gui.cpp:928] : save the voice command volume to the settings
+- [src/gui/gui.cpp:931] : we need to get the value from the settings and pass it in here.
+- [src/gui/gui.cpp:941] : list all the voice command sounds
+- [src/gui/gui.cpp:958] : make this actually enable/disable notifications from network sources. the settings should have a callback registered with the GlobalSettings class that will enable/disable notifications from network sources when the setting is changed.
+- [src/gui/gui.cpp:973] : list all the recent notifications. we'll need to determine the max number of notifications to show,
 - [src/gui/menu/menu.cpp:124] : add the ability to have an entry be fixed to the top of the menu. This will need a stencil so that other entries can be scrolled under it.
 - [src/gui/menu/menu.cpp:125] : add icon support
 - [src/gui/menu/menu.cpp:126] : add checkbox support
@@ -268,7 +268,6 @@
 - [src/gui/messageBox/messageBox.cpp:35] : add auto wrapping of text in message box
 - [src/gui/messageBox/messageBox.cpp:36] : close message bos when clicked / touched
 - [src/gui/messageBox/messageBox.cpp:37] : disable menu click listener when message box is visible
-- [src/gui/messageBox/messageBox.cpp:576] : this was copy/pasted from CubeTextBox::setText. We need to refactor this so that is renders the text field names and a text input box for each.
 - [src/gui/messageBox/messageBox.cpp:99] : make the outline more like a speech bubble
 - [src/gui/messageBox/messageBox.h:65] : make a generic message box class that can be inherited from to make different types of message boxes
 - [src/gui/renderables/meshLoader.cpp:240] : change this to use RRGGBB data for shape type
