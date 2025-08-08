@@ -21,7 +21,7 @@ Interface endpoints are exposed at `/InterfaceName-endpoint`.
 
 ### CubeAuth
 - **GET /CubeAuth-authHeader** – Authorize a client and return an authentication header; requires `client_id` and `initial_code`. (Public)
-- **GET /CubeAuth-initCode** – Generate an initial authorization code for a client; requires `client_id`. (Public)
+- **GET /CubeAuth-initCode** – Generate an initial authorization code for a client; requires `client_id`. Pass `return_code=true` to also receive the code and use the confirmation flow. (Public)
 
 ### CubeDB
 - **POST /CubeDB-saveBlob** – Save a blob for a client or app; requires `client_id` or `app_id` and either `stringBlob` or `blob` (base64). (Private)

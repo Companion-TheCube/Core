@@ -1,6 +1,19 @@
 let test = "nothing";
 let authToken = null;
 let clientId = "webui"; // default; user can override below
+let pendingCode = null;
+
+function getCookie(name) {
+    const match = document.cookie.match(new RegExp("(?:^|; )" + name.replace(/([.$?*|{}()\[\]\\/+^])/g, "\\$1") + "=([^;]*)"));
+    return match ? decodeURIComponent(match[1]) : null;
+}
+
+function setCookie(name, value, days) {
+    const expires = days ? "; expires=" + new Date(Date.now() + days * 864e5).toUTCString() : "";
+    document.cookie = name + "=" + encodeURIComponent(value) + expires + "; path=/";
+}
+
+authToken = getCookie("cube_auth") || null;
 console.log("auth.js is loaded");
 
 // Build simple auth UI
@@ -17,15 +30,30 @@ clientIdInput.placeholder = "client_id (e.g., webui)";
 clientIdInput.value = clientId;
 toolbar.appendChild(clientIdInput);
 
+const confirmCheckbox = document.createElement("input");
+confirmCheckbox.type = "checkbox";
+confirmCheckbox.id = "confirmCheckbox";
+const confirmLabel = document.createElement("label");
+confirmLabel.htmlFor = "confirmCheckbox";
+confirmLabel.textContent = "Use device confirmation";
+toolbar.appendChild(confirmCheckbox);
+toolbar.appendChild(confirmLabel);
+
 const initBtn = document.createElement("button");
 initBtn.textContent = "Get Initial Code";
 initBtn.addEventListener("click", () => {
     clientId = clientIdInput.value || "webui";
-    fetch(`/CubeAuth-initCode?client_id=${encodeURIComponent(clientId)}`)
+    const url = `/CubeAuth-initCode?client_id=${encodeURIComponent(clientId)}${confirmCheckbox.checked ? "&return_code=1" : ""}`;
+    fetch(url)
         .then(r => r.json())
         .then(j => {
             if (j.success) {
-                alert("Initial code generated on the device. Enter that code here to finish authentication.");
+                if (j.initial_code) {
+                    pendingCode = j.initial_code;
+                    alert(`Confirm this code on the device: ${pendingCode}`);
+                } else {
+                    alert("Initial code generated on the device. Enter that code here to finish authentication.");
+                }
             } else {
                 alert("Failed to get initial code: " + (j.message || "unknown error"));
             }
@@ -38,13 +66,18 @@ const authBtn = document.createElement("button");
 authBtn.textContent = "Authenticate";
 authBtn.addEventListener("click", () => {
     clientId = clientIdInput.value || "webui";
-    const code = prompt("Enter the initial code shown on the device:");
-    if (!code) return;
+    let code = pendingCode;
+    if (!code) {
+        code = prompt("Enter the initial code shown on the device:");
+        if (!code) return;
+    }
     fetch(`/CubeAuth-authHeader?client_id=${encodeURIComponent(clientId)}&initial_code=${encodeURIComponent(code)}`)
         .then(r => r.json())
         .then(j => {
             if (j.success && j.auth_code) {
                 authToken = j.auth_code;
+                setCookie("cube_auth", authToken, 365);
+                pendingCode = null;
                 alert("Authenticated. Private endpoints will include Authorization automatically.");
             } else {
                 alert("Auth failed: " + (j.message || "unknown error"));

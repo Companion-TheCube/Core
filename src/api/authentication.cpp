@@ -600,6 +600,7 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
             // get the appID from the query string
             std::string clientID = req.get_param_value("client_id");
             CubeLog::debug("GET initCode called with client_id: " + clientID);
+            bool returnCode = req.has_param("return_code");
             // Get an initial code
             std::string initialCode = Code6Generator();
             CubeLog::debug("Generated initial code: " + initialCode);
@@ -638,17 +639,38 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
             nlohmann::json j;
             j["success"] = true;
             j["message"] = "Initial code generated";
-            // We don't send the initial code back to the client since the user has to read it form the screen and enter it into the client
+            if (returnCode) {
+                j["initial_code"] = initialCode;
+            }
             res.set_content(j.dump(), "application/json");
-            // we need to display the initial code to the user
-            GUI::showMessageBox("Authorization Code", "Your authorization code is:\n" + initialCode); // TODO: verify/test that this is thread safe
-            std::thread([clientID]() {
+            if (returnCode) {
+                // Display the code on the device and allow confirmation
+                GUI::showNotificationWithCallback(
+                    "Authorization Code",
+                    "Code: " + initialCode + "\nAuthorize?",
+                    NotificationsManager::NotificationType::NOTIFICATION_YES_NO,
+                    []() {},
+                    [clientID]() {
+                        Database* dbInner = CubeDB::getDBManager()->getDatabase("auth");
+                        if (dbInner->isOpen()) {
+                            dbInner->updateData(DB_NS::TableNames::CLIENTS, { "initial_code" }, { "" },
+                                "client_id = '" + clientID + "'");
+                        }
+                    });
+            } else {
+                // Manual entry: show code only on device
+                GUI::showMessageBox("Authorization Code", "Your authorization code is:\n" + initialCode);
+            }
+            std::thread([clientID, returnCode]() {
                 std::this_thread::sleep_for(std::chrono::seconds(60));
                 Database* dbInner = CubeDB::getDBManager()->getDatabase("auth");
                 if (dbInner->isOpen()) {
-                    dbInner->updateData(DB_NS::TableNames::CLIENTS, { "initial_code" }, { "" }, "client_id = '" + clientID + "'");
+                    dbInner->updateData(DB_NS::TableNames::CLIENTS, { "initial_code" }, { "" },
+                        "client_id = '" + clientID + "'");
                 }
-                GUI::hideMessageBox();
+                if (!returnCode) {
+                    GUI::hideMessageBox();
+                }
             }).detach();
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
