@@ -263,8 +263,9 @@ void API::httpApiThreadFn()
                     // if the authorization header is valid, client is authorized
                     auto returned = this->endpoints.at(i)->doAction(req, res);
                     if (returned.errorType == EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR) {
-                        res.set_content(returned.errorString, "text/plain");
-                        CubeLog::debug("Endpoint action returned: " + returned.errorString);
+                        // Do not overwrite the response body on success; endpoint handlers
+                        // are responsible for setting res (status/content/type). We only log.
+                        CubeLog::debug("Endpoint action returned OK: " + returned.errorString);
                     } else {
                         res.set_content("An error occurred: " + returned.errorString, "text/plain");
                         switch (returned.errorType) {
