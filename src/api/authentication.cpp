@@ -36,6 +36,7 @@ SOFTWARE.
 #endif
 #include "authentication.h"
 #include <chrono>
+#include <thread>
 
 /**
  * @brief Generate a random key of a given length using the charset of 0-9, A-Z, a-z
@@ -60,14 +61,14 @@ std::string KeyGenerator(size_t length)
 }
 
 /**
- * @brief Generate a random 6 character code using the charset of 0-9, A-Z, a-z, and special characters
+ * @brief Generate a random 6 character code using the charset of 0-9 and A-Z
  *
  * @return std::string
  */
 std::string Code6Generator()
 {
     CubeLog::debug("Generating 6 character code");
-    std::string charset = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890123456789+=&%$#@!";
+    std::string charset = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     std::string result;
     result.resize(6);
     std::random_device rd;
@@ -641,6 +642,14 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
             res.set_content(j.dump(), "application/json");
             // we need to display the initial code to the user
             GUI::showMessageBox("Authorization Code", "Your authorization code is:\n" + initialCode); // TODO: verify/test that this is thread safe
+            std::thread([clientID]() {
+                std::this_thread::sleep_for(std::chrono::seconds(60));
+                Database* dbInner = CubeDB::getDBManager()->getDatabase("auth");
+                if (dbInner->isOpen()) {
+                    dbInner->updateData(DB_NS::TableNames::CLIENTS, { "initial_code" }, { "" }, "client_id = '" + clientID + "'");
+                }
+                GUI::hideMessageBox();
+            }).detach();
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
         "initCode", { "client_id" }, "Generate an initial code for the client." });

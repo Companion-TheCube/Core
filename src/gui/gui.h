@@ -140,6 +140,7 @@ public:
     static void showMessageBox(const std::string& title, const std::string& message);
     static void showMessageBox(const std::string& title, const std::string& message, glm::vec2 size, glm::vec2 position);
     static void showMessageBox(const std::string& title, const std::string& message, glm::vec2 size, glm::vec2 position, std::function<void()> callback);
+    static void hideMessageBox();
     static void showTextBox(const std::string& title, const std::string& message);
     static void showTextBox(const std::string& title, const std::string& message, glm::vec2 size, glm::vec2 position);
     static void showTextBox(const std::string& title, const std::string& message, glm::vec2 size, glm::vec2 position, std::function<void()> callback);

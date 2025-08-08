@@ -1775,6 +1775,15 @@ void GUI::showMessageBox(const std::string& title, const std::string& message, g
     showMessageBox(title, message, size, position);
 }
 
+void GUI::hideMessageBox()
+{
+    if (messageBox == nullptr) {
+        CubeLog::error("Message box is null. Cannot hide message.");
+        return;
+    }
+    messageBox->setVisible(false);
+}
+
 void GUI::showTextBox(const std::string& title, const std::string& message)
 {
     // check that fullScreenTextBox is not null pointer
