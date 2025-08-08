@@ -44,6 +44,36 @@ TEST(ApiIntegration, PrivateEndpointHonorsResponseBody)
     API api;
     // Bind to test port 55281 to avoid clashes
     api.setHttpBinding("127.0.0.1", 55281);
+    // Read a test-specific IPC socket path from .env (key: IPC_SOCKET_PATH_TEST)
+    // Do not write to .env from tests. If not present, fall back to a temp path.
+    auto readDotEnvKey = [](const std::string& key) -> std::string {
+        std::ifstream envFile(".env");
+        if (!envFile.is_open()) return std::string();
+        auto trim = [](std::string s) {
+            size_t b = s.find_first_not_of(" \t\r\n");
+            size_t e = s.find_last_not_of(" \t\r\n");
+            if (b == std::string::npos) return std::string();
+            return s.substr(b, e - b + 1);
+        };
+        std::string line;
+        while (std::getline(envFile, line)) {
+            line = trim(line);
+            if (line.empty() || line[0] == '#') continue;
+            auto pos = line.find('=');
+            if (pos == std::string::npos) continue;
+            auto k = trim(line.substr(0, pos));
+            auto v = trim(line.substr(pos + 1));
+            if ((v.size() > 1) && ((v.front() == '"' && v.back() == '"') || (v.front() == '\'' && v.back() == '\''))) {
+                v = v.substr(1, v.size() - 2);
+            }
+            if (k == key) return v;
+        }
+        return std::string();
+    };
+
+    std::string ipcPath = readDotEnvKey("IPC_SOCKET_PATH_TEST");
+    if (ipcPath.empty()) ipcPath = "test_ipc.sock";
+    api.setIpcPath(ipcPath);
     CubeAuth auth; // sets keys and exposes endpoints
     addInterfaceEndpoints(api, auth);
 

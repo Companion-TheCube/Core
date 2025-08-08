@@ -39,6 +39,8 @@ SOFTWARE.
 #endif
 #ifndef AUTHENTICATION_H
 #include "authentication.h"
+#include <fstream>
+#include <sstream>
 #endif
 
 /**
@@ -193,11 +195,44 @@ void API::httpApiThreadFn()
     try {
         // Use configured binding for HTTP server (default 0.0.0.0:55280)
         this->server = std::make_unique<CubeHttpServer>(this->httpAddress, this->httpPort);
-        if (std::filesystem::exists(CUBE_SOCKET_PATH)) {
-            std::filesystem::remove(CUBE_SOCKET_PATH);
+        // Resolve IPC socket path from environment or .env
+        auto resolveIpcPath = [&]() -> std::string {
+            if (const char* envPath = std::getenv("IPC_SOCKET_PATH")) {
+                if (*envPath) return std::string(envPath);
+            }
+            std::ifstream envFile(".env");
+            if (envFile.is_open()) {
+                std::string line;
+                while (std::getline(envFile, line)) {
+                    // trim spaces
+                    auto trim = [](std::string s) {
+                        size_t b = s.find_first_not_of(" \t\r\n");
+                        size_t e = s.find_last_not_of(" \t\r\n");
+                        if (b == std::string::npos) return std::string();
+                        return s.substr(b, e - b + 1);
+                    };
+                    line = trim(line);
+                    if (line.empty() || line[0] == '#') continue;
+                    auto pos = line.find('=');
+                    if (pos == std::string::npos) continue;
+                    auto key = trim(line.substr(0, pos));
+                    auto val = trim(line.substr(pos + 1));
+                    if ((val.size() > 1) && ((val.front() == '"' && val.back() == '"') || (val.front() == '\'' && val.back() == '\''))) {
+                        val = val.substr(1, val.size() - 2);
+                    }
+                    if (key == "IPC_SOCKET_PATH") {
+                        return val;
+                    }
+                }
+            }
+            return this->ipcPath; // fallback to configured default
+        };
+        std::string ipc = resolveIpcPath();
+        if (std::filesystem::exists(ipc)) {
+            std::filesystem::remove(ipc);
         }
-        // Use configured IPC socket path (default cube.sock)
-        this->serverIPC = std::make_unique<CubeHttpServer>(this->ipcPath, 0);
+        // Use resolved IPC socket path
+        this->serverIPC = std::make_unique<CubeHttpServer>(ipc, 0);
         for (size_t i = 0; i < this->endpoints.size(); i++) {
             // Public endpoints are accessible by any device on the
             // network. Non public endpoints are only available to devices that have been authenticated. The authentication process is not yet implemented.
@@ -477,16 +512,15 @@ void CubeHttpServer::stop()
     CubeLog::info("HTTP server stopping...");
     this->server->stop();
     genericSleep(250);
-    // There is a weird bug in the httplib library that causes it to hang when trying to stop the server if
-    // the server is bound to a unix socket and no client ever connects to it. To work around this, we connect
-    // to the socket with a dummy client after calling stop.
-    if (this->address == CUBE_SOCKET_PATH) {
+    // Workaround for httplib with AF_UNIX: if bound to a UNIX socket and no client
+    // ever connected, listen thread may hang during stop(). Connect a dummy client.
+    if (this->port == 0 && !this->address.empty()) {
         int dummy_fd = socket(AF_UNIX, SOCK_STREAM, 0);
 #ifdef __linux__
         struct sockaddr_un addr;
         memset(&addr, 0, sizeof(addr));
         addr.sun_family = AF_UNIX;
-        strncpy(addr.sun_path, CUBE_SOCKET_PATH, sizeof(addr.sun_path) - 1);
+        strncpy(addr.sun_path, this->address.c_str(), sizeof(addr.sun_path) - 1);
         connect(dummy_fd, (struct sockaddr*)&addr, sizeof(addr));
         close(dummy_fd);
 #endif
