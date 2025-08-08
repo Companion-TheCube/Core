@@ -15,6 +15,12 @@
 - Optional toggles: `-DBUILD_BT_MANAGER=OFF`, `-DTRANSLATE_ENABLED=OFF`
 Notes: First build fetches several dependencies and a Whisper model into `libraries/`; ensure network access.
 
+## Configuration (.env)
+- HTTP: `HTTP_ADDRESS` (default `0.0.0.0`), `HTTP_PORT` (default `55280`).
+- IPC: `IPC_SOCKET_PATH` (default `cube.sock`).
+- Tests: `HTTP_PORT_TEST` (e.g., `55281`), `IPC_SOCKET_PATH_TEST` (e.g., `test_ipc.sock`).
+- Usage: Values load once via `Config::loadFromDotEnv()` in `main.cpp`; access anywhere with `Config::get("KEY")` from `utils.h`.
+
 ## Coding Style & Naming Conventions
 - Language: Modern C++ (C++23 enabled at project level; target requires at least C++17).
 - Indentation: 4 spaces; UTF‑8; Unix line endings on non‑Windows.

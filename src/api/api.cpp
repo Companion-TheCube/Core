@@ -193,41 +193,20 @@ void API::httpApiThreadFn()
 {
     CubeLog::info("API listener thread starting...");
     try {
-        // Use configured binding for HTTP server (default 0.0.0.0:55280)
+        // Allow .env to override default HTTP binding when not set explicitly
+        if (this->httpAddress == std::string("0.0.0.0")) {
+            this->httpAddress = Config::get("HTTP_ADDRESS", this->httpAddress);
+        }
+        if (this->httpPort == 55280) {
+            std::string portStr = Config::get("HTTP_PORT", "");
+            if (!portStr.empty()) {
+                try { this->httpPort = std::stoi(portStr); } catch (...) { /* keep default on parse error */ }
+            }
+        }
+        // Use configured binding for HTTP server
         this->server = std::make_unique<CubeHttpServer>(this->httpAddress, this->httpPort);
-        // Resolve IPC socket path from environment or .env
-        auto resolveIpcPath = [&]() -> std::string {
-            if (const char* envPath = std::getenv("IPC_SOCKET_PATH")) {
-                if (*envPath) return std::string(envPath);
-            }
-            std::ifstream envFile(".env");
-            if (envFile.is_open()) {
-                std::string line;
-                while (std::getline(envFile, line)) {
-                    // trim spaces
-                    auto trim = [](std::string s) {
-                        size_t b = s.find_first_not_of(" \t\r\n");
-                        size_t e = s.find_last_not_of(" \t\r\n");
-                        if (b == std::string::npos) return std::string();
-                        return s.substr(b, e - b + 1);
-                    };
-                    line = trim(line);
-                    if (line.empty() || line[0] == '#') continue;
-                    auto pos = line.find('=');
-                    if (pos == std::string::npos) continue;
-                    auto key = trim(line.substr(0, pos));
-                    auto val = trim(line.substr(pos + 1));
-                    if ((val.size() > 1) && ((val.front() == '"' && val.back() == '"') || (val.front() == '\'' && val.back() == '\''))) {
-                        val = val.substr(1, val.size() - 2);
-                    }
-                    if (key == "IPC_SOCKET_PATH") {
-                        return val;
-                    }
-                }
-            }
-            return this->ipcPath; // fallback to configured default
-        };
-        std::string ipc = resolveIpcPath();
+        // Resolve IPC socket path from centralized config (utils Config)
+        std::string ipc = Config::get("IPC_SOCKET_PATH", this->ipcPath);
         if (std::filesystem::exists(ipc)) {
             std::filesystem::remove(ipc);
         }
