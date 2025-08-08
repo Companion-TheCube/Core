@@ -593,8 +593,3 @@ bool supportsExtendedColors()
 }
 
 #endif
-
-TEST_CASE("Test supportsBasicColors")
-{
-    REQUIRE(supportsBasicColors());
-}

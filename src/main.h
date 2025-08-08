@@ -47,7 +47,6 @@ SOFTWARE.
 #include "argparse.hpp"
 #include "audio/audioManager.h"
 #include "database/cubeDB.h"
-#include "doctest.h"
 #include "gui/gui.h"
 #include "hardware/bluetooth.h"
 #include "hardware/peripheralManager.h"
