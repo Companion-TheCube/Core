@@ -31,6 +31,17 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+// TheCubeServerAPI: thin client for interacting with TheCube cloud services.
+//
+// Capabilities
+// - Establish authenticated connection (API key, bearer token, basic auth using device serial)
+// - Query available services and current server status/state
+// - Stream audio and request asynchronous chat responses (LLM output)
+//
+// Usage notes
+// - getChatResponseAsync() returns a future; use wait_for()/get() to consume
+// - Methods assume API keys/secrets are loaded from CubeDB and never logged
+// - Thread-safety: each instance owns its own HTTP client; coordinate externally if sharing
 #pragma once
 #ifndef REMOTESERVER_H
 #define REMOTESERVER_H
@@ -60,6 +71,7 @@ namespace TheCubeServer {
 class TheCubeServerAPI {
 public:
     using FourBit = std::bitset<4>;
+    // High-level lifecycle status for the server connection
     enum class ServerStatus {
         SERVER_STATUS_INITIALIZING,
         SERVER_STATUS_READY,
@@ -67,6 +79,7 @@ public:
         SERVER_STATUS_ERROR
     } status
         = ServerStatus::SERVER_STATUS_INITIALIZING;
+    // Error categories surfaced by the API client
     enum class ServerError {
         SERVER_ERROR_NONE,
         SERVER_ERROR_CONNECTION_ERROR,
@@ -77,12 +90,14 @@ public:
         SERVER_ERROR_UNKNOWN
     } error
         = ServerError::SERVER_ERROR_NONE;
+    // Streaming state machine (idle/transcribing/streaming)
     enum class ServerState {
         SERVER_STATE_IDLE,
         SERVER_STATE_TRANSCRIBING,
         SERVER_STATE_STREAMING
     } state
         = ServerState::SERVER_STATE_IDLE;
+    // Bitmask of services this device/account may use
     enum class AvailableServices {
         AVAILABLE_SERVICE_NONE = 0,
         AVAILABLE_SERVICE_OPENAI = 1,
@@ -98,7 +113,7 @@ public:
     bool stopTranscribing();
     bool initServerConnection();
     bool resetServerConnection();
-    std::future<std::string> getChatResponseAsync(const std::string& message, const std::function<void(std::string)>& progressCB);
+    std::future<std::string> getChatResponseAsync(const std::string& message, const std::function<void(std::string)>& progressCB = [](std::string){});
     ServerStatus getServerStatus();
     ServerError getServerError();
     ServerState getServerState();

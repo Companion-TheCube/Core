@@ -55,6 +55,18 @@ CubeMessageBox::CubeMessageBox(Shader* shader, Shader* textShader, Renderer* ren
     this->renderer = renderer;
     CubeLog::info("MessageBox initialized");
     this->callback = [&]() { return; };
+    // Initialize sensible defaults so text renders in the box
+    // The box geometry in setup() currently draws a ~1x1 area centered using normalized coords
+    // Map that roughly to pixel coordinates for text placement: position (252,252), size (432,432)
+    this->position = { 252, 252 };
+    this->size = { 432, 432 };
+    // Initialize a reasonable clickable area matching the pixel box
+    this->clickArea = ClickableArea();
+    this->clickArea.clickableObject = nullptr;
+    this->clickArea.xMin = (unsigned int)this->position.x;
+    this->clickArea.xMax = (unsigned int)(this->position.x + this->size.x);
+    this->clickArea.yMin = (unsigned int)this->position.y;
+    this->clickArea.yMax = (unsigned int)(this->position.y + this->size.y);
 }
 
 /**
@@ -81,9 +93,9 @@ void CubeMessageBox::setup()
 
     float radius = BOX_RADIUS;
     float diameter = radius * 2;
-    float xStart = -0.2;
-    float yStart = -0.2;
-    glm::vec2 size_ = { 1.f, 1.f };
+    float xStart = -0.3;
+    float yStart = -0.3;
+    glm::vec2 size_ = { 1.2f, 1.2f };
     // TODO: make the outline more like a speech bubble
     // TODO: the character to needs to be aligned with the box in a way that makes it look like a speech bubble
     this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart + radius, Z_DISTANCE + this->index }, { size_.x - diameter, size_.y - diameter }, 0.0, 0.0)); // main box
@@ -123,17 +135,39 @@ void CubeMessageBox::setText(const std::string& text, const std::string& title)
             delete this->textObjects[index];
         }
         this->textObjects.clear();
-        this->textObjects.push_back(new M_Text(textShader, title, (this->messageTextSize * MESSAGEBOX_TITLE_TEXT_MULT), { 1.f, 1.f, 1.f }, { this->position.x + STENCIL_INSET_PX, (this->position.y + this->size.y) - this->messageTextSize - STENCIL_INSET_PX }));
+        auto titleText = new M_Text(textShader, title, (this->messageTextSize * MESSAGEBOX_TITLE_TEXT_MULT), { 1.f, 1.f, 1.f }, { 0.f, 0.f });
+        float titleWidth = titleText->getWidth();
+        float titleX = this->position.x + (this->size.x - titleWidth) / 2.f;
+        float titleY = (this->position.y + this->size.y) - this->messageTextSize - STENCIL_INSET_PX;
+        titleText->setPosition({ titleX, titleY });
+        this->textObjects.push_back(titleText);
         std::vector<std::string> lines;
-        std::string line;
+        size_t maxCharsPerLine = (size_t)((this->size.x - (2 * STENCIL_INSET_PX)) / (this->messageTextSize * 0.55f));
         std::istringstream textStream(text);
-        while (std::getline(textStream, line)) {
-            lines.push_back(line);
+        std::string paragraph;
+        while (std::getline(textStream, paragraph)) {
+            if (paragraph.empty()) {
+                lines.push_back("");
+                continue;
+            }
+            std::istringstream wordStream(paragraph);
+            std::string word;
+            std::string current;
+            while (wordStream >> word) {
+                if (current.empty()) {
+                    current = word;
+                } else if ((current.size() + 1 + word.size()) <= maxCharsPerLine) {
+                    current += " " + word;
+                } else {
+                    lines.push_back(current);
+                    current = word;
+                }
+            }
+            if (!current.empty())
+                lines.push_back(current);
         }
         if (lines.size() == 0)
             lines.push_back(text);
-        if (lines[0].size() == 0)
-            lines[0] = text;
         for (size_t i = 0; i < lines.size(); i++) {
             float shiftForPreviousLines = ((float)(i + 1) * this->messageTextSize) + (this->messageTextSize * MESSAGEBOX_TITLE_TEXT_MULT);
             float shiftForMargin = (float)(i + 1) * MESSAGEBOX_LINE_SPACING * this->messageTextSize;
@@ -195,7 +229,12 @@ void CubeMessageBox::draw()
  */
 void CubeMessageBox::setPosition(glm::vec2 position)
 {
-    // TODO:
+    this->position = position;
+    // keep clickable area in sync
+    this->clickArea.xMin = (unsigned int)this->position.x;
+    this->clickArea.xMax = (unsigned int)(this->position.x + this->size.x);
+    this->clickArea.yMin = (unsigned int)this->position.y;
+    this->clickArea.yMax = (unsigned int)(this->position.y + this->size.y);
 }
 
 /**
@@ -205,7 +244,12 @@ void CubeMessageBox::setPosition(glm::vec2 position)
  */
 void CubeMessageBox::setSize(glm::vec2 size)
 {
-    // TODO:
+    this->size = size;
+    // keep clickable area in sync
+    this->clickArea.xMin = (unsigned int)this->position.x;
+    this->clickArea.xMax = (unsigned int)(this->position.x + this->size.x);
+    this->clickArea.yMin = (unsigned int)this->position.y;
+    this->clickArea.yMax = (unsigned int)(this->position.y + this->size.y);
 }
 
 /**
@@ -408,6 +452,15 @@ CubeNotificaionBox::CubeNotificaionBox(Shader* shader, Shader* textShader, Rende
     CubeLog::info("NotificationBox initialized");
     this->callbackYes = [&]() { return; };
     this->callbackNo = [&]() { return; };
+    // Default geometry in pixel space
+    this->position = { 144, 144 };
+    this->size = { 432, 432 };
+    this->clickArea = ClickableArea();
+    this->clickArea.clickableObject = nullptr;
+    this->clickArea.xMin = (unsigned int)this->position.x;
+    this->clickArea.xMax = (unsigned int)(this->position.x + this->size.x);
+    this->clickArea.yMin = (unsigned int)this->position.y;
+    this->clickArea.yMax = (unsigned int)(this->position.y + this->size.y);
 }
 
 CubeNotificaionBox::~CubeNotificaionBox()
@@ -428,6 +481,9 @@ void CubeNotificaionBox::setup()
     float xStart = -0.2;
     float yStart = -0.2;
     glm::vec2 size_ = { 1.f, 1.f };
+    // Fullscreen blackout backdrop to ensure content beneath is hidden
+    this->objects.push_back(new M_Rect(shader, { -1.f, -1.f, Z_DISTANCE + this->index - 0.0005f }, { 2.f, 2.f }, 0.0, 0.0));
+    // Main rounded box with outline
     this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart + radius, Z_DISTANCE + this->index }, { size_.x - diameter, size_.y - diameter }, 0.0, 0.0)); // main box
     this->objects.push_back(new M_Rect(shader, { xStart, yStart + radius, Z_DISTANCE + this->index }, { radius, size_.y - diameter }, 0.0, 0.0)); // left
     this->objects.push_back(new M_Rect(shader, { xStart + size_.x - radius, yStart + radius, Z_DISTANCE + this->index }, { radius, size_.y - diameter }, 0.0, 0.0)); // right
@@ -456,9 +512,6 @@ bool CubeNotificaionBox::setVisible(bool visible)
     CubeLog::debug("NotificationBox visibility set to " + std::to_string(visible));
     bool temp = this->visible;
     this->visible = visible;
-    if (this->callbackYes != nullptr)
-        if (this->visible)
-            this->callbackYes();
     return temp;
 }
 
@@ -489,6 +542,11 @@ void CubeNotificaionBox::setPosition(glm::vec2 position)
     }
     this->objects.clear();
     this->index = 0.001;
+    // keep clickable area in sync
+    this->clickArea.xMin = (unsigned int)this->position.x;
+    this->clickArea.xMax = (unsigned int)(this->position.x + this->size.x);
+    this->clickArea.yMin = (unsigned int)this->position.y;
+    this->clickArea.yMax = (unsigned int)(this->position.y + this->size.y);
 }
 
 void CubeNotificaionBox::setSize(glm::vec2 size)
@@ -500,6 +558,11 @@ void CubeNotificaionBox::setSize(glm::vec2 size)
     }
     this->objects.clear();
     this->index = 0.001;
+    // keep clickable area in sync
+    this->clickArea.xMin = (unsigned int)this->position.x;
+    this->clickArea.xMax = (unsigned int)(this->position.x + this->size.x);
+    this->clickArea.yMin = (unsigned int)this->position.y;
+    this->clickArea.yMax = (unsigned int)(this->position.y + this->size.y);
 }
 
 void CubeNotificaionBox::setTextSize(float size)
@@ -528,28 +591,68 @@ void CubeNotificaionBox::setCallbackYes(std::function<void()> callback)
 
 void CubeNotificaionBox::setText(const std::string& text, const std::string& title)
 {
+    // Precompute button rectangles synchronously so click handling works immediately
+    unsigned int btnHeight = (unsigned int)(this->messageTextSize * 2.2f);
+    unsigned int btnWidth = (unsigned int)((this->size.x - 3 * STENCIL_INSET_PX) / 2.f);
+    unsigned int yMin = (unsigned int)(this->position.y + STENCIL_INSET_PX);
+    unsigned int yMax = yMin + btnHeight;
+    unsigned int xLeft = (unsigned int)(this->position.x + STENCIL_INSET_PX);
+    unsigned int xRight = (unsigned int)(this->position.x + this->size.x - STENCIL_INSET_PX - btnWidth);
+    this->yesBtn_ = { xLeft, xLeft + btnWidth, yMin, yMax };
+    this->noBtn_ = { xRight, xRight + btnWidth, yMin, yMax };
+
     this->renderer->addSetupTask([&, text, title]() {
-        // TODO: this was copy/pasted from CubeTextBox::setText. We need to refactor this so that is renders the text field names and a text input box for each.
-        for (size_t index = 0; index < this->textObjects.size(); index++) {
-            delete this->textObjects[index];
-        }
+        // Clear old text
+        for (auto* t : this->textObjects) delete t;
         this->textObjects.clear();
-        this->textObjects.push_back(new M_Text(textShader, title, (this->messageTextSize * MESSAGEBOX_TITLE_TEXT_MULT), { 1.f, 1.f, 1.f }, { this->position.x + STENCIL_INSET_PX, (this->position.y + this->size.y) - this->messageTextSize - STENCIL_INSET_PX }));
+        // Title centered
+        auto titleText = new M_Text(textShader, title, (this->messageTextSize * MESSAGEBOX_TITLE_TEXT_MULT), { 1.f, 1.f, 1.f }, { 0.f, 0.f });
+        float titleWidth = titleText->getWidth();
+        float titleX = this->position.x + (this->size.x - titleWidth) / 2.f;
+        float titleY = (this->position.y + this->size.y) - this->messageTextSize - STENCIL_INSET_PX;
+        titleText->setPosition({ titleX, titleY });
+        this->textObjects.push_back(titleText);
+        // Body text with simple wrapping
         std::vector<std::string> lines;
-        std::string line;
+        size_t maxCharsPerLine = (size_t)((this->size.x - (2 * STENCIL_INSET_PX)) / (this->messageTextSize * 0.55f));
         std::istringstream textStream(text);
-        while (std::getline(textStream, line)) {
-            lines.push_back(line);
+        std::string paragraph;
+        while (std::getline(textStream, paragraph)) {
+            if (paragraph.empty()) { lines.push_back(""); continue; }
+            std::istringstream wordStream(paragraph);
+            std::string word; std::string current;
+            while (wordStream >> word) {
+                if (current.empty()) current = word;
+                else if ((current.size() + 1 + word.size()) <= maxCharsPerLine) current += " " + word;
+                else { lines.push_back(current); current = word; }
+            }
+            if (!current.empty()) lines.push_back(current);
         }
-        if (lines.size() == 0)
-            lines.push_back(text);
-        if (lines[0].size() == 0)
-            lines[0] = text;
-        for (size_t i = 0; i < lines.size(); i++) {
-            float shiftForPreviousLines = ((float)(i + 1) * this->messageTextSize) + (this->messageTextSize * MESSAGEBOX_TITLE_TEXT_MULT);
-            float shiftForMargin = (float)(i + 1) * MESSAGEBOX_LINE_SPACING * this->messageTextSize;
-            this->textObjects.push_back(new M_Text(textShader, lines[i], this->messageTextSize, { 1.f, 1.f, 1.f }, { this->position.x + STENCIL_INSET_PX, (this->position.y + this->size.y) - STENCIL_INSET_PX - shiftForPreviousLines - shiftForMargin }));
+        if (lines.empty()) lines.push_back(text);
+        for (size_t i = 0; i < lines.size(); ++i) {
+            float shiftForPrevious = ((float)(i + 1) * this->messageTextSize) + (this->messageTextSize * MESSAGEBOX_TITLE_TEXT_MULT);
+            float margin = (float)(i + 1) * MESSAGEBOX_LINE_SPACING * this->messageTextSize;
+            this->textObjects.push_back(new M_Text(textShader, lines[i], this->messageTextSize, { 1.f, 1.f, 1.f }, { this->position.x + STENCIL_INSET_PX, (this->position.y + this->size.y) - STENCIL_INSET_PX - shiftForPrevious - margin }));
         }
-        CubeLog::info("TextBox text set");
+        // Use precomputed buttons rects for label placement
+        unsigned int btnHeight = this->yesBtn_.yMax - this->yesBtn_.yMin;
+        unsigned int btnWidth = this->yesBtn_.xMax - this->yesBtn_.xMin;
+        unsigned int xLeft = this->yesBtn_.xMin;
+        unsigned int xRight = this->noBtn_.xMin;
+        unsigned int yMin = this->yesBtn_.yMin;
+        // Button labels
+        auto yesText = new M_Text(textShader, std::string("Approve"), this->messageTextSize, { 0.1f, 1.f, 0.1f }, { 0.f, 0.f });
+        float yW = yesText->getWidth();
+        float yesX = xLeft + (btnWidth - yW) / 2.f;
+        float yesY = yMin + (btnHeight - this->messageTextSize) / 2.f;
+        yesText->setPosition({ yesX, yesY });
+        this->textObjects.push_back(yesText);
+        auto noText = new M_Text(textShader, std::string("Deny"), this->messageTextSize, { 1.f, 0.1f, 0.1f }, { 0.f, 0.f });
+        float nW = noText->getWidth();
+        float noX = xRight + (btnWidth - nW) / 2.f;
+        float noY = yesY;
+        noText->setPosition({ noX, noY });
+        this->textObjects.push_back(noText);
+        CubeLog::info("NotificationBox text set");
     });
 }

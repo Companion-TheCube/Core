@@ -31,6 +31,16 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+// DecisionEngineMain: high-level composition root for recognition, scheduling,
+// and execution. Wires together audio ingestion, transcription (local/remote),
+// intent recognition, the scheduler, and triggers.
+//
+// Responsibilities
+// - Orchestrate wakeword → transcription → intent recognition → execution
+// - Route audio into transcribers (LocalTranscriber or RemoteTranscriber)
+// - Choose recognition strategy (LocalIntentRecognition or RemoteIntentRecognition)
+// - Own a Scheduler and TriggerManager for time/event-driven behaviors
+// - Provide helper utilities (e.g., LLM-based response rewording)
 #pragma once
 #ifndef DECISIONS_H
 #define DECISIONS_H
@@ -84,11 +94,11 @@ class DecisionEngineMain : public I_AudioQueue {
 public:
     DecisionEngineMain();
     ~DecisionEngineMain();
-    void start();
-    void stop();
-    void restart();
-    void pause();
-    void resume();
+    void start();   // Start background workers and services
+    void stop();    // Stop workers and release resources
+    void restart(); // Convenience: stop + start
+    void pause();   // Pause runtime activities where supported
+    void resume();  // Resume after pause
 
 private:
     std::shared_ptr<I_IntentRecognition> intentRecognition;
@@ -105,6 +115,9 @@ private:
 std::vector<IntentCTorParams> getSystemIntents();
 std::vector<IntentCTorParams> getSystemSchedule();
 
+// Helper: Build an emotionally nuanced response using LLM output. The prompt
+// is generated from input text and EmotionSimple values, and submitted to the
+// remote server. The future resolves to a JSON string containing the response.
 std::future<std::string> modifyStringUsingAIForEmotionalState(const std::string& input, const std::vector<Personality::EmotionSimple>& emotions, const std::shared_ptr<TheCubeServer::TheCubeServerAPI>& remoteServerAPI, const std::function<void(std::string)>& progressCB);
 
 }; // namespace DecisionEngine

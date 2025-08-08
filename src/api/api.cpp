@@ -39,6 +39,8 @@ SOFTWARE.
 #endif
 #ifndef AUTHENTICATION_H
 #include "authentication.h"
+#include <fstream>
+#include <sstream>
 #endif
 
 /**
@@ -101,7 +103,7 @@ void API::stop()
     // TODO: add checks to make sure these are valid calls.
     // this->server->stop();
     // this->serverIPC->stop();
-    this->listenerThread.join();
+    //this->listenerThread.join();
     // delete this->server;
     // this->server = nullptr;
     CubeLog::info("API stopped");
@@ -191,11 +193,25 @@ void API::httpApiThreadFn()
 {
     CubeLog::info("API listener thread starting...");
     try {
-        this->server = std::make_unique<CubeHttpServer>("0.0.0.0", 55280); // listen on all interfaces
-        if (std::filesystem::exists(CUBE_SOCKET_PATH)) {
-            std::filesystem::remove(CUBE_SOCKET_PATH);
+        // Allow .env to override default HTTP binding when not set explicitly
+        if (this->httpAddress == std::string("0.0.0.0")) {
+            this->httpAddress = Config::get("HTTP_ADDRESS", this->httpAddress);
         }
-        this->serverIPC = std::make_unique<CubeHttpServer>(CUBE_SOCKET_PATH, 0);
+        if (this->httpPort == 55280) {
+            std::string portStr = Config::get("HTTP_PORT", "");
+            if (!portStr.empty()) {
+                try { this->httpPort = std::stoi(portStr); } catch (...) { /* keep default on parse error */ }
+            }
+        }
+        // Use configured binding for HTTP server
+        this->server = std::make_unique<CubeHttpServer>(this->httpAddress, this->httpPort);
+        // Resolve IPC socket path from centralized config (utils Config)
+        std::string ipc = Config::get("IPC_SOCKET_PATH", this->ipcPath);
+        if (std::filesystem::exists(ipc)) {
+            std::filesystem::remove(ipc);
+        }
+        // Use resolved IPC socket path
+        this->serverIPC = std::make_unique<CubeHttpServer>(ipc, 0);
         for (size_t i = 0; i < this->endpoints.size(); i++) {
             // Public endpoints are accessible by any device on the
             // network. Non public endpoints are only available to devices that have been authenticated. The authentication process is not yet implemented.
@@ -263,8 +279,9 @@ void API::httpApiThreadFn()
                     // if the authorization header is valid, client is authorized
                     auto returned = this->endpoints.at(i)->doAction(req, res);
                     if (returned.errorType == EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR) {
-                        res.set_content(returned.errorString, "text/plain");
-                        CubeLog::debug("Endpoint action returned: " + returned.errorString);
+                        // Do not overwrite the response body on success; endpoint handlers
+                        // are responsible for setting res (status/content/type). We only log.
+                        CubeLog::debug("Endpoint action returned OK: " + returned.errorString);
                     } else {
                         res.set_content("An error occurred: " + returned.errorString, "text/plain");
                         switch (returned.errorType) {
@@ -474,16 +491,15 @@ void CubeHttpServer::stop()
     CubeLog::info("HTTP server stopping...");
     this->server->stop();
     genericSleep(250);
-    // There is a weird bug in the httplib library that causes it to hang when trying to stop the server if
-    // the server is bound to a unix socket and no client ever connects to it. To work around this, we connect
-    // to the socket with a dummy client after calling stop.
-    if (this->address == CUBE_SOCKET_PATH) {
+    // Workaround for httplib with AF_UNIX: if bound to a UNIX socket and no client
+    // ever connected, listen thread may hang during stop(). Connect a dummy client.
+    if (this->port == 0 && !this->address.empty()) {
         int dummy_fd = socket(AF_UNIX, SOCK_STREAM, 0);
 #ifdef __linux__
         struct sockaddr_un addr;
         memset(&addr, 0, sizeof(addr));
         addr.sun_family = AF_UNIX;
-        strncpy(addr.sun_path, CUBE_SOCKET_PATH, sizeof(addr.sun_path) - 1);
+        strncpy(addr.sun_path, this->address.c_str(), sizeof(addr.sun_path) - 1);
         connect(dummy_fd, (struct sockaddr*)&addr, sizeof(addr));
         close(dummy_fd);
 #endif

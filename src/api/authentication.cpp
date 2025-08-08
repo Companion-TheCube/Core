@@ -35,6 +35,8 @@ SOFTWARE.
 #include <logger.h>
 #endif
 #include "authentication.h"
+#include <chrono>
+#include <thread>
 
 /**
  * @brief Generate a random key of a given length using the charset of 0-9, A-Z, a-z
@@ -59,14 +61,14 @@ std::string KeyGenerator(size_t length)
 }
 
 /**
- * @brief Generate a random 6 character code using the charset of 0-9, A-Z, a-z, and special characters
+ * @brief Generate a random 6 character code using the charset of 0-9 and A-Z
  *
  * @return std::string
  */
 std::string Code6Generator()
 {
     CubeLog::debug("Generating 6 character code");
-    std::string charset = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890123456789+=&%$#@!";
+    std::string charset = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     std::string result;
     result.resize(6);
     std::random_device rd;
@@ -86,6 +88,27 @@ std::string CubeAuth::privateKey = "";
 std::string CubeAuth::publicKey = "";
 bool CubeAuth::cubeAuthStaticKeysSet = false;
 std::string CubeAuth::lastError = "";
+
+// Create the client_tokens table if it does not exist
+bool CubeAuth::ensureTokenTable()
+{
+    Database* db = CubeDB::getDBManager()->getDatabase("auth");
+    if (!db->isOpen()) return false;
+    if (!db->tableExists("client_tokens")) {
+        return db->createTable("client_tokens",
+            { "id", "client_id", "token", "issued_at_ms", "expires_at_ms", "last_used_ms", "revoked", "revoked_at_ms" },
+            { "INTEGER PRIMARY KEY", "TEXT", "TEXT", "INTEGER", "INTEGER", "INTEGER", "INTEGER", "INTEGER" },
+            { true, false, true, false, false, false, false, false });
+    }
+    return true;
+}
+
+std::string CubeAuth::stripBearer(const std::string& header)
+{
+    const std::string prefix = "Bearer ";
+    if (header.rfind(prefix, 0) == 0) return header.substr(prefix.size());
+    return header;
+}
 
 /**
  * @brief Construct a new CubeAuth object
@@ -383,19 +406,44 @@ std::string CubeAuth::getLastError()
 bool CubeAuth::isAuthorized_authHeader(const std::string& authHeader)
 {
     // check the db for the auth code
+    auto token = stripBearer(authHeader);
     Database* db = CubeDB::getDBManager()->getDatabase("auth");
     if (!db->isOpen()) {
         CubeLog::error("Database not open.");
         CubeAuth::lastError = "Database not open.";
         return false;
     }
-    // get the auth code from the db
-    std::vector<std::vector<std::string>> auth_code = db->selectData(DB_NS::TableNames::CLIENTS, { "auth_code" }, "auth_code = '" + authHeader + "'");
-    if (auth_code.size() == 0) {
+    // fast path: token must match an active client's stored token
+    auto auth_code = db->selectData(DB_NS::TableNames::CLIENTS, { "client_id", "auth_code" }, "auth_code = '" + token + "'");
+    if (auth_code.empty()) {
         CubeLog::error("Auth code not found.");
         CubeAuth::lastError = "Auth code not found.";
         return false;
     }
+    // extended checks: expiry and revocation
+    if (!ensureTokenTable()) {
+        CubeLog::warning("Token table missing; skipping expiry/revocation checks");
+        return true;
+    }
+    auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    auto tokenRows = db->selectData("client_tokens", { "revoked", "expires_at_ms" }, "token = '" + token + "'");
+    if (tokenRows.empty()) {
+        CubeLog::error("Token metadata not found");
+        return false;
+    }
+    bool revoked = tokenRows[0][0] == "1";
+    long long expiresAt = 0;
+    try { expiresAt = std::stoll(tokenRows[0][1]); } catch (...) { expiresAt = 0; }
+    if (revoked) {
+        CubeLog::error("Token revoked");
+        return false;
+    }
+    if (expiresAt > 0 && nowMs > expiresAt) {
+        CubeLog::error("Token expired");
+        return false;
+    }
+    // update last_used
+    db->updateData("client_tokens", { "last_used_ms" }, { std::to_string(nowMs) }, "token = '" + token + "'");
     return true;
 }
 
@@ -457,8 +505,9 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
                 res.set_content(j.dump(), "application/json");
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Initial code mismatch.");
             }
-            // set the auth code in the db
-            if (!db->updateData(DB_NS::TableNames::CLIENTS, { "auth_code" }, { randomString }, "client_id = '" + clientID + "'")) {
+            // Build a header-safe token and store it for the client
+            std::string token = base64_encode_cube(encryptedString);
+            if (!db->updateData(DB_NS::TableNames::CLIENTS, { "auth_code" }, { token }, "client_id = '" + clientID + "'")) {
                 CubeLog::error("Failed to set auth code.");
                 nlohmann::json j;
                 j["success"] = false;
@@ -466,19 +515,92 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
                 res.set_content(j.dump(), "application/json");
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Failed to set auth code.");
             }
+            // Upsert token metadata with expiry and timestamps
+            ensureTokenTable();
+            auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+            long long ttlMs = 24ll * 60 * 60 * 1000; // 24 hours
+            long long expMs = nowMs + ttlMs;
+            // remove any existing row for this client (optional)
+            db->deleteData("client_tokens", "client_id = '" + clientID + "'");
+            db->insertData("client_tokens",
+                { "client_id", "token", "issued_at_ms", "expires_at_ms", "last_used_ms", "revoked", "revoked_at_ms" },
+                { clientID, token, std::to_string(nowMs), std::to_string(expMs), std::to_string(nowMs), "0", "0" });
             nlohmann::json j;
             j["success"] = true;
             j["message"] = "Authorized";
-            j["auth_code"] = encryptedString;
+            j["auth_code"] = token; // Client should send this value in the Authorization header for private endpoints
             res.set_content(j.dump(), "application/json");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
         "authHeader", { "client_id", "initial_code" }, "Authorize the client. Returns an authentication header." });
+    // Revoke token
+    data.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,
+        [&](const httplib::Request& req, httplib::Response& res) {
+            try {
+                auto j = nlohmann::json::parse(req.body);
+                auto clientID = j.value("client_id", std::string(""));
+                auto token = j.value("token", std::string(""));
+                Database* db = CubeDB::getDBManager()->getDatabase("auth");
+                if (!db->isOpen()) throw std::runtime_error("Database not open");
+                ensureTokenTable();
+                auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+                if (!token.empty()) {
+                    db->updateData("client_tokens", { "revoked", "revoked_at_ms" }, { "1", std::to_string(nowMs) }, "token = '" + token + "'");
+                }
+                if (!clientID.empty()) {
+                    // clear current client token and mark all tokens for this client revoked
+                    db->updateData(DB_NS::TableNames::CLIENTS, { "auth_code" }, { "" }, "client_id = '" + clientID + "'");
+                    db->updateData("client_tokens", { "revoked", "revoked_at_ms" }, { "1", std::to_string(nowMs) }, "client_id = '" + clientID + "'");
+                }
+                nlohmann::json out; out["success"] = true;
+                res.set_content(out.dump(), "application/json");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
+            } catch (std::exception& e) {
+                nlohmann::json out; out["success"] = false; out["message"] = e.what();
+                res.set_content(out.dump(), "application/json");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, e.what());
+            }
+        },
+        "revokeToken", { "client_id?", "token?" }, "Revoke a token by client_id or token" });
+
+    // Rotate token (issue new, revoke old)
+    data.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,
+        [&](const httplib::Request& req, httplib::Response& res) {
+            try {
+                auto j = nlohmann::json::parse(req.body);
+                auto clientID = j.at("client_id").get<std::string>();
+                Database* db = CubeDB::getDBManager()->getDatabase("auth");
+                if (!db->isOpen()) throw std::runtime_error("Database not open");
+                ensureTokenTable();
+                // revoke any existing tokens for this client
+                auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+                db->updateData("client_tokens", { "revoked", "revoked_at_ms" }, { "1", std::to_string(nowMs) }, "client_id = '" + clientID + "'");
+                // issue new token
+                std::string randomString = KeyGenerator(40);
+                std::string encryptedString = CubeAuth::encryptData(randomString, CubeAuth::publicKey);
+                std::string token = base64_encode_cube(encryptedString);
+                long long ttlMs = 24ll * 60 * 60 * 1000; // 24 hours
+                long long expMs = nowMs + ttlMs;
+                db->updateData(DB_NS::TableNames::CLIENTS, { "auth_code" }, { token }, "client_id = '" + clientID + "'");
+                db->insertData("client_tokens",
+                    { "client_id", "token", "issued_at_ms", "expires_at_ms", "last_used_ms", "revoked", "revoked_at_ms" },
+                    { clientID, token, std::to_string(nowMs), std::to_string(expMs), std::to_string(nowMs), "0", "0" });
+                nlohmann::json out; out["success"] = true; out["token"] = token;
+                res.set_content(out.dump(), "application/json");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
+            } catch (std::exception& e) {
+                nlohmann::json out; out["success"] = false; out["message"] = e.what();
+                res.set_content(out.dump(), "application/json");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, e.what());
+            }
+        },
+        "rotateToken", { "client_id" }, "Rotate token for a client_id" });
     data.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
             // get the appID from the query string
             std::string clientID = req.get_param_value("client_id");
             CubeLog::debug("GET initCode called with client_id: " + clientID);
+            bool returnCode = req.has_param("return_code");
             // Get an initial code
             std::string initialCode = Code6Generator();
             CubeLog::debug("Generated initial code: " + initialCode);
@@ -517,10 +639,40 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
             nlohmann::json j;
             j["success"] = true;
             j["message"] = "Initial code generated";
-            // We don't send the initial code back to the client since the user has to read it form the screen and enter it into the client
+            if (returnCode) {
+                j["initial_code"] = initialCode;
+            }
             res.set_content(j.dump(), "application/json");
-            // we need to display the initial code to the user
-            GUI::showMessageBox("Authorization Code", "Your authorization code is:\n" + initialCode); // TODO: verify/test that this is thread safe
+            if (returnCode) {
+                // Display the code on the device and allow confirmation (tap to approve, ignore to deny)
+                // Include the client ID so the user can identify the requester
+                GUI::showNotificationWithCallback(
+                    "Authorization Request",
+                    std::string("Client: ") + clientID + "\nCode: " + initialCode + "\nTap to approve, or ignore to deny.",
+                    NotificationsManager::NotificationType::NOTIFICATION_YES_NO,
+                    []() {},
+                    [clientID]() {
+                        Database* dbInner = CubeDB::getDBManager()->getDatabase("auth");
+                        if (dbInner->isOpen()) {
+                            dbInner->updateData(DB_NS::TableNames::CLIENTS, { "initial_code" }, { "" },
+                                "client_id = '" + clientID + "'");
+                        }
+                    });
+            } else {
+                // Manual entry: show code only on device
+                GUI::showMessageBox("Authorization Code", "Your authorization code is:\n" + initialCode);
+            }
+            std::thread([clientID, returnCode]() {
+                std::this_thread::sleep_for(std::chrono::seconds(60));
+                Database* dbInner = CubeDB::getDBManager()->getDatabase("auth");
+                if (dbInner->isOpen()) {
+                    dbInner->updateData(DB_NS::TableNames::CLIENTS, { "initial_code" }, { "" },
+                        "client_id = '" + clientID + "'");
+                }
+                if (!returnCode) {
+                    GUI::hideMessageBox();
+                }
+            }).detach();
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
         "initCode", { "client_id" }, "Generate an initial code for the client." });

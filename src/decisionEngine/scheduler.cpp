@@ -1,3 +1,39 @@
+/*
+███████╗ ██████╗██╗  ██╗███████╗██████╗ ██╗   ██╗██╗     ███████╗██████╗     ██████╗██████╗ ██████╗ 
+██╔════╝██╔════╝██║  ██║██╔════╝██╔══██╗██║   ██║██║     ██╔════╝██╔══██╗   ██╔════╝██╔══██╗██╔══██╗
+███████╗██║     ███████║█████╗  ██║  ██║██║   ██║██║     █████╗  ██████╔╝   ██║     ██████╔╝██████╔╝
+╚════██║██║     ██╔══██║██╔══╝  ██║  ██║██║   ██║██║     ██╔══╝  ██╔══██╗   ██║     ██╔═══╝ ██╔═══╝ 
+███████║╚██████╗██║  ██║███████╗██████╔╝╚██████╔╝███████╗███████╗██║  ██║██╗╚██████╗██║     ██║     
+╚══════╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚═════╝  ╚═════╝ ╚══════╝╚══════╝╚═╝  ╚═╝╚═╝ ╚═════╝╚═╝     ╚═╝
+*/
+
+/*
+MIT License
+
+Copyright (c) 2025 A-McD Technology LLC
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+
+// Scheduler implementation: maintains a list of scheduled tasks and executes
+// their intents when due. Exposes HTTP endpoints for control and CRUD.
 #include "scheduler.h"
 
 namespace DecisionEngine {
@@ -91,6 +127,7 @@ void ScheduledTask::executeIntent()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// Start a background thread immediately; it idles until start() is called.
 Scheduler::Scheduler()
 {
     schedulerThread = new std::jthread([this](std::stop_token st) {
@@ -143,6 +180,11 @@ void Scheduler::setIntentRecognition(std::shared_ptr<I_IntentRecognition> intent
     this->intentRecognition = intentRecognition;
 }
 
+void Scheduler::setIntentRegistry(std::shared_ptr<IntentRegistry> intentRegistry)
+{
+    this->intentRegistry = intentRegistry;
+}
+
 uint32_t Scheduler::addTask(const ScheduledTask& task)
 {
     std::unique_lock<std::mutex> lock(schedulerMutex);
@@ -183,6 +225,8 @@ void Scheduler::removeTask(uint32_t taskHandle)
     }
 }
 
+// Thread loop: waits for start(), then cycles until paused/stopped, executing
+// any due tasks. Repeats are not yet re-enqueued (TODO noted below).
 void Scheduler::schedulerThreadFunction(std::stop_token st)
 {
     std::unique_lock<std::mutex> lock(schedulerMutex);
@@ -202,11 +246,155 @@ void Scheduler::schedulerThreadFunction(std::stop_token st)
     }
 }
 
+// Define REST endpoints for runtime control and inspection:
+// - start/stop/pause/resume
+// - listTasks: enumerate current scheduled tasks with basic metadata
+// - addTask/removeTask: manage tasks by handle
 HttpEndPointData_t Scheduler::getHttpEndpointData()
 {
     HttpEndPointData_t data;
-    // TODO:
-    // 1. Add a task
+    // Control endpoints
+    // GET /start: Transition scheduler to running state. No request body required.
+    data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
+        [&](const httplib::Request& req, httplib::Response& res) {
+            // Flip the running flag and wake the thread; respond with JSON result.
+            this->start();
+            nlohmann::json j; j["success"] = true; j["message"] = "Scheduler started";
+            res.set_content(j.dump(), "application/json");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
+        },
+        "start", {}, "Start scheduler" });
+
+    // GET /stop: Stop the scheduler thread and clear running state.
+    data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
+        [&](const httplib::Request& req, httplib::Response& res) {
+            // Signal stop and acknowledge. Safe to call idempotently.
+            this->stop();
+            nlohmann::json j; j["success"] = true; j["message"] = "Scheduler stopped";
+            res.set_content(j.dump(), "application/json");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
+        },
+        "stop", {}, "Stop scheduler" });
+
+    // GET /pause: Temporarily halt evaluation without destroying the thread.
+    data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
+        [&](const httplib::Request& req, httplib::Response& res) {
+            // Set paused=true; scheduler loop will stop evaluating pending tasks.
+            this->pause();
+            nlohmann::json j; j["success"] = true; j["message"] = "Scheduler paused";
+            res.set_content(j.dump(), "application/json");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
+        },
+        "pause", {}, "Pause scheduler" });
+
+    // GET /resume: Resume evaluation after a pause.
+    data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
+        [&](const httplib::Request& req, httplib::Response& res) {
+            // Clear paused flag and wake loop to continue.
+            this->resume();
+            nlohmann::json j; j["success"] = true; j["message"] = "Scheduler resumed";
+            res.set_content(j.dump(), "application/json");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
+        },
+        "resume", {}, "Resume scheduler" });
+
+    // GET /listTasks: Emit a JSON array of scheduled tasks.
+    data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
+        [&](const httplib::Request& req, httplib::Response& res) {
+            // Take a snapshot under mutex; include handle, enable state, due time, repeat interval, and intent name.
+            std::scoped_lock lk(this->schedulerMutex);
+            nlohmann::json j; j["success"] = true; j["tasks"] = nlohmann::json::array();
+            for (auto& t : scheduledTasks) {
+                nlohmann::json tj;
+                auto tp = std::chrono::time_point_cast<std::chrono::milliseconds>(t.getSchedule().time);
+                tj["handle"] = t.getHandle();
+                tj["enabled"] = t.isEnabled();
+                tj["timeEpochMs"] = tp.time_since_epoch().count();
+                tj["repeatSeconds"] = t.getSchedule().repeat.toSeconds();
+                if (auto in = t.getIntent()) tj["intentName"] = in->getIntentName();
+                j["tasks"].push_back(tj);
+            }
+            res.set_content(j.dump(), "application/json");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
+        },
+        "listTasks", {}, "List scheduled tasks" });
+
+    // POST /addTask: Create a one-shot or repeating task.
+    // Body (application/json): { intentName: string, timeEpochMs?: number, delayMs?: number, repeatSeconds?: number }
+    // - timeEpochMs wins over delayMs if provided; delayMs is relative to now.
+    // - repeatSeconds>0 creates a repeating schedule at that interval; else one-shot.
+    data.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,
+        [&](const httplib::Request& req, httplib::Response& res) {
+            // Enforce JSON content; parse and validate required fields.
+            if (!(req.has_header("Content-Type") && req.get_header_value("Content-Type") == "application/json")) {
+                nlohmann::json j; j["success"] = false; j["message"] = "Content-Type must be application/json";
+                res.set_content(j.dump(), "application/json");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, "Content-Type must be application/json");
+            }
+            try {
+                auto j = nlohmann::json::parse(req.body);
+                auto intentName = j.value("intentName", std::string(""));
+                auto epochMs = j.value("timeEpochMs", (int64_t)0);
+                auto delayMs = j.value("delayMs", (int64_t)0);
+                auto repeatSec = j.value("repeatSeconds", (uint32_t)0);
+                if (intentName.empty()) throw std::runtime_error("intentName is required");
+                auto reg = intentRegistry.lock();
+                if (!reg) throw std::runtime_error("IntentRegistry not available");
+                auto intent = reg->getIntent(intentName);
+                if (!intent) throw std::runtime_error("Intent not found: " + intentName);
+                // Compute due time from epoch or relative delay.
+                TimePoint tp;
+                if (epochMs > 0) {
+                    tp = TimePoint(std::chrono::milliseconds(epochMs));
+                } else {
+                    tp = std::chrono::system_clock::now() + std::chrono::milliseconds(delayMs);
+                }
+                // Construct task according to repeatSeconds.
+                ScheduledTask task;
+                if (repeatSec > 0) {
+                    task = ScheduledTask(intent, tp, { ScheduledTask::RepeatInterval::Interval::REPEAT_CUSTOM, repeatSec });
+                } else {
+                    task = ScheduledTask(intent, tp);
+                }
+                // Insert task and return handle of created entry.
+                auto handle = this->addTask(task);
+                nlohmann::json out; out["success"] = true; out["handle"] = handle;
+                res.set_content(out.dump(), "application/json");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
+            } catch (std::exception& e) {
+                // Normalize errors to JSON with message; reflect invalid params.
+                nlohmann::json out; out["success"] = false; out["message"] = e.what();
+                res.set_content(out.dump(), "application/json");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, e.what());
+            }
+        },
+        "addTask", { "intentName", "timeEpochMs|delayMs", "repeatSeconds" }, "Add a scheduled task" });
+
+    // POST /removeTask: Remove a task by numeric handle.
+    // Body: { handle: number }
+    data.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,
+        [&](const httplib::Request& req, httplib::Response& res) {
+            // Require JSON and a valid handle field; ignore missing handles with error.
+            if (!(req.has_header("Content-Type") && req.get_header_value("Content-Type") == "application/json")) {
+                nlohmann::json j; j["success"] = false; j["message"] = "Content-Type must be application/json";
+                res.set_content(j.dump(), "application/json");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, "Content-Type must be application/json");
+            }
+            try {
+                auto j = nlohmann::json::parse(req.body);
+                auto handle = j.at("handle").get<uint32_t>();
+                // Perform removal under lock inside removeTask(); return success regardless of prior existence.
+                this->removeTask(handle);
+                nlohmann::json out; out["success"] = true;
+                res.set_content(out.dump(), "application/json");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
+            } catch (std::exception& e) {
+                nlohmann::json out; out["success"] = false; out["message"] = e.what();
+                res.set_content(out.dump(), "application/json");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, e.what());
+            }
+        },
+        "removeTask", { "handle" }, "Remove a task by handle" });
 
     return data;
 }

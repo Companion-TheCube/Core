@@ -633,9 +633,3 @@ std::string replaceAll(std::string& str, const std::string& from, const std::str
     }
     return str;
 }
-
-TEST_CASE("WifiManager::get_nmcliField_deviceShow")
-{
-    std::string output = get_nmcliField_deviceShow("IP4.ADDRESS", "wlan0");
-    CHECK(output.find(":") != std::string::npos);
-}

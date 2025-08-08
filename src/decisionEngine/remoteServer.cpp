@@ -31,7 +31,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+// TheCubeServerAPI implementation: manages HTTP client config and provides
+// async chat-response retrieval. Many methods are TODO while the wire format
+// and auth bootstrap are finalized.
 #include "remoteServer.h"
+#include <random>
 
 // TheCubeServerAPI - class to interact with TheCube Server API. Will use API key stored in CubeDB. Key is stored encrypted and will be decrypted at load time.
 // TODO: Implement this class
@@ -235,7 +239,10 @@ TheCubeServerAPI::FourBit TheCubeServerAPI::getAvailableServices()
  * @param progressCB A callback function that will be called with the progress of the chat session. (optional)
  * @return std::future<std::string> A future that will contain the chat response when it is ready. Use .get() to retrieve the response and .wait_for() to check if the response is ready.
  */
-std::future<std::string> TheCubeServerAPI::getChatResponseAsync(const std::string& message, const std::function<void(std::string)>& progressCB = [](std::string s) -> void {})
+// Post a message to the chat endpoint and poll for completion, invoking
+// progressCB as the server streams interim messages. Returns a future that
+// resolves to the final message string (or empty on error).
+std::future<std::string> TheCubeServerAPI::getChatResponseAsync(const std::string& message, const std::function<void(std::string)>& progressCB)
 {
     CubeLog::info("Getting chat response async");
     // generate a random number between 1 and 1000000
@@ -326,6 +333,8 @@ std::future<std::string> TheCubeServerAPI::getChatResponseAsync(const std::strin
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// Derive a password-like token from a device serial number by base64-encoding,
+// hashing (SHA-256), and CRC32 post-processing to a shorter string.
 std::string TheCubeServer::serialNumberToPassword(const std::string& serialNumber)
 {
     std::string output;

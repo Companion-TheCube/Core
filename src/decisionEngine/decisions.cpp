@@ -69,11 +69,15 @@ however it is not as accurate as the remote service and we'll have to implement 
 
 */
 
+// Decision engine implementation:
+// - Constructs core services (transcriber, intent recognition, scheduler)
+// - Chooses local vs remote strategies based on GlobalSettings
+// - Provides utilities such as emotion-aware response rewording via LLM
 #include "decisions.h"
 
 using namespace DecisionEngine;
 
-// DecisionEngine - Main class that connects all the other classes together - this will need to connect to the personalityManager.
+// DecisionEngine - glue that connects audio → transcription → intent recognition.
 DecisionEngineMain::DecisionEngineMain()
 {
     /*
@@ -101,7 +105,7 @@ DecisionEngineMain::DecisionEngineMain()
     - The intentRecognition class will then return the intent to the DecisionEngineMain class
     */
 
-    //
+    // Initialize queues and strategy objects according to settings.
     this->audioQueue = AudioManager::audioInQueue;
     remoteServerAPI = std::make_shared<TheCubeServer::TheCubeServerAPI>(audioQueue);
     intentRegistry = std::make_shared<IntentRegistry>();
@@ -112,7 +116,6 @@ DecisionEngineMain::DecisionEngineMain()
         (std::dynamic_pointer_cast<RemoteIntentRecognition>(intentRecognition))->setRemoteServerAPIObject(remoteServerAPI);
     } else
         intentRecognition = std::make_shared<LocalIntentRecognition>(intentRegistry);
-    intentRecognition = std::make_shared<LocalIntentRecognition>(intentRegistry);
     bool remoteTranscription = GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::REMOTE_TRANSCRIPTION_ENABLED);
     if (remoteTranscription) {
         transcriber = std::make_shared<RemoteTranscriber>();
@@ -120,98 +123,63 @@ DecisionEngineMain::DecisionEngineMain()
     } else
         transcriber = std::make_shared<LocalTranscriber>();
 
+    // Core components
+    scheduler = std::make_shared<Scheduler>();
+    scheduler->registerInterface();
+    scheduler->setIntentRecognition(intentRecognition);
+    scheduler->setIntentRegistry(intentRegistry);
 
+    triggerManager = std::make_shared<TriggerManager>(scheduler);
+    triggerManager->setIntentRegistry(intentRegistry);
+    triggerManager->registerInterface();
 
-    ///////////// Testing /////////////
-    // TODO: remove this test code
-    auto pMan = std::make_shared<Personality::PersonalityManager>();
-    pMan->registerInterface();
-    std::vector<Personality::EmotionRange> inputRange = {
-        Personality::EmotionRange { 1, 1, 1.f, Personality::Emotion::EmotionType::CURIOSITY },
-        Personality::EmotionRange { 1, 1, 1.f, Personality::Emotion::EmotionType::PLAYFULNESS },
-        Personality::EmotionRange { 1, 1, 1.f, Personality::Emotion::EmotionType::EMPATHY },
-        Personality::EmotionRange { 1, 1, 1.f, Personality::Emotion::EmotionType::ASSERTIVENESS },
-        Personality::EmotionRange { 1, 1, 1.f, Personality::Emotion::EmotionType::ATTENTIVENESS },
-        Personality::EmotionRange { 1, 1, 1.f, Personality::Emotion::EmotionType::CAUTION },
-        Personality::EmotionRange { 1, 1, 1.f, Personality::Emotion::EmotionType::ANNOYANCE }
-    };
-    auto score = pMan->calculateEmotionalMatchScore(inputRange);
-    CubeLog::fatal("Emotional match score: " + std::to_string(score));
-
-    
-    for (size_t i = 0; i < 20; i++) {
-        IntentCTorParams params;
-        params.intentName = "Test Intent" + std::to_string(i);
-        params.action = [i](const Parameters& params, Intent intent) {
-            std::cout << "Test intent executed: " << std::to_string(i) << std::endl;
-            intent.setParameter("TestParam", "--The new " + std::to_string(i) + " testValue--");
-            CubeLog::fatal(intent.getResponseString());
-        };
-        params.parameters = Parameters({ { "TestParam", "testValue" } });
-        params.briefDesc = "Test intent description: " + std::to_string(i);
-        params.responseString = "Test intent response ${TestParam}";
-        std::shared_ptr<Intent> testIntent = std::make_shared<Intent>(params);
-        if (!intentRegistry->registerIntent("Test Intent: " + std::to_string(i), testIntent))
-            CubeLog::error("Failed to register test intent" + std::to_string(i));
-    }
-    intentRecognition->recognizeIntentAsync("Do TestParam", [](std::shared_ptr<Intent> intent) {
-        intent->execute();
-    });
+    personalityManager = std::make_shared<Personality::PersonalityManager>();
+    personalityManager->registerInterface();
 }
 
 DecisionEngineMain::~DecisionEngineMain()
 {
 }
 
-
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// TODO:
-// Triggers need to work with the personalityManager so that they can be scheduled based on the personality of TheCube.
-// Each trigger will need to have some definition of what personality settings it is looking for. For example, a trigger that
-// plays a sound when the user returns to the desk might only be active if the playfulness setting is set to a certain level.
-// Interface: Trigger - class that triggers intents. Stores a reference to whatever state it is monitoring.
-// TimeBasedTrigger - class that triggers intents based on time. This will use the scheduler to schedule intents.
-// EventBasedTrigger - class that triggers intents based on events like the user returning to the desk
-// APITrigger - class that triggers intents based on API calls
-
-bool I_Trigger::isEnabled() const
+void DecisionEngineMain::start()
 {
-    return enabled;
+    if (scheduler)
+        scheduler->start();
 }
 
-void I_Trigger::setEnabled(bool enabled)
+void DecisionEngineMain::stop()
 {
-    this->enabled = enabled;
+    if (scheduler)
+        scheduler->stop();
 }
 
-void I_Trigger::trigger()
+void DecisionEngineMain::restart()
 {
-    if (enabled)
-        triggerFunction();
+    if (scheduler)
+        scheduler->restart();
 }
 
-bool I_Trigger::getTriggerState() const
+void DecisionEngineMain::pause()
 {
-    return checkTrigger();
+    if (scheduler)
+        scheduler->pause();
 }
 
-void I_Trigger::setTriggerFunction(std::function<void()> triggerFunction)
+void DecisionEngineMain::resume()
 {
-    this->triggerFunction = triggerFunction;
+    if (scheduler)
+        scheduler->resume();
 }
-
-void I_Trigger::setCheckTrigger(std::function<bool()> checkTrigger)
-{
-    this->checkTrigger = checkTrigger;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Build an LLM prompt to rephrase output given a target emotional profile.
+// The prompt includes examples and a JSON-only response instruction.
+
+//
+// Trigger helpers moved to triggers.cpp
+//
 
 /**
  * @brief Modify a string to align with a given emotional state.
