@@ -69,11 +69,15 @@ however it is not as accurate as the remote service and we'll have to implement 
 
 */
 
+// Decision engine implementation:
+// - Constructs core services (transcriber, intent recognition, scheduler)
+// - Chooses local vs remote strategies based on GlobalSettings
+// - Provides utilities such as emotion-aware response rewording via LLM
 #include "decisions.h"
 
 using namespace DecisionEngine;
 
-// DecisionEngine - Main class that connects all the other classes together - this will need to connect to the personalityManager.
+// DecisionEngine - glue that connects audio → transcription → intent recognition.
 DecisionEngineMain::DecisionEngineMain()
 {
     /*
@@ -101,7 +105,7 @@ DecisionEngineMain::DecisionEngineMain()
     - The intentRecognition class will then return the intent to the DecisionEngineMain class
     */
 
-    //
+    // Initialize queues and strategy objects according to settings.
     this->audioQueue = AudioManager::audioInQueue;
     remoteServerAPI = std::make_shared<TheCubeServer::TheCubeServerAPI>(audioQueue);
     intentRegistry = std::make_shared<IntentRegistry>();
@@ -170,6 +174,8 @@ void DecisionEngineMain::resume()
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Build an LLM prompt to rephrase output given a target emotional profile.
+// The prompt includes examples and a JSON-only response instruction.
 
 //
 // Trigger helpers moved to triggers.cpp

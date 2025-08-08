@@ -1,3 +1,5 @@
+// Scheduler implementation: maintains a list of scheduled tasks and executes
+// their intents when due. Exposes HTTP endpoints for control and CRUD.
 #include "scheduler.h"
 
 namespace DecisionEngine {
@@ -91,6 +93,7 @@ void ScheduledTask::executeIntent()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// Start a background thread immediately; it idles until start() is called.
 Scheduler::Scheduler()
 {
     schedulerThread = new std::jthread([this](std::stop_token st) {
@@ -188,6 +191,8 @@ void Scheduler::removeTask(uint32_t taskHandle)
     }
 }
 
+// Thread loop: waits for start(), then cycles until paused/stopped, executing
+// any due tasks. Repeats are not yet re-enqueued (TODO noted below).
 void Scheduler::schedulerThreadFunction(std::stop_token st)
 {
     std::unique_lock<std::mutex> lock(schedulerMutex);
@@ -207,6 +212,10 @@ void Scheduler::schedulerThreadFunction(std::stop_token st)
     }
 }
 
+// Define REST endpoints for runtime control and inspection:
+// - start/stop/pause/resume
+// - listTasks: enumerate current scheduled tasks with basic metadata
+// - addTask/removeTask: manage tasks by handle
 HttpEndPointData_t Scheduler::getHttpEndpointData()
 {
     HttpEndPointData_t data;

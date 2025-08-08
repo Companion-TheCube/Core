@@ -1,3 +1,10 @@
+// Function Registry: structured catalogue of callable functions for tool-use
+// by LLMs and internal components.
+//
+// Goals
+// - Allow apps to register discoverable functions with typed parameters
+// - Provide a JSON catalogue suitable for LLM tool schemas (OpenAI-style)
+// - Offer fast lookup and execution routing by function name
 #pragma once
 #include <string>
 #include <vector>
@@ -15,6 +22,7 @@
 
 namespace DecisionEngine {
 
+// Parameter specification (name, type, description, required)
 struct ParamSpec {
     std::string name;
     std::string type;          // "string", "number", "boolean", "object", ...
@@ -22,6 +30,7 @@ struct ParamSpec {
     bool        required{true};
 };
 
+// Function specification and callback
 struct FunctionSpec {
     std::string name;
     std::string description;
@@ -33,6 +42,7 @@ struct FunctionSpec {
     nlohmann::json toJson() const;
 };
 
+// Singleton registry: stores FunctionSpec by name and exposes a JSON catalogue
 class FunctionRegistry {
 public:
     static FunctionRegistry& instance();

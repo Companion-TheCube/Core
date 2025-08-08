@@ -1,3 +1,6 @@
+// Intent, registry, and recognition strategies implementation. Local recognition
+// uses a simple token/parameter-name overlap heuristic; remote is a stub for
+// TheCubeServer-backed recognition.
 #include "intentRegistry.h"
 
 namespace DecisionEngine {
@@ -141,6 +144,8 @@ const std::string Intent::serialize()
  * @param action_json
  * @return Intent::Action
  */
+// Convert a JSON description into an executable Action. Placeholder for now;
+// a production implementation would bind to registered functions or scripts.
 Action convertJsonToAction(const nlohmann::json& action_json)
 {
     // TODO: Implement this
@@ -266,6 +271,8 @@ void Intent::setBriefDesc(const std::string& briefDesc)
  * @brief Get all the built-in system intents
  * @return std::vector<IntentCTorParams>
  */
+// Define built-in system intents the engine ships with. Apps can register
+// additional intents at runtime via the IntentRegistry API.
 std::vector<IntentCTorParams> getSystemIntents()
 {
     std::vector<IntentCTorParams> intents;
@@ -307,6 +314,9 @@ LocalIntentRecognition::LocalIntentRecognition(std::shared_ptr<IntentRegistry> i
     threadsReady = true;
 }
 
+// Very lightweight recognizer: tokenizes the input string and counts matches
+// against the parameter names of an existing intent. Returns null if no tokens
+// match any parameter name. This is a stopgap until a better matcher exists.
 std::shared_ptr<Intent> LocalIntentRecognition::recognizeIntent(const std::string& name, const std::string& intentString)
 {
     // TODO: although this code works, we need to implement a more advanced pattern matching system and we need to
@@ -428,6 +438,8 @@ std::shared_ptr<Intent> RemoteIntentRecognition::recognizeIntent(const std::stri
 
 // IntentRegistry - class that contains the intents that are registered with the system
 // Need to have Http endpoints for the API that allow other apps to register with the decision engine
+// On construction, register system intents. Also performs a temporary HTTP
+// request to dummyjson.com for connectivity testing (TODO: remove).
 IntentRegistry::IntentRegistry()
 {
     for (auto& intent : getSystemIntents()) {

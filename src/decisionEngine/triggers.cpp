@@ -1,3 +1,5 @@
+// Triggers implementation: time- and event-based fireables plus a manager
+// that polls and exposes HTTP control to create, enable, fire, and list.
 #include "triggers.h"
 
 namespace DecisionEngine {

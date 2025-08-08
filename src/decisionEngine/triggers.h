@@ -1,3 +1,21 @@
+// Triggers: event/time-based signals that can schedule or directly execute intents
+//
+// Concepts
+// - I_Trigger encapsulates the ability to decide “should I fire now?” (via checkTrigger)
+//   and “what happens when I fire?” (via triggerFunction). It can optionally reference
+//   a Scheduler to enqueue work rather than execute immediately.
+// - TimeTrigger evaluates against a specific TimePoint (or custom check).
+// - EventTrigger fires based on arbitrary external state exposed through checkTrigger.
+// - TriggerManager owns and polls triggers, and exposes HTTP endpoints to create/manage them.
+//
+// Threading model
+// - TriggerManager runs a polling std::jthread that evaluates each trigger’s check function
+//   and invokes trigger() when conditions pass. Access is guarded by an internal mutex.
+//
+// Typical flow
+// - Create trigger (time or event), optionally bind to an Intent via IntentRegistry
+// - Enable trigger so the poll loop can consider it
+// - On pass, trigger() sets internal state and invokes triggerFunction (or schedules work)
 #pragma once
 
 #include "../database/cubeDB.h"
@@ -42,6 +60,9 @@ using TimePoint = std::chrono::system_clock::time_point;
 
 class I_Trigger {
 public:
+    // Base virtual interface for all triggers. A trigger is enabled/disabled and
+    // may expose a check function (predicate). trigger() executes the bound action
+    // if enabled and if the predicate returns true (or no predicate is set).
     virtual ~I_Trigger() = default;
     virtual void trigger() = 0;
     bool isEnabled() const;
@@ -59,7 +80,7 @@ private:
     bool schedulerSet = false;
 protected:
     bool triggerState = false;
-    std::function<void()> triggerFunction;
+    std::function<void()> triggerFunction; // Executed when trigger() passes
     std::weak_ptr<Scheduler> scheduler;
 };
 
@@ -67,6 +88,7 @@ protected:
 
 class TimeTrigger : public I_Trigger {
 public:
+    // Fires when current time >= time (unless a custom check is provided).
     TimeTrigger();
     TimeTrigger(const TimePoint& time);
     TimeTrigger(const TimePoint& time, const std::function<void()>& triggerFunction);
@@ -84,6 +106,7 @@ private:
 
 class EventTrigger : public I_Trigger {
 public:
+    // Fires when an arbitrary predicate evaluates true. Useful for sensor/UI events.
     EventTrigger();
     EventTrigger(const std::function<void()>& triggerFunction);
     EventTrigger(const std::function<void()>& triggerFunction, const std::function<bool()>& checkTrigger);
@@ -95,6 +118,8 @@ public:
 
 class TriggerManager : public AutoRegisterAPI<TriggerManager> {
 public:
+    // Owns a set of triggers and polls them periodically. Exposes endpoints to
+    // create time/event triggers, enable/disable, fire, and list.
     TriggerManager();
     TriggerManager(const std::shared_ptr<Scheduler>& scheduler);
     ~TriggerManager();

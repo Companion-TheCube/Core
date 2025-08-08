@@ -35,6 +35,17 @@
 #include "functionRegistry.h"
 #include "remoteApi.h"
 
+// Transcriber interfaces: convert audio streams/buffers into text
+//
+// Layers
+// - I_AudioQueue: helper base providing a shared audio queue handle
+// - I_Transcriber: abstract interface for buffer/stream transcription
+// - LocalTranscriber: uses CubeWhisper (whisper.cpp) on-device
+// - RemoteTranscriber: streams audio to TheCubeServer for transcription
+//
+// Threading
+// - Implementations may spin worker threads or use async; interface itself is not thread-hostile
+// - Audio queue ownership is external and injected via setThreadSafeQueue()
 namespace DecisionEngine{
 
 
@@ -56,6 +67,7 @@ protected:
 };
 
 
+// Abstract transcriber. Implement buffer-based and streaming APIs.
 class I_Transcriber: public I_AudioQueue {
 public:
     virtual ~I_Transcriber() = default;
@@ -65,6 +77,7 @@ public:
 
 /////////////////////////////////////////////////////////////////////////////////////
 
+// On-device STT using CubeWhisper
 class LocalTranscriber : public I_Transcriber {
 public:
     LocalTranscriber();
@@ -80,6 +93,7 @@ private:
 
 /////////////////////////////////////////////////////////////////////////////////////
 
+// Cloud STT using TheCubeServer
 class RemoteTranscriber : public I_Transcriber, public I_RemoteApi {
 public:
     RemoteTranscriber();

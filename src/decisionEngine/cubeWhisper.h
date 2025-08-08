@@ -31,6 +31,14 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+// CubeWhisper: local speech-to-text wrapper (whisper.cpp integration)
+//
+// Responsibilities
+// - Initialize and manage whisper.cpp resources
+// - Provide a simple static utility to transcribe short audio buffers
+//
+// Notes
+// - Actual model loading and performance tuning TBD; see TODOs in .cpp
 #ifndef CUBEWHISPER_H
 #define CUBEWHISPER_H
 

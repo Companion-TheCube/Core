@@ -31,11 +31,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+// CubeWhisper implementation: placeholder that will wrap whisper.cpp APIs.
+// For now, logs initialization and returns a canned transcription.
 #include "cubeWhisper.h"
 
 CubeWhisper::CubeWhisper()
 {
-    // TODO: initialize whisper.cpp library and make sure it has the model loaded. 
+    // TODO: initialize whisper.cpp library and load model(s) in a background thread
     CubeLog::info("CubeWhisper initialized");
 }
 

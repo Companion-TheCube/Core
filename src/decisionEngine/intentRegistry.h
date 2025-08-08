@@ -1,3 +1,17 @@
+// IntentRegistry and Recognition: hold intents and determine which intent best
+// matches a user utterance.
+//
+// Components
+// - Intent: name + action + parameters + response strings (optionally emotion-scored)
+// - IntentRegistry: in-memory map of intents, plus HTTP API surface via AutoRegisterAPI
+// - I_IntentRecognition: strategy interface for recognizing intents (local/remote)
+// - LocalIntentRecognition: simple token/parameter name matcher with lightweight workers
+// - RemoteIntentRecognition: defers recognition to TheCubeServer (WIP)
+//
+// Typical flow
+// 1) Intents are registered (system + app-provided)
+// 2) Recognition strategy analyzes text and selects a matching Intent
+// 3) The chosen Intent::execute() performs the action and response composition
 #pragma once
 #ifndef INTENT_REGISTRY_H
 #define INTENT_REGISTRY_H
@@ -56,10 +70,8 @@ public:
     } type;
 
     /**
-     * @brief Parameters for the intent
-     * The parameters are key value pairs that are used to pass data to the action function.
-     * The first string is the key and the second string is the value. The key can be used
-     * in response string to insert the value. See responseString for more information.
+     * Parameters: key-value data passed to the action. Keys can be referenced in
+     * response strings as ${key} and replaced during Intent::getResponseString().
      */
 
     Intent() {};
@@ -104,16 +116,15 @@ private:
     Parameters parameters;
     std::string briefDesc;
     /**
-     * @brief This is the string that will be returned to the user when the intent is executed. If TTS
-     * is enabled, this string will be spoken to the user. This string can contain placeholders for the parameters.
-     * The placeholders will be replaced with the actual values. The placeholders should be in the format ${parameterName}
+     * Response string returned to the user when the intent is executed. May include
+     * parameter placeholders in the form ${parameterName}, substituted at render time.
      */
     std::string responseString = "";
     std::string serializedData = "";
     /**
-     * @brief These strings should represent the response string at different emotional scores. The strings should be ordered from
-     * closest to the emotional target to farthest from the emotional target. If the emotional score is out of range, the standard
-     * response string will be used. Therefore, this vector can be 0 to 5 strings long, inclusive.
+     * Emotion-scored variants of responseString. Index selection is driven by
+     * PersonalityManager score bucketing. If empty or out-of-range, fall back to responseString.
+     * Vector length: 0..5 (inclusive).
      */
     std::vector<std::string> responseStringScored = {};
     std::shared_ptr<Personality::PersonalityManager> personalityManager;
@@ -172,6 +183,8 @@ public:
 
 class LocalIntentRecognition : public I_IntentRecognition {
 public:
+    // Basic local recognition: tokenizes the input and matches against parameter
+    // names of registered intents. Intended for offline operation and as a fallback.
     LocalIntentRecognition(std::shared_ptr<IntentRegistry> intentRegistry);
     ~LocalIntentRecognition();
     bool recognizeIntentAsync(const std::string& intentString, std::function<void(std::shared_ptr<Intent>)> callback) override;
@@ -191,6 +204,7 @@ private:
 
 class RemoteIntentRecognition : public I_IntentRecognition, public I_RemoteApi {
 public:
+    // Remote recognition: ships input text to TheCubeServer for LLM-backed matching.
     RemoteIntentRecognition(std::shared_ptr<IntentRegistry> intentRegistry);
     ~RemoteIntentRecognition();
     bool recognizeIntentAsync(const std::string& intentString, std::function<void(std::shared_ptr<Intent>)> callback) override;
@@ -204,4 +218,3 @@ private:
 
 }
 #endif // INTENT_REGISTRY_H
-
