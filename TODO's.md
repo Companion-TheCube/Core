@@ -18,9 +18,9 @@
 - [src/api/api.cpp:103] : add checks to make sure these are valid calls.
 - [src/api/api.cpp:52] : Since we need to make sure that the entire API is built before letting any clients connect,
 - [src/api/api.cpp:59] : // TESTING AUTHENTICATION //// remove
-- [src/api/api.h:204] : We need to make the API server is able to handle new interfaces being added at runtime.
+- [src/api/api.h:203] : We need to make the API server is able to handle new interfaces being added at runtime.
 - [src/api/authentication.cpp:156] : add checkAuth function that only takes the app_id and returns bool if the app_id has been allowed by the user
-- [src/api/builder.cpp:139] : refactor to get rid of staticFiles vector. update: maybe not?
+- [src/api/builder.cpp:148] : refactor to get rid of staticFiles vector. update: maybe not?
 - [src/apps/appsDBManager.cpp:110] : add the interfaces for HTTP server
 - [src/apps/appsManager.cpp:1180] : Implement checking if app update is available
 - [src/apps/appsManager.cpp:1193] : Implement checking if app update is required
@@ -91,7 +91,7 @@
 - [src/decisionEngine/intentRegistry.cpp:476] : remove).
 - [src/decisionEngine/intentRegistry.cpp:485] : remove this. Testing only.
 - [src/decisionEngine/intentRegistry.cpp:540] :
-- [src/decisionEngine/intentRegistry.h:100] : add a mutex so that the calling of execute can be thread safe
+- [src/decisionEngine/intentRegistry.h:99] : add a mutex so that the calling of execute can be thread safe
 - [src/decisionEngine/personalityManager.h:147] : add methods that allow for ramp type of expiration
 - [src/decisionEngine/remoteServer.cpp:103] :
 - [src/decisionEngine/remoteServer.cpp:200] :
@@ -111,7 +111,7 @@
 - [src/decisionEngine/transcriber.cpp:67] : inject server API, set up session/state for streaming
 - [src/decisionEngine/transcriber.cpp:74] : upload buffer and poll for result
 - [src/decisionEngine/transcriber.cpp:79] : streaming upload with progress and partial results
-- [src/decisionEngine/transcriber.h:121] : the stream that this is reading from may need to be a more complex
+- [src/decisionEngine/transcriber.h:120] : the stream that this is reading from may need to be a more complex
 - [src/gui/characterManager.cpp:144] : This will need to interface with the list of registered apps and find the ones
 - [src/gui/characterManager.cpp:239] : fill in the endpoints
 - [src/gui/characterManager.cpp:302] : move the actual loading of character data into a separate method so that we can call it

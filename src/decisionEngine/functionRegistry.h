@@ -72,7 +72,7 @@ struct FunctionSpec {
     std::function<nlohmann::json(const nlohmann::json& args)> callback;
     uint32_t timeoutMs{4000};
 
-    // Serialise into OpenAI-style JSON for the LLM
+    // Serialize into OpenAI-style JSON for the LLM
     nlohmann::json toJson() const;
 };
 

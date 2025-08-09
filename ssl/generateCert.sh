@@ -19,6 +19,9 @@ openssl x509 -req -days $DAYS_VALID -in "${CERT_DIR}/${CERT_NAME}.csr" \
 # Clean up CSR
 rm "${CERT_DIR}/${CERT_NAME}.csr"
 
+# Create a CA bundle (concatenate the certificate and key)
+cat ./server.crt ./server.key > ./ca-bundle.crt
+
 echo "Certificate and key generated:"
 echo "  ${CERT_DIR}/${CERT_NAME}.crt"
 echo "  ${CERT_DIR}/${CERT_NAME}.key"

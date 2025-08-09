@@ -71,7 +71,6 @@ SOFTWARE.
 #ifndef UTILS_H
 #include <utils.h>
 #endif
-#define CPPHTTPLIB_OPENSSL_SUPPORT
 #include "httplib.h"
 #ifndef GLOBAL_SETTINGS_H
 #include "globalSettings.h"

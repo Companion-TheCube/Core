@@ -51,6 +51,9 @@ Functions are registered with the following information:
 - Matching params for Spacy
 - Matching phrases for other matching methods
 
+Functions are called via RPC. We'll use a simple JSON-RPC style interface for this. Each app will get a unix socket in the root of its directory 
+that it should use for RPC. 
+
 */
 
 #include "functionRegistry.h"

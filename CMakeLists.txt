@@ -298,6 +298,29 @@ else()
     set(APPS_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/apps")
 endif()
 
+# SSL Directory
+set(SSL_SOURCE_DIR "${CMAKE_SOURCE_DIR}/ssl")
+if(WIN32)
+    set(SSL_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Debug/ssl")
+else()
+    set(SSL_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/ssl")
+endif()
+file(MAKE_DIRECTORY ${SSL_DEST_DIR})
+if(NOT EXISTS ${SSL_DEST_DIR}/server.key)
+    file(COPY ${SSL_SOURCE_DIR}/server.key DESTINATION ${SSL_DEST_DIR})
+endif()
+if(NOT EXISTS ${SSL_DEST_DIR}/server.crt)
+    file(COPY ${SSL_SOURCE_DIR}/server.crt DESTINATION ${SSL_DEST_DIR})
+endif()
+
+# copy ./.env file to the output directory
+if(WIN32)
+    set(ENV_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Debug")
+else()  
+    set(ENV_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+endif()
+file(COPY ${CMAKE_SOURCE_DIR}/.env DESTINATION ${ENV_DEST_DIR})
+
 # Create the destination directories if they don't exist
 file(MAKE_DIRECTORY ${SHADER_DEST_DIR})
 file(MAKE_DIRECTORY ${MESHES_DEST_DIR})

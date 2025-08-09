@@ -58,7 +58,6 @@ SOFTWARE.
 #include <thread>
 #include <unordered_map>
 #include <vector>
-#define CPPHTTPLIB_OPENSSL_SUPPORT
 #include "../api/autoRegister.h"
 #include "../audio/audioManager.h"
 #include "../threadsafeQueue.h"

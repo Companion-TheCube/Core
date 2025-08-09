@@ -120,14 +120,12 @@ void API_Builder::start()
     // add endpoint that will return the cube.socket path
     CubeLog::info("Adding endpoint: getCubeSocketPath at /getCubeSocketPath");
     this->api->addEndpoint("getCubeSocketPath", "/getCubeSocketPath", PUBLIC_ENDPOINT | GET_ENDPOINT, [&](const httplib::Request& req, httplib::Response& res) {
+        CubeLog::debug("Returning cube.socket path as JSON");
         std::filesystem::path path = std::filesystem::current_path();
         // make a json object that contains the cube.socket path
         nlohmann::json j;
-        std::string envSocketPath = Config::get("CUBE_SOCKET_PATH", std::getenv("CUBE_SOCKET_PATH"));
-        if( envSocketPath.empty() || envSocketPath == "CUBE_SOCKET_PATH") {
-            CubeLog::error("CUBE_SOCKET_PATH not set. Using default path.");
-            envSocketPath = "cube.sock";
-        }
+        std::string envSocketPath = Config::get("IPC_SOCKET_PATH", "cube.sock");
+        CubeLog::debug("IPC_SOCKET_PATH: " + envSocketPath);
         // check to see if the path is absolute or relative
         if (!std::filesystem::path(envSocketPath).is_absolute()) {
             // if it's relative, make it relative to the current path

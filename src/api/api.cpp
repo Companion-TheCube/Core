@@ -436,7 +436,20 @@ CubeHttpServer::CubeHttpServer(const std::string& address, int port)
 {
     this->address = address;
     this->port = port;
-    this->server = std::make_shared<httplib::Server>();
+    // check to see if the SSL files exist
+    if(std::filesystem::exists("ssl/server.crt") && std::filesystem::exists("ssl/server.key")) {
+        CubeLog::info("SSL files found, enabling SSL support for HTTP server");
+        this->server = std::make_shared<httplib::SSLServer>("ssl/server.crt", "ssl/server.key");
+        if (!this->server->is_valid()) {
+            CubeLog::error("Failed to create SSL server. Falling back to non-SSL server.");
+            this->server = std::make_shared<httplib::Server>();
+        } else {
+            CubeLog::info("SSL server created successfully.");
+        }
+    } else {
+        CubeLog::info("SSL files not found, starting non-SSL HTTP server");
+        this->server = std::make_shared<httplib::Server>();
+    }
 }
 
 /**
