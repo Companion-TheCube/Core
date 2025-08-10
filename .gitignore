@@ -7,3 +7,8 @@ libraries
 .codechecker
 .env
 minimaps
+src/api/InterfaceCount.h
+testing/
+ssl/*.key
+ssl/*.crt
+ssl/*.pem

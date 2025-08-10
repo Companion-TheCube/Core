@@ -833,7 +833,7 @@ HttpEndPointData_t CubeLog::getHttpEndpointData()
                 j["success"] = true;
                 j["message"] = "Logged message";
                 res.set_content(j.dump(), "application/json");
-                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Logged message");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
             } else {
                 CubeLog::error("Content-Type header must be set to \"application/json\".");
                 nlohmann::json j;
@@ -860,7 +860,7 @@ HttpEndPointData_t CubeLog::getHttpEndpointData()
                 j["entries"].push_back(entryJson);
             }
             res.set_content(j.dump(), "application/json");
-            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Got logs");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
         "getLogs",
         {},

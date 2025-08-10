@@ -91,21 +91,21 @@ HttpEndPointData_t AudioManager::getHttpEndpointData()
         [&](const httplib::Request& req, httplib::Response& res) {
             this->start();
             CubeLog::info("Endpoint start called.");
-            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Start audio called");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
         "start", {}, "Start the audio." });
     data.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
             this->stop();
             CubeLog::info("Endpoint stop called");
-            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Stop audio called");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
         "stop", {}, "Stop the audio." });
     data.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
             this->toggleSound();
             CubeLog::info("Endpoint toggle sound called");
-            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Toggle sound called");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
         "toggleSound", {}, "Toggle the sound." });
     data.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
@@ -118,7 +118,7 @@ HttpEndPointData_t AudioManager::getHttpEndpointData()
                 }
             }
             CubeLog::info("Endpoint set sound called with param: " + p);
-            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Set sound called with param: " + p);
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
         "setSound", { "soundOn" }, "Set sound to boolean state. \"true\" is on." });
     return data;

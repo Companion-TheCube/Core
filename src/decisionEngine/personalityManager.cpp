@@ -510,7 +510,7 @@ HttpEndPointData_t PersonalityManager::getHttpEndpointData()
             j["emotion"] = emotion;
             j["value"] = getEmotionValue(emote);
             res.set_content(j.dump(), "application/json");
-            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Emotion value retrieved");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
         "getEmotionValue",
         { "emotion" },
@@ -660,7 +660,7 @@ HttpEndPointData_t PersonalityManager::getHttpEndpointData()
                 j["message"] = "setEmotionValue called: failed to set emotion value, " + std::string(e.what());
             }
             res.set_content(j_response.dump(), "application/json");
-            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, j_response["message"]);
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
         "setEmotionValue",
         { "emotion", "value", "targetValue", "targetTime", "expiration", "rampType" },

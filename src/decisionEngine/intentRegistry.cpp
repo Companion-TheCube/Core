@@ -1,3 +1,40 @@
+/*
+██╗███╗   ██╗████████╗███████╗███╗   ██╗████████╗██████╗ ███████╗ ██████╗ ██╗███████╗████████╗██████╗ ██╗   ██╗ ██████╗██████╗ ██████╗ 
+██║████╗  ██║╚══██╔══╝██╔════╝████╗  ██║╚══██╔══╝██╔══██╗██╔════╝██╔════╝ ██║██╔════╝╚══██╔══╝██╔══██╗╚██╗ ██╔╝██╔════╝██╔══██╗██╔══██╗
+██║██╔██╗ ██║   ██║   █████╗  ██╔██╗ ██║   ██║   ██████╔╝█████╗  ██║  ███╗██║███████╗   ██║   ██████╔╝ ╚████╔╝ ██║     ██████╔╝██████╔╝
+██║██║╚██╗██║   ██║   ██╔══╝  ██║╚██╗██║   ██║   ██╔══██╗██╔══╝  ██║   ██║██║╚════██║   ██║   ██╔══██╗  ╚██╔╝  ██║     ██╔═══╝ ██╔═══╝ 
+██║██║ ╚████║   ██║   ███████╗██║ ╚████║   ██║   ██║  ██║███████╗╚██████╔╝██║███████║   ██║   ██║  ██║   ██║██╗╚██████╗██║     ██║     
+╚═╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝   ╚═╝╚═╝ ╚═════╝╚═╝     ╚═╝
+*/
+
+/*
+MIT License
+
+Copyright (c) 2025 A-McD Technology LLC
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+
+// Intent, registry, and recognition strategies implementation. Local recognition
+// uses a simple token/parameter-name overlap heuristic; remote is a stub for
+// TheCubeServer-backed recognition.
 #include "intentRegistry.h"
 
 namespace DecisionEngine {
@@ -120,8 +157,12 @@ void Intent::execute() const
     if (action) {
         // TODO: add TTS support
         action(parameters, *this);
-    } else
-        throw DecisionEngine::DecisionEngineError("No action set for intent: " + intentName, DecisionEngine::DecisionErrorType::NO_ACTION_SET);
+    } 
+    // DecisionEngineError has been removed. opt for a simple log message instead
+    //throw DecisionEngine::DecisionEngineError("No action set for intent: " + intentName, DecisionEngine::DecisionErrorType::NO_ACTION_SET);
+    else {
+        CubeLog::error("No action set for intent: " + intentName);
+    }
 }
 
 const std::string Intent::serialize()
@@ -137,6 +178,8 @@ const std::string Intent::serialize()
  * @param action_json
  * @return Intent::Action
  */
+// Convert a JSON description into an executable Action. Placeholder for now;
+// a production implementation would bind to registered functions or scripts.
 Action convertJsonToAction(const nlohmann::json& action_json)
 {
     // TODO: Implement this
@@ -255,5 +298,258 @@ void Intent::setBriefDesc(const std::string& briefDesc)
 {
     this->briefDesc = briefDesc;
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * @brief Get all the built-in system intents
+ * @return std::vector<IntentCTorParams>
+ */
+// Define built-in system intents the engine ships with. Apps can register
+// additional intents at runtime via the IntentRegistry API.
+std::vector<IntentCTorParams> getSystemIntents()
+{
+    std::vector<IntentCTorParams> intents;
+    // Test intent
+    IntentCTorParams testIntent;
+    testIntent.intentName = "Test Intent";
+    testIntent.action = [](const Parameters& params, Intent intent) {
+        CubeLog::info("Test intent executed");
+    };
+    testIntent.briefDesc = "Test intent description";
+    testIntent.responseString = "Test intent response";
+    testIntent.type = Intent::IntentType::COMMAND;
+    intents.push_back(testIntent);
+    // TODO: define all the system intents. this should include things like "What time is it?" and "What apps are installed?"
+    // Should also include some pure command intents like "Do a flip" or "What was that last notification?"
+    return intents;
+}
+
+// Interface: IntentRecognition - class that determines the intent of the user
+// LocalIntentRecognition - class that determines the intent of the user without the need of an LLM. Use a score based pattern matching system.
+LocalIntentRecognition::LocalIntentRecognition(std::shared_ptr<IntentRegistry> intentRegistry)
+{
+    this->intentRegistry = intentRegistry;
+    // create the recognition threads
+    for (size_t i = 0; i < LOCAL_INTENT_RECOGNITION_THREAD_COUNT; i++) {
+        taskQueues.push_back(std::shared_ptr<TaskQueueWithData<std::function<void()>, std::string>>(new TaskQueueWithData<std::function<void()>, std::string>()));
+        recognitionThreads.push_back(new std::jthread([this, i](std::stop_token st) {
+            while (!st.stop_requested()) {
+                genericSleep(LOCAL_INTENT_RECOGNITION_THREAD_SLEEP_MS);
+                while (taskQueues[i]->size() != 0) {
+                    auto task = taskQueues[i]->pop();
+                    if (task) {
+                        task();
+                    }
+                }
+            }
+        }));
+    }
+    threadsReady = true;
+}
+
+// Very lightweight recognizer: tokenizes the input string and counts matches
+// against the parameter names of an existing intent. Returns null if no tokens
+// match any parameter name. This is a stopgap until a better matcher exists.
+std::shared_ptr<Intent> LocalIntentRecognition::recognizeIntent(const std::string& name, const std::string& intentString)
+{
+    // TODO: although this code works, we need to implement a more advanced pattern matching system and we need to
+    // have pattern matches that are weighted. For example, if the user says "What time is it?" we need to have a pattern
+    // match for "What time is it?" and "What is the time?" and "What time is it now?" and "What is the time now?" and so on.
+    // TODO: This function should somehow return a score for the match so that when multiple intents match, we can
+    // choose the one with the highest score.
+
+    auto l_intent = intentRegistry->getIntent(name);
+    // first we make a vector of all the intents param names
+    std::vector<std::vector<std::string>> intentParamNames;
+    std::vector<std::string> paramNames;
+    for (auto& param : l_intent->getParameters()) {
+        paramNames.push_back(param.first);
+    }
+    intentParamNames.push_back(paramNames);
+    // now we need to tokenize the intentString
+    std::vector<std::string> tokens;
+    std::regex splitOnRegex("[\\s,.]+");
+    std::sregex_token_iterator iter(intentString.begin(), intentString.end(), splitOnRegex, -1);
+    std::sregex_token_iterator end;
+    while (iter != end) {
+        tokens.push_back(iter->str());
+        ++iter;
+    }
+    // now we need to find the intent that matches the most tokens
+    size_t maxMatchIndex = 0;
+    size_t maxMatchCount = 0;
+    for (size_t i = 0; i < intentParamNames.size(); i++) {
+        size_t matchCount = 0;
+        for (auto& token : tokens) {
+            for (auto& paramName : intentParamNames[i]) {
+                if (token == paramName) {
+                    matchCount++;
+                    break;
+                }
+            }
+        }
+        if (matchCount > maxMatchCount) {
+            maxMatchCount = matchCount;
+            maxMatchIndex = i;
+        }
+    }
+    if (maxMatchCount == 0)
+        return nullptr;
+    return l_intent;
+}
+
+bool LocalIntentRecognition::recognizeIntentAsync(const std::string& intentString)
+{
+    return this->recognizeIntentAsync(intentString, [](std::shared_ptr<Intent> intent) {});
+}
+
+// TODO: convert this to std::future and make callback the progress callback or remove it
+bool LocalIntentRecognition::recognizeIntentAsync(const std::string& intentString, std::function<void(std::shared_ptr<Intent>)> callback)
+{
+    if (!threadsReady)
+        return false;
+    for (auto name : intentRegistry->getIntentNames()) {
+        size_t minIndex = 0;
+        size_t minSize = taskQueues[0]->size();
+        for (size_t i = 1; i < taskQueues.size(); i++) {
+            if (taskQueues[i]->size() < minSize) {
+                minSize = taskQueues[i]->size();
+                minIndex = i;
+            }
+        }
+        taskQueues[minIndex]->push([this, intentString, callback, name]() {
+            auto intent = recognizeIntent(name, intentString);
+            if (intent)
+                callback(intent);
+        },
+            intentString);
+    }
+    return true;
+}
+
+LocalIntentRecognition::~LocalIntentRecognition()
+{
+    for (auto& thread : recognitionThreads) {
+        delete thread;
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// RemoteIntentRecognition - class that converts intent to action using the TheCube Server API
+RemoteIntentRecognition::RemoteIntentRecognition(std::shared_ptr<IntentRegistry> intentRegistry)
+{
+    this->intentRegistry = intentRegistry;
+}
+
+RemoteIntentRecognition::~RemoteIntentRecognition()
+{
+}
+
+// TODO: convert this to std::future
+bool RemoteIntentRecognition::recognizeIntentAsync(const std::string& intentString)
+{
+    return this->recognizeIntentAsync(intentString, [](std::shared_ptr<Intent> intent) {});
+}
+
+// TODO: convert this to std::future and make callback the progress callback or remove it
+bool RemoteIntentRecognition::recognizeIntentAsync(const std::string& intentString, std::function<void(std::shared_ptr<Intent>)> callback)
+{
+    if (!remoteServerAPI)
+        return false;
+    return false; // TODO:
+}
+
+std::shared_ptr<Intent> RemoteIntentRecognition::recognizeIntent(const std::string& name, const std::string& intentString)
+{
+    if (!remoteServerAPI)
+        return nullptr;
+    return nullptr; // TODO:
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// IntentRegistry - class that contains the intents that are registered with the system
+// Need to have Http endpoints for the API that allow other apps to register with the decision engine
+// On construction, register system intents. Also performs a temporary HTTP
+// request to dummyjson.com for connectivity testing (TODO: remove).
+IntentRegistry::IntentRegistry()
+{
+    for (auto& intent : getSystemIntents()) {
+        auto newIntent = std::make_shared<Intent>(intent);
+        if (!registerIntent(intent.intentName, newIntent))
+            CubeLog::error("Failed to register intent: " + intent.intentName);
+    }
+
+    // TODO: remove this. Testing only.
+    httplib::Client cli("https://dummyjson.com");
+    auto res = cli.Get("/test");
+    if (res && res->status == 200) {
+        auto text = res->body;
+        CubeLog::fatal(text);
+    } else {
+        CubeLog::error("Error getting test data");
+    }
+}
+
+bool IntentRegistry::registerIntent(const std::string& intentName, const std::shared_ptr<Intent> intent)
+{
+    // Check if the intent is already registered
+    if (intentMap.find(intentName) != intentMap.end())
+        return false;
+    intentMap[intentName] = intent;
+    return true;
+}
+
+bool IntentRegistry::unregisterIntent(const std::string& intentName)
+{
+    // Check if the intent is registered
+    if (intentMap.find(intentName) == intentMap.end())
+        return false;
+    intentMap.erase(intentName);
+    return true;
+}
+
+std::shared_ptr<Intent> IntentRegistry::getIntent(const std::string& intentName)
+{
+    if (intentMap.find(intentName) == intentMap.end())
+        return nullptr;
+    return intentMap[intentName];
+}
+
+std::vector<std::string> IntentRegistry::getIntentNames()
+{
+    std::vector<std::string> intentNames;
+    for (auto& intent : intentMap)
+        intentNames.push_back(intent.first);
+    return intentNames;
+}
+
+std::vector<std::shared_ptr<Intent>> IntentRegistry::getRegisteredIntents()
+{
+    auto intents = std::vector<std::shared_ptr<Intent>>();
+    for (auto& intent : intentMap)
+        intents.push_back(intent.second);
+    return intents;
+}
+
+HttpEndPointData_t IntentRegistry::getHttpEndpointData()
+{
+    HttpEndPointData_t data;
+    // TODO:
+    // 1. Register an Intent - This will need to take a JSON string object that contains the intent data and pass it to the deserialize function of the Intent class.
+    // 2. Unregister an Intent
+    // 3. Get an Intent
+    // 4. Get all Intent Names
+    return data;
+}
+
+constexpr std::string IntentRegistry::getInterfaceName() const
+{
+    return "IntentRegistry";
+}
+
+
 
 }

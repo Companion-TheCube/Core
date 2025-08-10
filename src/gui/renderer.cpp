@@ -115,16 +115,9 @@ int Renderer::thread()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-#ifdef _WIN32
-    this->window.setMouseCursorVisible(true);
-#endif
-#ifdef __linux__
-#ifdef PRODUCTION_BUILD
-    this->window.setMouseCursorVisible(false);
-#else
-    this->window.setMouseCursorVisible(true);
-#endif
-#endif
+    bool mp_visible = Config::get("SHOW_MOUSE_POINTER", "false") == "true";
+    this->window.setMouseCursorVisible(mp_visible);
+
     Shader edgesShader("./shaders/edges.vs", "./shaders/edges.fs");
     Shader textureShader("./shaders/text.vs", "./shaders/text.fs");
     Shader stencilShader("./shaders/menuStencil.vs", "./shaders/menuStencil.fs");

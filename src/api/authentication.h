@@ -76,6 +76,8 @@ public:
     };
     static AUTH_CODE checkAuth(const std::string& privateKey, const std::string& app_id, const std::string& encrypted_auth_code);
     static bool isAuthorized_authHeader(const std::string& authHeader);
+    static bool ensureTokenTable();
+    static std::string stripBearer(const std::string& header);
     static std::string generateAuthCode();
     static std::pair<std::string, std::string> generateKeyPair();
     static std::string encryptAuthCode(const std::string& auth_code, const std::string& public_key);

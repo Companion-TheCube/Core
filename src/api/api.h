@@ -48,7 +48,6 @@ SOFTWARE.
 #include <vector>
 #ifndef HTTPLIB_INCLUDED
 #define HTTPLIB_INCLUDED
-#define CPPHTTPLIB_OPENSSL_SUPPORT
 #include <httplib.h>
 #endif
 #ifdef __linux__
@@ -143,6 +142,10 @@ private:
     std::unique_ptr<CubeHttpServer> serverIPC;
     std::vector<std::pair<std::string, bool>> endpointTriggers = {};
     void httpApiThreadFn();
+    // Binding configuration (can be set before start())
+    std::string httpAddress = "0.0.0.0";
+    int httpPort = 55280;
+    std::string ipcPath = CUBE_SOCKET_PATH;
 
 public:
     API();
@@ -150,6 +153,9 @@ public:
     void start();
     void stop();
     void restart();
+    // Configure HTTP and IPC bindings prior to start()
+    void setHttpBinding(const std::string& address, int port) { httpAddress = address; httpPort = port; }
+    void setIpcPath(const std::string& path) { ipcPath = path; }
     void addEndpoint(const std::string& name, const std::string& path, int endpointType, EndpointAction_t action);
     std::vector<std::shared_ptr<Endpoint>> getEndpoints();
     std::shared_ptr<Endpoint> getEndpointByName(const std::string& name);

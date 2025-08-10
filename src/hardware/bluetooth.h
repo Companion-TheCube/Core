@@ -51,7 +51,6 @@ SOFTWARE.
 #include <vector>
 #ifndef HTTPLIB_INCLUDED
 #define HTTPLIB_INCLUDED
-#define CPPHTTPLIB_OPENSSL_SUPPORT
 #include <httplib.h>
 #endif
 #ifdef __linux__

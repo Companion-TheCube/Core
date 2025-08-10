@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import re, pathlib, sys
 
-ROOT = pathlib.Path(__file__).resolve().parent
+ROOT = pathlib.Path(__file__).resolve().parent.parent
 SRC_DIR = ROOT / "src"
 TODO_MD = ROOT / "TODO's.md"
 

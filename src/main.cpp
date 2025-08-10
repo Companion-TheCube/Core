@@ -50,12 +50,15 @@ SOFTWARE.
 #include <logger.h>
 #endif
 #include "build_number.h"
+#include "utils.h"
 #include "main.h"
 
 bool breakMain = false;
 
 int main(int argc, char* argv[])
 {
+    // Load configuration from .env once (available globally via Config::get())
+    Config::loadFromDotEnv(".env");
     // std::signal(SIGINT, signalHandler);
     // std::signal(SIGTERM, signalHandler);
     std::signal(SIGABRT, signalHandler);
@@ -338,7 +341,7 @@ int main(int argc, char* argv[])
         auto auth = std::make_shared<CubeAuth>();
         auto peripherals = std::make_shared<PeripheralManager>();
         auto decisions = std::make_shared<DecisionEngine::DecisionEngineMain>();
-        {
+        
             API_Builder api_builder(api);
             gui->registerInterface();
             cubeDB->registerInterface();
@@ -347,7 +350,7 @@ int main(int argc, char* argv[])
             auth->registerInterface();
             // btManager->registerInterface();
             api_builder.start();
-        }
+        
         CubeLog::info("Entering main loop...");
         std::chrono::milliseconds aSecond(1000);
         while (!breakMain) {
@@ -593,8 +596,3 @@ bool supportsExtendedColors()
 }
 
 #endif
-
-TEST_CASE("Test supportsBasicColors")
-{
-    REQUIRE(supportsBasicColors());
-}

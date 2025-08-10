@@ -52,6 +52,7 @@ bool breakJsonApart(nlohmann::json j, AddMenu_Data_t& data, std::string* menuNam
 
 CubeMessageBox* GUI::messageBox = nullptr;
 CubeTextBox* GUI::fullScreenTextBox = nullptr;
+CubeNotificaionBox* GUI::notificationBox = nullptr;
 
 /**
  * @brief Construct a new GUI::GUI object
@@ -1557,8 +1558,18 @@ void GUI::eventLoop()
     this->eventManager->addClickableArea(clickable_fullScreenTextBox.getClickableArea());
 
     ////////////////////////////////////////
-    /// Set up the notifications text box
+    /// Set up the notifications box (Approve/Deny)
     ////////////////////////////////////////
+    notificationBox = new CubeNotificaionBox(this->renderer->getMeshShader(), this->renderer->getTextShader(), this->renderer, countingLatch);
+    this->renderer->addSetupTask([&]() {
+        notificationBox->setup();
+    });
+    this->renderer->addLoopTask([&]() {
+        notificationBox->draw();
+    });
+    notificationBox->setVisible(false);
+    NotificationBoxClickable clickable_notificationBox(notificationBox);
+    this->eventManager->addClickableArea(clickable_notificationBox.getClickableArea());
 
     ////////////////////////////////////////
     /// Wait for the rendered elements to be ready
@@ -1775,6 +1786,15 @@ void GUI::showMessageBox(const std::string& title, const std::string& message, g
     showMessageBox(title, message, size, position);
 }
 
+void GUI::hideMessageBox()
+{
+    if (messageBox == nullptr) {
+        CubeLog::error("Message box is null. Cannot hide message.");
+        return;
+    }
+    messageBox->setVisible(false);
+}
+
 void GUI::showTextBox(const std::string& title, const std::string& message)
 {
     // check that fullScreenTextBox is not null pointer
@@ -1811,17 +1831,56 @@ void GUI::showTextBox(const std::string& title, const std::string& message, glm:
 
 void GUI::showNotification(const std::string& title, const std::string& message, NotificationsManager::NotificationType type)
 {
-    // TODO: show a notification
+    // For informational notifications, fall back to message box for now
+    try {
+        glm::vec2 pos{ 144, 144 };
+        glm::vec2 size{ 432, 432 };
+        GUI::showMessageBox(title, message, size, pos);
+    } catch (...) {
+        CubeLog::error("Failed to display notification");
+    }
 }
 
 void GUI::showNotificationWithCallback(const std::string& title, const std::string& message, NotificationsManager::NotificationType type, std::function<void()> callback)
 {
-    // TODO: show a notification with a callback
+    // Forward to the yes/no variant with only a YES callback.
+    GUI::showNotificationWithCallback(title, message, type, callback, []() {});
 }
 
 void GUI::showNotificationWithCallback(const std::string& title, const std::string& message, NotificationsManager::NotificationType type, std::function<void()> callbackYes, std::function<void()> cancelNo)
 {
-    // TODO: show a notification with a callback for yes and no
+    // Use NotificationBox with explicit Approve/Deny regions and a 60s timeout
+    try {
+        if (!GUI::notificationBox) {
+            CubeLog::error("NotificationBox not initialized");
+            return;
+        }
+        glm::vec2 pos{ 144, 144 };
+        glm::vec2 size{ 432, 432 };
+        GUI::notificationBox->setPosition(pos);
+        GUI::notificationBox->setSize(size);
+        GUI::notificationBox->setCallbackYes(callbackYes);
+        GUI::notificationBox->setCallbackNo(cancelNo);
+        GUI::notificationBox->setText(message, title);
+        GUI::notificationBox->setVisible(true);
+
+        // Timeout watcher
+        std::thread([]() {
+            using namespace std::chrono;
+            auto start = steady_clock::now();
+            while (duration_cast<seconds>(steady_clock::now() - start).count() < 60) {
+                if (GUI::notificationBox && !GUI::notificationBox->getVisible()) return;
+                std::this_thread::sleep_for(milliseconds(50));
+            }
+            if (GUI::notificationBox && GUI::notificationBox->getVisible()) {
+                GUI::notificationBox->setVisible(false);
+                // Invoke cancel callback on timeout
+                GUI::notificationBox->call_callback();
+            }
+        }).detach();
+    } catch (...) {
+        CubeLog::error("Failed to display notification with callback");
+    }
 }
 
 void GUI::showTextInputBox(const std::string& title, std::vector<std::string> fields, std::function<void(std::vector<std::string>&)> callback)
@@ -1869,7 +1928,7 @@ HttpEndPointData_t GUI::getHttpEndpointData()
                     GUI::showMessageBox(title, mes);
                 CubeLog::info("Endpoint stop called and message set to: " + mes + " with title: " + title);
                 res.set_content("Message set to: " + mes, "text/plain");
-                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Message set to: " + mes);
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
             },
             "messageBox",
             { "text", "title" },
@@ -1907,7 +1966,7 @@ HttpEndPointData_t GUI::getHttpEndpointData()
                     showTextBox(title, mes, { std::stoi(size_x), std::stoi(size_y) }, { std::stoi(position_x), std::stoi(position_y) });
                 CubeLog::info("Endpoint stop called and message set to: " + mes + " with title: " + title);
                 res.set_content("Message set to: " + mes, "text/plain");
-                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Message set to: " + mes);
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
             },
             "textBox",
             { "text", "title", "size-x", "size-y", "position-x", "position-y" },
@@ -1945,7 +2004,7 @@ HttpEndPointData_t GUI::getHttpEndpointData()
                 response["success"] = true;
                 response["message"] = "Menu added";
                 res.set_content(response.dump(), "application/json");
-                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Menu added");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
             },
             "addMenu",
             {},
@@ -2817,7 +2876,7 @@ HttpEndPointData_t NotificationsManager::getHttpEndpointData()
     actions.push_back(
         { PRIVATE_ENDPOINT | POST_ENDPOINT,
             [&](const httplib::Request& req, httplib::Response& res) {
-                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Notification shown with callback");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
             },
             "showNotificationOkayWarningError",
             {},
@@ -2825,7 +2884,7 @@ HttpEndPointData_t NotificationsManager::getHttpEndpointData()
     actions.push_back(
         { PRIVATE_ENDPOINT | POST_ENDPOINT,
             [&](const httplib::Request& req, httplib::Response& res) {
-                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Notification shown with callback");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
             },
             "showNotificationYesNo",
             {},

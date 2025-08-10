@@ -96,7 +96,10 @@ void API_Builder::start()
     CubeLog::info("Adding endpoint: getEndpoints at /getEndpoints");
     this->api->addEndpoint("getEndpoints", "/getEndpoints", PUBLIC_ENDPOINT | GET_ENDPOINT, [&](const httplib::Request& req, httplib::Response& res) {
         nlohmann::json j;
+        CubeLog::moreInfo("Returning list of endpoints as JSON");
+        // iterate through all the interface objects and get their endpoint data
         for (auto& [name, i_face_obj] : this->interface_objs) {
+            CubeLog::debug("Interface object: " + name);
             auto endpointData = i_face_obj->getHttpEndpointData();
             for (size_t i = 0; i < endpointData.size(); i++) {
                 nlohmann::json endpoint_json;
@@ -106,21 +109,32 @@ void API_Builder::start()
                 endpoint_json["public"] = (std::get<0>(endpointData.at(i)) & PUBLIC_ENDPOINT) == PUBLIC_ENDPOINT ? "true" : "false";
                 endpoint_json["endpoint_type"] = (std::get<0>(endpointData.at(i)) & GET_ENDPOINT) == GET_ENDPOINT ? "GET" : "POST";
                 j[name].push_back(endpoint_json);
+                CubeLog::debug("Added endpoint: " + std::get<2>(endpointData.at(i)) + " with params: " + nlohmann::json(std::get<3>(endpointData.at(i))).dump());
             }
         }
+        CubeLog::debug("Returning endpoints JSON: " + j.dump());
         res.set_content(j.dump(), "application/json");
-        return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, j.dump());
+        return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
     });
 
     // add endpoint that will return the cube.socket path
     CubeLog::info("Adding endpoint: getCubeSocketPath at /getCubeSocketPath");
     this->api->addEndpoint("getCubeSocketPath", "/getCubeSocketPath", PUBLIC_ENDPOINT | GET_ENDPOINT, [&](const httplib::Request& req, httplib::Response& res) {
+        CubeLog::debug("Returning cube.socket path as JSON");
         std::filesystem::path path = std::filesystem::current_path();
         // make a json object that contains the cube.socket path
         nlohmann::json j;
-        j["cube_socket_path"] = path.string() + "/" + "cube.sock";
+        std::string envSocketPath = Config::get("IPC_SOCKET_PATH", "cube.sock");
+        CubeLog::debug("IPC_SOCKET_PATH: " + envSocketPath);
+        // check to see if the path is absolute or relative
+        if (!std::filesystem::path(envSocketPath).is_absolute()) {
+            // if it's relative, make it relative to the current path
+            envSocketPath = path.string() + "/" + envSocketPath;
+        }
+        CubeLog::debug("Cube socket path: " + envSocketPath);
+        j["cube_socket_path"] = envSocketPath;
         res.set_content(j.dump(), "application/json");
-        return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, j.dump());
+        return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
     });
     // recursively search http folder for static files and add them to the server
     std::vector<std::filesystem::path> staticFiles;

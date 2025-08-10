@@ -71,7 +71,6 @@ SOFTWARE.
 #ifndef UTILS_H
 #include <utils.h>
 #endif
-#define CPPHTTPLIB_OPENSSL_SUPPORT
 #include "httplib.h"
 #ifndef GLOBAL_SETTINGS_H
 #include "globalSettings.h"
@@ -140,6 +139,7 @@ public:
     static void showMessageBox(const std::string& title, const std::string& message);
     static void showMessageBox(const std::string& title, const std::string& message, glm::vec2 size, glm::vec2 position);
     static void showMessageBox(const std::string& title, const std::string& message, glm::vec2 size, glm::vec2 position, std::function<void()> callback);
+    static void hideMessageBox();
     static void showTextBox(const std::string& title, const std::string& message);
     static void showTextBox(const std::string& title, const std::string& message, glm::vec2 size, glm::vec2 position);
     static void showTextBox(const std::string& title, const std::string& message, glm::vec2 size, glm::vec2 position, std::function<void()> callback);
@@ -160,7 +160,7 @@ private:
     EventManager* eventManager;
     static CubeMessageBox* messageBox;
     static CubeTextBox* fullScreenTextBox;
-    // static NotificationBox* notificationBox;
+    static CubeNotificaionBox* notificationBox;
     std::vector<MENUS::Menu*> menus;
     std::vector<std::pair<std::function<bool()>, std::function<void(int)>>> drag_y_actions; // bool is visibility. if the item is not visible, do not call the action.
     std::mutex addMenuMutex;
