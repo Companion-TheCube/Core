@@ -108,7 +108,7 @@ Notes:
 ## Deployment
 **TODO** Add additional notes about how to deploy this on a live system.
 ## Dependencies
-* [SFML](https://www.sfml-dev.org/) - Simple and Fast Multimedia Library. **to be replaced with GLFW**
+* [SFML](https://www.sfml-dev.org/) - Simple and Fast Multimedia Library. **to be replaced with SDL2**
 * [OpenGL](https://www.opengl.org/) - The Industry's Foundation for High Performance Graphics.
 * [GLFW](https://www.glfw.org/) - A multi-platform library for OpenGL, OpenGL ES, Vulkan, window and input.
 * [GLEW](http://glew.sourceforge.net/) - The OpenGL Extension Wrangler Library.
@@ -124,6 +124,9 @@ Notes:
 * [fmt]() - A modern formatting library for C++.
 * [GoogleTest]() - Google Test framework for C++ unit testing.
 * [GoogleBenchmark]() - Google Benchmark library for performance testing.
+* [json-rpc-cxx](https://github.com/jsonrpcx/json-rpc-cxx) - A JSON-RPC client and server library for C++.
+* [cppcodec](https://github.com/tplgy/cppcodec) - C++ codec library for Base64, Hex, and other encodings.
+* [msgpack-c](https://github.com/msgpack/msgpack-c/tree/cpp_master) - C++ implementation of MessagePack, an efficient binary serialization format.
 
 All required system packages for these dependencies can be installed with:
 ```bash

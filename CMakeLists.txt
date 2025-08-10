@@ -122,6 +122,25 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(cppcodec)
 include_directories(${cppcodec_SOURCE_DIR}/cppcodec)
 
+include(FetchContent)
+FetchContent_Declare(
+    json_rpc_cxx
+    GIT_REPOSITORY https://github.com/jsonrpcx/json-rpc-cxx.git
+    GIT_TAG master
+    UPDATE_DISCONNECTED FALSE
+)
+FetchContent_MakeAvailable(json_rpc_cxx)
+include_directories(${json_rpc_cxx_SOURCE_DIR}/include)
+
+include(FetchContent)
+FetchContent_Declare(
+    msgpack_c
+    GIT_REPOSITORY https://github.com/msgpack/msgpack-c.git
+    GIT_TAG cpp_master
+    UPDATE_DISCONNECTED FALSE
+)
+FetchContent_MakeAvailable(msgpack_c)
+include_directories(${msgpack_c_SOURCE_DIR}/include)
 
 
 file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/libraries)
@@ -429,6 +448,9 @@ target_link_libraries(CubeCoreLib PUBLIC
     pqxx
     pq
     spdlog::spdlog_header_only
+    json_rpc_cxx
+    msgpack_c
+    cppcodec
 )
 
 # Executable links the core library
