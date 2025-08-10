@@ -725,27 +725,7 @@ if(benchmark_FOUND)
     target_link_libraries(CubeCoreBenchmarks PRIVATE
         benchmark::benchmark
         benchmark::benchmark_main
-        sfml-graphics
-    sfml-audio
-    sfml-network
-    rtaudio
-    ${ALSA_LIBRARIES}
-    ${FREETYPE_LIBRARY}
-    ${OPENGL_LIBRARIES}
-    ${GLEW_LIBRARIES}
-    nlohmann_json::nlohmann_json
-    SQLiteCpp
-    sqlite3
-    ${SODIUM_LIBRARIES}
-    # Qt6::Core
-    # Qt6::SerialPort${WIRINGPI_LIB}
-    whisper
-    OpenSSL::SSL
-    OpenSSL::Crypto
-    infoware
-    pqxx
-    pq
-    spdlog::spdlog_header_only
+        CubeCoreLib
     )
 else()
     message(WARNING "Google Benchmark not found, skipping benchmarks.")
