@@ -47,9 +47,6 @@ Functions are registered with the following information:
 - Parameters for the action. These can be static or can be loaded from a data source.
 - Brief description of the function
 - Response string that can include placeholders for parameters
-- Emotional score ranges for the function to be enabled or disabled based on the user's emotional state
-- Matching params for Spacy
-- Matching phrases for other matching methods
 
 Functions are called via RPC. We'll use a simple JSON-RPC style interface for this. Each app will get a unix socket in the root of its directory 
 that it should use for RPC. 
