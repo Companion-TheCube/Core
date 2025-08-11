@@ -462,7 +462,6 @@ target_link_libraries(CubeCoreLib PUBLIC
     json-rpc-cxx
     msgpack-cxx
     cppcodec
-    asio
 )
 
 # Executable links the core library

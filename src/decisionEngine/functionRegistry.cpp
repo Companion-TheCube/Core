@@ -74,275 +74,11 @@ namespace FunctionUtils {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// FunctionRunner implementation (stubbed)
-FunctionRunner::FunctionRunner()
-{
-}
-
-FunctionRunner::~FunctionRunner()
-{
-    stop();
-}
-
-void FunctionRunner::start(size_t numThreads)
-{
-    std::lock_guard<std::mutex> guard(startStopMutex_);
-    if (running_)
-        return;
-    if (numThreads == 0)
-        numThreads = 1;
-    numThreads_ = numThreads;
-    running_ = true;
-    workers_.reserve(numThreads_);
-    for (size_t i = 0; i < numThreads_; ++i) {
-        workers_.emplace_back([this]() { this->workerLoop(); });
-    }
-}
-
-void FunctionRunner::stop()
-{
-    std::lock_guard<std::mutex> guard(startStopMutex_);
-    if (!running_)
-        return;
-    running_ = false;
-    // push empty tasks to wake workers
-    for (size_t i = 0; i < workers_.size(); ++i) {
-        Task t;
-        t.work = []() { return nlohmann::json(); };
-        queue_.push(t);
-    }
-    for (auto& th : workers_) {
-        if (th.joinable())
-            th.join();
-    }
-    workers_.clear();
-}
-
-void FunctionRunner::enqueue(Task&& task)
-{
-    queue_.push(std::move(task));
-}
-
-void FunctionRunner::enqueueFunctionCall(const std::string& functionName,
-                                        std::function<nlohmann::json()> work,
-                                        std::function<void(const nlohmann::json&)> onComplete,
-                                        uint32_t timeoutMs)
-{
-    Task t;
-    t.name = functionName;
-    t.work = std::move(work);
-    t.onComplete = std::move(onComplete);
-    t.timeoutMs = timeoutMs;
-    enqueue(std::move(t));
-}
-
-void FunctionRunner::enqueueCapabilityCall(const std::string& capabilityName,
-                                          std::function<nlohmann::json()> work,
-                                          std::function<void(const nlohmann::json&)> onComplete,
-                                          uint32_t timeoutMs)
-{
-    Task t;
-    t.name = capabilityName;
-    t.work = std::move(work);
-    t.onComplete = std::move(onComplete);
-    t.timeoutMs = timeoutMs;
-    enqueue(std::move(t));
-}
-
-void FunctionRunner::workerLoop()
-{
-    const uint32_t baseBackoffMs = 100;
-    while (running_) {
-        auto opt = queue_.pop();
-        if (!opt.has_value())
-            continue;
-        Task task = std::move(opt.value());
-        if (!running_)
-            break;
-
-        // Rate limiting: if rateLimitMs > 0, ensure enough time has passed since last call
-        if (task.rateLimitMs > 0) {
-            TimePoint last;
-            {
-                std::lock_guard<std::mutex> lock(lastCalledMutex_);
-                auto it = lastCalledMap_.find(task.name);
-                if (it != lastCalledMap_.end()) last = it->second;
-            }
-            if (last != TimePoint::min()) {
-                auto now = std::chrono::system_clock::now();
-                auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last).count();
-                if (elapsed < (int)task.rateLimitMs) {
-                    uint32_t waitMs = task.rateLimitMs - static_cast<uint32_t>(elapsed);
-                    if (task.timeoutMs > 0 && waitMs >= task.timeoutMs) {
-                        // Not enough time before timeout: reply with rate_limited error
-                        if (task.onComplete) {
-                            try { task.onComplete(nlohmann::json({{"error", "rate_limited"}})); } catch(...){}
-                        }
-                        continue;
-                    }
-                    // Requeue the task to the tail so other tasks can proceed.
-                    // We avoid busy-waiting by sleeping a short amount here before
-                    // continuing; the task has been requeued so another worker may
-                    // pick it later.
-                    queue_.push(task);
-                    continue; // take next task
-                }
-            }
-        }
-
-        nlohmann::json lastError = nlohmann::json();
-        bool success = false;
-        int totalAttempts = std::max(1, task.retryLimit + 1);
-        for (int attempt = 1; attempt <= totalAttempts && running_; ++attempt) {
-            task.attempt = attempt;
-            try {
-                if (task.timeoutMs > 0) {
-                    // Run the work asynchronously and wait for timeout
-                    auto fut = std::async(std::launch::async, task.work);
-                    if (fut.wait_for(std::chrono::milliseconds(task.timeoutMs)) == std::future_status::ready) {
-                        nlohmann::json result = fut.get();
-                        // Treat presence of "error" key as failure
-                        if (result.is_object() && result.contains("error")) {
-                            lastError = result;
-                        } else {
-                            // success
-                            // record last-called
-                            {
-                                std::lock_guard<std::mutex> lock(lastCalledMutex_);
-                                lastCalledMap_[task.name] = std::chrono::system_clock::now();
-                            }
-                            if (task.onComplete) {
-                                try { task.onComplete(result); } catch(...){}
-                            }
-                            success = true;
-                            break;
-                        }
-                    } else {
-                        // timeout
-                        lastError = nlohmann::json({{"error", "timeout"}, {"attempt", attempt}});
-                    }
-                } else {
-                    // no timeout specified: execute directly
-                    nlohmann::json result = task.work();
-                    if (result.is_object() && result.contains("error")) {
-                        lastError = result;
-                    } else {
-                        std::lock_guard<std::mutex> lock(lastCalledMutex_);
-                        lastCalledMap_[task.name] = std::chrono::system_clock::now();
-                        if (task.onComplete) {
-                            try { task.onComplete(result); } catch(...){}
-                        }
-                        success = true;
-                        break;
-                    }
-                }
-            } catch (const std::exception& e) {
-                lastError = nlohmann::json({{"error", std::string("exception: ") + e.what()}, {"attempt", attempt}});
-            } catch (...) {
-                lastError = nlohmann::json({{"error", "unknown_exception"}, {"attempt", attempt}});
-            }
-
-            // If we get here, we had an error. If not the last attempt, backoff then retry.
-            if (attempt < totalAttempts) {
-                uint32_t backoff = baseBackoffMs * (1u << (attempt - 1));
-                // don't exceed timeoutMs if provided
-                if (task.timeoutMs > 0 && backoff > task.timeoutMs) backoff = task.timeoutMs;
-                std::this_thread::sleep_for(std::chrono::milliseconds(backoff));
-            }
-        }
-
-        if (!success) {
-            if (task.onComplete) {
-                try { task.onComplete(lastError.is_null() ? nlohmann::json({{"error", "failed"}}) : lastError); } catch(...){}
-            }
-        }
-        // If we reach here, the task has been processed (success or failure).
-        // We should sleep a bit to avoid busy-waiting.
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
-}
+// FunctionRunner implementation moved to separate compilation unit (function_runner_impl.cpp)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FunctionSpec::FunctionSpec()
-    : name(""), appName(""), version(""), description(""), humanReadableName(""),
-      timeoutMs(4000), rateLimit(0), retryLimit(3), lastCalled(TimePoint::min()), enabled(true)
-{
-}
-
-FunctionSpec::FunctionSpec(const FunctionSpec& other)
-    : name(other.name), appName(other.appName), version(other.version),
-      description(other.description), humanReadableName(other.humanReadableName),
-      parameters(other.parameters), onComplete(other.onComplete), timeoutMs(other.timeoutMs),
-      rateLimit(other.rateLimit), retryLimit(other.retryLimit), lastCalled(other.lastCalled),
-      enabled(other.enabled)
-{
-}
-
-FunctionSpec& FunctionSpec::operator=(const FunctionSpec& other)
-{
-    if (this != &other) {
-        name = other.name;
-        appName = other.appName;
-        version = other.version;
-        description = other.description;
-        humanReadableName = other.humanReadableName;
-        parameters = other.parameters;
-        onComplete = other.onComplete;
-        timeoutMs = other.timeoutMs;
-        rateLimit = other.rateLimit;
-        retryLimit = other.retryLimit;
-        lastCalled = other.lastCalled;
-        enabled = other.enabled;
-    }
-    return *this;
-}
-
-FunctionSpec::FunctionSpec(FunctionSpec&& other) noexcept
-    : name(std::move(other.name)), appName(std::move(other.appName)), version(std::move(other.version)),
-      description(std::move(other.description)), humanReadableName(std::move(other.humanReadableName)),
-      parameters(std::move(other.parameters)), onComplete(std::move(other.onComplete)), timeoutMs(other.timeoutMs),
-      rateLimit(other.rateLimit), retryLimit(other.retryLimit), lastCalled(std::move(other.lastCalled)),
-      enabled(other.enabled)
-{
-}
-
-FunctionSpec& FunctionSpec::operator=(FunctionSpec&& other)
-{
-    if (this != &other) {
-        name = std::move(other.name);
-        appName = std::move(other.appName);
-        version = std::move(other.version);
-        description = std::move(other.description);
-        humanReadableName = std::move(other.humanReadableName);
-        parameters = std::move(other.parameters);
-        onComplete = std::move(other.onComplete);
-        timeoutMs = other.timeoutMs;
-        rateLimit = other.rateLimit;
-        retryLimit = other.retryLimit;
-        lastCalled = std::move(other.lastCalled);
-        enabled = other.enabled;
-    }
-    return *this;
-}
-
-nlohmann::json FunctionSpec::toJson() const
-{
-    nlohmann::json j;
-    j["name"] = name;
-    j["description"] = description;
-    j["parameters"] = nlohmann::json::array();
-    for (const auto& param : parameters) {
-        nlohmann::json paramJson;
-        paramJson["name"] = param.name;
-        paramJson["type"] = param.type;
-        paramJson["description"] = param.description;
-        paramJson["required"] = param.required;
-        j["parameters"].push_back(paramJson);
-    }
-    j["timeoutMs"] = timeoutMs;
-    return j;
-}
+// FunctionSpec implementations moved to specs_impl.cpp
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 CapabilitySpec::CapabilitySpec()
@@ -495,13 +231,31 @@ void FunctionRegistry::loadCapabilityManifests(const std::vector<std::string>& p
                                 try {
                                     std::ifstream ifs(f.path());
                                     nlohmann::json j = nlohmann::json::parse(ifs);
-                                    CapabilitySpec spec = FunctionUtils::capabilityFromJson(j);
-                                    // If entry not set, default to dir name (app id)
-                                    if (spec.name.empty()) continue;
-                                    if (spec.action == nullptr && spec.type == "rpc" && spec.entry.empty()) {
-                                        spec.entry = dir.path().filename().string();
-                                    }
-                                    registerCapability(spec);
+                                CapabilitySpec spec = FunctionUtils::capabilityFromJson(j);
+                                // If entry not set, default to dir name (app id)
+                                if (spec.name.empty()) continue;
+                                if (spec.action == nullptr && spec.type == "rpc" && spec.entry.empty()) {
+                                    spec.entry = dir.path().filename().string();
+                                }
+                                // Bind known core capabilities to CORE implementations
+                                if (spec.type == "core" && spec.name == "core.play_sound") {
+                                    spec.action = [spec](const nlohmann::json& args) {
+                                        try {
+                                            std::string file = args.value("file", "");
+                                            double volume = args.value("volume", 1.0);
+                                            CubeLog::info("core.play_sound invoked. file=" + file + ", volume=" + std::to_string(volume));
+                                            // Basic behavior: enable audio output. Real file playback
+                                            // is TODO in AudioOutput. For now, ensure audio is started
+                                            // and unmute.
+                                            // AudioOutput::setSound(true);
+                                            // AudioOutput::start();
+                                            // TODO: actually load and play `file` at specified `volume`.
+                                        } catch (const std::exception& e) {
+                                            CubeLog::error(std::string("core.play_sound action exception: ") + e.what());
+                                        }
+                                    };
+                                }
+                                registerCapability(spec);
                                 } catch (const std::exception& e) {
                                     CubeLog::error(std::string("Failed to load capability manifest: ") + e.what());
                                 }
@@ -520,6 +274,21 @@ void FunctionRegistry::loadCapabilityManifests(const std::vector<std::string>& p
                         std::ifstream ifs(f.path());
                         nlohmann::json j = nlohmann::json::parse(ifs);
                         CapabilitySpec spec = FunctionUtils::capabilityFromJson(j);
+                        // Bind known core capabilities
+                        if (spec.type == "core" && spec.name == "core.play_sound") {
+                            spec.action = [spec](const nlohmann::json& args) {
+                                try {
+                                    std::string file = args.value("file", "");
+                                    double volume = args.value("volume", 1.0);
+                                    CubeLog::info("core.play_sound invoked. file=" + file + ", volume=" + std::to_string(volume));
+                                    // AudioOutput::setSound(true);
+                                    // AudioOutput::start();
+                                    // TODO: actually load and play `file` at specified `volume`.
+                                } catch (const std::exception& e) {
+                                    CubeLog::error(std::string("core.play_sound action exception: ") + e.what());
+                                }
+                            };
+                        }
                         registerCapability(spec);
                     } catch (const std::exception& e) {
                         CubeLog::error(std::string("Failed to load capability manifest: ") + e.what());
@@ -987,63 +756,6 @@ HttpEndPointData_t FunctionRegistry::getHttpEndpointData()
     return endpoints;
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-namespace FunctionUtils {
-    // Helper to convert a JSON object to a FunctionSpec
-    FunctionSpec specFromJson(const nlohmann::json& j)
-    {
-        FunctionSpec spec;
-        spec.name = j.at("name").get<std::string>();
-        spec.description = j.value("description", "");
-        spec.timeoutMs = j.value("timeout_ms", 4000);
-    for (const auto& param : j.at("parameters")) {
-        ParamSpec p;
-        p.name = param.at("name").get<std::string>();
-        p.type = param.at("type").get<std::string>();
-        p.description = param.value("description", "");
-        p.required = param.value("required", true);
-        spec.parameters.push_back(p);
-    }
-        // If a callback field is provided in JSON, we still cannot synthesize an
-        // onComplete function here — onComplete is intended to be set by the
-        // registering code to receive async results. Provide a default that logs.
-        spec.onComplete = [j](const nlohmann::json& result) {
-            CubeLog::error("Function onComplete not implemented for: " + j.at("name").get<std::string>());
-            CubeLog::debug("Result: " + result.dump());
-        };
-        spec.appName = j.value("app_name", "");
-        spec.version = j.value("version", "1.0");
-        spec.humanReadableName = j.value("human_readable_name", "");
-        spec.rateLimit = j.value("rate_limit", 0);
-        spec.retryLimit = j.value("retry_limit", 3);
-        spec.lastCalled = TimePoint::min();
-    spec.enabled = j.value("enabled", true);
-    return spec;
-}
-    CapabilitySpec capabilityFromJson(const nlohmann::json& j)
-    {
-        CapabilitySpec spec;
-        spec.name = j.value("name", "");
-        spec.description = j.value("description", "");
-        spec.timeoutMs = j.value("timeout_ms", 2000);
-        spec.retryLimit = j.value("retry_limit", 0);
-        spec.enabled = j.value("enabled", true);
-        spec.type = j.value("type", "core");
-        spec.entry = j.value("entry", "");
-        if (j.contains("parameters")) {
-            for (const auto& param : j.at("parameters")) {
-                ParamSpec p;
-                p.name = param.at("name").get<std::string>();
-                p.type = param.at("type").get<std::string>();
-                p.description = param.value("description", "");
-                p.required = param.value("required", true);
-                spec.parameters.push_back(p);
-            }
-        }
-        // action to be bound by registry depending on type
-        spec.action = nullptr;
-        return spec;
-    }
 }
 
-}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

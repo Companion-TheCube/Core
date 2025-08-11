@@ -22,21 +22,21 @@
 - [src/api/authentication.cpp:156] : add checkAuth function that only takes the app_id and returns bool if the app_id has been allowed by the user
 - [src/api/builder.cpp:148] : refactor to get rid of staticFiles vector. update: maybe not?
 - [src/apps/appsDBManager.cpp:110] : add the interfaces for HTTP server
-- [src/apps/appsManager.cpp:1181] : Implement checking if app update is available
-- [src/apps/appsManager.cpp:1194] : Implement checking if app update is required
-- [src/apps/appsManager.cpp:1207] : Implement checking if app update failed
-- [src/apps/appsManager.cpp:1220] : Implement checking if app update check is overdue
-- [src/apps/appsManager.cpp:1268] : Implement getting app memory usage
-- [src/apps/appsManager.cpp:1275] : Implement getting app version
-- [src/apps/appsManager.cpp:1296] : Implement checking if native apps are running
-- [src/apps/appsManager.cpp:1328] : determine if any processes are running
-- [src/apps/appsManager.cpp:134] : these methods not be needed here since nothing should be running yet
-- [src/apps/appsManager.cpp:1363] : Implement app installation
-- [src/apps/appsManager.cpp:1370] : Implement app uninstallation
-- [src/apps/appsManager.cpp:1377] : Implement app update
-- [src/apps/appsManager.cpp:1384] : Implement app installation check
-- [src/apps/appsManager.cpp:162] : check is app is enabled before starting. each app has an "enabled" flag in the database.
-- [src/apps/appsManager.cpp:319] : check that app is enabled before starting
+- [src/apps/appsManager.cpp:1189] : Implement checking if app update is available
+- [src/apps/appsManager.cpp:1202] : Implement checking if app update is required
+- [src/apps/appsManager.cpp:1215] : Implement checking if app update failed
+- [src/apps/appsManager.cpp:1228] : Implement checking if app update check is overdue
+- [src/apps/appsManager.cpp:1276] : Implement getting app memory usage
+- [src/apps/appsManager.cpp:1283] : Implement getting app version
+- [src/apps/appsManager.cpp:1304] : Implement checking if native apps are running
+- [src/apps/appsManager.cpp:1336] : determine if any processes are running
+- [src/apps/appsManager.cpp:1371] : Implement app installation
+- [src/apps/appsManager.cpp:1378] : Implement app uninstallation
+- [src/apps/appsManager.cpp:1385] : Implement app update
+- [src/apps/appsManager.cpp:1392] : Implement app installation check
+- [src/apps/appsManager.cpp:142] : these methods not be needed here since nothing should be running yet
+- [src/apps/appsManager.cpp:170] : check is app is enabled before starting. each app has an "enabled" flag in the database.
+- [src/apps/appsManager.cpp:327] : check that app is enabled before starting
 - [src/apps/appsManager.cpp:36] : Go through this method by method and make sure everything makes sense. Most of this file
 - [src/apps/appsManager.cpp:38] : Finish adding method descriptions and comments
 - [src/apps/appsManager.cpp:39] : The apps manager should start all the app executables that are registered in the database
@@ -46,9 +46,10 @@
 - [src/apps/appsManager.cpp:43] : The apps manager should expose an API to start, stop, and update apps
 - [src/apps/appsManager.cpp:44] : Any app that is not found at the location specified in the database should be marked as "not installed" or removed from the database
 - [src/apps/appsManager.cpp:45] : isAppInstalled() should check once and then keep track of the installed status so that repeated calls to this method are faster and don't require filesystem accesses. Any changes to apps installed status will need to noted.
-- [src/apps/appsManager.cpp:469] : Implement updating docker apps
-- [src/apps/appsManager.cpp:473] : Implement updating native apps
+- [src/apps/appsManager.cpp:477] : Implement updating docker apps
 - [src/apps/appsManager.cpp:47] : App installation needs to be handled somehow. Apps that come from trusted sources may have scripts that need to
+- [src/apps/appsManager.cpp:481] : Implement updating native apps
+- [src/apps/appsManager.cpp:51] : When an app is installed, record its IPC socket location in the apps DB
 - [src/apps/dockerApi.cpp:34] : Go through this method by method and make sure everything makes sense. Most of this file
 - [src/apps/dockerApi.cpp:36] : Add comments and documentation to this file.
 - [src/apps/dockerApi.cpp:41] : remove this function. It is only used for debugging.
@@ -68,15 +69,22 @@
 - [src/audio/speechIn.h:85] : make sure this is thread safe
 - [src/audio/speechIn.h:91] : make sure this works
 - [src/audio/speechIn.h:92] : make sure this is thread safe
-- [src/database/cubeDB.cpp:214] : use this as an example for the mutex lock below.
-- [src/database/cubeDB.cpp:230] : fix this endpoint. It has testing data in it.
-- [src/database/cubeDB.cpp:272] : fix this endpoint. It has testing data in it.
-- [src/database/cubeDB.cpp:422] : endpoints to write:
+- [src/database/cubeDB.cpp:220] : use this as an example for the mutex lock below.
+- [src/database/cubeDB.cpp:236] : fix this endpoint. It has testing data in it.
+- [src/database/cubeDB.cpp:278] : fix this endpoint. It has testing data in it.
+- [src/database/cubeDB.cpp:428] : endpoints to write:
+- [src/database/cubeDB.cpp:55] : Ensure app installation paths and metadata include the app IPC socket
 - [src/database/cubeDB.h:79] : move these to the utils.h file
 - [src/database/db.cpp:34] : this file needs a line by line evaluation
-- [src/database/db.h:247] : make sure all the data is sanitized before being inserted into the database.
+- [src/database/db.h:145] : Add a "socket_location" TEXT column to the "apps" table so we can store
+- [src/database/db.h:253] : make sure all the data is sanitized before being inserted into the database.
 - [src/decisionEngine/cubeWhisper.cpp:40] : initialize whisper.cpp library and load model(s) in a background thread
 - [src/decisionEngine/decisions.cpp:84] :
+- [src/decisionEngine/functionRegistry.cpp:248] in AudioOutput. For now, ensure audio is started
+- [src/decisionEngine/functionRegistry.cpp:252] : actually load and play `file` at specified `volume`.
+- [src/decisionEngine/functionRegistry.cpp:286] : actually load and play `file` at specified `volume`.
+- [src/decisionEngine/functionRegistry.cpp:300] : add all the built in capabilities here. each one should have a json manifest in data/capabilities
+- [src/decisionEngine/functionRegistry.cpp:491] : implement actual JSON-RPC via asio here. For now, return an error
 - [src/decisionEngine/intentRegistry.cpp:158] : add TTS support
 - [src/decisionEngine/intentRegistry.cpp:185] : Implement this
 - [src/decisionEngine/intentRegistry.cpp:191] : This needs checks to ensure properly formatted JSON
