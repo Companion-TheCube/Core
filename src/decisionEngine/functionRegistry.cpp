@@ -143,38 +143,114 @@ void FunctionRunner::enqueueCapabilityCall(const std::string& capabilityName,
 
 void FunctionRunner::workerLoop()
 {
+    const uint32_t baseBackoffMs = 100;
     while (running_) {
         auto opt = queue_.pop();
         if (!opt.has_value())
             continue;
         Task task = std::move(opt.value());
-        // If running_ turned false while waiting, exit
         if (!running_)
             break;
 
-        nlohmann::json result;
-        try {
-            // Execute the work. In real usage this will perform JSON-RPC async calls
-            // (asio) or local capability actions. For now the work callable is
-            // responsible for performing the call and returning a JSON result.
-            result = task.work();
-        } catch (const std::exception& e) {
-            CubeLog::error(std::string("FunctionRunner worker exception: ") + e.what());
-            result = nlohmann::json({{"error", e.what()}});
-        } catch (...) {
-            CubeLog::error("FunctionRunner worker unknown exception");
-            result = nlohmann::json({{"error", "unknown exception"}});
+        // Rate limiting: if rateLimitMs > 0, ensure enough time has passed since last call
+        if (task.rateLimitMs > 0) {
+            TimePoint last;
+            {
+                std::lock_guard<std::mutex> lock(lastCalledMutex_);
+                auto it = lastCalledMap_.find(task.name);
+                if (it != lastCalledMap_.end()) last = it->second;
+            }
+            if (last != TimePoint::min()) {
+                auto now = std::chrono::system_clock::now();
+                auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last).count();
+                if (elapsed < (int)task.rateLimitMs) {
+                    uint32_t waitMs = task.rateLimitMs - static_cast<uint32_t>(elapsed);
+                    if (task.timeoutMs > 0 && waitMs >= task.timeoutMs) {
+                        // Not enough time before timeout: reply with rate_limited error
+                        if (task.onComplete) {
+                            try { task.onComplete(nlohmann::json({{"error", "rate_limited"}})); } catch(...){}
+                        }
+                        continue;
+                    }
+                    // Requeue the task to the tail so other tasks can proceed.
+                    // We avoid busy-waiting by sleeping a short amount here before
+                    // continuing; the task has been requeued so another worker may
+                    // pick it later.
+                    queue_.push(task);
+                    continue; // take next task
+                }
+            }
         }
 
-        try {
-            if (task.onComplete) {
-                task.onComplete(result);
+        nlohmann::json lastError = nlohmann::json();
+        bool success = false;
+        int totalAttempts = std::max(1, task.retryLimit + 1);
+        for (int attempt = 1; attempt <= totalAttempts && running_; ++attempt) {
+            task.attempt = attempt;
+            try {
+                if (task.timeoutMs > 0) {
+                    // Run the work asynchronously and wait for timeout
+                    auto fut = std::async(std::launch::async, task.work);
+                    if (fut.wait_for(std::chrono::milliseconds(task.timeoutMs)) == std::future_status::ready) {
+                        nlohmann::json result = fut.get();
+                        // Treat presence of "error" key as failure
+                        if (result.is_object() && result.contains("error")) {
+                            lastError = result;
+                        } else {
+                            // success
+                            // record last-called
+                            {
+                                std::lock_guard<std::mutex> lock(lastCalledMutex_);
+                                lastCalledMap_[task.name] = std::chrono::system_clock::now();
+                            }
+                            if (task.onComplete) {
+                                try { task.onComplete(result); } catch(...){}
+                            }
+                            success = true;
+                            break;
+                        }
+                    } else {
+                        // timeout
+                        lastError = nlohmann::json({{"error", "timeout"}, {"attempt", attempt}});
+                    }
+                } else {
+                    // no timeout specified: execute directly
+                    nlohmann::json result = task.work();
+                    if (result.is_object() && result.contains("error")) {
+                        lastError = result;
+                    } else {
+                        std::lock_guard<std::mutex> lock(lastCalledMutex_);
+                        lastCalledMap_[task.name] = std::chrono::system_clock::now();
+                        if (task.onComplete) {
+                            try { task.onComplete(result); } catch(...){}
+                        }
+                        success = true;
+                        break;
+                    }
+                }
+            } catch (const std::exception& e) {
+                lastError = nlohmann::json({{"error", std::string("exception: ") + e.what()}, {"attempt", attempt}});
+            } catch (...) {
+                lastError = nlohmann::json({{"error", "unknown_exception"}, {"attempt", attempt}});
             }
-        } catch (const std::exception& e) {
-            CubeLog::error(std::string("FunctionRunner onComplete exception: ") + e.what());
-        } catch (...) {
-            CubeLog::error("FunctionRunner onComplete unknown exception");
+
+            // If we get here, we had an error. If not the last attempt, backoff then retry.
+            if (attempt < totalAttempts) {
+                uint32_t backoff = baseBackoffMs * (1u << (attempt - 1));
+                // don't exceed timeoutMs if provided
+                if (task.timeoutMs > 0 && backoff > task.timeoutMs) backoff = task.timeoutMs;
+                std::this_thread::sleep_for(std::chrono::milliseconds(backoff));
+            }
         }
+
+        if (!success) {
+            if (task.onComplete) {
+                try { task.onComplete(lastError.is_null() ? nlohmann::json({{"error", "failed"}}) : lastError); } catch(...){}
+            }
+        }
+        // If we reach here, the task has been processed (success or failure).
+        // We should sleep a bit to avoid busy-waiting.
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 }
 
@@ -189,7 +265,7 @@ FunctionSpec::FunctionSpec()
 FunctionSpec::FunctionSpec(const FunctionSpec& other)
     : name(other.name), appName(other.appName), version(other.version),
       description(other.description), humanReadableName(other.humanReadableName),
-      parameters(other.parameters), callback(other.callback), timeoutMs(other.timeoutMs),
+      parameters(other.parameters), onComplete(other.onComplete), timeoutMs(other.timeoutMs),
       rateLimit(other.rateLimit), retryLimit(other.retryLimit), lastCalled(other.lastCalled),
       enabled(other.enabled)
 {
@@ -204,7 +280,7 @@ FunctionSpec& FunctionSpec::operator=(const FunctionSpec& other)
         description = other.description;
         humanReadableName = other.humanReadableName;
         parameters = other.parameters;
-        callback = other.callback;
+        onComplete = other.onComplete;
         timeoutMs = other.timeoutMs;
         rateLimit = other.rateLimit;
         retryLimit = other.retryLimit;
@@ -217,7 +293,7 @@ FunctionSpec& FunctionSpec::operator=(const FunctionSpec& other)
 FunctionSpec::FunctionSpec(FunctionSpec&& other) noexcept
     : name(std::move(other.name)), appName(std::move(other.appName)), version(std::move(other.version)),
       description(std::move(other.description)), humanReadableName(std::move(other.humanReadableName)),
-      parameters(std::move(other.parameters)), callback(std::move(other.callback)), timeoutMs(other.timeoutMs),
+      parameters(std::move(other.parameters)), onComplete(std::move(other.onComplete)), timeoutMs(other.timeoutMs),
       rateLimit(other.rateLimit), retryLimit(other.retryLimit), lastCalled(std::move(other.lastCalled)),
       enabled(other.enabled)
 {
@@ -232,7 +308,7 @@ FunctionSpec& FunctionSpec::operator=(FunctionSpec&& other)
         description = std::move(other.description);
         humanReadableName = std::move(other.humanReadableName);
         parameters = std::move(other.parameters);
-        callback = std::move(other.callback);
+        onComplete = std::move(other.onComplete);
         timeoutMs = other.timeoutMs;
         rateLimit = other.rateLimit;
         retryLimit = other.retryLimit;
@@ -261,16 +337,88 @@ nlohmann::json FunctionSpec::toJson() const
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+CapabilitySpec::CapabilitySpec()
+    : name(""), description(""), timeoutMs(2000), retryLimit(3), lastCalled(TimePoint::min()), enabled(true)
+{
+}
+
+CapabilitySpec::CapabilitySpec(const CapabilitySpec& other)
+    : name(other.name), description(other.description), action(other.action), timeoutMs(other.timeoutMs),
+      retryLimit(other.retryLimit), lastCalled(other.lastCalled), enabled(other.enabled)
+{
+}
+
+CapabilitySpec& CapabilitySpec::operator=(const CapabilitySpec& other)
+{
+    if (this != &other) {
+        name = other.name;
+        description = other.description;
+        action = other.action;
+        timeoutMs = other.timeoutMs;
+        retryLimit = other.retryLimit;
+        lastCalled = other.lastCalled;
+        enabled = other.enabled;
+    }
+    return *this;
+}
+
+CapabilitySpec::CapabilitySpec(CapabilitySpec&& other) noexcept
+    : name(std::move(other.name)), description(std::move(other.description)), action(std::move(other.action)),
+      timeoutMs(other.timeoutMs), retryLimit(other.retryLimit), lastCalled(std::move(other.lastCalled)),
+      enabled(other.enabled)
+{
+}
+
+CapabilitySpec& CapabilitySpec::operator=(CapabilitySpec&& other)
+{
+    if (this != &other) {
+        name = std::move(other.name);
+        description = std::move(other.description);
+        action = std::move(other.action);
+        timeoutMs = other.timeoutMs;
+        retryLimit = other.retryLimit;
+        lastCalled = std::move(other.lastCalled);
+        enabled = other.enabled;
+    }
+    return *this;
+}
+
+CapabilitySpec::~CapabilitySpec()
+{
+    // Nothing to do
+}
+
+nlohmann::json CapabilitySpec::toJson() const
+{
+    nlohmann::json j;
+    j["name"] = name;
+    j["description"] = description;
+    j["timeoutMs"] = timeoutMs;
+    return j;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FunctionRegistry::FunctionRegistry()
 {
     // Register the FunctionRegistry with the API builder
     this->registerInterface();
+    // Start the function runner with default number of threads
+    try {
+        runner_.start();
+    } catch (...) {
+        CubeLog::error("Failed to start FunctionRunner");
+    }
 }
 
 FunctionRegistry::~FunctionRegistry()
 {
-    // Destructor logic if needed
+    // Stop the runner to ensure clean shutdown
+    try {
+        runner_.stop();
+    } catch (...) {
+        CubeLog::error("Exception while stopping FunctionRunner");
+    }
 }
 
 bool FunctionRegistry::registerFunc(const FunctionSpec& spec)
@@ -320,6 +468,118 @@ bool FunctionRegistry::registerFunc(const FunctionSpec& spec)
     return true;
 }
 
+void FunctionRegistry::runFunctionAsync(const std::string& functionName,
+                                        const nlohmann::json& args,
+                                        std::function<void(const nlohmann::json&)> onComplete)
+{
+    FunctionSpec spec;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto it = funcs_.find(functionName);
+        if (it == funcs_.end()) {
+            if (onComplete) {
+                onComplete(nlohmann::json({{"error", "function_not_found"}}));
+            }
+            return;
+        }
+        spec = it->second; // copy
+    }
+
+    if (!spec.enabled) {
+        if (onComplete) onComplete(nlohmann::json({{"error", "function_disabled"}}));
+        return;
+    }
+
+    // Prepare a task. The actual function invocation (e.g., JSON-RPC) is not
+    // implemented here; the `work` callable should perform the RPC and return
+    // a JSON result. For now we use a placeholder that returns an error
+    // indicating the function is unimplemented. After the work completes we
+    // call both the function's registered `onComplete` (if any) and the
+    // caller-provided `onComplete`.
+    FunctionRunner::Task t;
+    t.name = functionName;
+    t.timeoutMs = spec.timeoutMs;
+    t.retryLimit = spec.retryLimit;
+    t.rateLimitMs = spec.rateLimit; // interpret spec.rateLimit as minimum ms between calls
+    t.attempt = 0;
+    // Build work callable that performs the RPC via FunctionRegistry::performFunctionRpc
+    t.work = [this, spec, args]() -> nlohmann::json {
+        try {
+            return this->performFunctionRpc(spec, args);
+        } catch (const std::exception& e) {
+            CubeLog::error(std::string("performFunctionRpc exception: ") + e.what());
+            return nlohmann::json({{"error", std::string("exception: ") + e.what()}});
+        } catch (...) {
+            CubeLog::error("performFunctionRpc unknown exception");
+            return nlohmann::json({{"error", "unknown_exception"}});
+        }
+    };
+    // chain the spec's onComplete and the caller's onComplete
+    auto specOnComplete = spec.onComplete;
+    t.onComplete = [specOnComplete, onComplete](const nlohmann::json& result) {
+        try {
+            if (specOnComplete) specOnComplete(result);
+        } catch (const std::exception& e) {
+            CubeLog::error(std::string("spec onComplete exception: ") + e.what());
+        } catch (...) {
+            CubeLog::error("spec onComplete unknown exception");
+        }
+        try {
+            if (onComplete) onComplete(result);
+        } catch (const std::exception& e) {
+            CubeLog::error(std::string("caller onComplete exception: ") + e.what());
+        } catch (...) {
+            CubeLog::error("caller onComplete unknown exception");
+        }
+    };
+    runner_.enqueue(std::move(t));
+}
+
+void FunctionRegistry::runCapabilityAsync(const std::string& capabilityName,
+                                          const nlohmann::json& args,
+                                          std::function<void(const nlohmann::json&)> onComplete)
+{
+    CapabilitySpec cap;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto it = capabilities_.find(capabilityName);
+        if (it == capabilities_.end()) {
+            if (onComplete) {
+                onComplete(nlohmann::json({{"error", "capability_not_found"}}));
+            }
+            return;
+        }
+        cap = it->second; // copy
+    }
+
+    if (!cap.enabled) {
+        if (onComplete) onComplete(nlohmann::json({{"error", "capability_disabled"}}));
+        return;
+    }
+
+    auto action = cap.action;
+    FunctionRunner::Task t;
+    t.name = capabilityName;
+    t.timeoutMs = cap.timeoutMs;
+    t.retryLimit = cap.retryLimit;
+    t.rateLimitMs = 0;
+    t.work = [action, args]() -> nlohmann::json {
+        try {
+            if (action) {
+                action(args);
+                return nlohmann::json({{"status", "ok"}});
+            }
+            return nlohmann::json({{"error", "no_action"}});
+        } catch (const std::exception& e) {
+            return nlohmann::json({{"error", std::string("action_exception: ") + e.what()}});
+        } catch (...) {
+            return nlohmann::json({{"error", "action_unknown_exception"}});
+        }
+    };
+    t.onComplete = onComplete;
+    runner_.enqueue(std::move(t));
+}
+
 const FunctionSpec* FunctionRegistry::find(const std::string& name) const
 {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -338,6 +598,17 @@ std::vector<nlohmann::json> FunctionRegistry::catalogueJson() const
         catalogue.push_back(spec.toJson());
     }
     return catalogue;
+}
+
+// Stub for performing the RPC call to the app that implements the function.
+// TODO: implement actual JSON-RPC via asio here. For now, return an error
+// JSON and log so callers receive a predictable response.
+nlohmann::json FunctionRegistry::performFunctionRpc(const FunctionSpec& spec, const nlohmann::json& args)
+{
+    CubeLog::info("performFunctionRpc called for: " + spec.name + " with args: " + args.dump());
+    // Placeholder - replace with real RPC implementation that talks to the app's
+    // IPC socket (unix socket or TCP) using asio and a JSON-RPC protocol.
+    return nlohmann::json({{"error", "rpc_not_implemented"}, {"function", spec.name}});
 }
 
 HttpEndPointData_t FunctionRegistry::getHttpEndpointData()
@@ -451,25 +722,13 @@ namespace FunctionUtils {
             p.required = param.value("required", true);
             spec.parameters.push_back(p);
         }
-        if (j.contains("callback")) {
-            spec.callback = [j](const nlohmann::json& args) -> nlohmann::json {
-                // Placeholder for actual callback logic
-                // TODO: Implement the actual function logic here
-                CubeLog::error("Function callback not implemented for: " + j.at("name").get<std::string>());
-                CubeLog::error("Function args: " + args.dump());
-                // Return an empty JSON object or handle as needed
-                // This is where you would implement the actual function logic
-                // For now, we just log an error and return an empty object
-                return nlohmann::json();
-
-                // Here we need to generate the call to the json-rpc IPC service. This is not implemented yet.
-            };
-        } else {
-            spec.callback = [](const nlohmann::json& args) -> nlohmann::json {
-                CubeLog::error("No callback defined for function");
-                return nlohmann::json();
-            };
-        }
+        // If a callback field is provided in JSON, we still cannot synthesize an
+        // onComplete function here — onComplete is intended to be set by the
+        // registering code to receive async results. Provide a default that logs.
+        spec.onComplete = [j](const nlohmann::json& result) {
+            CubeLog::error("Function onComplete not implemented for: " + j.at("name").get<std::string>());
+            CubeLog::debug("Result: " + result.dump());
+        };
         spec.appName = j.value("app_name", "");
         spec.version = j.value("version", "1.0");
         spec.humanReadableName = j.value("human_readable_name", "");

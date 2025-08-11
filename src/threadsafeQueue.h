@@ -48,7 +48,6 @@ public:
             size_ = DEFAULT_QUEUE_SIZE;
         if(size_ > USHRT_MAX)
             size_ = USHRT_MAX;
-        queue_.reserve(size_);
     }
     // Add data to the queue
     void push(const T& data) {

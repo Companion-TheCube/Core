@@ -77,7 +77,6 @@
 - [src/database/db.h:247] : make sure all the data is sanitized before being inserted into the database.
 - [src/decisionEngine/cubeWhisper.cpp:40] : initialize whisper.cpp library and load model(s) in a background thread
 - [src/decisionEngine/decisions.cpp:84] :
-- [src/decisionEngine/functionRegistry.cpp:350] : Implement the actual function logic here
 - [src/decisionEngine/intentRegistry.cpp:158] : add TTS support
 - [src/decisionEngine/intentRegistry.cpp:185] : Implement this
 - [src/decisionEngine/intentRegistry.cpp:191] : This needs checks to ensure properly formatted JSON

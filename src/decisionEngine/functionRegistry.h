@@ -52,6 +52,7 @@ SOFTWARE.
 #include <thread>
 #include <unordered_map>
 #include <vector>
+#include <future>
 #ifndef LOGGER_H
 #include <logger.h>
 #endif
@@ -63,6 +64,8 @@ SOFTWARE.
 
 namespace DecisionEngine {
 using TimePoint = std::chrono::system_clock::time_point;
+
+class FunctionRunner;
 
 // Parameter specification (name, type, description, required)
 struct ParamSpec {
@@ -83,13 +86,17 @@ struct FunctionSpec {
     FunctionSpec& operator=(FunctionSpec&&);
 
     ~FunctionSpec() = default;
+    // Function names must be unique across the registry.
     std::string name;
     std::string appName;
     std::string version;
     std::string description;
     std::string humanReadableName; // Optional, for better UX
     std::vector<ParamSpec> parameters;
-    std::function<nlohmann::json(const nlohmann::json& args)> callback;
+    // Optional completion callback: invoked to deliver async results back to the originator.
+    // This is used when the function cannot return data synchronously and needs to push
+    // results asynchronously (e.g., streaming or callback-based RPC).
+    std::function<void(const nlohmann::json& result)> onComplete;
     uint32_t timeoutMs { 4000 };
     uint32_t rateLimit { 0 }; // 0 means no rate limit
     int retryLimit { 3 }; // Number of retries on failure
@@ -105,6 +112,12 @@ struct FunctionSpec {
 // They are not functions in the traditional sense, but rather actions that can be triggered by the
 // decision engine based on user input or other triggers.
 struct CapabilitySpec {
+    CapabilitySpec();
+    CapabilitySpec(const CapabilitySpec&);
+    CapabilitySpec& operator=(const CapabilitySpec&);
+    CapabilitySpec(CapabilitySpec&&) noexcept;
+    CapabilitySpec& operator=(CapabilitySpec&&);
+    ~CapabilitySpec();
     std::string name; // Unique name for the capability
     std::string description; // Brief description of what the capability does
     std::function<void(const nlohmann::json& args)> action; // Action to perform, takes JSON args
@@ -116,30 +129,12 @@ struct CapabilitySpec {
     nlohmann::json toJson() const;
 };
 
-// Singleton registry: stores FunctionSpec by name and exposes a JSON catalogue
-class FunctionRegistry: public AutoRegisterAPI<FunctionRegistry> {
-public:
-    FunctionRegistry();
-    ~FunctionRegistry();
-
-    bool registerFunc(const FunctionSpec& spec);
-    const FunctionSpec* find(const std::string& name) const;
-    std::vector<nlohmann::json> catalogueJson() const;
-
-    constexpr std::string getInterfaceName() const override { return "FunctionRegistry"; }
-    HttpEndPointData_t getHttpEndpointData() override;
-
-private:
-    std::unordered_map<std::string, FunctionSpec> funcs_;
-    std::unordered_map<std::string, CapabilitySpec> capabilities_;
-    mutable std::mutex mutex_;
-};
 
 // Function runner: executes a function by name with given parameters.
 // This class is responsible for executing the function and handling any errors that may occur during execution.
 // It will also handle retries and rate limiting.
 // If the function is not enabled, it will return an error.
-class FunctionRunner{
+class FunctionRunner {
     // We'll need a thread pool to execute functions asynchronously
 public:
     // A generic task: the worker will call `work()` and then `onComplete(result)` if provided.
@@ -148,6 +143,10 @@ public:
         std::function<void(const nlohmann::json&)> onComplete;
         uint32_t timeoutMs { 0 };
         std::string name; // optional, for logging
+        // Retry and rate limit settings (populated by the enqueuer)
+        int retryLimit { 0 };
+        uint32_t rateLimitMs { 0 }; // minimum milliseconds between calls for this name; 0 = no limit
+        int attempt { 0 };
     };
 
     FunctionRunner();
@@ -166,14 +165,14 @@ public:
     // Convenience helpers for function/capability calls:
     // - `work` should perform the actual call and return a JSON result.
     void enqueueFunctionCall(const std::string& functionName,
-                             std::function<nlohmann::json()> work,
-                             std::function<void(const nlohmann::json&)> onComplete = nullptr,
-                             uint32_t timeoutMs = 0);
+        std::function<nlohmann::json()> work,
+        std::function<void(const nlohmann::json&)> onComplete = nullptr,
+        uint32_t timeoutMs = 0);
 
     void enqueueCapabilityCall(const std::string& capabilityName,
-                               std::function<nlohmann::json()> work,
-                               std::function<void(const nlohmann::json&)> onComplete = nullptr,
-                               uint32_t timeoutMs = 0);
+        std::function<nlohmann::json()> work,
+        std::function<void(const nlohmann::json&)> onComplete = nullptr,
+        uint32_t timeoutMs = 0);
 
 private:
     void workerLoop();
@@ -183,6 +182,45 @@ private:
     std::atomic<bool> running_ { false };
     std::mutex startStopMutex_;
     size_t numThreads_ { 0 };
+    // Track last-called timestamps for rate limiting per function/capability name
+    std::unordered_map<std::string, TimePoint> lastCalledMap_;
+    std::mutex lastCalledMutex_;
+};
+
+
+// Stores FunctionSpec by name and exposes a JSON catalogue
+class FunctionRegistry : public AutoRegisterAPI<FunctionRegistry> {
+public:
+    FunctionRegistry();
+    ~FunctionRegistry();
+
+    bool registerFunc(const FunctionSpec& spec);
+    const FunctionSpec* find(const std::string& name) const;
+    std::vector<nlohmann::json> catalogueJson() const;
+
+    // Asynchronous helpers: enqueue a function or capability call.
+    // `onComplete` will be invoked on the worker thread after the call completes.
+    void runFunctionAsync(const std::string& functionName,
+                          const nlohmann::json& args,
+                          std::function<void(const nlohmann::json&)> onComplete = nullptr);
+
+    void runCapabilityAsync(const std::string& capabilityName,
+                            const nlohmann::json& args,
+                            std::function<void(const nlohmann::json&)> onComplete = nullptr);
+
+    constexpr std::string getInterfaceName() const override { return "FunctionRegistry"; }
+    HttpEndPointData_t getHttpEndpointData() override;
+
+private:
+    std::unordered_map<std::string, FunctionSpec> funcs_;
+    std::unordered_map<std::string, CapabilitySpec> capabilities_;
+    mutable std::mutex mutex_;
+    // Worker pool for executing functions/capabilities
+    FunctionRunner runner_;
+    // Perform the function RPC. Implemented in the cpp file. This is where
+    // JSON-RPC / asio integration should live; currently it's a stub that
+    // returns an error JSON and logs a message.
+    nlohmann::json performFunctionRpc(const FunctionSpec& spec, const nlohmann::json& args);
 };
 
 }
