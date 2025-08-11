@@ -65,6 +65,121 @@ namespace FunctionUtils {
     FunctionSpec specFromJson(const nlohmann::json& j);
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// FunctionRunner implementation (stubbed)
+FunctionRunner::FunctionRunner()
+{
+}
+
+FunctionRunner::~FunctionRunner()
+{
+    stop();
+}
+
+void FunctionRunner::start(size_t numThreads)
+{
+    std::lock_guard<std::mutex> guard(startStopMutex_);
+    if (running_)
+        return;
+    if (numThreads == 0)
+        numThreads = 1;
+    numThreads_ = numThreads;
+    running_ = true;
+    workers_.reserve(numThreads_);
+    for (size_t i = 0; i < numThreads_; ++i) {
+        workers_.emplace_back([this]() { this->workerLoop(); });
+    }
+}
+
+void FunctionRunner::stop()
+{
+    std::lock_guard<std::mutex> guard(startStopMutex_);
+    if (!running_)
+        return;
+    running_ = false;
+    // push empty tasks to wake workers
+    for (size_t i = 0; i < workers_.size(); ++i) {
+        Task t;
+        t.work = []() { return nlohmann::json(); };
+        queue_.push(t);
+    }
+    for (auto& th : workers_) {
+        if (th.joinable())
+            th.join();
+    }
+    workers_.clear();
+}
+
+void FunctionRunner::enqueue(Task&& task)
+{
+    queue_.push(std::move(task));
+}
+
+void FunctionRunner::enqueueFunctionCall(const std::string& functionName,
+                                        std::function<nlohmann::json()> work,
+                                        std::function<void(const nlohmann::json&)> onComplete,
+                                        uint32_t timeoutMs)
+{
+    Task t;
+    t.name = functionName;
+    t.work = std::move(work);
+    t.onComplete = std::move(onComplete);
+    t.timeoutMs = timeoutMs;
+    enqueue(std::move(t));
+}
+
+void FunctionRunner::enqueueCapabilityCall(const std::string& capabilityName,
+                                          std::function<nlohmann::json()> work,
+                                          std::function<void(const nlohmann::json&)> onComplete,
+                                          uint32_t timeoutMs)
+{
+    Task t;
+    t.name = capabilityName;
+    t.work = std::move(work);
+    t.onComplete = std::move(onComplete);
+    t.timeoutMs = timeoutMs;
+    enqueue(std::move(t));
+}
+
+void FunctionRunner::workerLoop()
+{
+    while (running_) {
+        auto opt = queue_.pop();
+        if (!opt.has_value())
+            continue;
+        Task task = std::move(opt.value());
+        // If running_ turned false while waiting, exit
+        if (!running_)
+            break;
+
+        nlohmann::json result;
+        try {
+            // Execute the work. In real usage this will perform JSON-RPC async calls
+            // (asio) or local capability actions. For now the work callable is
+            // responsible for performing the call and returning a JSON result.
+            result = task.work();
+        } catch (const std::exception& e) {
+            CubeLog::error(std::string("FunctionRunner worker exception: ") + e.what());
+            result = nlohmann::json({{"error", e.what()}});
+        } catch (...) {
+            CubeLog::error("FunctionRunner worker unknown exception");
+            result = nlohmann::json({{"error", "unknown exception"}});
+        }
+
+        try {
+            if (task.onComplete) {
+                task.onComplete(result);
+            }
+        } catch (const std::exception& e) {
+            CubeLog::error(std::string("FunctionRunner onComplete exception: ") + e.what());
+        } catch (...) {
+            CubeLog::error("FunctionRunner onComplete unknown exception");
+        }
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FunctionSpec::FunctionSpec()
     : name(""), appName(""), version(""), description(""), humanReadableName(""),
       timeoutMs(4000), rateLimit(0), retryLimit(3), lastCalled(TimePoint::min()), enabled(true)

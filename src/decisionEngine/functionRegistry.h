@@ -138,12 +138,51 @@ private:
 // Function runner: executes a function by name with given parameters.
 // This class is responsible for executing the function and handling any errors that may occur during execution.
 // It will also handle retries and rate limiting.
-// The function runner will also handle the emotional score ranges and matching params/phrases.
-// It will check if the function is enabled based on the emotional score ranges and matching params/phrases.
 // If the function is not enabled, it will return an error.
 class FunctionRunner{
     // We'll need a thread pool to execute functions asynchronously
-    
+public:
+    // A generic task: the worker will call `work()` and then `onComplete(result)` if provided.
+    struct Task {
+        std::function<nlohmann::json()> work;
+        std::function<void(const nlohmann::json&)> onComplete;
+        uint32_t timeoutMs { 0 };
+        std::string name; // optional, for logging
+    };
+
+    FunctionRunner();
+    ~FunctionRunner();
+
+    // Start the worker pool with `numThreads` workers. Safe to call multiple
+    // times; subsequent calls will be no-ops while running.
+    void start(size_t numThreads = std::thread::hardware_concurrency());
+
+    // Stop workers and join threads. Blocks until all workers exit.
+    void stop();
+
+    // Enqueue a task. Returns immediately.
+    void enqueue(Task&& task);
+
+    // Convenience helpers for function/capability calls:
+    // - `work` should perform the actual call and return a JSON result.
+    void enqueueFunctionCall(const std::string& functionName,
+                             std::function<nlohmann::json()> work,
+                             std::function<void(const nlohmann::json&)> onComplete = nullptr,
+                             uint32_t timeoutMs = 0);
+
+    void enqueueCapabilityCall(const std::string& capabilityName,
+                               std::function<nlohmann::json()> work,
+                               std::function<void(const nlohmann::json&)> onComplete = nullptr,
+                               uint32_t timeoutMs = 0);
+
+private:
+    void workerLoop();
+
+    ThreadSafeQueue<Task> queue_ { DEFAULT_QUEUE_SIZE };
+    std::vector<std::thread> workers_;
+    std::atomic<bool> running_ { false };
+    std::mutex startStopMutex_;
+    size_t numThreads_ { 0 };
 };
 
 }
