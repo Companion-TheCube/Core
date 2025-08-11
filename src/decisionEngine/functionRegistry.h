@@ -95,12 +95,6 @@ struct FunctionSpec {
     int retryLimit { 3 }; // Number of retries on failure
     TimePoint lastCalled { TimePoint::min() }; // For rate limiting
     std::mutex mutex; // For thread safety
-    // Emotional score ranges for enabling/disabling the function
-    std::vector<std::pair<int, int>> emotionalScoreRanges; // Pairs of (min, max) emotional scores
-    // Matching params for Spacy or other NLP matching methods
-    std::vector<std::string> matchingParams; // e.g. "greeting", "farewell"
-    // Matching phrases for other matching methods
-    std::vector<std::string> matchingPhrases; // e.g. "hello", "goodbye"
     bool enabled { true }; // Whether the function is enabled by default
     // Serialize into OpenAI-style JSON for the LLM
     nlohmann::json toJson() const;
@@ -118,12 +112,6 @@ struct CapabilitySpec {
     int retryLimit { 3 }; // Number of retries on failure
     TimePoint lastCalled { TimePoint::min() }; // For rate limiting
     std::mutex mutex; // For thread safety
-    // Emotional score ranges for enabling/disabling the capability
-    std::vector<std::pair<int, int>> emotionalScoreRanges; // Pairs of (min, max) emotional scores
-    // Matching params for Spacy or other NLP matching methods
-    std::vector<std::string> matchingParams; // e.g. "greeting", "farewell"
-    // Matching phrases for other matching methods
-    std::vector<std::string> matchingPhrases; // e.g. "hello", "goodbye"
     bool enabled { true }; // Whether the capability is enabled by default
     nlohmann::json toJson() const;
 };

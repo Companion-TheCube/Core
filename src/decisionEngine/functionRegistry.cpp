@@ -76,8 +76,7 @@ FunctionSpec::FunctionSpec(const FunctionSpec& other)
       description(other.description), humanReadableName(other.humanReadableName),
       parameters(other.parameters), callback(other.callback), timeoutMs(other.timeoutMs),
       rateLimit(other.rateLimit), retryLimit(other.retryLimit), lastCalled(other.lastCalled),
-      emotionalScoreRanges(other.emotionalScoreRanges), matchingParams(other.matchingParams),
-      matchingPhrases(other.matchingPhrases), enabled(other.enabled)
+      enabled(other.enabled)
 {
 }
 
@@ -95,9 +94,6 @@ FunctionSpec& FunctionSpec::operator=(const FunctionSpec& other)
         rateLimit = other.rateLimit;
         retryLimit = other.retryLimit;
         lastCalled = other.lastCalled;
-        emotionalScoreRanges = other.emotionalScoreRanges;
-        matchingParams = other.matchingParams;
-        matchingPhrases = other.matchingPhrases;
         enabled = other.enabled;
     }
     return *this;
@@ -108,8 +104,7 @@ FunctionSpec::FunctionSpec(FunctionSpec&& other) noexcept
       description(std::move(other.description)), humanReadableName(std::move(other.humanReadableName)),
       parameters(std::move(other.parameters)), callback(std::move(other.callback)), timeoutMs(other.timeoutMs),
       rateLimit(other.rateLimit), retryLimit(other.retryLimit), lastCalled(std::move(other.lastCalled)),
-      emotionalScoreRanges(std::move(other.emotionalScoreRanges)), matchingParams(std::move(other.matchingParams)),
-      matchingPhrases(std::move(other.matchingPhrases)), enabled(other.enabled)
+      enabled(other.enabled)
 {
 }
 
@@ -127,9 +122,6 @@ FunctionSpec& FunctionSpec::operator=(FunctionSpec&& other)
         rateLimit = other.rateLimit;
         retryLimit = other.retryLimit;
         lastCalled = std::move(other.lastCalled);
-        emotionalScoreRanges = std::move(other.emotionalScoreRanges);
-        matchingParams = std::move(other.matchingParams);
-        matchingPhrases = std::move(other.matchingPhrases);
         enabled = other.enabled;
     }
     return *this;
@@ -370,27 +362,6 @@ namespace FunctionUtils {
         spec.retryLimit = j.value("retry_limit", 3);
         spec.lastCalled = TimePoint::min();
         spec.enabled = j.value("enabled", true);
-        if (j.contains("emotional_score_ranges")) {
-            for (const auto& range : j.at("emotional_score_ranges")) {
-                if (range.is_array() && range.size() == 2) {
-                    int minScore = range.at(0).get<int>();
-                    int maxScore = range.at(1).get<int>();
-                    spec.emotionalScoreRanges.emplace_back(minScore, maxScore);
-                } else {
-                    CubeLog::error("Invalid emotional score range format in function spec: " + j.at("name").get<std::string>());
-                }
-            }
-        }
-        if (j.contains("matching_params")) {
-            for (const auto& param : j.at("matching_params")) {
-                spec.matchingParams.push_back(param.get<std::string>());
-            }
-        }
-        if (j.contains("matching_phrases")) {
-            for (const auto& phrase : j.at("matching_phrases")) {
-                spec.matchingPhrases.push_back(phrase.get<std::string>());
-            }
-        }
         return spec;
     }
 }
