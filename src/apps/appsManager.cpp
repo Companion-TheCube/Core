@@ -46,7 +46,15 @@ SOFTWARE.
 
 // TODO: App installation needs to be handled somehow. Apps that come from trusted sources may have scripts that need to 
 // be run to install the app. These scripts should be relatively simple and not require installation of dependencies, since
-// this could result in conflicts with other apps. 
+// this could result in conflicts with other apps.
+//
+// TODO: When an app is installed, record its IPC socket location in the apps DB
+// (column: "socket_location"). The canonical socket path for an installed app
+// should be (relative to the CubeCore executable):
+//     ./apps/[APP NAME]/socket/[APP NAME].sock
+// Ensure the DB schema includes a TEXT column "socket_location" and that the
+// installer or AppsManager::startApp populates that field so the FunctionRegistry
+// can discover and call the app via JSON-RPC.
 
 bool AppsManager::consoleLoggingEnabled = true;
 

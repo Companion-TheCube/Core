@@ -142,6 +142,12 @@ const std::vector<DB_NS::Database_T> dbDefs = {
             } 
         } 
     },
+    // TODO: Add a "socket_location" TEXT column to the "apps" table so we can store
+    // the location of each app's IPC socket for JSON-RPC communication. Example
+    // socket path (relative to CubeCore executable):
+    //     ./apps/[APP NAME]/socket/[APP NAME].sock
+    // The apps manager or installation process should populate this column when
+    // an app is installed or launched.
     { 
         "data/accounts.db", "accounts", 
         { 

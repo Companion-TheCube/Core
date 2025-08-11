@@ -52,6 +52,12 @@ CubeDB::CubeDB(std::shared_ptr<CubeDatabaseManager> dbManager, std::shared_ptr<B
     CubeDB::isBlobsManagerSet = true;
 }
 
+// TODO: Ensure app installation paths and metadata include the app IPC socket
+// location (e.g., "./apps/[APP NAME]/socket/[APP NAME].sock"). The apps table
+// in the DB should include a "socket_location" TEXT column. App installers or
+// the AppsManager should populate that column when registering/installing an
+// app so components (FunctionRegistry) can locate the app's RPC socket.
+
 /**
  * @brief Set the CubeDBManager object
  *
