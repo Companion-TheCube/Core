@@ -128,6 +128,11 @@ struct CapabilitySpec {
     TimePoint lastCalled { TimePoint::min() }; // For rate limiting
     std::mutex mutex; // For thread safety
     bool enabled { true }; // Whether the capability is enabled by default
+    // Optional type: "core", "rpc", "plugin"
+    std::string type { "core" };
+    // Optional entry: for rpc this can be the app_id, for plugin the plugin path
+    std::string entry;
+    std::vector<ParamSpec> parameters;
     nlohmann::json toJson() const;
 };
 
@@ -197,6 +202,11 @@ public:
     ~FunctionRegistry();
 
     bool registerFunc(const FunctionSpec& spec);
+    bool registerCapability(const CapabilitySpec& spec);
+    const CapabilitySpec* findCapability(const std::string& name) const;
+    // Load capability manifests from a set of directories. If `paths` is empty,
+    // defaults to `data/capabilities` and `apps/*/capabilities`.
+    void loadCapabilityManifests(const std::vector<std::string>& paths = {});
     const FunctionSpec* find(const std::string& name) const;
     std::vector<nlohmann::json> catalogueJson() const;
 

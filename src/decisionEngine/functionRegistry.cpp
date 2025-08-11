@@ -63,12 +63,14 @@ that it should use for RPC.
 #include <jsonrpccxx/iclientconnector.hpp>
 #include <memory>
 #include <atomic>
+#include <filesystem>
 
 namespace DecisionEngine {
 
 namespace FunctionUtils {
     // Helper to convert a JSON object to a FunctionSpec
     FunctionSpec specFromJson(const nlohmann::json& j);
+    CapabilitySpec capabilityFromJson(const nlohmann::json& j);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -344,13 +346,13 @@ nlohmann::json FunctionSpec::toJson() const
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 CapabilitySpec::CapabilitySpec()
-    : name(""), description(""), timeoutMs(2000), retryLimit(3), lastCalled(TimePoint::min()), enabled(true)
+    : name(""), description(""), timeoutMs(2000), retryLimit(3), lastCalled(TimePoint::min()), enabled(true), type("core"), entry("")
 {
 }
 
 CapabilitySpec::CapabilitySpec(const CapabilitySpec& other)
     : name(other.name), description(other.description), action(other.action), timeoutMs(other.timeoutMs),
-      retryLimit(other.retryLimit), lastCalled(other.lastCalled), enabled(other.enabled)
+      retryLimit(other.retryLimit), lastCalled(other.lastCalled), enabled(other.enabled), type(other.type), entry(other.entry), parameters(other.parameters)
 {
 }
 
@@ -364,6 +366,9 @@ CapabilitySpec& CapabilitySpec::operator=(const CapabilitySpec& other)
         retryLimit = other.retryLimit;
         lastCalled = other.lastCalled;
         enabled = other.enabled;
+        type = other.type;
+        entry = other.entry;
+        parameters = other.parameters;
     }
     return *this;
 }
@@ -371,7 +376,7 @@ CapabilitySpec& CapabilitySpec::operator=(const CapabilitySpec& other)
 CapabilitySpec::CapabilitySpec(CapabilitySpec&& other) noexcept
     : name(std::move(other.name)), description(std::move(other.description)), action(std::move(other.action)),
       timeoutMs(other.timeoutMs), retryLimit(other.retryLimit), lastCalled(std::move(other.lastCalled)),
-      enabled(other.enabled)
+      enabled(other.enabled), type(std::move(other.type)), entry(std::move(other.entry)), parameters(std::move(other.parameters))
 {
 }
 
@@ -385,6 +390,9 @@ CapabilitySpec& CapabilitySpec::operator=(CapabilitySpec&& other)
         retryLimit = other.retryLimit;
         lastCalled = std::move(other.lastCalled);
         enabled = other.enabled;
+        type = std::move(other.type);
+        entry = std::move(other.entry);
+        parameters = std::move(other.parameters);
     }
     return *this;
 }
@@ -400,6 +408,17 @@ nlohmann::json CapabilitySpec::toJson() const
     j["name"] = name;
     j["description"] = description;
     j["timeoutMs"] = timeoutMs;
+    j["type"] = type;
+    j["entry"] = entry;
+    j["parameters"] = nlohmann::json::array();
+    for (const auto& param : parameters) {
+        nlohmann::json paramJson;
+        paramJson["name"] = param.name;
+        paramJson["type"] = param.type;
+        paramJson["description"] = param.description;
+        paramJson["required"] = param.required;
+        j["parameters"].push_back(paramJson);
+    }
     return j;
 }
 
@@ -415,6 +434,12 @@ FunctionRegistry::FunctionRegistry()
     } catch (...) {
         CubeLog::error("Failed to start FunctionRunner");
     }
+    // Load capability manifests from default locations
+    try {
+        this->loadCapabilityManifests();
+    } catch (const std::exception& e) {
+        CubeLog::error(std::string("Failed to load capability manifests: ") + e.what());
+    }
 }
 
 FunctionRegistry::~FunctionRegistry()
@@ -425,6 +450,93 @@ FunctionRegistry::~FunctionRegistry()
     } catch (...) {
         CubeLog::error("Exception while stopping FunctionRunner");
     }
+}
+
+bool FunctionRegistry::registerCapability(const CapabilitySpec& spec)
+{
+    if (spec.name.empty()) {
+        CubeLog::error("Capability name cannot be empty");
+        return false;
+    }
+    std::lock_guard<std::mutex> lock(mutex_);
+    capabilities_[spec.name] = spec;
+    CubeLog::info("Registered capability: " + spec.name);
+    return true;
+}
+
+const CapabilitySpec* FunctionRegistry::findCapability(const std::string& name) const
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto it = capabilities_.find(name);
+    if (it != capabilities_.end()) return &it->second;
+    return nullptr;
+}
+
+void FunctionRegistry::loadCapabilityManifests(const std::vector<std::string>& paths)
+{
+    std::vector<std::string> searchPaths = paths;
+    if (searchPaths.empty()) {
+        searchPaths.push_back("data/capabilities");
+        // apps/*/capabilities
+        searchPaths.push_back("apps");
+    }
+    for (const auto& p : searchPaths) {
+        std::error_code ec;
+        if (!std::filesystem::exists(p, ec)) {
+            // If path is apps, we iterate subdirs
+            if (p == "apps") {
+                if (!std::filesystem::exists(p)) continue;
+                for (auto& dir : std::filesystem::directory_iterator(p)) {
+                    if (!dir.is_directory()) continue;
+                    auto capDir = dir.path() / "capabilities";
+                    if (std::filesystem::exists(capDir)) {
+                        for (auto& f : std::filesystem::directory_iterator(capDir)) {
+                            if (f.path().extension() == ".json") {
+                                try {
+                                    std::ifstream ifs(f.path());
+                                    nlohmann::json j = nlohmann::json::parse(ifs);
+                                    CapabilitySpec spec = FunctionUtils::capabilityFromJson(j);
+                                    // If entry not set, default to dir name (app id)
+                                    if (spec.name.empty()) continue;
+                                    if (spec.action == nullptr && spec.type == "rpc" && spec.entry.empty()) {
+                                        spec.entry = dir.path().filename().string();
+                                    }
+                                    registerCapability(spec);
+                                } catch (const std::exception& e) {
+                                    CubeLog::error(std::string("Failed to load capability manifest: ") + e.what());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            continue;
+        }
+        // If p is data/capabilities or other directory
+        if (std::filesystem::is_directory(p)) {
+            for (auto& f : std::filesystem::directory_iterator(p)) {
+                if (f.path().extension() == ".json") {
+                    try {
+                        std::ifstream ifs(f.path());
+                        nlohmann::json j = nlohmann::json::parse(ifs);
+                        CapabilitySpec spec = FunctionUtils::capabilityFromJson(j);
+                        registerCapability(spec);
+                    } catch (const std::exception& e) {
+                        CubeLog::error(std::string("Failed to load capability manifest: ") + e.what());
+                    }
+                }
+            }
+        }
+    }
+    // TODO: add all the built in capabilities here. each one should have a json manifest in data/capabilities
+    // and the action should be set to a lambda that implements the capability.
+    // Register a small built-in capability as example
+    CapabilitySpec ping;
+    ping.name = "core.ping";
+    ping.description = "Simple ping capability";
+    ping.action = [](const nlohmann::json& args){ CubeLog::info("core.ping invoked"); };
+    ping.enabled = true;
+    registerCapability(ping);
 }
 
 bool FunctionRegistry::registerFunc(const FunctionSpec& spec)
@@ -884,14 +996,14 @@ namespace FunctionUtils {
         spec.name = j.at("name").get<std::string>();
         spec.description = j.value("description", "");
         spec.timeoutMs = j.value("timeout_ms", 4000);
-        for (const auto& param : j.at("parameters")) {
-            ParamSpec p;
-            p.name = param.at("name").get<std::string>();
-            p.type = param.at("type").get<std::string>();
-            p.description = param.value("description", "");
-            p.required = param.value("required", true);
-            spec.parameters.push_back(p);
-        }
+    for (const auto& param : j.at("parameters")) {
+        ParamSpec p;
+        p.name = param.at("name").get<std::string>();
+        p.type = param.at("type").get<std::string>();
+        p.description = param.value("description", "");
+        p.required = param.value("required", true);
+        spec.parameters.push_back(p);
+    }
         // If a callback field is provided in JSON, we still cannot synthesize an
         // onComplete function here — onComplete is intended to be set by the
         // registering code to receive async results. Provide a default that logs.
@@ -905,7 +1017,31 @@ namespace FunctionUtils {
         spec.rateLimit = j.value("rate_limit", 0);
         spec.retryLimit = j.value("retry_limit", 3);
         spec.lastCalled = TimePoint::min();
+    spec.enabled = j.value("enabled", true);
+    return spec;
+}
+    CapabilitySpec capabilityFromJson(const nlohmann::json& j)
+    {
+        CapabilitySpec spec;
+        spec.name = j.value("name", "");
+        spec.description = j.value("description", "");
+        spec.timeoutMs = j.value("timeout_ms", 2000);
+        spec.retryLimit = j.value("retry_limit", 0);
         spec.enabled = j.value("enabled", true);
+        spec.type = j.value("type", "core");
+        spec.entry = j.value("entry", "");
+        if (j.contains("parameters")) {
+            for (const auto& param : j.at("parameters")) {
+                ParamSpec p;
+                p.name = param.at("name").get<std::string>();
+                p.type = param.at("type").get<std::string>();
+                p.description = param.value("description", "");
+                p.required = param.value("required", true);
+                spec.parameters.push_back(p);
+            }
+        }
+        // action to be bound by registry depending on type
+        spec.action = nullptr;
         return spec;
     }
 }
