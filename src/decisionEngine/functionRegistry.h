@@ -223,6 +223,11 @@ public:
     constexpr std::string getInterfaceName() const override { return "FunctionRegistry"; }
     HttpEndPointData_t getHttpEndpointData() override;
 
+    // Public test helper: perform RPC using the spec. In production code this
+    // is used indirectly via runFunctionAsync; exposing it here simplifies
+    // unit testing of the RPC path.
+    nlohmann::json performFunctionRpcPublic(const FunctionSpec& spec, const nlohmann::json& args) { return performFunctionRpc(spec, args); }
+
 private:
     std::unordered_map<std::string, FunctionSpec> funcs_;
     std::unordered_map<std::string, CapabilitySpec> capabilities_;

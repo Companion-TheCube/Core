@@ -435,6 +435,13 @@ nlohmann::json FunctionRegistry::performFunctionRpc(const FunctionSpec& spec, co
     }
 
     if (socketPath.empty()) {
+        // If the DB did not contain a socket_location, allow spec.appName to
+        // be a direct socket path (useful for testing and quick overrides).
+        if (!spec.appName.empty() && (spec.appName.find('/') != std::string::npos || spec.appName.rfind('.', 0) == 0 || spec.appName.rfind("./",0)==0)) {
+            socketPath = spec.appName;
+        }
+    }
+    if (socketPath.empty()) {
         CubeLog::error("No socket_location found for app: " + spec.appName);
         return nlohmann::json({{"error", "socket_not_found"}});
     }
