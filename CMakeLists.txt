@@ -448,8 +448,8 @@ target_link_libraries(CubeCoreLib PUBLIC
     pqxx
     pq
     spdlog::spdlog_header_only
-    json_rpc_cxx
-    msgpack_c
+    json-rpc-cxx
+    msgpack-cxx
     cppcodec
 )
 

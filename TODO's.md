@@ -54,7 +54,7 @@
 - [src/apps/dockerApi.cpp:41] : remove this function. It is only used for debugging.
 - [src/audio/audioManager.cpp:43] : NOTE: Audio input needs to be configured for RTAUDIO_INT16 or all the threadsafeQueue
 - [src/audio/audioManager.cpp:47] : this whole thing, basically
-- [src/audio/audioManager.cpp:88] : Additional endpoints will be defined in the audioOutput.cpp file and speechIn.cpp file so we
+- [src/audio/audioManager.cpp:87] : Additional endpoints will be defined in the audioOutput.cpp file and speechIn.cpp file so we
 - [src/audio/audioOutput.cpp:107] : Need to have a way to recover from this error.
 - [src/audio/audioOutput.cpp:108] : Any call to exit should use an enum value to indicate the reason for the exit.
 - [src/audio/audioOutput.cpp:159] : create a function that the output can use to stream data from a ThreadSafeQueue<> to the audio output.
