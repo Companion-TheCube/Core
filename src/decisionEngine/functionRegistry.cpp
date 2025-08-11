@@ -66,4 +66,90 @@ FunctionRegistry& FunctionRegistry::instance()
     return instance;
 }
 
+bool FunctionRegistry::registerFunc(const FunctionSpec& spec)
+{
+    // first we verify that the function name is valid. Must start with a version indicator like "v1." and then be a valid identifier.
+    // Valid identifiers can only contain alphanumeric characters and underscores, and cannot start with a number.
+    // The next part of the name must be the app name, which must be a valid identifier.
+    // The last part of the name must be the function name, which must also be a valid identifier.
+    // Example: "v1.my_app.my_function" is valid, but "v1.1myapp.my_function" is not valid.
+    // The version must be a valid semantic version, e.g. "v1_0_0", "v2_1_3", etc. Version indicates the minimum version of the CORE
+    // that the app requires.
+    // valid examples: "v1_0_0.my_app.my_function", "v2_1_3.my_app.my_function"
+    if(spec.name.empty()){
+        CubeLog::error("Function name cannot be empty");
+        return false;
+    }
+    if (!std::regex_match(spec.name, std::regex("^v[0-9_]+\\.[a-zA-Z_][a-zA-Z0-9_]\\.[a-zA-Z_][a-zA-Z0-9_]*$"))) {
+        // first we check that the version is valid
+        if(!std::regex_match(spec.name, std::regex("^v[0-9_]+\\.[a-zA-Z_\\.0-9]*$"))) {
+            CubeLog::error("Function name must start with a valid version indicator like 'v1.0.0.my_app.my_function'");
+            return false;
+        }
+        // then we check that the app name is valid
+        // get the app name from the function name
+        std::string appName = spec.name.substr(spec.name.find('.') + 1, spec.name.find('.', spec.name.find('.') + 1) - spec.name.find('.') - 1);
+        // then check that the app name is a valid identifier
+        if (!std::regex_match(appName, std::regex("^[a-zA-Z_][a-zA-Z0-9_]*$"))) {
+            CubeLog::error("App name '" + appName + "' in function name '" + spec.name + "' is not a valid identifier. It must start with a letter or underscore and can only contain alphanumeric characters and underscores.");
+            return false;
+        }
+        // then check that the app name is in the DB
+        auto appNames = AppsManager::getAppNames_static();
+        if (std::find(appNames.begin(), appNames.end(), appName) == appNames.end()) {
+            CubeLog::error("App '" + appName + "' is not registered. Please register the app before registering functions.");
+            return false;
+        }
+        // then we check that the function name is valid
+        std::string functionName = spec.name.substr(spec.name.find_last_of('.') + 1);
+        if (!std::regex_match(functionName, std::regex("^[a-zA-Z_][a-zA-Z0-9_]*$"))) {
+            CubeLog::error("Function name '" + functionName + "' in function name '" + spec.name + "' is not a valid identifier. It must start with a letter or underscore and can only contain alphanumeric characters and underscores.");
+            return false;
+        }
+    }
+    std::lock_guard<std::mutex> lock(mutex_);
+    funcs_[spec.name] = spec;
+    CubeLog::info("Registered function: " + spec.name);
+    return true;
+}
+
+const FunctionSpec* FunctionRegistry::find(const std::string& name) const
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto it = funcs_.find(name);
+    if (it != funcs_.end()) {
+        return &it->second;
+    }
+    return nullptr;
+}
+
+std::vector<nlohmann::json> FunctionRegistry::catalogueJson() const
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::vector<nlohmann::json> catalogue;
+    for (const auto& [name, spec] : funcs_) {
+        catalogue.push_back(spec.toJson());
+    }
+    return catalogue;
+}
+
+nlohmann::json FunctionSpec::toJson() const
+{
+    nlohmann::json j;
+    j["name"] = name;
+    j["description"] = description;
+    j["parameters"] = nlohmann::json::array();
+    for (const auto& param : parameters) {
+        nlohmann::json paramJson;
+        paramJson["name"] = param.name;
+        paramJson["type"] = param.type;
+        paramJson["description"] = param.description;
+        paramJson["required"] = param.required;
+        j["parameters"].push_back(paramJson);
+    }
+    j["timeoutMs"] = timeoutMs;
+    return j;
+}
+
+
 }

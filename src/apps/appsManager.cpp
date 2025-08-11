@@ -49,6 +49,7 @@ SOFTWARE.
 // this could result in conflicts with other apps. 
 
 bool AppsManager::consoleLoggingEnabled = true;
+std::vector<std::string> AppsManager::appNames = {};
 
 /**
  * @brief Construct a new Apps Manager::AppsManager object. Start the AppsManager thread.

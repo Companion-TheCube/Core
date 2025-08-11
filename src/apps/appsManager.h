@@ -85,6 +85,15 @@ public:
     long getAppMemoryUsage(const std::string& appID);
     std::vector<std::string> getAppIDs();
     std::vector<std::string> getAppNames();
+    static const std::vector<std::string> getAppNames_static(){
+        CubeLog::info("Getting app names.");
+        std::vector<std::vector<std::string>> data = CubeDB::getDBManager()->getDatabase("apps")->selectData("apps", { "app_name" });
+        std::vector<std::string> appNames;
+        for (size_t i = 0; i < data.size(); i++) {
+            appNames.push_back(data[i][0]);
+        }
+        return appNames;
+    }
     std::string getAppRole(const std::string& appID);
     bool updateAppRole(const std::string& appID, const std::string& role);
     bool addAppRole(const std::string& appID, const std::string& role);
