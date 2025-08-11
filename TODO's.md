@@ -22,21 +22,21 @@
 - [src/api/authentication.cpp:156] : add checkAuth function that only takes the app_id and returns bool if the app_id has been allowed by the user
 - [src/api/builder.cpp:148] : refactor to get rid of staticFiles vector. update: maybe not?
 - [src/apps/appsDBManager.cpp:110] : add the interfaces for HTTP server
-- [src/apps/appsManager.cpp:1180] : Implement checking if app update is available
-- [src/apps/appsManager.cpp:1193] : Implement checking if app update is required
-- [src/apps/appsManager.cpp:1206] : Implement checking if app update failed
-- [src/apps/appsManager.cpp:1219] : Implement checking if app update check is overdue
-- [src/apps/appsManager.cpp:1267] : Implement getting app memory usage
-- [src/apps/appsManager.cpp:1274] : Implement getting app version
-- [src/apps/appsManager.cpp:1295] : Implement checking if native apps are running
-- [src/apps/appsManager.cpp:1327] : determine if any processes are running
-- [src/apps/appsManager.cpp:133] : these methods not be needed here since nothing should be running yet
-- [src/apps/appsManager.cpp:1362] : Implement app installation
-- [src/apps/appsManager.cpp:1369] : Implement app uninstallation
-- [src/apps/appsManager.cpp:1376] : Implement app update
-- [src/apps/appsManager.cpp:1383] : Implement app installation check
-- [src/apps/appsManager.cpp:161] : check is app is enabled before starting. each app has an "enabled" flag in the database.
-- [src/apps/appsManager.cpp:318] : check that app is enabled before starting
+- [src/apps/appsManager.cpp:1181] : Implement checking if app update is available
+- [src/apps/appsManager.cpp:1194] : Implement checking if app update is required
+- [src/apps/appsManager.cpp:1207] : Implement checking if app update failed
+- [src/apps/appsManager.cpp:1220] : Implement checking if app update check is overdue
+- [src/apps/appsManager.cpp:1268] : Implement getting app memory usage
+- [src/apps/appsManager.cpp:1275] : Implement getting app version
+- [src/apps/appsManager.cpp:1296] : Implement checking if native apps are running
+- [src/apps/appsManager.cpp:1328] : determine if any processes are running
+- [src/apps/appsManager.cpp:134] : these methods not be needed here since nothing should be running yet
+- [src/apps/appsManager.cpp:1363] : Implement app installation
+- [src/apps/appsManager.cpp:1370] : Implement app uninstallation
+- [src/apps/appsManager.cpp:1377] : Implement app update
+- [src/apps/appsManager.cpp:1384] : Implement app installation check
+- [src/apps/appsManager.cpp:162] : check is app is enabled before starting. each app has an "enabled" flag in the database.
+- [src/apps/appsManager.cpp:319] : check that app is enabled before starting
 - [src/apps/appsManager.cpp:36] : Go through this method by method and make sure everything makes sense. Most of this file
 - [src/apps/appsManager.cpp:38] : Finish adding method descriptions and comments
 - [src/apps/appsManager.cpp:39] : The apps manager should start all the app executables that are registered in the database
@@ -46,15 +46,15 @@
 - [src/apps/appsManager.cpp:43] : The apps manager should expose an API to start, stop, and update apps
 - [src/apps/appsManager.cpp:44] : Any app that is not found at the location specified in the database should be marked as "not installed" or removed from the database
 - [src/apps/appsManager.cpp:45] : isAppInstalled() should check once and then keep track of the installed status so that repeated calls to this method are faster and don't require filesystem accesses. Any changes to apps installed status will need to noted.
-- [src/apps/appsManager.cpp:468] : Implement updating docker apps
-- [src/apps/appsManager.cpp:472] : Implement updating native apps
+- [src/apps/appsManager.cpp:469] : Implement updating docker apps
+- [src/apps/appsManager.cpp:473] : Implement updating native apps
 - [src/apps/appsManager.cpp:47] : App installation needs to be handled somehow. Apps that come from trusted sources may have scripts that need to
 - [src/apps/dockerApi.cpp:34] : Go through this method by method and make sure everything makes sense. Most of this file
 - [src/apps/dockerApi.cpp:36] : Add comments and documentation to this file.
 - [src/apps/dockerApi.cpp:41] : remove this function. It is only used for debugging.
 - [src/audio/audioManager.cpp:43] : NOTE: Audio input needs to be configured for RTAUDIO_INT16 or all the threadsafeQueue
 - [src/audio/audioManager.cpp:47] : this whole thing, basically
-- [src/audio/audioManager.cpp:87] : Additional endpoints will be defined in the audioOutput.cpp file and speechIn.cpp file so we
+- [src/audio/audioManager.cpp:88] : Additional endpoints will be defined in the audioOutput.cpp file and speechIn.cpp file so we
 - [src/audio/audioOutput.cpp:107] : Need to have a way to recover from this error.
 - [src/audio/audioOutput.cpp:108] : Any call to exit should use an enum value to indicate the reason for the exit.
 - [src/audio/audioOutput.cpp:159] : create a function that the output can use to stream data from a ThreadSafeQueue<> to the audio output.
@@ -77,6 +77,7 @@
 - [src/database/db.h:247] : make sure all the data is sanitized before being inserted into the database.
 - [src/decisionEngine/cubeWhisper.cpp:40] : initialize whisper.cpp library and load model(s) in a background thread
 - [src/decisionEngine/decisions.cpp:84] :
+- [src/decisionEngine/functionRegistry.cpp:350] : Implement the actual function logic here
 - [src/decisionEngine/intentRegistry.cpp:158] : add TTS support
 - [src/decisionEngine/intentRegistry.cpp:185] : Implement this
 - [src/decisionEngine/intentRegistry.cpp:191] : This needs checks to ensure properly formatted JSON
@@ -112,20 +113,20 @@
 - [src/decisionEngine/transcriber.cpp:74] : upload buffer and poll for result
 - [src/decisionEngine/transcriber.cpp:79] : streaming upload with progress and partial results
 - [src/decisionEngine/transcriber.h:120] : the stream that this is reading from may need to be a more complex
-- [src/gui/characterManager.cpp:144] : This will need to interface with the list of registered apps and find the ones
-- [src/gui/characterManager.cpp:239] : fill in the endpoints
-- [src/gui/characterManager.cpp:302] : move the actual loading of character data into a separate method so that we can call it
-- [src/gui/characterManager.cpp:304] : also need way to unload a character.
+- [src/gui/characterManager.cpp:145] : This will need to interface with the list of registered apps and find the ones
+- [src/gui/characterManager.cpp:240] : fill in the endpoints
+- [src/gui/characterManager.cpp:303] : move the actual loading of character data into a separate method so that we can call it
+- [src/gui/characterManager.cpp:305] : also need way to unload a character.
 - [src/gui/characterManager.cpp:37] : Character manager needs some static methods that handle changing / triggering animations and expressions.
 - [src/gui/characterManager.cpp:39] : scratch that todo above. we'll provide api endpoints for this stuff.
 - [src/gui/characterManager.cpp:41] : As it is, all the characters are loaded regardless of whether they are used or not. We need to make it so that
-- [src/gui/characterManager.cpp:421] : load character data from the database
-- [src/gui/characterManager.cpp:461] : this needs to compensate for the position of the object so that it rotates about its own axiseses
-- [src/gui/characterManager.cpp:466] : this needs work. the calculated value needs to be on the range of 0 to infinity.
-- [src/gui/characterManager.cpp:484] : this only works for linear easing. Might need to fix. Might not care.
-- [src/gui/characterManager.cpp:521] : do the stuff that needs to be done to change the expression of the character based on the currentExpression
-- [src/gui/characterManager.cpp:726] : by default, this method will not interrupt the current animation. Need to implement interrupting.
-- [src/gui/characterManager.cpp:739] : by default, this method will not interrupt the current expression. Need to implement interrupting.
+- [src/gui/characterManager.cpp:422] : load character data from the database
+- [src/gui/characterManager.cpp:462] : this needs to compensate for the position of the object so that it rotates about its own axiseses
+- [src/gui/characterManager.cpp:467] : this needs work. the calculated value needs to be on the range of 0 to infinity.
+- [src/gui/characterManager.cpp:485] : this only works for linear easing. Might need to fix. Might not care.
+- [src/gui/characterManager.cpp:522] : do the stuff that needs to be done to change the expression of the character based on the currentExpression
+- [src/gui/characterManager.cpp:727] : by default, this method will not interrupt the current animation. Need to implement interrupting.
+- [src/gui/characterManager.cpp:740] : by default, this method will not interrupt the current expression. Need to implement interrupting.
 - [src/gui/eventHandler/eventHandler.cpp:36] : Need to refactor so that the functions that take in "void* data" also take
 - [src/gui/gui.cpp:1002] : make this actually enable/disable remote animations. the settings should have a callback registered with the GlobalSettings class that will enable/disable remote animations when the setting is changed.
 - [src/gui/gui.cpp:1019] : list all the idle animations
@@ -277,8 +278,8 @@
 - [src/gui/renderables/shapes.cpp:251] : Implement rotation of text
 - [src/gui/renderables/shapes.cpp:34] : the font is being loaded for each instance of an M_Text object and should be made static so that it only gets loaded once and is shared between all instances of M_Text
 - [src/gui/renderables/shapes.h:559] : create a generic object class that can utilize vertex and face data loaded from a file
-- [src/gui/renderer.cpp:135] : this call should return a nullptr if the character is not found. Then we should throw an error.
-- [src/gui/renderer.cpp:159] : replace this with a CountingLatch. This will be cleaner.
+- [src/gui/renderer.cpp:128] : this call should return a nullptr if the character is not found. Then we should throw an error.
+- [src/gui/renderer.cpp:152] : replace this with a CountingLatch. This will be cleaner.
 - [src/gui/renderer.cpp:34] : migrate from SFML to GLFW since we aren't using any SFML specific features
 - [src/gui/renderer.cpp:95] : maybe one day, support a second window that renders on the second screen.
 - [src/gui/renderer.cpp:98] : figure out how to pause rendering and close the window when the emulator starts up.
