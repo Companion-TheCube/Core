@@ -61,6 +61,8 @@ SOFTWARE.
 #include "../api/api.h"
 #endif
 #include "../threadsafeQueue.h"
+#include "jsonrpccxx/client.hpp"
+#include "asio.hpp"
 
 namespace DecisionEngine {
 using TimePoint = std::chrono::system_clock::time_point;

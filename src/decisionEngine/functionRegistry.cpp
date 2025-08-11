@@ -57,6 +57,12 @@ that it should use for RPC.
 */
 
 #include "functionRegistry.h"
+// Asio and json-rpc-cxx
+#include <asio.hpp>
+#include <jsonrpccxx/client.hpp>
+#include <jsonrpccxx/iclientconnector.hpp>
+#include <memory>
+#include <atomic>
 
 namespace DecisionEngine {
 
@@ -606,9 +612,173 @@ std::vector<nlohmann::json> FunctionRegistry::catalogueJson() const
 nlohmann::json FunctionRegistry::performFunctionRpc(const FunctionSpec& spec, const nlohmann::json& args)
 {
     CubeLog::info("performFunctionRpc called for: " + spec.name + " with args: " + args.dump());
-    // Placeholder - replace with real RPC implementation that talks to the app's
-    // IPC socket (unix socket or TCP) using asio and a JSON-RPC protocol.
-    return nlohmann::json({{"error", "rpc_not_implemented"}, {"function", spec.name}});
+
+    // Lookup socket location in apps DB. Use app_name first, then app_id.
+    std::string socketPath;
+    try {
+        if (CubeDB::getDBManager() == nullptr) {
+            CubeLog::error("CubeDB manager not available");
+            return nlohmann::json({{"error", "db_not_ready"}});
+        }
+        Database* db = CubeDB::getDBManager()->getDatabase("apps");
+        if (!db) {
+            CubeLog::error("Apps database not available");
+            return nlohmann::json({{"error", "db_not_available"}});
+        }
+        if (db->columnExists("apps", "socket_location")) {
+            // Try app_name
+            auto rows = db->selectData("apps", {"socket_location"}, "app_name = '" + spec.appName + "'");
+            if (rows.size() > 0 && rows[0].size() > 0 && !rows[0][0].empty()) {
+                socketPath = rows[0][0];
+            } else {
+                // Try app_id
+                rows = db->selectData("apps", {"socket_location"}, "app_id = '" + spec.appName + "'");
+                if (rows.size() > 0 && rows[0].size() > 0 && !rows[0][0].empty()) {
+                    socketPath = rows[0][0];
+                }
+            }
+        }
+    } catch (const std::exception& e) {
+        CubeLog::error(std::string("DB lookup failed: ") + e.what());
+        return nlohmann::json({{"error", "db_lookup_failed"}});
+    }
+
+    if (socketPath.empty()) {
+        CubeLog::error("No socket_location found for app: " + spec.appName);
+        return nlohmann::json({{"error", "socket_not_found"}});
+    }
+
+    // Ensure RPC io_context and threads are running
+    static std::shared_ptr<asio::io_context> rpc_io;
+    static std::shared_ptr<asio::executor_work_guard<asio::io_context::executor_type>> rpc_guard;
+    static std::vector<std::thread> rpc_threads;
+    static std::mutex rpc_init_mutex;
+    {
+        std::lock_guard<std::mutex> guard(rpc_init_mutex);
+        if (!rpc_io) {
+            rpc_io = std::make_shared<asio::io_context>();
+            rpc_guard = std::make_shared<asio::executor_work_guard<asio::io_context::executor_type>>(rpc_io->get_executor());
+            // start a small thread pool for RPC IO
+            unsigned int n = std::max(1u, std::min(4u, std::thread::hardware_concurrency() / 2));
+            for (unsigned int i = 0; i < n; ++i) {
+                rpc_threads.emplace_back([](){
+                    try { rpc_io->run(); } catch(...) {}
+                });
+            }
+        }
+    }
+
+    // Build JSON-RPC request via jsonrpccxx client, executed on rpc_io.
+    std::shared_ptr<std::promise<std::string>> prom = std::make_shared<std::promise<std::string>>();
+    std::future<std::string> fut = prom->get_future();
+    auto done = std::make_shared<std::atomic<bool>>(false);
+
+    // Connector implementation using httplib
+    struct HttplibConnector : public jsonrpccxx::IClientConnector {
+        std::string socketPath;
+        HttplibConnector(const std::string& p) : socketPath(p) {}
+        std::string Send(const std::string &request) override {
+            // Use cpp-httplib to POST request to the unix socket
+            try {
+                httplib::Client cli(socketPath.c_str(), 0);
+                cli.set_address_family(AF_UNIX);
+                cli.set_read_timeout(5, 0);
+                auto res = cli.Post("/", request, "application/json");
+                if (res) {
+                    return res->body;
+                } else {
+                    throw std::runtime_error("HTTP request failed");
+                }
+            } catch (const std::exception& e) {
+                throw;
+            }
+        }
+    };
+
+    // Parse method name: use last token after '.' if present
+    std::string method = spec.name;
+    auto pos = spec.name.find_last_of('.');
+    if (pos != std::string::npos) method = spec.name.substr(pos + 1);
+
+    // Prepare params: if args is object, use named params; otherwise use positional param.
+    jsonrpccxx::named_parameter namedParams;
+    jsonrpccxx::positional_parameter posParams;
+    bool useNamed = args.is_object();
+    if (useNamed) {
+        for (auto it = args.begin(); it != args.end(); ++it) {
+            namedParams[it.key()] = it.value();
+        }
+    } else if (!args.is_null()) {
+        posParams.push_back(args);
+    }
+
+    // Post work to rpc_io
+    asio::post(*rpc_io, [prom, done, socketPath, method, useNamed, namedParams, posParams, &spec]() mutable {
+        try {
+            HttplibConnector connector(socketPath);
+            jsonrpccxx::JsonRpcClient client(connector, jsonrpccxx::version::v2);
+            nlohmann::json result;
+            try {
+                if (useNamed) {
+                    result = client.CallMethodNamed<nlohmann::json>(1, method, namedParams);
+                } else {
+                    result = client.CallMethod<nlohmann::json>(1, method, posParams);
+                }
+                if (!done->exchange(true)) {
+                    prom->set_value(result.dump());
+                }
+            } catch (const std::exception& e) {
+                if (!done->exchange(true)) {
+                    nlohmann::json err = nlohmann::json::object();
+                    err["error"] = std::string("rpc_exception: ") + e.what();
+                    prom->set_value(err.dump());
+                }
+            }
+        } catch (const std::exception& e) {
+            if (!done->exchange(true)) {
+                nlohmann::json err = nlohmann::json::object();
+                err["error"] = std::string("connector_exception: ") + e.what();
+                prom->set_value(err.dump());
+            }
+        }
+    });
+
+    // Setup an asio timer for timeout handling on rpc_io
+    uint32_t timeoutMs = spec.timeoutMs > 0 ? spec.timeoutMs : 4000u;
+    asio::steady_timer timer(*rpc_io, std::chrono::milliseconds(timeoutMs));
+    timer.async_wait([prom, done](const asio::error_code& ec) {
+        if (ec) return; // cancelled
+        if (!done->exchange(true)) {
+            try {
+                nlohmann::json err = nlohmann::json::object();
+                err["error"] = "timeout";
+                prom->set_value(err.dump());
+            } catch (...) {}
+        }
+    });
+
+    // Wait for result (the timer and RPC execution run on rpc_io threads)
+    std::string raw;
+    try {
+        raw = fut.get();
+    } catch (const std::exception& e) {
+        CubeLog::error(std::string("performFunctionRpc future exception: ") + e.what());
+        return nlohmann::json({{"error", "future_exception"}});
+    }
+
+    // Cancel the timer if still pending
+    asio::post(*rpc_io, [&timer]() {
+        asio::error_code ec;
+        timer.cancel();
+    });
+
+    try {
+        return nlohmann::json::parse(raw);
+    } catch (...) {
+        nlohmann::json j;
+        j["result"] = raw;
+        return j;
+    }
 }
 
 HttpEndPointData_t FunctionRegistry::getHttpEndpointData()

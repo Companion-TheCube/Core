@@ -142,6 +142,15 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(msgpack_c)
 include_directories(${msgpack_c_SOURCE_DIR}/include)
 
+include(FetchContent)
+FetchContent_Declare(
+    asio
+    GIT_REPOSITORY https://github.com/chriskohlhoff/asio.git
+    GIT_TAG        master
+)
+FetchContent_MakeAvailable(asio)
+include_directories(${asio_SOURCE_DIR}/asio/include)
+
 
 file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/libraries)
 file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/libraries/whisper_models)
@@ -425,6 +434,8 @@ else()
     # set(WIRINGPI_LIB "wiringPi") # Commented out for building on Ubuntu. Uncomment for building on Raspberry Pi.
     set(WIRINGPI_LIB "")
 endif()
+
+target_compile_definitions(CubeCoreLib PRIVATE ASIO_NO_DEPRECATED ASIO_STANDALONE)
 # Link libraries to the core library so consumers inherit them
 target_link_libraries(CubeCoreLib PUBLIC
     sfml-graphics
@@ -451,6 +462,7 @@ target_link_libraries(CubeCoreLib PUBLIC
     json-rpc-cxx
     msgpack-cxx
     cppcodec
+    asio
 )
 
 # Executable links the core library
