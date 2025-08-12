@@ -124,7 +124,8 @@ int Renderer::thread()
     this->meshShader = &edgesShader;
     this->textShader = &textureShader;
     this->stencilShader = &stencilShader;
-    auto characterManager = new CharacterManager(&edgesShader);
+    auto characterManager = std::make_shared<CharacterManager>(&edgesShader);
+    characterManager->registerInterface();
     Character_generic* character = characterManager->getCharacterByName("TheCube"); // TODO: this call should return a nullptr if the character is not found. Then we should throw an error.
     // Character_generic* character = characterManager->getCharacterByName("LilFlame");
     characterManager->setCharacter(character);

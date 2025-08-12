@@ -90,7 +90,7 @@ CharacterManager::CharacterManager(Shader* sh)
             this->getCharacter()->expression();
         }
     });
-    this->registerInterface();
+    // this->registerInterface();
 }
 
 /**

@@ -109,8 +109,8 @@
 - [src/decisionEngine/remoteServer.cpp:62] : Read the setting for which AI service the user wants to use.
 - [src/decisionEngine/remoteServer.cpp:89] :
 - [src/decisionEngine/remoteServer.cpp:96] :
-- [src/decisionEngine/scheduler.cpp:229] noted below).
-- [src/decisionEngine/scheduler.cpp:241] : check if the task should be repeated and if so, add it back to the scheduledTasks list
+- [src/decisionEngine/scheduler.cpp:233] noted below).
+- [src/decisionEngine/scheduler.cpp:245] : check if the task should be repeated and if so, add it back to the scheduledTasks list
 - [src/decisionEngine/scheduler.cpp:59] :
 - [src/decisionEngine/transcriber.cpp:42] :
 - [src/decisionEngine/transcriber.cpp:47] : construct CubeWhisper and prime any resources required for STT
@@ -285,8 +285,8 @@
 - [src/gui/renderables/shapes.cpp:251] : Implement rotation of text
 - [src/gui/renderables/shapes.cpp:34] : the font is being loaded for each instance of an M_Text object and should be made static so that it only gets loaded once and is shared between all instances of M_Text
 - [src/gui/renderables/shapes.h:559] : create a generic object class that can utilize vertex and face data loaded from a file
-- [src/gui/renderer.cpp:128] : this call should return a nullptr if the character is not found. Then we should throw an error.
-- [src/gui/renderer.cpp:152] : replace this with a CountingLatch. This will be cleaner.
+- [src/gui/renderer.cpp:129] : this call should return a nullptr if the character is not found. Then we should throw an error.
+- [src/gui/renderer.cpp:153] : replace this with a CountingLatch. This will be cleaner.
 - [src/gui/renderer.cpp:34] : migrate from SFML to GLFW since we aren't using any SFML specific features
 - [src/gui/renderer.cpp:95] : maybe one day, support a second window that renders on the second screen.
 - [src/gui/renderer.cpp:98] : figure out how to pause rendering and close the window when the emulator starts up.

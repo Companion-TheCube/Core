@@ -137,6 +137,10 @@ Scheduler::Scheduler()
 
 Scheduler::~Scheduler()
 {
+    if (schedulerThread) {
+        schedulerThread->request_stop();
+        schedulerThread->join();
+    }
     delete schedulerThread;
 }
 
@@ -229,8 +233,9 @@ void Scheduler::removeTask(uint32_t taskHandle)
 // any due tasks. Repeats are not yet re-enqueued (TODO noted below).
 void Scheduler::schedulerThreadFunction(std::stop_token st)
 {
-    std::unique_lock<std::mutex> lock(schedulerMutex);
+    
     while (!st.stop_requested()) {
+        std::unique_lock<std::mutex> lock(schedulerMutex);
         while (!schedulerRunning) {
             schedulerCV.wait(lock);
         }
