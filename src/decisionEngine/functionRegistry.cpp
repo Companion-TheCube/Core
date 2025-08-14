@@ -33,23 +33,48 @@ SOFTWARE.
 
 
 /*
+Overview:
 
-The function registry provides a way to register and manage functions, which are data sources that are provided by apps.
-Functions can be registered with a name, action, parameters, and other metadata.
+This module implements a lightweight function & capability registry used by the
+decision engine. It provides:
 
-It also provides HTTP endpoints for interacting with the function registry, allowing other applications to register, unregister, and query functions.
-The decision engine can execute functions based on user input or other triggers, and it can also manage scheduled tasks that execute functions at 
-specified times or intervals.
+- Storage and lookup for CapabilitySpec and FunctionSpec objects (thread-safe
+  via an internal mutex).
+- Loading capability manifests from disk (default: `data/capabilities` and
+  per-app `apps/ * /capabilities`) and registering them with optional built-in
+  actions.
+- A small set of HTTP endpoints to register, unregister, list, and query
+  functions.
+- Facilities to execute registered functions or capabilities asynchronously
+  via a FunctionRunner task queue (`runFunctionAsync`, `runCapabilityAsync`).
 
-Functions are registered with the following information:
-- Function name
-- Action to execute
-- Parameters for the action. These can be static or can be loaded from a data source.
-- Brief description of the function
-- Response string that can include placeholders for parameters
+Function execution / RPC:
 
-Functions are called via RPC. We'll use a simple JSON-RPC style interface for this. Each app will get a unix socket in the root of its directory 
-that it should use for RPC. 
+Functions backed by external apps are invoked over a JSON-RPC style interface
+using a unix socket. `performFunctionRpc` resolves the socket location by
+looking up `socket_location` in the `apps` database (falling back to treating
+`spec.appName` as a direct socket path if it looks like one). RPC work is
+posted into a shared `asio::io_context` with a small thread pool; a
+promise/future pair and an asio timer implement timeouts. The JSON-RPC client
+uses a small connector that posts JSON over a unix-domain HTTP socket.
+
+Safety and behavior notes:
+
+- Capability and function registration methods validate input; `registerFunc`
+  performs structured validation (version token, app identifier, function
+  identifier) and returns early on invalid input.
+- Tasks in the FunctionRunner carry timeout, retry and rate-limit metadata and
+  chain the spec's `onComplete` with the caller `onComplete` safely (each is
+  invoked inside try/catch to avoid throwing on user callbacks).
+- Built-in example capabilities are registered (e.g. `core.ping` and a stub
+  `core.play_sound`) but playback is left as a TODO.
+
+Helpers:
+
+Several small helpers are used to keep the implementation linear and clear:
+`processCapabilityFile`, `lookupSocketPathFromDB`, and
+`ensureRpcIoInitialized` encapsulate file parsing, DB lookup, and RPC IO
+initialization respectively.
 
 */
 
@@ -106,11 +131,14 @@ namespace {
                 CubeLog::error("Apps database not available");
                 return {};
             }
-            if (db->columnExists("apps", "socket_location")) {
+            if (!db->columnExists("apps", "socket_location")) {
+                CubeLog::error("Apps database does not have socket_location column");
+            } else {
                 auto rows = db->selectData("apps", {"socket_location"}, "app_name = '" + spec.appName + "'");
                 if (rows.size() > 0 && rows[0].size() > 0 && !rows[0][0].empty()) {
                     socketPath = rows[0][0];
-                } else {
+                }
+                if (socketPath.empty()) {
                     rows = db->selectData("apps", {"socket_location"}, "app_id = '" + spec.appName + "'");
                     if (rows.size() > 0 && rows[0].size() > 0 && !rows[0][0].empty()) {
                         socketPath = rows[0][0];
@@ -123,9 +151,15 @@ namespace {
         }
 
         if (socketPath.empty()) {
-            if (!spec.appName.empty() && (spec.appName.find('/') != std::string::npos || spec.appName.rfind('.', 0) == 0 || spec.appName.rfind("./",0)==0)) {
-                socketPath = spec.appName;
-            }
+            // If no DB entry, only accept spec.appName when it looks like a path
+            if (spec.appName.empty()) return socketPath;
+            bool looksLikePath = (spec.appName.find('/') != std::string::npos || spec.appName.rfind('.', 0) == 0 || spec.appName.rfind("./",0)==0);
+            if (!looksLikePath) return socketPath;
+            // TODO: Treating `spec.appName` as a direct socket path is a
+            // convenience for testing and overrides. Confirm this behavior is
+            // acceptable for production and consider validating/normalizing
+            // the path (and permissions) before use.
+            socketPath = spec.appName;
         }
         return socketPath;
     }
@@ -138,6 +172,11 @@ namespace {
             CapabilitySpec spec = FunctionUtils::capabilityFromJson(j);
             if (spec.name.empty()) return;
             if (spec.action == nullptr && spec.type == "rpc" && spec.entry.empty() && !appDir.empty()) {
+                // TODO: Defaulting an RPC capability's `entry` to the app
+                // directory name assumes the directory name == app identifier
+                // stored elsewhere (DB, manifests). Confirm this mapping is
+                // valid in all deployment scenarios, or prefer an explicit
+                // `entry` field in the manifest.
                 spec.entry = appDir.filename().string();
             }
             if (spec.type == "core" && spec.name == "core.play_sound") {
@@ -347,6 +386,11 @@ void FunctionRegistry::runFunctionAsync(const std::string& functionName,
     t.rateLimitMs = spec.rateLimit; // interpret spec.rateLimit as minimum ms between calls
     t.attempt = 0;
     // Build work callable that performs the RPC via FunctionRegistry::performFunctionRpc
+    // TODO: If FunctionSpec supports a local `action` (local/provider-side
+    // implementation), prefer invoking that instead of always performing an
+    // RPC. Functions are primarily data sources (provided by apps), but the
+    // spec may also include local actions for built-in or core-provided
+    // behaviors.
     t.work = [this, spec, args]() -> nlohmann::json {
         try {
             return this->performFunctionRpc(spec, args);
@@ -475,11 +519,10 @@ nlohmann::json FunctionRegistry::performFunctionRpc(const FunctionSpec& spec, co
                 cli.set_address_family(AF_UNIX);
                 cli.set_read_timeout(5, 0);
                 auto res = cli.Post("/", request, "application/json");
-                if (res) {
-                    return res->body;
-                } else {
+                if (!res) {
                     throw std::runtime_error("HTTP request failed");
                 }
+                return res->body;
             } catch (const std::exception& e) {
                 throw;
             }
@@ -510,10 +553,10 @@ nlohmann::json FunctionRegistry::performFunctionRpc(const FunctionSpec& spec, co
             jsonrpccxx::JsonRpcClient client(connector, jsonrpccxx::version::v2);
             nlohmann::json result;
             try {
-                if (useNamed) {
-                    result = client.CallMethodNamed<nlohmann::json>(1, method, namedParams);
-                } else {
+                if (!useNamed) {
                     result = client.CallMethod<nlohmann::json>(1, method, posParams);
+                } else {
+                    result = client.CallMethodNamed<nlohmann::json>(1, method, namedParams);
                 }
                 if (!done->exchange(true)) {
                     prom->set_value(result.dump());
@@ -588,13 +631,15 @@ HttpEndPointData_t FunctionRegistry::getHttpEndpointData()
             }
 
             FunctionSpec spec = FunctionUtils::specFromJson(j);
-            if (registerFunc(spec)) {
-                res.status = 200;
-                res.set_content("Function registered successfully", "text/plain");
-            } else {
+            if (!registerFunc(spec)) {
                 res.status = 400;
                 res.set_content("Failed to register function", "text/plain");
+                res.set_header("Content-Type", "application/json");
+                res.body = j.dump();
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, "Failed to register function");
             }
+            res.status = 200;
+            res.set_content("Function registered successfully", "text/plain");
             res.set_header("Content-Type", "application/json");
             res.body = j.dump();
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR,"");
@@ -619,15 +664,14 @@ HttpEndPointData_t FunctionRegistry::getHttpEndpointData()
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, "Function name is required");
             }
             const FunctionSpec* func = find(functionName);
-            if (func) {
-                nlohmann::json j = func->toJson();
-                res.status = 200;
-                res.set_content(j.dump(), "application/json");
-            } else {
+            if (!func) {
                 res.status = 404;
                 res.set_content("Function not found", "text/plain");
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NOT_FOUND, "Function not found");
             }
+            nlohmann::json j = func->toJson();
+            res.status = 200;
+            res.set_content(j.dump(), "application/json");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR,"");
         },
         "Find a function by name", {}, "Find a registered function by its name" });
@@ -642,15 +686,14 @@ HttpEndPointData_t FunctionRegistry::getHttpEndpointData()
             }
             std::lock_guard<std::mutex> lock(mutex_);
             auto it = funcs_.find(functionName);
-            if (it != funcs_.end()) {
-                funcs_.erase(it);
-                res.status = 200;
-                res.set_content("Function unregistered successfully", "text/plain");
-            } else {
+            if (it == funcs_.end()) {
                 res.status = 404;
                 res.set_content("Function not found", "text/plain");
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NOT_FOUND, "Function not found");
             }
+            funcs_.erase(it);
+            res.status = 200;
+            res.set_content("Function unregistered successfully", "text/plain");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR,"");
         },
         "Unregister a function", {}, "Unregister a function from the function registry" });
