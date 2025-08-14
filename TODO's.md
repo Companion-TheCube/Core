@@ -80,8 +80,17 @@
 - [src/database/db.h:253] : make sure all the data is sanitized before being inserted into the database.
 - [src/decisionEngine/cubeWhisper.cpp:40] : initialize whisper.cpp library and load model(s) in a background thread
 - [src/decisionEngine/decisions.cpp:84] :
-- [src/decisionEngine/functionRegistry.cpp:242] : add all the built in capabilities here. each one should have a json manifest in data/capabilities
-- [src/decisionEngine/functionRegistry.cpp:448] : implement actual JSON-RPC via asio here. For now, return an error
+- [src/decisionEngine/functionRegistry.cpp:266] : Treating `spec.appName` as a direct socket path is a
+- [src/decisionEngine/functionRegistry.cpp:283] : Defaulting an RPC capability's `entry` to the app
+- [src/decisionEngine/functionRegistry.cpp:301] : Hook into AudioOutput to actually play `file`.
+- [src/decisionEngine/functionRegistry.cpp:309] : implement NFC read behavior
+- [src/decisionEngine/functionRegistry.cpp:314] : implement NFC write behavior
+- [src/decisionEngine/functionRegistry.cpp:319] : implement UI draw behavior (compose primitives)
+- [src/decisionEngine/functionRegistry.cpp:324] : implement audio recording
+- [src/decisionEngine/functionRegistry.cpp:463] : add all the built in capabilities here. each one should have a json manifest in data/capabilities
+- [src/decisionEngine/functionRegistry.cpp:571] : If FunctionSpec supports a local `action` (local/provider-side
+- [src/decisionEngine/functionRegistry.cpp:674] : implement actual JSON-RPC via asio here. For now, return an error
+- [src/decisionEngine/functionRegistry.cpp:70] .
 - [src/decisionEngine/intentRegistry.cpp:158] : add TTS support
 - [src/decisionEngine/intentRegistry.cpp:185] : Implement this
 - [src/decisionEngine/intentRegistry.cpp:191] : This needs checks to ensure properly formatted JSON

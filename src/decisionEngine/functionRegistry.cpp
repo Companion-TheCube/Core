@@ -117,6 +117,114 @@ namespace {
         }
     }
 
+    // Perform a JSON-RPC request over a unix-domain HTTP socket. This helper
+    // posts the work to the shared `rpc_io` and returns the parsed JSON
+    // response (or an error object on failure).
+    nlohmann::json sendJsonRpcRequest(const std::string& socketPath,
+                                      const std::string& method,
+                                      const nlohmann::json& args,
+                                      uint32_t timeoutMs)
+    {
+        ensureRpcIoInitialized();
+
+        std::shared_ptr<std::promise<std::string>> prom = std::make_shared<std::promise<std::string>>();
+        std::future<std::string> fut = prom->get_future();
+        auto done = std::make_shared<std::atomic<bool>>(false);
+
+        struct HttplibConnector : public jsonrpccxx::IClientConnector {
+            std::string socketPath;
+            HttplibConnector(const std::string& p) : socketPath(p) {}
+            std::string Send(const std::string &request) override {
+                try {
+                    httplib::Client cli(socketPath.c_str(), 0);
+                    cli.set_address_family(AF_UNIX);
+                    cli.set_read_timeout(5, 0);
+                    auto res = cli.Post("/", request, "application/json");
+                    if (!res) throw std::runtime_error("HTTP request failed");
+                    return res->body;
+                } catch (...) {
+                    throw;
+                }
+            }
+        };
+
+        // Prepare parameters
+        bool useNamed = args.is_object();
+        jsonrpccxx::named_parameter namedParams;
+        jsonrpccxx::positional_parameter posParams;
+        if (useNamed) {
+            for (auto it = args.begin(); it != args.end(); ++it) namedParams[it.key()] = it.value();
+        } else if (!args.is_null()) {
+            // if args is an array, forward elements; otherwise use single positional param
+            if (args.is_array()) {
+                for (auto &el : args) posParams.push_back(el);
+            } else {
+                posParams.push_back(args);
+            }
+        }
+
+        // Post RPC work
+        asio::post(*rpc_io, [prom, done, socketPath, method, useNamed, namedParams, posParams]() mutable {
+            try {
+                HttplibConnector connector(socketPath);
+                jsonrpccxx::JsonRpcClient client(connector, jsonrpccxx::version::v2);
+                nlohmann::json result;
+                try {
+                    if (!useNamed) result = client.CallMethod<nlohmann::json>(1, method, posParams);
+                    else result = client.CallMethodNamed<nlohmann::json>(1, method, namedParams);
+                    if (!done->exchange(true)) prom->set_value(result.dump());
+                } catch (const std::exception& e) {
+                    if (!done->exchange(true)) {
+                        nlohmann::json err = nlohmann::json::object();
+                        err["error"] = std::string("rpc_exception: ") + e.what();
+                        prom->set_value(err.dump());
+                    }
+                }
+            } catch (const std::exception& e) {
+                if (!done->exchange(true)) {
+                    nlohmann::json err = nlohmann::json::object();
+                    err["error"] = std::string("connector_exception: ") + e.what();
+                    prom->set_value(err.dump());
+                }
+            }
+        });
+
+        // Timer
+        asio::steady_timer timer(*rpc_io, std::chrono::milliseconds(timeoutMs));
+        timer.async_wait([prom, done](const asio::error_code& ec) {
+            if (ec) return; // cancelled
+            if (!done->exchange(true)) {
+                try {
+                    nlohmann::json err = nlohmann::json::object();
+                    err["error"] = "timeout";
+                    prom->set_value(err.dump());
+                } catch (...) {}
+            }
+        });
+
+        std::string raw;
+        try {
+            raw = fut.get();
+        } catch (const std::exception& e) {
+            CubeLog::error(std::string("sendJsonRpcRequest future exception: ") + e.what());
+            return nlohmann::json({{"error", "future_exception"}});
+        }
+
+        // cancel timer
+        asio::post(*rpc_io, [&timer]() {
+            asio::error_code ec;
+            timer.cancel();
+        });
+
+        try {
+            return nlohmann::json::parse(raw);
+        } catch (...) {
+            nlohmann::json j;
+            j["result"] = raw;
+            return j;
+        }
+    }
+
     // Lookup socket path for an app using the apps DB, falling back to treating
     // spec.appName as a direct socket path if it looks like one.
     std::string lookupSocketPathFromDB(const FunctionSpec& spec) {
@@ -220,6 +328,48 @@ namespace {
                     // provide an RPC-based implementation) and log for
                     // visibility.
                     CubeLog::info("Unrecognized core capability: " + spec.name);
+                }
+            }
+
+            // If this capability is RPC-backed, synthesize an action that will
+            // call the implementing app over JSON-RPC using the shared helper.
+            // The capability's `entry` is expected to be the app id or a direct
+            // socket path (the latter is supported for testing/overrides).
+            if (spec.type == "rpc") {
+                // If action already provided by manifest, do not overwrite.
+                if (!spec.action) {
+                    // capture by value so the spec copy survives registration
+                    spec.action = [spec](const nlohmann::json& args) {
+                        try {
+                            // Resolve socket path: try DB lookup using entry as appName
+                            FunctionSpec tmp;
+                            tmp.appName = spec.entry;
+                            std::string socket = lookupSocketPathFromDB(tmp);
+                            if (socket.empty()) {
+                                // Allow entry to be a direct socket path
+                                if (!spec.entry.empty() && (spec.entry.find('/') != std::string::npos || spec.entry.rfind('.', 0) == 0 || spec.entry.rfind("./",0)==0)) {
+                                    socket = spec.entry;
+                                }
+                            }
+                            if (socket.empty()) {
+                                CubeLog::error("RPC capability '" + spec.name + "' has no socket_location for entry='" + spec.entry + "'");
+                                return;
+                            }
+                            // method is last token after '.'
+                            std::string method = spec.name;
+                            auto p = spec.name.find_last_of('.');
+                            if (p != std::string::npos) method = spec.name.substr(p + 1);
+                            uint32_t timeout = spec.timeoutMs > 0 ? spec.timeoutMs : 2000u;
+                            auto res = sendJsonRpcRequest(socket, method, args, timeout);
+                            if (res.is_object() && res.contains("error")) {
+                                CubeLog::error(std::string("RPC capability call failed: ") + res.dump());
+                            }
+                        } catch (const std::exception& e) {
+                            CubeLog::error(std::string("RPC capability action exception: ") + e.what());
+                        } catch (...) {
+                            CubeLog::error("RPC capability action unknown exception");
+                        }
+                    };
                 }
             }
             registry->registerCapability(spec);
@@ -535,116 +685,13 @@ nlohmann::json FunctionRegistry::performFunctionRpc(const FunctionSpec& spec, co
     }
     ensureRpcIoInitialized();
 
-    // Build JSON-RPC request via jsonrpccxx client, executed on rpc_io.
-    std::shared_ptr<std::promise<std::string>> prom = std::make_shared<std::promise<std::string>>();
-    std::future<std::string> fut = prom->get_future();
-    auto done = std::make_shared<std::atomic<bool>>(false);
-
-    // Connector implementation using httplib
-    struct HttplibConnector : public jsonrpccxx::IClientConnector {
-        std::string socketPath;
-        HttplibConnector(const std::string& p) : socketPath(p) {}
-        std::string Send(const std::string &request) override {
-            // Use cpp-httplib to POST request to the unix socket
-            try {
-                httplib::Client cli(socketPath.c_str(), 0);
-                cli.set_address_family(AF_UNIX);
-                cli.set_read_timeout(5, 0);
-                auto res = cli.Post("/", request, "application/json");
-                if (!res) {
-                    throw std::runtime_error("HTTP request failed");
-                }
-                return res->body;
-            } catch (const std::exception& e) {
-                throw;
-            }
-        }
-    };
-
-    // Parse method name: use last token after '.' if present
+    // Resolve method name and delegate to helper that performs the JSON-RPC
+    // request and returns a parsed JSON result.
     std::string method = spec.name;
     auto pos = spec.name.find_last_of('.');
     if (pos != std::string::npos) method = spec.name.substr(pos + 1);
-
-    // Prepare params: if args is object, use named params; otherwise use positional param.
-    jsonrpccxx::named_parameter namedParams;
-    jsonrpccxx::positional_parameter posParams;
-    bool useNamed = args.is_object();
-    if (useNamed) {
-        for (auto it = args.begin(); it != args.end(); ++it) {
-            namedParams[it.key()] = it.value();
-        }
-    } else if (!args.is_null()) {
-        posParams.push_back(args);
-    }
-
-    // Post work to rpc_io
-    asio::post(*rpc_io, [prom, done, socketPath, method, useNamed, namedParams, posParams, &spec]() mutable {
-        try {
-            HttplibConnector connector(socketPath);
-            jsonrpccxx::JsonRpcClient client(connector, jsonrpccxx::version::v2);
-            nlohmann::json result;
-            try {
-                if (!useNamed) {
-                    result = client.CallMethod<nlohmann::json>(1, method, posParams);
-                } else {
-                    result = client.CallMethodNamed<nlohmann::json>(1, method, namedParams);
-                }
-                if (!done->exchange(true)) {
-                    prom->set_value(result.dump());
-                }
-            } catch (const std::exception& e) {
-                if (!done->exchange(true)) {
-                    nlohmann::json err = nlohmann::json::object();
-                    err["error"] = std::string("rpc_exception: ") + e.what();
-                    prom->set_value(err.dump());
-                }
-            }
-        } catch (const std::exception& e) {
-            if (!done->exchange(true)) {
-                nlohmann::json err = nlohmann::json::object();
-                err["error"] = std::string("connector_exception: ") + e.what();
-                prom->set_value(err.dump());
-            }
-        }
-    });
-
-    // Setup an asio timer for timeout handling on rpc_io
     uint32_t timeoutMs = spec.timeoutMs > 0 ? spec.timeoutMs : 4000u;
-    asio::steady_timer timer(*rpc_io, std::chrono::milliseconds(timeoutMs));
-    timer.async_wait([prom, done](const asio::error_code& ec) {
-        if (ec) return; // cancelled
-        if (!done->exchange(true)) {
-            try {
-                nlohmann::json err = nlohmann::json::object();
-                err["error"] = "timeout";
-                prom->set_value(err.dump());
-            } catch (...) {}
-        }
-    });
-
-    // Wait for result (the timer and RPC execution run on rpc_io threads)
-    std::string raw;
-    try {
-        raw = fut.get();
-    } catch (const std::exception& e) {
-        CubeLog::error(std::string("performFunctionRpc future exception: ") + e.what());
-        return nlohmann::json({{"error", "future_exception"}});
-    }
-
-    // Cancel the timer if still pending
-    asio::post(*rpc_io, [&timer]() {
-        asio::error_code ec;
-        timer.cancel();
-    });
-
-    try {
-        return nlohmann::json::parse(raw);
-    } catch (...) {
-        nlohmann::json j;
-        j["result"] = raw;
-        return j;
-    }
+    return sendJsonRpcRequest(socketPath, method, args, timeoutMs);
 }
 
 HttpEndPointData_t FunctionRegistry::getHttpEndpointData()
