@@ -819,7 +819,6 @@ nlohmann::json FunctionRegistry::performFunctionRpc(const FunctionSpec& spec, co
     }
     // socket present -> clear any previous unavailable flag
     this->setFunctionSocketUnavailable(spec.name, false);
-    ensureRpcIoInitialized();
 
     // Resolve method name and delegate to helper that performs the JSON-RPC
     // request and returns a parsed JSON result.
