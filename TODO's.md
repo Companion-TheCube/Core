@@ -80,11 +80,8 @@
 - [src/database/db.h:253] : make sure all the data is sanitized before being inserted into the database.
 - [src/decisionEngine/cubeWhisper.cpp:40] : initialize whisper.cpp library and load model(s) in a background thread
 - [src/decisionEngine/decisions.cpp:84] :
-- [src/decisionEngine/functionRegistry.cpp:158] in AudioOutput. For now, ensure audio is started
-- [src/decisionEngine/functionRegistry.cpp:162] : actually load and play `file` at specified `volume`.
-- [src/decisionEngine/functionRegistry.cpp:196] : actually load and play `file` at specified `volume`.
-- [src/decisionEngine/functionRegistry.cpp:210] : add all the built in capabilities here. each one should have a json manifest in data/capabilities
-- [src/decisionEngine/functionRegistry.cpp:401] : implement actual JSON-RPC via asio here. For now, return an error
+- [src/decisionEngine/functionRegistry.cpp:242] : add all the built in capabilities here. each one should have a json manifest in data/capabilities
+- [src/decisionEngine/functionRegistry.cpp:448] : implement actual JSON-RPC via asio here. For now, return an error
 - [src/decisionEngine/intentRegistry.cpp:158] : add TTS support
 - [src/decisionEngine/intentRegistry.cpp:185] : Implement this
 - [src/decisionEngine/intentRegistry.cpp:191] : This needs checks to ensure properly formatted JSON
@@ -110,7 +107,7 @@
 - [src/decisionEngine/remoteServer.cpp:89] :
 - [src/decisionEngine/remoteServer.cpp:96] :
 - [src/decisionEngine/scheduler.cpp:233] noted below).
-- [src/decisionEngine/scheduler.cpp:245] : check if the task should be repeated and if so, add it back to the scheduledTasks list
+- [src/decisionEngine/scheduler.cpp:246] : check if the task should be repeated and if so, add it back to the scheduledTasks list
 - [src/decisionEngine/scheduler.cpp:59] :
 - [src/decisionEngine/transcriber.cpp:42] :
 - [src/decisionEngine/transcriber.cpp:47] : construct CubeWhisper and prime any resources required for STT

@@ -70,6 +70,94 @@ namespace FunctionUtils {
     CapabilitySpec capabilityFromJson(const nlohmann::json& j);
 }
 
+namespace {
+    // RPC IO objects for performFunctionRpc
+    std::shared_ptr<asio::io_context> rpc_io;
+    std::shared_ptr<asio::executor_work_guard<asio::io_context::executor_type>> rpc_guard;
+    std::vector<std::thread> rpc_threads;
+    std::mutex rpc_init_mutex;
+
+    // Ensure the RPC io_context and threads are initialized.
+    void ensureRpcIoInitialized() {
+        std::lock_guard<std::mutex> guard(rpc_init_mutex);
+        if (!rpc_io) {
+            rpc_io = std::make_shared<asio::io_context>();
+            rpc_guard = std::make_shared<asio::executor_work_guard<asio::io_context::executor_type>>(rpc_io->get_executor());
+            unsigned int n = std::max(1u, std::min(4u, std::thread::hardware_concurrency() / 2));
+            for (unsigned int i = 0; i < n; ++i) {
+                rpc_threads.emplace_back([](){
+                    try { rpc_io->run(); } catch(...) {}
+                });
+            }
+        }
+    }
+
+    // Lookup socket path for an app using the apps DB, falling back to treating
+    // spec.appName as a direct socket path if it looks like one.
+    std::string lookupSocketPathFromDB(const FunctionSpec& spec) {
+        std::string socketPath;
+        try {
+            if (CubeDB::getDBManager() == nullptr) {
+                CubeLog::error("CubeDB manager not available");
+                return {};
+            }
+            Database* db = CubeDB::getDBManager()->getDatabase("apps");
+            if (!db) {
+                CubeLog::error("Apps database not available");
+                return {};
+            }
+            if (db->columnExists("apps", "socket_location")) {
+                auto rows = db->selectData("apps", {"socket_location"}, "app_name = '" + spec.appName + "'");
+                if (rows.size() > 0 && rows[0].size() > 0 && !rows[0][0].empty()) {
+                    socketPath = rows[0][0];
+                } else {
+                    rows = db->selectData("apps", {"socket_location"}, "app_id = '" + spec.appName + "'");
+                    if (rows.size() > 0 && rows[0].size() > 0 && !rows[0][0].empty()) {
+                        socketPath = rows[0][0];
+                    }
+                }
+            }
+        } catch (const std::exception& e) {
+            CubeLog::error(std::string("DB lookup failed: ") + e.what());
+            return {};
+        }
+
+        if (socketPath.empty()) {
+            if (!spec.appName.empty() && (spec.appName.find('/') != std::string::npos || spec.appName.rfind('.', 0) == 0 || spec.appName.rfind("./",0)==0)) {
+                socketPath = spec.appName;
+            }
+        }
+        return socketPath;
+    }
+
+    // Process a capability JSON file and register it on the given registry.
+    void processCapabilityFile(FunctionRegistry* registry, const std::filesystem::path& filePath, const std::filesystem::path& appDir = {}) {
+        try {
+            std::ifstream ifs(filePath);
+            nlohmann::json j = nlohmann::json::parse(ifs);
+            CapabilitySpec spec = FunctionUtils::capabilityFromJson(j);
+            if (spec.name.empty()) return;
+            if (spec.action == nullptr && spec.type == "rpc" && spec.entry.empty() && !appDir.empty()) {
+                spec.entry = appDir.filename().string();
+            }
+            if (spec.type == "core" && spec.name == "core.play_sound") {
+                spec.action = [spec](const nlohmann::json& args) {
+                    try {
+                        std::string file = args.value("file", "");
+                        double volume = args.value("volume", 1.0);
+                        CubeLog::info("core.play_sound invoked. file=" + file + ", volume=" + std::to_string(volume));
+                    } catch (const std::exception& e) {
+                        CubeLog::error(std::string("core.play_sound action exception: ") + e.what());
+                    }
+                };
+            }
+            registry->registerCapability(spec);
+        } catch (const std::exception& e) {
+            CubeLog::error(std::string("Failed to load capability manifest: ") + e.what());
+        }
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FunctionRegistry::FunctionRegistry()
@@ -128,83 +216,27 @@ void FunctionRegistry::loadCapabilityManifests(const std::vector<std::string>& p
     }
     for (const auto& p : searchPaths) {
         std::error_code ec;
-        if (!std::filesystem::exists(p, ec)) {
-            // If path is apps, we iterate subdirs
-            if (p == "apps") {
-                if (!std::filesystem::exists(p)) continue;
-                for (auto& dir : std::filesystem::directory_iterator(p)) {
-                    if (!dir.is_directory()) continue;
-                    auto capDir = dir.path() / "capabilities";
-                    if (std::filesystem::exists(capDir)) {
-                        for (auto& f : std::filesystem::directory_iterator(capDir)) {
-                            if (f.path().extension() == ".json") {
-                                try {
-                                    std::ifstream ifs(f.path());
-                                    nlohmann::json j = nlohmann::json::parse(ifs);
-                                CapabilitySpec spec = FunctionUtils::capabilityFromJson(j);
-                                // If entry not set, default to dir name (app id)
-                                if (spec.name.empty()) continue;
-                                if (spec.action == nullptr && spec.type == "rpc" && spec.entry.empty()) {
-                                    spec.entry = dir.path().filename().string();
-                                }
-                                // Bind known core capabilities to CORE implementations
-                                if (spec.type == "core" && spec.name == "core.play_sound") {
-                                    spec.action = [spec](const nlohmann::json& args) {
-                                        try {
-                                            std::string file = args.value("file", "");
-                                            double volume = args.value("volume", 1.0);
-                                            CubeLog::info("core.play_sound invoked. file=" + file + ", volume=" + std::to_string(volume));
-                                            // Basic behavior: enable audio output. Real file playback
-                                            // is TODO in AudioOutput. For now, ensure audio is started
-                                            // and unmute.
-                                            // AudioOutput::setSound(true);
-                                            // AudioOutput::start();
-                                            // TODO: actually load and play `file` at specified `volume`.
-                                        } catch (const std::exception& e) {
-                                            CubeLog::error(std::string("core.play_sound action exception: ") + e.what());
-                                        }
-                                    };
-                                }
-                                registerCapability(spec);
-                                } catch (const std::exception& e) {
-                                    CubeLog::error(std::string("Failed to load capability manifest: ") + e.what());
-                                }
-                            }
-                        }
-                    }
+        // Special-case apps directory: iterate each app and load its capabilities
+        if (p == "apps") {
+            if (!std::filesystem::exists(p, ec)) continue;
+            for (auto& dir : std::filesystem::directory_iterator(p)) {
+                if (!dir.is_directory()) continue;
+                auto capDir = dir.path() / "capabilities";
+                if (!std::filesystem::exists(capDir)) continue;
+                for (auto& f : std::filesystem::directory_iterator(capDir)) {
+                    if (f.path().extension() != ".json") continue;
+                    processCapabilityFile(this, f.path(), dir.path());
                 }
             }
             continue;
         }
-        // If p is data/capabilities or other directory
-        if (std::filesystem::is_directory(p)) {
-            for (auto& f : std::filesystem::directory_iterator(p)) {
-                if (f.path().extension() == ".json") {
-                    try {
-                        std::ifstream ifs(f.path());
-                        nlohmann::json j = nlohmann::json::parse(ifs);
-                        CapabilitySpec spec = FunctionUtils::capabilityFromJson(j);
-                        // Bind known core capabilities
-                        if (spec.type == "core" && spec.name == "core.play_sound") {
-                            spec.action = [spec](const nlohmann::json& args) {
-                                try {
-                                    std::string file = args.value("file", "");
-                                    double volume = args.value("volume", 1.0);
-                                    CubeLog::info("core.play_sound invoked. file=" + file + ", volume=" + std::to_string(volume));
-                                    // AudioOutput::setSound(true);
-                                    // AudioOutput::start();
-                                    // TODO: actually load and play `file` at specified `volume`.
-                                } catch (const std::exception& e) {
-                                    CubeLog::error(std::string("core.play_sound action exception: ") + e.what());
-                                }
-                            };
-                        }
-                        registerCapability(spec);
-                    } catch (const std::exception& e) {
-                        CubeLog::error(std::string("Failed to load capability manifest: ") + e.what());
-                    }
-                }
-            }
+
+        // For other directories, skip early if missing or not a directory
+        if (!std::filesystem::exists(p, ec)) continue;
+        if (!std::filesystem::is_directory(p)) continue;
+        for (auto& f : std::filesystem::directory_iterator(p)) {
+            if (f.path().extension() != ".json") continue;
+            processCapabilityFile(this, f.path());
         }
     }
     // TODO: add all the built in capabilities here. each one should have a json manifest in data/capabilities
@@ -228,37 +260,52 @@ bool FunctionRegistry::registerFunc(const FunctionSpec& spec)
     // The version must be a valid semantic version, e.g. "v1_0_0", "v2_1_3", etc. Version indicates the minimum version of the CORE
     // that the app requires.
     // valid examples: "v1_0_0.my_app.my_function", "v2_1_3.my_app.my_function"
-    if(spec.name.empty()){
+    if (spec.name.empty()) {
         CubeLog::error("Function name cannot be empty");
         return false;
     }
-    if (!std::regex_match(spec.name, std::regex("^v[0-9_]+\\.[a-zA-Z_][a-zA-Z0-9_]\\.[a-zA-Z_][a-zA-Z0-9_]*$"))) {
-        // first we check that the version is valid
-        if(!std::regex_match(spec.name, std::regex("^v[0-9_]+\\.[a-zA-Z_\\.0-9]*$"))) {
+
+    // If the full canonical form matches, accept it. Otherwise validate parts.
+    const std::regex fullRegex("^v[0-9_]+\\.[a-zA-Z_][a-zA-Z0-9_]*\\.[a-zA-Z_][a-zA-Z0-9_]*$");
+    if (!std::regex_match(spec.name, fullRegex)) {
+        // Validate version prefix exists
+        const std::regex versionRegex("^v[0-9_]+\\.[a-zA-Z_\\.0-9]*$");
+        if (!std::regex_match(spec.name, versionRegex)) {
             CubeLog::error("Function name must start with a valid version indicator like 'v1.0.0.my_app.my_function'");
             return false;
         }
-        // then we check that the app name is valid
-        // get the app name from the function name
-        std::string appName = spec.name.substr(spec.name.find('.') + 1, spec.name.find('.', spec.name.find('.') + 1) - spec.name.find('.') - 1);
-        // then check that the app name is a valid identifier
-        if (!std::regex_match(appName, std::regex("^[a-zA-Z_][a-zA-Z0-9_]*$"))) {
+
+        // Extract app name (the token between the first and second '.')
+        auto firstDot = spec.name.find('.');
+        auto secondDot = spec.name.find('.', firstDot + 1);
+        if (firstDot == std::string::npos || secondDot == std::string::npos) {
+            CubeLog::error("Function name '" + spec.name + "' is malformed");
+            return false;
+        }
+        std::string appName = spec.name.substr(firstDot + 1, secondDot - firstDot - 1);
+
+        // Validate app name identifier
+        const std::regex identRegex("^[a-zA-Z_][a-zA-Z0-9_]*$");
+        if (!std::regex_match(appName, identRegex)) {
             CubeLog::error("App name '" + appName + "' in function name '" + spec.name + "' is not a valid identifier. It must start with a letter or underscore and can only contain alphanumeric characters and underscores.");
             return false;
         }
-        // then check that the app name is in the DB
+
+        // Ensure app is registered
         auto appNames = AppsManager::getAppNames_static();
         if (std::find(appNames.begin(), appNames.end(), appName) == appNames.end()) {
             CubeLog::error("App '" + appName + "' is not registered. Please register the app before registering functions.");
             return false;
         }
-        // then we check that the function name is valid
+
+        // Validate function name token (last token)
         std::string functionName = spec.name.substr(spec.name.find_last_of('.') + 1);
-        if (!std::regex_match(functionName, std::regex("^[a-zA-Z_][a-zA-Z0-9_]*$"))) {
+        if (!std::regex_match(functionName, identRegex)) {
             CubeLog::error("Function name '" + functionName + "' in function name '" + spec.name + "' is not a valid identifier. It must start with a letter or underscore and can only contain alphanumeric characters and underscores.");
             return false;
         }
     }
+
     std::lock_guard<std::mutex> lock(mutex_);
     funcs_[spec.name] = spec;
     CubeLog::info("Registered function: " + spec.name);
@@ -404,67 +451,13 @@ nlohmann::json FunctionRegistry::performFunctionRpc(const FunctionSpec& spec, co
 {
     CubeLog::info("performFunctionRpc called for: " + spec.name + " with args: " + args.dump());
 
-    // Lookup socket location in apps DB. Use app_name first, then app_id.
-    std::string socketPath;
-    try {
-        if (CubeDB::getDBManager() == nullptr) {
-            CubeLog::error("CubeDB manager not available");
-            return nlohmann::json({{"error", "db_not_ready"}});
-        }
-        Database* db = CubeDB::getDBManager()->getDatabase("apps");
-        if (!db) {
-            CubeLog::error("Apps database not available");
-            return nlohmann::json({{"error", "db_not_available"}});
-        }
-        if (db->columnExists("apps", "socket_location")) {
-            // Try app_name
-            auto rows = db->selectData("apps", {"socket_location"}, "app_name = '" + spec.appName + "'");
-            if (rows.size() > 0 && rows[0].size() > 0 && !rows[0][0].empty()) {
-                socketPath = rows[0][0];
-            } else {
-                // Try app_id
-                rows = db->selectData("apps", {"socket_location"}, "app_id = '" + spec.appName + "'");
-                if (rows.size() > 0 && rows[0].size() > 0 && !rows[0][0].empty()) {
-                    socketPath = rows[0][0];
-                }
-            }
-        }
-    } catch (const std::exception& e) {
-        CubeLog::error(std::string("DB lookup failed: ") + e.what());
-        return nlohmann::json({{"error", "db_lookup_failed"}});
-    }
-
-    if (socketPath.empty()) {
-        // If the DB did not contain a socket_location, allow spec.appName to
-        // be a direct socket path (useful for testing and quick overrides).
-        if (!spec.appName.empty() && (spec.appName.find('/') != std::string::npos || spec.appName.rfind('.', 0) == 0 || spec.appName.rfind("./",0)==0)) {
-            socketPath = spec.appName;
-        }
-    }
+    // Lookup socket path and ensure RPC IO is initialized
+    std::string socketPath = lookupSocketPathFromDB(spec);
     if (socketPath.empty()) {
         CubeLog::error("No socket_location found for app: " + spec.appName);
         return nlohmann::json({{"error", "socket_not_found"}});
     }
-
-    // Ensure RPC io_context and threads are running
-    static std::shared_ptr<asio::io_context> rpc_io;
-    static std::shared_ptr<asio::executor_work_guard<asio::io_context::executor_type>> rpc_guard;
-    static std::vector<std::thread> rpc_threads;
-    static std::mutex rpc_init_mutex;
-    {
-        std::lock_guard<std::mutex> guard(rpc_init_mutex);
-        if (!rpc_io) {
-            rpc_io = std::make_shared<asio::io_context>();
-            rpc_guard = std::make_shared<asio::executor_work_guard<asio::io_context::executor_type>>(rpc_io->get_executor());
-            // start a small thread pool for RPC IO
-            unsigned int n = std::max(1u, std::min(4u, std::thread::hardware_concurrency() / 2));
-            for (unsigned int i = 0; i < n; ++i) {
-                rpc_threads.emplace_back([](){
-                    try { rpc_io->run(); } catch(...) {}
-                });
-            }
-        }
-    }
+    ensureRpcIoInitialized();
 
     // Build JSON-RPC request via jsonrpccxx client, executed on rpc_io.
     std::shared_ptr<std::promise<std::string>> prom = std::make_shared<std::promise<std::string>>();
