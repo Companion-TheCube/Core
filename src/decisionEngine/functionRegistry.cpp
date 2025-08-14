@@ -1,9 +1,9 @@
 /*
-███████╗██╗   ██╗███╗   ██╗ ██████╗████████╗██╗ ██████╗ ███╗   ██╗██████╗ ███████╗ ██████╗ ██╗███████╗████████╗██████╗ ██╗   ██╗ ██████╗██████╗ ██████╗ 
+███████╗██╗   ██╗███╗   ██╗ ██████╗████████╗██╗ ██████╗ ███╗   ██╗██████╗ ███████╗ ██████╗ ██╗███████╗████████╗██████╗ ██╗   ██╗ ██████╗██████╗ ██████╗
 ██╔════╝██║   ██║████╗  ██║██╔════╝╚══██╔══╝██║██╔═══██╗████╗  ██║██╔══██╗██╔════╝██╔════╝ ██║██╔════╝╚══██╔══╝██╔══██╗╚██╗ ██╔╝██╔════╝██╔══██╗██╔══██╗
 █████╗  ██║   ██║██╔██╗ ██║██║        ██║   ██║██║   ██║██╔██╗ ██║██████╔╝█████╗  ██║  ███╗██║███████╗   ██║   ██████╔╝ ╚████╔╝ ██║     ██████╔╝██████╔╝
-██╔══╝  ██║   ██║██║╚██╗██║██║        ██║   ██║██║   ██║██║╚██╗██║██╔══██╗██╔══╝  ██║   ██║██║╚════██║   ██║   ██╔══██╗  ╚██╔╝  ██║     ██╔═══╝ ██╔═══╝ 
-██║     ╚██████╔╝██║ ╚████║╚██████╗   ██║   ██║╚██████╔╝██║ ╚████║██║  ██║███████╗╚██████╔╝██║███████║   ██║   ██║  ██║   ██║██╗╚██████╗██║     ██║     
+██╔══╝  ██║   ██║██║╚██╗██║██║        ██║   ██║██║   ██║██║╚██╗██║██╔══██╗██╔══╝  ██║   ██║██║╚════██║   ██║   ██╔══██╗  ╚██╔╝  ██║     ██╔═══╝ ██╔═══╝
+██║     ╚██████╔╝██║ ╚████║╚██████╗   ██║   ██║╚██████╔╝██║ ╚████║██║  ██║███████╗╚██████╔╝██║███████║   ██║   ██║  ██║   ██║██╗╚██████╗██║     ██║
 ╚═╝      ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝   ╚═╝╚═╝ ╚═════╝╚═╝     ╚═╝
 */
 
@@ -30,7 +30,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-
 
 /*
 Overview:
@@ -81,13 +80,16 @@ initialization respectively.
 #include "functionRegistry.h"
 // Asio and json-rpc-cxx
 #include <asio.hpp>
+#include <atomic>
+#include <filesystem>
 #include <jsonrpccxx/client.hpp>
 #include <jsonrpccxx/iclientconnector.hpp>
 #include <memory>
-#include <atomic>
-#include <filesystem>
 
 namespace DecisionEngine {
+
+// Socket rechecker interval (ms)
+static constexpr std::chrono::milliseconds SOCKET_RECHECK_INTERVAL { 1000 };
 
 namespace FunctionUtils {
     // Helper to convert a JSON object to a FunctionSpec
@@ -103,15 +105,19 @@ namespace {
     std::mutex rpc_init_mutex;
 
     // Ensure the RPC io_context and threads are initialized.
-    void ensureRpcIoInitialized() {
+    void ensureRpcIoInitialized()
+    {
         std::lock_guard<std::mutex> guard(rpc_init_mutex);
         if (!rpc_io) {
             rpc_io = std::make_shared<asio::io_context>();
             rpc_guard = std::make_shared<asio::executor_work_guard<asio::io_context::executor_type>>(rpc_io->get_executor());
             unsigned int n = std::max(1u, std::min(4u, std::thread::hardware_concurrency() / 2));
             for (unsigned int i = 0; i < n; ++i) {
-                rpc_threads.emplace_back([](){
-                    try { rpc_io->run(); } catch(...) {}
+                rpc_threads.emplace_back([]() {
+                    try {
+                        rpc_io->run();
+                    } catch (...) {
+                    }
                 });
             }
         }
@@ -121,9 +127,9 @@ namespace {
     // posts the work to the shared `rpc_io` and returns the parsed JSON
     // response (or an error object on failure).
     nlohmann::json sendJsonRpcRequest(const std::string& socketPath,
-                                      const std::string& method,
-                                      const nlohmann::json& args,
-                                      uint32_t timeoutMs)
+        const std::string& method,
+        const nlohmann::json& args,
+        uint32_t timeoutMs)
     {
         ensureRpcIoInitialized();
 
@@ -133,14 +139,19 @@ namespace {
 
         struct HttplibConnector : public jsonrpccxx::IClientConnector {
             std::string socketPath;
-            HttplibConnector(const std::string& p) : socketPath(p) {}
-            std::string Send(const std::string &request) override {
+            HttplibConnector(const std::string& p)
+                : socketPath(p)
+            {
+            }
+            std::string Send(const std::string& request) override
+            {
                 try {
                     httplib::Client cli(socketPath.c_str(), 0);
                     cli.set_address_family(AF_UNIX);
                     cli.set_read_timeout(5, 0);
                     auto res = cli.Post("/", request, "application/json");
-                    if (!res) throw std::runtime_error("HTTP request failed");
+                    if (!res)
+                        throw std::runtime_error("HTTP request failed");
                     return res->body;
                 } catch (...) {
                     throw;
@@ -153,11 +164,13 @@ namespace {
         jsonrpccxx::named_parameter namedParams;
         jsonrpccxx::positional_parameter posParams;
         if (useNamed) {
-            for (auto it = args.begin(); it != args.end(); ++it) namedParams[it.key()] = it.value();
+            for (auto it = args.begin(); it != args.end(); ++it)
+                namedParams[it.key()] = it.value();
         } else if (!args.is_null()) {
             // if args is an array, forward elements; otherwise use single positional param
             if (args.is_array()) {
-                for (auto &el : args) posParams.push_back(el);
+                for (auto& el : args)
+                    posParams.push_back(el);
             } else {
                 posParams.push_back(args);
             }
@@ -170,9 +183,12 @@ namespace {
                 jsonrpccxx::JsonRpcClient client(connector, jsonrpccxx::version::v2);
                 nlohmann::json result;
                 try {
-                    if (!useNamed) result = client.CallMethod<nlohmann::json>(1, method, posParams);
-                    else result = client.CallMethodNamed<nlohmann::json>(1, method, namedParams);
-                    if (!done->exchange(true)) prom->set_value(result.dump());
+                    if (!useNamed)
+                        result = client.CallMethod<nlohmann::json>(1, method, posParams);
+                    else
+                        result = client.CallMethodNamed<nlohmann::json>(1, method, namedParams);
+                    if (!done->exchange(true))
+                        prom->set_value(result.dump());
                 } catch (const std::exception& e) {
                     if (!done->exchange(true)) {
                         nlohmann::json err = nlohmann::json::object();
@@ -192,13 +208,15 @@ namespace {
         // Timer
         asio::steady_timer timer(*rpc_io, std::chrono::milliseconds(timeoutMs));
         timer.async_wait([prom, done](const asio::error_code& ec) {
-            if (ec) return; // cancelled
+            if (ec)
+                return; // cancelled
             if (!done->exchange(true)) {
                 try {
                     nlohmann::json err = nlohmann::json::object();
                     err["error"] = "timeout";
                     prom->set_value(err.dump());
-                } catch (...) {}
+                } catch (...) {
+                }
             }
         });
 
@@ -207,7 +225,7 @@ namespace {
             raw = fut.get();
         } catch (const std::exception& e) {
             CubeLog::error(std::string("sendJsonRpcRequest future exception: ") + e.what());
-            return nlohmann::json({{"error", "future_exception"}});
+            return nlohmann::json({ { "error", "future_exception" } });
         }
 
         // cancel timer
@@ -227,7 +245,8 @@ namespace {
 
     // Lookup socket path for an app using the apps DB, falling back to treating
     // spec.appName as a direct socket path if it looks like one.
-    std::string lookupSocketPathFromDB(const FunctionSpec& spec) {
+    std::string lookupSocketPathFromDB(const FunctionSpec& spec)
+    {
         std::string socketPath;
         try {
             if (CubeDB::getDBManager() == nullptr) {
@@ -242,12 +261,12 @@ namespace {
             if (!db->columnExists("apps", "socket_location")) {
                 CubeLog::error("Apps database does not have socket_location column");
             } else {
-                auto rows = db->selectData("apps", {"socket_location"}, "app_name = '" + spec.appName + "'");
+                auto rows = db->selectData("apps", { "socket_location" }, "app_name = '" + spec.appName + "'");
                 if (rows.size() > 0 && rows[0].size() > 0 && !rows[0][0].empty()) {
                     socketPath = rows[0][0];
                 }
                 if (socketPath.empty()) {
-                    rows = db->selectData("apps", {"socket_location"}, "app_id = '" + spec.appName + "'");
+                    rows = db->selectData("apps", { "socket_location" }, "app_id = '" + spec.appName + "'");
                     if (rows.size() > 0 && rows[0].size() > 0 && !rows[0][0].empty()) {
                         socketPath = rows[0][0];
                     }
@@ -260,9 +279,11 @@ namespace {
 
         if (socketPath.empty()) {
             // If no DB entry, only accept spec.appName when it looks like a path
-            if (spec.appName.empty()) return socketPath;
-            bool looksLikePath = (spec.appName.find('/') != std::string::npos || spec.appName.rfind('.', 0) == 0 || spec.appName.rfind("./",0)==0);
-            if (!looksLikePath) return socketPath;
+            if (spec.appName.empty())
+                return socketPath;
+            bool looksLikePath = (spec.appName.find('/') != std::string::npos || spec.appName.rfind('.', 0) == 0 || spec.appName.rfind("./", 0) == 0);
+            if (!looksLikePath)
+                return socketPath;
             // TODO: Treating `spec.appName` as a direct socket path is a
             // convenience for testing and overrides. Confirm this behavior is
             // acceptable for production and consider validating/normalizing
@@ -273,12 +294,14 @@ namespace {
     }
 
     // Process a capability JSON file and register it on the given registry.
-    void processCapabilityFile(FunctionRegistry* registry, const std::filesystem::path& filePath, const std::filesystem::path& appDir = {}) {
+    void processCapabilityFile(FunctionRegistry* registry, const std::filesystem::path& filePath, const std::filesystem::path& appDir = {})
+    {
         try {
             std::ifstream ifs(filePath);
             nlohmann::json j = nlohmann::json::parse(ifs);
             CapabilitySpec spec = FunctionUtils::capabilityFromJson(j);
-            if (spec.name.empty()) return;
+            if (spec.name.empty())
+                return;
             if (spec.action == nullptr && spec.type == "rpc" && spec.entry.empty() && !appDir.empty()) {
                 // Default the RPC capability `entry` to the app directory name
                 // when the manifest leaves it empty. This helps identify the
@@ -300,63 +323,63 @@ namespace {
             // call the implementing app over JSON-RPC using the shared helper.
             // The capability's `entry` is expected to be the app id or a direct
             // socket path (the latter is supported for testing/overrides).
-            if (spec.type == "rpc") {
-                // If action already provided by manifest, do not overwrite.
-                if (!spec.action) {
-                    // capture by value so the spec copy survives registration
-                    spec.action = [spec, registry](const nlohmann::json& args) {
-                        try {
-                            // Resolve socket path: try DB lookup using entry as appName
-                            FunctionSpec tmp;
-                            tmp.appName = spec.entry;
-                            std::string socket = lookupSocketPathFromDB(tmp);
-                            if (socket.empty()) {
-                                // Allow entry to be a direct socket path
-                                if (!spec.entry.empty() && (spec.entry.find('/') != std::string::npos || spec.entry.rfind('.', 0) == 0 || spec.entry.rfind("./",0)==0)) {
-                                    socket = spec.entry;
-                                }
+
+            // If action already provided by manifest, do not overwrite.
+            if (!spec.action) {
+                // capture by value so the spec copy survives registration
+                spec.action = [spec, registry](const nlohmann::json& args) {
+                    try {
+                        // Resolve socket path: try DB lookup using entry as appName
+                        FunctionSpec tmp;
+                        tmp.appName = spec.entry;
+                        std::string socket = lookupSocketPathFromDB(tmp);
+                        if (socket.empty()) {
+                            // Allow entry to be a direct socket path
+                            if (!spec.entry.empty() && (spec.entry.find('/') != std::string::npos || spec.entry.rfind('.', 0) == 0 || spec.entry.rfind("./", 0) == 0)) {
+                                socket = spec.entry;
                             }
-                            if (socket.empty()) {
-                                registry->setCapabilitySocketUnavailable(spec.name, true);
-                                CubeLog::error("RPC capability '" + spec.name + "' has no socket_location for entry='" + spec.entry + "'");
-                                nlohmann::json result;
-                                result["error"] = "socket_not_found";
-                                return result;
-                            }
-                            // If socket path exists check file exists; if not, mark as unavailable
-                            std::error_code ec;
-                            if (!std::filesystem::exists(socket, ec)) {
-                                registry->setCapabilitySocketUnavailable(spec.name, true);
-                                CubeLog::info("RPC capability socket not yet present: " + socket);
-                                nlohmann::json result;
-                                result["error"] = "socket_not_found";
-                                return result;
-                            }
-                            // socket now available, clear unavailable flag
-                            registry->setCapabilitySocketUnavailable(spec.name, false);
-                            // method is last token after '.'
-                            std::string method = spec.name;
-                            auto p = spec.name.find_last_of('.');
-                            if (p != std::string::npos) method = spec.name.substr(p + 1);
-                            uint32_t timeout = spec.timeoutMs > 0 ? spec.timeoutMs : 2000u;
-                            auto res = sendJsonRpcRequest(socket, method, args, timeout);
-                            if (res.is_object() && res.contains("error")) {
-                                CubeLog::error(std::string("RPC capability call failed: ") + res.dump());
-                            }
-                            if (res.is_object() && res.contains("result")) {
-                                return res["result"];
-                            }
-                            return res; // return raw response if no "result" key
-                        } catch (const std::exception& e) {
-                            CubeLog::error(std::string("RPC capability action exception: ") + e.what());
-                        } catch (...) {
-                            CubeLog::error("RPC capability action unknown exception");
                         }
-                        nlohmann::json result;
-                        result["result"] = "success";
-                        return result;
-                    };
-                }
+                        if (socket.empty()) {
+                            registry->setCapabilitySocketUnavailable(spec.name, true);
+                            CubeLog::error("RPC capability '" + spec.name + "' has no socket_location for entry='" + spec.entry + "'");
+                            nlohmann::json result;
+                            result["error"] = "socket_not_found";
+                            return result;
+                        }
+                        // If socket path exists check file exists; if not, mark as unavailable
+                        std::error_code ec;
+                        if (!std::filesystem::exists(socket, ec)) {
+                            registry->setCapabilitySocketUnavailable(spec.name, true);
+                            CubeLog::info("RPC capability socket not yet present: " + socket);
+                            nlohmann::json result;
+                            result["error"] = "socket_not_found";
+                            return result;
+                        }
+                        // socket now available, clear unavailable flag
+                        registry->setCapabilitySocketUnavailable(spec.name, false);
+                        // method is last token after '.'
+                        std::string method = spec.name;
+                        auto p = spec.name.find_last_of('.');
+                        if (p != std::string::npos)
+                            method = spec.name.substr(p + 1);
+                        uint32_t timeout = spec.timeoutMs > 0 ? spec.timeoutMs : 2000u;
+                        auto res = sendJsonRpcRequest(socket, method, args, timeout);
+                        if (res.is_object() && res.contains("error")) {
+                            CubeLog::error(std::string("RPC capability call failed: ") + res.dump());
+                        }
+                        if (res.is_object() && res.contains("result")) {
+                            return res["result"];
+                        }
+                        return res; // return raw response if no "result" key
+                    } catch (const std::exception& e) {
+                        CubeLog::error(std::string("RPC capability action exception: ") + e.what());
+                    } catch (...) {
+                        CubeLog::error("RPC capability action unknown exception");
+                    }
+                    nlohmann::json result;
+                    result["result"] = "success";
+                    return result;
+                };
             }
             registry->registerCapability(spec);
         } catch (const std::exception& e) {
@@ -364,10 +387,6 @@ namespace {
         }
     }
 }
-
-// Socket rechecker interval (ms)
-static constexpr std::chrono::milliseconds SOCKET_RECHECK_INTERVAL{1000};
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -392,9 +411,9 @@ FunctionRegistry::FunctionRegistry()
         CapabilitySpec ping;
         ping.name = "core.ping";
         ping.description = "Simple ping capability";
-        ping.action = [](const nlohmann::json& args){ 
-            CubeLog::info("core.ping invoked"); 
-            return nlohmann::json({{"result", "pong"}});
+        ping.action = [](const nlohmann::json& args) {
+            CubeLog::info("core.ping invoked");
+            return nlohmann::json({ { "result", "pong" } });
         };
         ping.enabled = true;
         this->registerCapability(ping);
@@ -417,7 +436,10 @@ FunctionRegistry::~FunctionRegistry()
         CubeLog::error("Exception while stopping FunctionRunner");
     }
     // Stop background thread
-    try { stopSocketRechecker(); } catch(...) {}
+    try {
+        stopSocketRechecker();
+    } catch (...) {
+    }
 }
 
 bool FunctionRegistry::registerCapability(const CapabilitySpec& spec)
@@ -436,7 +458,8 @@ const CapabilitySpec* FunctionRegistry::findCapability(const std::string& name) 
 {
     std::lock_guard<std::mutex> lock(mutex_);
     auto it = capabilities_.find(name);
-    if (it != capabilities_.end()) return &it->second;
+    if (it != capabilities_.end())
+        return &it->second;
     return nullptr;
 }
 
@@ -452,13 +475,17 @@ void FunctionRegistry::loadCapabilityManifests(const std::vector<std::string>& p
         std::error_code ec;
         // Special-case apps directory: iterate each app and load its capabilities
         if (p == "apps") {
-            if (!std::filesystem::exists(p, ec)) continue;
+            if (!std::filesystem::exists(p, ec))
+                continue;
             for (auto& dir : std::filesystem::directory_iterator(p)) {
-                if (!dir.is_directory()) continue;
+                if (!dir.is_directory())
+                    continue;
                 auto capDir = dir.path() / "capabilities";
-                if (!std::filesystem::exists(capDir)) continue;
+                if (!std::filesystem::exists(capDir))
+                    continue;
                 for (auto& f : std::filesystem::directory_iterator(capDir)) {
-                    if (f.path().extension() != ".json") continue;
+                    if (f.path().extension() != ".json")
+                        continue;
                     processCapabilityFile(this, f.path(), dir.path());
                 }
             }
@@ -466,14 +493,16 @@ void FunctionRegistry::loadCapabilityManifests(const std::vector<std::string>& p
         }
 
         // For other directories, skip early if missing or not a directory
-        if (!std::filesystem::exists(p, ec)) continue;
-        if (!std::filesystem::is_directory(p)) continue;
+        if (!std::filesystem::exists(p, ec))
+            continue;
+        if (!std::filesystem::is_directory(p))
+            continue;
         for (auto& f : std::filesystem::directory_iterator(p)) {
-            if (f.path().extension() != ".json") continue;
+            if (f.path().extension() != ".json")
+                continue;
             processCapabilityFile(this, f.path());
         }
     }
-    
 }
 
 bool FunctionRegistry::registerFunc(const FunctionSpec& spec)
@@ -539,8 +568,8 @@ bool FunctionRegistry::registerFunc(const FunctionSpec& spec)
 }
 
 void FunctionRegistry::runFunctionAsync(const std::string& functionName,
-                                        const nlohmann::json& args,
-                                        std::function<void(const nlohmann::json&)> onComplete)
+    const nlohmann::json& args,
+    std::function<void(const nlohmann::json&)> onComplete)
 {
     FunctionSpec spec;
     {
@@ -548,7 +577,7 @@ void FunctionRegistry::runFunctionAsync(const std::string& functionName,
         auto it = funcs_.find(functionName);
         if (it == funcs_.end()) {
             if (onComplete) {
-                onComplete(nlohmann::json({{"error", "function_not_found"}}));
+                onComplete(nlohmann::json({ { "error", "function_not_found" } }));
             }
             return;
         }
@@ -556,7 +585,8 @@ void FunctionRegistry::runFunctionAsync(const std::string& functionName,
     }
 
     if (!spec.enabled) {
-        if (onComplete) onComplete(nlohmann::json({{"error", "function_disabled"}}));
+        if (onComplete)
+            onComplete(nlohmann::json({ { "error", "function_disabled" } }));
         return;
     }
 
@@ -583,24 +613,26 @@ void FunctionRegistry::runFunctionAsync(const std::string& functionName,
             return this->performFunctionRpc(spec, args);
         } catch (const std::exception& e) {
             CubeLog::error(std::string("performFunctionRpc exception: ") + e.what());
-            return nlohmann::json({{"error", std::string("exception: ") + e.what()}});
+            return nlohmann::json({ { "error", std::string("exception: ") + e.what() } });
         } catch (...) {
             CubeLog::error("performFunctionRpc unknown exception");
-            return nlohmann::json({{"error", "unknown_exception"}});
+            return nlohmann::json({ { "error", "unknown_exception" } });
         }
     };
     // chain the spec's onComplete and the caller's onComplete
     auto specOnComplete = spec.onComplete;
     t.onComplete = [specOnComplete, onComplete](const nlohmann::json& result) {
         try {
-            if (specOnComplete) specOnComplete(result);
+            if (specOnComplete)
+                specOnComplete(result);
         } catch (const std::exception& e) {
             CubeLog::error(std::string("spec onComplete exception: ") + e.what());
         } catch (...) {
             CubeLog::error("spec onComplete unknown exception");
         }
         try {
-            if (onComplete) onComplete(result);
+            if (onComplete)
+                onComplete(result);
         } catch (const std::exception& e) {
             CubeLog::error(std::string("caller onComplete exception: ") + e.what());
         } catch (...) {
@@ -611,8 +643,8 @@ void FunctionRegistry::runFunctionAsync(const std::string& functionName,
 }
 
 void FunctionRegistry::runCapabilityAsync(const std::string& capabilityName,
-                                          const nlohmann::json& args,
-                                          std::function<void(const nlohmann::json&)> onComplete)
+    const nlohmann::json& args,
+    std::function<void(const nlohmann::json&)> onComplete)
 {
     CapabilitySpec cap;
     {
@@ -620,7 +652,7 @@ void FunctionRegistry::runCapabilityAsync(const std::string& capabilityName,
         auto it = capabilities_.find(capabilityName);
         if (it == capabilities_.end()) {
             if (onComplete) {
-                onComplete(nlohmann::json({{"error", "capability_not_found"}}));
+                onComplete(nlohmann::json({ { "error", "capability_not_found" } }));
             }
             return;
         }
@@ -628,7 +660,8 @@ void FunctionRegistry::runCapabilityAsync(const std::string& capabilityName,
     }
 
     if (!cap.enabled) {
-        if (onComplete) onComplete(nlohmann::json({{"error", "capability_disabled"}}));
+        if (onComplete)
+            onComplete(nlohmann::json({ { "error", "capability_disabled" } }));
         return;
     }
 
@@ -642,13 +675,13 @@ void FunctionRegistry::runCapabilityAsync(const std::string& capabilityName,
         try {
             if (action) {
                 action(args);
-                return nlohmann::json({{"status", "ok"}});
+                return nlohmann::json({ { "status", "ok" } });
             }
-            return nlohmann::json({{"error", "no_action"}});
+            return nlohmann::json({ { "error", "no_action" } });
         } catch (const std::exception& e) {
-            return nlohmann::json({{"error", std::string("action_exception: ") + e.what()}});
+            return nlohmann::json({ { "error", std::string("action_exception: ") + e.what() } });
         } catch (...) {
-            return nlohmann::json({{"error", "action_unknown_exception"}});
+            return nlohmann::json({ { "error", "action_unknown_exception" } });
         }
     };
     t.onComplete = onComplete;
@@ -686,13 +719,15 @@ void FunctionRegistry::setCapabilitySocketUnavailable(const std::string& capabil
 void FunctionRegistry::startSocketRechecker()
 {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (socketRecheckerThread_.joinable()) return;
+    if (socketRecheckerThread_.joinable())
+        return;
     // spawn thread
     std::thread t([this]() {
         while (true) {
             {
                 std::unique_lock<std::mutex> lk(this->mutex_);
-                if (this->socketRecheckerStop_) break;
+                if (this->socketRecheckerStop_)
+                    break;
             }
             // Copy names to check to avoid holding lock during filesystem ops
             std::vector<std::pair<std::string, std::string>> funcsToCheck;
@@ -711,20 +746,22 @@ void FunctionRegistry::startSocketRechecker()
                 }
             }
 
-            for (auto &p : funcsToCheck) {
+            for (auto& p : funcsToCheck) {
                 const std::string& name = p.first;
                 const std::string& appName = p.second;
-                FunctionSpec tmp; tmp.appName = appName;
+                FunctionSpec tmp;
+                tmp.appName = appName;
                 std::string socket = lookupSocketPathFromDB(tmp);
                 std::error_code ec;
                 if (!socket.empty() && std::filesystem::exists(socket, ec)) {
                     setFunctionSocketUnavailable(name, false);
                 }
             }
-            for (auto &p : capsToCheck) {
+            for (auto& p : capsToCheck) {
                 const std::string& name = p.first;
                 const std::string& entry = p.second;
-                FunctionSpec tmp; tmp.appName = entry;
+                FunctionSpec tmp;
+                tmp.appName = entry;
                 std::string socket = lookupSocketPathFromDB(tmp);
                 std::error_code ec;
                 if (!socket.empty() && std::filesystem::exists(socket, ec)) {
@@ -744,7 +781,8 @@ void FunctionRegistry::stopSocketRechecker()
         std::lock_guard<std::mutex> lock(mutex_);
         socketRecheckerStop_ = true;
     }
-    if (socketRecheckerThread_.joinable()) socketRecheckerThread_.join();
+    if (socketRecheckerThread_.joinable())
+        socketRecheckerThread_.join();
 }
 
 std::vector<nlohmann::json> FunctionRegistry::catalogueJson() const
@@ -770,14 +808,14 @@ nlohmann::json FunctionRegistry::performFunctionRpc(const FunctionSpec& spec, co
         CubeLog::error("No socket_location found for app: " + spec.appName);
         // mark function as unavailable (no socket configured)
         this->setFunctionSocketUnavailable(spec.name, true);
-        return nlohmann::json({{"error", "socket_not_found"}});
+        return nlohmann::json({ { "error", "socket_not_found" } });
     }
     // If socket exists on filesystem, proceed; otherwise mark unavailable and return
     std::error_code ec;
     if (!std::filesystem::exists(socketPath, ec)) {
         this->setFunctionSocketUnavailable(spec.name, true);
         CubeLog::info("Function socket not yet present: " + socketPath);
-        return nlohmann::json({{"error", "socket_not_ready"}});
+        return nlohmann::json({ { "error", "socket_not_ready" } });
     }
     // socket present -> clear any previous unavailable flag
     this->setFunctionSocketUnavailable(spec.name, false);
@@ -787,7 +825,8 @@ nlohmann::json FunctionRegistry::performFunctionRpc(const FunctionSpec& spec, co
     // request and returns a parsed JSON result.
     std::string method = spec.name;
     auto pos = spec.name.find_last_of('.');
-    if (pos != std::string::npos) method = spec.name.substr(pos + 1);
+    if (pos != std::string::npos)
+        method = spec.name.substr(pos + 1);
     uint32_t timeoutMs = spec.timeoutMs > 0 ? spec.timeoutMs : 4000u;
     return sendJsonRpcRequest(socketPath, method, args, timeoutMs);
 }
@@ -796,7 +835,7 @@ HttpEndPointData_t FunctionRegistry::getHttpEndpointData()
 {
     HttpEndPointData_t endpoints;
     endpoints.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,
-        [&](const httplib::Request& req, httplib::Response& res){
+        [&](const httplib::Request& req, httplib::Response& res) {
             // Register a function
             nlohmann::json j;
             try {
@@ -819,20 +858,20 @@ HttpEndPointData_t FunctionRegistry::getHttpEndpointData()
             res.set_content("Function registered successfully", "text/plain");
             res.set_header("Content-Type", "application/json");
             res.body = j.dump();
-            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR,"");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
         "Register a function", {}, "Register a new function with the function registry" });
     endpoints.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
-        [&](const httplib::Request& req, httplib::Response& res){
+        [&](const httplib::Request& req, httplib::Response& res) {
             // Get function catalogue
             nlohmann::json catalogue = catalogueJson();
             res.status = 200;
             res.set_content(catalogue.dump(), "application/json");
-            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR,"");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
         "Get function catalogue", {}, "Get the list of registered functions" });
     endpoints.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,
-        [&](const httplib::Request& req, httplib::Response& res){
+        [&](const httplib::Request& req, httplib::Response& res) {
             // Find a function by name
             std::string functionName = req.get_param_value("name");
             if (functionName.empty()) {
@@ -849,11 +888,11 @@ HttpEndPointData_t FunctionRegistry::getHttpEndpointData()
             nlohmann::json j = func->toJson();
             res.status = 200;
             res.set_content(j.dump(), "application/json");
-            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR,"");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
         "Find a function by name", {}, "Find a registered function by its name" });
     endpoints.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,
-        [&](const httplib::Request& req, httplib::Response& res){
+        [&](const httplib::Request& req, httplib::Response& res) {
             // Unregister a function
             std::string functionName = req.get_param_value("name");
             if (functionName.empty()) {
@@ -871,16 +910,16 @@ HttpEndPointData_t FunctionRegistry::getHttpEndpointData()
             funcs_.erase(it);
             res.status = 200;
             res.set_content("Function unregistered successfully", "text/plain");
-            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR,"");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
         "Unregister a function", {}, "Unregister a function from the function registry" });
     endpoints.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
-        [&](const httplib::Request& req, httplib::Response& res){
+        [&](const httplib::Request& req, httplib::Response& res) {
             // Get the list of all registered functions
             nlohmann::json catalogue = catalogueJson();
             res.status = 200;
             res.set_content(catalogue.dump(), "application/json");
-            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR,"");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
         "Get all registered functions", {}, "Get the list of all registered functions" });
     // Suggested additional endpoints to consider implementing:
