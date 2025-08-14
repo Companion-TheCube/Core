@@ -339,7 +339,7 @@ namespace {
                 // If action already provided by manifest, do not overwrite.
                 if (!spec.action) {
                     // capture by value so the spec copy survives registration
-                    spec.action = [spec](const nlohmann::json& args) {
+                    spec.action = [spec, registry](const nlohmann::json& args) {
                         try {
                             // Resolve socket path: try DB lookup using entry as appName
                             FunctionSpec tmp;
@@ -352,9 +352,19 @@ namespace {
                                 }
                             }
                             if (socket.empty()) {
+                                registry->setCapabilitySocketUnavailable(spec.name, true);
                                 CubeLog::error("RPC capability '" + spec.name + "' has no socket_location for entry='" + spec.entry + "'");
                                 return;
                             }
+                            // If socket path exists check file exists; if not, mark as unavailable
+                            std::error_code ec;
+                            if (!std::filesystem::exists(socket, ec)) {
+                                registry->setCapabilitySocketUnavailable(spec.name, true);
+                                CubeLog::info("RPC capability socket not yet present: " + socket);
+                                return;
+                            }
+                            // socket now available, clear unavailable flag
+                            registry->setCapabilitySocketUnavailable(spec.name, false);
                             // method is last token after '.'
                             std::string method = spec.name;
                             auto p = spec.name.find_last_of('.');
@@ -660,6 +670,24 @@ const FunctionSpec* FunctionRegistry::find(const std::string& name) const
     return nullptr;
 }
 
+void FunctionRegistry::setFunctionSocketUnavailable(const std::string& functionName, bool unavailable)
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto it = funcs_.find(functionName);
+    if (it != funcs_.end()) {
+        it->second.socketUnavailable = unavailable;
+    }
+}
+
+void FunctionRegistry::setCapabilitySocketUnavailable(const std::string& capabilityName, bool unavailable)
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto it = capabilities_.find(capabilityName);
+    if (it != capabilities_.end()) {
+        it->second.socketUnavailable = unavailable;
+    }
+}
+
 std::vector<nlohmann::json> FunctionRegistry::catalogueJson() const
 {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -681,8 +709,19 @@ nlohmann::json FunctionRegistry::performFunctionRpc(const FunctionSpec& spec, co
     std::string socketPath = lookupSocketPathFromDB(spec);
     if (socketPath.empty()) {
         CubeLog::error("No socket_location found for app: " + spec.appName);
+        // mark function as unavailable (no socket configured)
+        this->setFunctionSocketUnavailable(spec.name, true);
         return nlohmann::json({{"error", "socket_not_found"}});
     }
+    // If socket exists on filesystem, proceed; otherwise mark unavailable and return
+    std::error_code ec;
+    if (!std::filesystem::exists(socketPath, ec)) {
+        this->setFunctionSocketUnavailable(spec.name, true);
+        CubeLog::info("Function socket not yet present: " + socketPath);
+        return nlohmann::json({{"error", "socket_not_ready"}});
+    }
+    // socket present -> clear any previous unavailable flag
+    this->setFunctionSocketUnavailable(spec.name, false);
     ensureRpcIoInitialized();
 
     // Resolve method name and delegate to helper that performs the JSON-RPC

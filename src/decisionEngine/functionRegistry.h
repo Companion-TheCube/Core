@@ -63,6 +63,9 @@ SOFTWARE.
 #include "../threadsafeQueue.h"
 #include "jsonrpccxx/client.hpp"
 #include "asio.hpp"
+// TODO: consider adding `AppsManager::isAppReady(appId)` to allow checking
+// whether an app has finished startup and created its unix socket. That can
+// be used instead of probing filesystem sockets directly.
 
 namespace DecisionEngine {
 using TimePoint = std::chrono::system_clock::time_point;
@@ -105,6 +108,9 @@ struct FunctionSpec {
     TimePoint lastCalled { TimePoint::min() }; // For rate limiting
     std::mutex mutex; // For thread safety
     bool enabled { true }; // Whether the function is enabled by default
+    // If the implementing app's socket is currently not available, this
+    // flag is set to true so callers can avoid hard-failing and may retry.
+    bool socketUnavailable { false };
     // Serialize into OpenAI-style JSON for the LLM
     nlohmann::json toJson() const;
 };
@@ -134,6 +140,8 @@ struct CapabilitySpec {
     std::string entry;
     std::vector<ParamSpec> parameters;
     nlohmann::json toJson() const;
+    // Whether the implementing app's socket is currently unavailable.
+    bool socketUnavailable { false };
 };
 
 
@@ -209,6 +217,10 @@ public:
     void loadCapabilityManifests(const std::vector<std::string>& paths = {});
     const FunctionSpec* find(const std::string& name) const;
     std::vector<nlohmann::json> catalogueJson() const;
+
+    // Mark socket availability flags for functions and capabilities.
+    void setFunctionSocketUnavailable(const std::string& functionName, bool unavailable);
+    void setCapabilitySocketUnavailable(const std::string& capabilityName, bool unavailable);
 
     // Asynchronous helpers: enqueue a function or capability call.
     // `onComplete` will be invoked on the worker thread after the call completes.
