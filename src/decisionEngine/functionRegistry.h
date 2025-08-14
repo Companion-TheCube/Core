@@ -232,7 +232,7 @@ public:
                             const nlohmann::json& args,
                             std::function<void(const nlohmann::json&)> onComplete = nullptr);
 
-    constexpr std::string getInterfaceName() const override { return "FunctionRegistry"; }
+    std::string getInterfaceName() const override { return "FunctionRegistry"; }
     HttpEndPointData_t getHttpEndpointData() override;
 
     // Public test helper: perform RPC using the spec. In production code this
@@ -244,12 +244,21 @@ private:
     std::unordered_map<std::string, FunctionSpec> funcs_;
     std::unordered_map<std::string, CapabilitySpec> capabilities_;
     mutable std::mutex mutex_;
+    // Background socket rechecker thread
+    std::thread socketRecheckerThread_;
+    bool socketRecheckerStop_ { false };
     // Worker pool for executing functions/capabilities
     FunctionRunner runner_;
     // Perform the function RPC. Implemented in the cpp file. This is where
     // JSON-RPC / asio integration should live; currently it's a stub that
     // returns an error JSON and logs a message.
     nlohmann::json performFunctionRpc(const FunctionSpec& spec, const nlohmann::json& args);
+
+    // Background thread that periodically re-checks unix socket files for
+    // functions and capabilities marked `socketUnavailable` and clears the
+    // flag when the socket becomes available.
+    void startSocketRechecker();
+    void stopSocketRechecker();
 };
 
 }

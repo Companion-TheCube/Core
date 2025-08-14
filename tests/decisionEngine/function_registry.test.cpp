@@ -99,12 +99,15 @@ TEST(FunctionRegistry, LoadCapabilityManifests_CustomPaths) {
     registry.loadCapabilityManifests({ (base / "data/capabilities").string(), (base / "apps").string() });
 
     const CapabilitySpec* c1 = registry.findCapability("sample.data_cap");
-    ASSERT_NE(c1, nullptr);
-    EXPECT_EQ(c1->type, "core");
+    // data/core manifest should be ignored by processCapabilityFile (core
+    // capabilities are registered in code), so c1 should not exist.
+    EXPECT_EQ(c1, nullptr);
 
     const CapabilitySpec* c2 = registry.findCapability("sample.app_cap");
     ASSERT_NE(c2, nullptr);
     EXPECT_EQ(c2->type, "rpc");
+    // RPC-backed capability should synthesize an action when registered
+    EXPECT_TRUE(bool(c2->action));
     // entry should be set to the app directory name (my_app)
     EXPECT_EQ(c2->entry, "my_app");
 
@@ -140,8 +143,8 @@ TEST(FunctionRegistry, PerformFunctionRpc_EndToEndUnixSocket) {
     });
 
     std::thread serverThread([&](){ svr.listen(socketPath.c_str(), 80); });
-    // small sleep to allow server to start
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    // small sleep to allow server to start and create socket
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
     FunctionRegistry registry;
     FunctionSpec spec;
@@ -165,6 +168,34 @@ TEST(FunctionRegistry, PerformFunctionRpc_EndToEndUnixSocket) {
     svr.stop();
     if (serverThread.joinable()) serverThread.join();
     std::filesystem::remove_all(base);
+}
+
+TEST(FunctionRegistry, RpcCapabilitySocketUnavailableFlag) {
+    FunctionRegistry registry;
+    CapabilitySpec cap;
+    cap.name = "test.rpc_cap";
+    cap.type = "rpc";
+    cap.entry = "/tmp/nonexistent_socket.sock"; // not present
+    registry.registerCapability(cap);
+
+    // Find capability and ensure action was synthesized
+    const CapabilitySpec* c = registry.findCapability("test.rpc_cap");
+    ASSERT_NE(c, nullptr);
+    EXPECT_TRUE(bool(c->action));
+
+    // Invoke it: since socket doesn't exist, action should mark socketUnavailable
+    std::promise<nlohmann::json> prom;
+    auto fut = prom.get_future();
+    registry.runCapabilityAsync("test.rpc_cap", nlohmann::json::object(), [&prom](const nlohmann::json& res){ prom.set_value(res); });
+    auto status = fut.wait_for(std::chrono::seconds(1));
+    EXPECT_EQ(status, std::future_status::ready);
+    auto res = fut.get();
+    EXPECT_TRUE(res.is_object());
+    // Action itself does not return a structured error, but the registry should
+    // mark the capability as having unavailable socket.
+    const CapabilitySpec* c2 = registry.findCapability("test.rpc_cap");
+    ASSERT_NE(c2, nullptr);
+    EXPECT_TRUE(c2->socketUnavailable);
 }
 
 

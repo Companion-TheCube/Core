@@ -280,58 +280,23 @@ namespace {
             CapabilitySpec spec = FunctionUtils::capabilityFromJson(j);
             if (spec.name.empty()) return;
             if (spec.action == nullptr && spec.type == "rpc" && spec.entry.empty() && !appDir.empty()) {
-                // TODO: Defaulting an RPC capability's `entry` to the app
-                // directory name assumes the directory name == app identifier
-                // stored elsewhere (DB, manifests). Confirm this mapping is
-                // valid in all deployment scenarios, or prefer an explicit
-                // `entry` field in the manifest.
+                // Default the RPC capability `entry` to the app directory name
+                // when the manifest leaves it empty. This helps identify the
+                // implementing app (apps/<entry>/...) when the manifest omits
+                // `entry`.
                 spec.entry = appDir.filename().string();
             }
-            // If this is a core capability, perform per-name branching using
-            // simple if/else checks. This keeps adding new core capability
-            // handlers localized to this function without requiring an enum or
-            // other cross-file changes.
-            if (spec.type == "core") {
-                if (spec.name == "core.play_sound") {
-                    spec.action = [spec](const nlohmann::json& args) {
-                        try {
-                            std::string file = args.value("file", "");
-                            double volume = args.value("volume", 1.0);
-                            CubeLog::info("core.play_sound invoked. file=" + file + ", volume=" + std::to_string(volume));
-                            // TODO: Hook into AudioOutput to actually play `file`.
-                        } catch (const std::exception& e) {
-                            CubeLog::error(std::string("core.play_sound action exception: ") + e.what());
-                        }
-                    };
-                } else if (spec.name == "core.nfc.read") {
-                    spec.action = [](const nlohmann::json& args) {
-                        CubeLog::info("core.nfc.read invoked");
-                        // TODO: implement NFC read behavior
-                    };
-                } else if (spec.name == "core.nfc.write") {
-                    spec.action = [](const nlohmann::json& args) {
-                        CubeLog::info("core.nfc.write invoked");
-                        // TODO: implement NFC write behavior
-                    };
-                } else if (spec.name == "core.ui.draw") {
-                    spec.action = [](const nlohmann::json& args) {
-                        CubeLog::info("core.ui.draw invoked");
-                        // TODO: implement UI draw behavior (compose primitives)
-                    };
-                } else if (spec.name == "core.audio.record") {
-                    spec.action = [](const nlohmann::json& args) {
-                        CubeLog::info("core.audio.record invoked");
-                        // TODO: implement audio recording
-                    };
-                } else {
-                    // Unknown core capability: leave action as-is (manifest may
-                    // provide an RPC-based implementation) and log for
-                    // visibility.
-                    CubeLog::info("Unrecognized core capability: " + spec.name);
-                }
+
+            // Only process RPC-backed capabilities from manifests. Core
+            // capabilities are built-in to the CORE and should be registered
+            // manually in code (see `registerBuiltInCoreCapabilities`). If a
+            // manifest claims to be a core capability we'll log and skip it.
+            if (spec.type != "rpc") {
+                CubeLog::info("Skipping non-RPC capability manifest: " + spec.name);
+                return;
             }
 
-            // If this capability is RPC-backed, synthesize an action that will
+            // For RPC-backed capabilities, synthesize an action that will
             // call the implementing app over JSON-RPC using the shared helper.
             // The capability's `entry` is expected to be the app id or a direct
             // socket path (the latter is supported for testing/overrides).
@@ -389,6 +354,10 @@ namespace {
     }
 }
 
+// Socket rechecker interval (ms)
+static constexpr std::chrono::milliseconds SOCKET_RECHECK_INTERVAL{1000};
+
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FunctionRegistry::FunctionRegistry()
@@ -405,6 +374,24 @@ FunctionRegistry::FunctionRegistry()
     } catch (const std::exception& e) {
         CubeLog::error(std::string("Failed to load capability manifests: ") + e.what());
     }
+    // Register built-in CORE capability implementations here. These are
+    // hard-coded capabilities (hardware or core services) that don't come
+    // from app manifests. Implementations should be added to this helper.
+    auto registerBuiltInCoreCapabilities = [this]() {
+        CapabilitySpec ping;
+        ping.name = "core.ping";
+        ping.description = "Simple ping capability";
+        ping.action = [](const nlohmann::json& args){ CubeLog::info("core.ping invoked"); };
+        ping.enabled = true;
+        this->registerCapability(ping);
+
+        // TODO: Add other built-in core capabilities here (audio playback,
+        // UI drawing, NFC, etc.). Keep implementations in a dedicated
+        // source file when they become non-trivial.
+    };
+    registerBuiltInCoreCapabilities();
+    // Start background rechecker for socket availability
+    startSocketRechecker();
 }
 
 FunctionRegistry::~FunctionRegistry()
@@ -415,6 +402,8 @@ FunctionRegistry::~FunctionRegistry()
     } catch (...) {
         CubeLog::error("Exception while stopping FunctionRunner");
     }
+    // Stop background thread
+    try { stopSocketRechecker(); } catch(...) {}
 }
 
 bool FunctionRegistry::registerCapability(const CapabilitySpec& spec)
@@ -688,6 +677,70 @@ void FunctionRegistry::setCapabilitySocketUnavailable(const std::string& capabil
     }
 }
 
+void FunctionRegistry::startSocketRechecker()
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (socketRecheckerThread_.joinable()) return;
+    // spawn thread
+    std::thread t([this]() {
+        while (true) {
+            {
+                std::unique_lock<std::mutex> lk(this->mutex_);
+                if (this->socketRecheckerStop_) break;
+            }
+            // Copy names to check to avoid holding lock during filesystem ops
+            std::vector<std::pair<std::string, std::string>> funcsToCheck;
+            std::vector<std::pair<std::string, std::string>> capsToCheck;
+            {
+                std::lock_guard<std::mutex> lock(this->mutex_);
+                for (const auto& [name, f] : this->funcs_) {
+                    if (f.socketUnavailable) {
+                        funcsToCheck.emplace_back(name, f.appName);
+                    }
+                }
+                for (const auto& [name, c] : this->capabilities_) {
+                    if (c.socketUnavailable) {
+                        capsToCheck.emplace_back(name, c.entry);
+                    }
+                }
+            }
+
+            for (auto &p : funcsToCheck) {
+                const std::string& name = p.first;
+                const std::string& appName = p.second;
+                FunctionSpec tmp; tmp.appName = appName;
+                std::string socket = lookupSocketPathFromDB(tmp);
+                std::error_code ec;
+                if (!socket.empty() && std::filesystem::exists(socket, ec)) {
+                    setFunctionSocketUnavailable(name, false);
+                }
+            }
+            for (auto &p : capsToCheck) {
+                const std::string& name = p.first;
+                const std::string& entry = p.second;
+                FunctionSpec tmp; tmp.appName = entry;
+                std::string socket = lookupSocketPathFromDB(tmp);
+                std::error_code ec;
+                if (!socket.empty() && std::filesystem::exists(socket, ec)) {
+                    setCapabilitySocketUnavailable(name, false);
+                }
+            }
+
+            std::this_thread::sleep_for(SOCKET_RECHECK_INTERVAL);
+        }
+    });
+    socketRecheckerThread_ = std::move(t);
+}
+
+void FunctionRegistry::stopSocketRechecker()
+{
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        socketRecheckerStop_ = true;
+    }
+    if (socketRecheckerThread_.joinable()) socketRecheckerThread_.join();
+}
+
 std::vector<nlohmann::json> FunctionRegistry::catalogueJson() const
 {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -824,6 +877,37 @@ HttpEndPointData_t FunctionRegistry::getHttpEndpointData()
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR,"");
         },
         "Get all registered functions", {}, "Get the list of all registered functions" });
+    // Suggested additional endpoints to consider implementing:
+    //
+    // - Register a capability (POST): allow apps to register capability
+    //   manifests (rpc-backed) via HTTP instead of filesystem. Payload: CapabilitySpec JSON.
+    // - Unregister a capability (POST): remove a previously registered capability by name.
+    // - Get capability catalogue (GET): return all registered capabilities as JSON.
+    // - Get capability details (POST/GET): return a single capability by name.
+    // - Trigger capability (POST): allow privileged callers to invoke a capability
+    //   synchronously (useful for testing and admin operations).
+    // - Set capability enabled/disabled (POST): enable or disable a capability at runtime.
+    // - Set function enabled/disabled (POST): enable or disable a function at runtime.
+    // - Update function metadata (POST): allow updating description, rateLimit, timeout, etc.
+    // - Query socket status for app/capability/function (GET): return whether the
+    //   implementing unix socket is present and the `socketUnavailable` flag.
+    // - App readiness webhook / notify (POST): an app can notify CORE it is ready
+    //   (created its socket) to avoid filesystem polling. Consider adding
+    //   `AppsManager::setAppReady(appId)` to complement this endpoint.
+    // - Subscribe to registry changes (WebSocket / SSE): allow apps or tools to
+    //   receive events when functions/capabilities are added/removed or when
+    //   socket availability changes.
+    // - Get function/capability metrics (GET): return invocation counts, last
+    //   called timestamp, average latency, error counts (helpful for monitoring).
+    // - Request logs for function/capability (GET): stream recent logs related
+    //   to a specific function or capability for debugging.
+    // - Bulk import/export (POST/GET): upload or download a collection of
+    //   manifests (useful for deployment and backups).
+    // - Validate manifest (POST): validate a provided capability manifest JSON
+    //   without registering it (returns schema validation errors).
+    //
+    // Security note: all of these endpoints are sensitive; ensure they are
+    // protected (ACLs / admin tokens) and validate payloads carefully.
     return endpoints;
 }
 

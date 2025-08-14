@@ -87,10 +87,11 @@
 - [src/decisionEngine/functionRegistry.cpp:314] : implement NFC write behavior
 - [src/decisionEngine/functionRegistry.cpp:319] : implement UI draw behavior (compose primitives)
 - [src/decisionEngine/functionRegistry.cpp:324] : implement audio recording
-- [src/decisionEngine/functionRegistry.cpp:463] : add all the built in capabilities here. each one should have a json manifest in data/capabilities
-- [src/decisionEngine/functionRegistry.cpp:571] : If FunctionSpec supports a local `action` (local/provider-side
-- [src/decisionEngine/functionRegistry.cpp:674] : implement actual JSON-RPC via asio here. For now, return an error
+- [src/decisionEngine/functionRegistry.cpp:473] : add all the built in capabilities here. each one should have a json manifest in data/capabilities
+- [src/decisionEngine/functionRegistry.cpp:581] : If FunctionSpec supports a local `action` (local/provider-side
+- [src/decisionEngine/functionRegistry.cpp:702] : implement actual JSON-RPC via asio here. For now, return an error
 - [src/decisionEngine/functionRegistry.cpp:70] .
+- [src/decisionEngine/functionRegistry.h:66] : consider adding `AppsManager::isAppReady(appId)` to allow checking
 - [src/decisionEngine/intentRegistry.cpp:158] : add TTS support
 - [src/decisionEngine/intentRegistry.cpp:185] : Implement this
 - [src/decisionEngine/intentRegistry.cpp:191] : This needs checks to ensure properly formatted JSON
