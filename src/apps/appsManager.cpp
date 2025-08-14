@@ -55,6 +55,13 @@ SOFTWARE.
 // Ensure the DB schema includes a TEXT column "socket_location" and that the
 // installer or AppsManager::startApp populates that field so the FunctionRegistry
 // can discover and call the app via JSON-RPC.
+// 
+// TODO: When an app is installed, set the user and group ownership of the app
+// directory (./apps/[APP NAME]) to a unique user/group created for that app.
+// This will help contain any security issues with apps. Also add the CORE user
+// (the user that runs CubeCore) to the app's group so it can access the app
+// files. This will require the installer to create a new user/group for each
+// app.
 
 bool AppsManager::consoleLoggingEnabled = true;
 
