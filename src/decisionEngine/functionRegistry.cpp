@@ -319,14 +319,18 @@ namespace {
                             if (socket.empty()) {
                                 registry->setCapabilitySocketUnavailable(spec.name, true);
                                 CubeLog::error("RPC capability '" + spec.name + "' has no socket_location for entry='" + spec.entry + "'");
-                                return;
+                                nlohmann::json result;
+                                result["error"] = "socket_not_found";
+                                return result;
                             }
                             // If socket path exists check file exists; if not, mark as unavailable
                             std::error_code ec;
                             if (!std::filesystem::exists(socket, ec)) {
                                 registry->setCapabilitySocketUnavailable(spec.name, true);
                                 CubeLog::info("RPC capability socket not yet present: " + socket);
-                                return;
+                                nlohmann::json result;
+                                result["error"] = "socket_not_found";
+                                return result;
                             }
                             // socket now available, clear unavailable flag
                             registry->setCapabilitySocketUnavailable(spec.name, false);
@@ -339,11 +343,18 @@ namespace {
                             if (res.is_object() && res.contains("error")) {
                                 CubeLog::error(std::string("RPC capability call failed: ") + res.dump());
                             }
+                            if (res.is_object() && res.contains("result")) {
+                                return res["result"];
+                            }
+                            return res; // return raw response if no "result" key
                         } catch (const std::exception& e) {
                             CubeLog::error(std::string("RPC capability action exception: ") + e.what());
                         } catch (...) {
                             CubeLog::error("RPC capability action unknown exception");
                         }
+                        nlohmann::json result;
+                        result["result"] = "success";
+                        return result;
                     };
                 }
             }
@@ -374,14 +385,17 @@ FunctionRegistry::FunctionRegistry()
     } catch (const std::exception& e) {
         CubeLog::error(std::string("Failed to load capability manifests: ") + e.what());
     }
-    // Register built-in CORE capability implementations here. These are
+    // TODO: Register built-in CORE capability implementations here. These are
     // hard-coded capabilities (hardware or core services) that don't come
     // from app manifests. Implementations should be added to this helper.
     auto registerBuiltInCoreCapabilities = [this]() {
         CapabilitySpec ping;
         ping.name = "core.ping";
         ping.description = "Simple ping capability";
-        ping.action = [](const nlohmann::json& args){ CubeLog::info("core.ping invoked"); };
+        ping.action = [](const nlohmann::json& args){ 
+            CubeLog::info("core.ping invoked"); 
+            return nlohmann::json({{"result", "pong"}});
+        };
         ping.enabled = true;
         this->registerCapability(ping);
 
@@ -459,15 +473,7 @@ void FunctionRegistry::loadCapabilityManifests(const std::vector<std::string>& p
             processCapabilityFile(this, f.path());
         }
     }
-    // TODO: add all the built in capabilities here. each one should have a json manifest in data/capabilities
-    // and the action should be set to a lambda that implements the capability.
-    // Register a small built-in capability as example
-    CapabilitySpec ping;
-    ping.name = "core.ping";
-    ping.description = "Simple ping capability";
-    ping.action = [](const nlohmann::json& args){ CubeLog::info("core.ping invoked"); };
-    ping.enabled = true;
-    registerCapability(ping);
+    
 }
 
 bool FunctionRegistry::registerFunc(const FunctionSpec& spec)

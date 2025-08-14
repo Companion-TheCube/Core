@@ -128,7 +128,7 @@ struct CapabilitySpec {
     ~CapabilitySpec();
     std::string name; // Unique name for the capability
     std::string description; // Brief description of what the capability does
-    std::function<void(const nlohmann::json& args)> action; // Action to perform, takes JSON args
+    std::function<nlohmann::json(const nlohmann::json& args)> action; // Action to perform, takes JSON args
     uint32_t timeoutMs { 2000 }; // Timeout for the action
     int retryLimit { 3 }; // Number of retries on failure
     TimePoint lastCalled { TimePoint::min() }; // For rate limiting
