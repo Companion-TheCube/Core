@@ -179,16 +179,74 @@ namespace {
                 // `entry` field in the manifest.
                 spec.entry = appDir.filename().string();
             }
-            if (spec.type == "core" && spec.name == "core.play_sound") {
-                spec.action = [spec](const nlohmann::json& args) {
-                    try {
-                        std::string file = args.value("file", "");
-                        double volume = args.value("volume", 1.0);
-                        CubeLog::info("core.play_sound invoked. file=" + file + ", volume=" + std::to_string(volume));
-                    } catch (const std::exception& e) {
-                        CubeLog::error(std::string("core.play_sound action exception: ") + e.what());
-                    }
+            // If this is a core capability, map it to a known enum and assign
+            // a corresponding action implementation. Using a switch over a
+            // small enum keeps the branching flat and makes it easier to add
+            // more core capabilities in the future.
+            if (spec.type == "core") {
+                enum class CoreCapability {
+                    Unknown = 0,
+                    PlaySound,
+                    NfcRead,
+                    NfcWrite,
+                    DrawUI,
+                    RecordAudio,
                 };
+
+                auto coreCapabilityFromName = [](const std::string& name) {
+                    if (name == "core.play_sound") return CoreCapability::PlaySound;
+                    if (name == "core.nfc.read") return CoreCapability::NfcRead;
+                    if (name == "core.nfc.write") return CoreCapability::NfcWrite;
+                    if (name == "core.ui.draw") return CoreCapability::DrawUI;
+                    if (name == "core.audio.record") return CoreCapability::RecordAudio;
+                    return CoreCapability::Unknown;
+                };
+
+                switch (coreCapabilityFromName(spec.name)) {
+                    case CoreCapability::PlaySound:
+                        spec.action = [spec](const nlohmann::json& args) {
+                            try {
+                                std::string file = args.value("file", "");
+                                double volume = args.value("volume", 1.0);
+                                CubeLog::info("core.play_sound invoked. file=" + file + ", volume=" + std::to_string(volume));
+                                // TODO: Hook into AudioOutput to actually play `file`.
+                            } catch (const std::exception& e) {
+                                CubeLog::error(std::string("core.play_sound action exception: ") + e.what());
+                            }
+                        };
+                        break;
+                    case CoreCapability::NfcRead:
+                        spec.action = [](const nlohmann::json& args) {
+                            CubeLog::info("core.nfc.read invoked");
+                            // TODO: implement NFC read behavior
+                        };
+                        break;
+                    case CoreCapability::NfcWrite:
+                        spec.action = [](const nlohmann::json& args) {
+                            CubeLog::info("core.nfc.write invoked");
+                            // TODO: implement NFC write behavior
+                        };
+                        break;
+                    case CoreCapability::DrawUI:
+                        spec.action = [](const nlohmann::json& args) {
+                            CubeLog::info("core.ui.draw invoked");
+                            // TODO: implement UI draw behavior (compose primitives)
+                        };
+                        break;
+                    case CoreCapability::RecordAudio:
+                        spec.action = [](const nlohmann::json& args) {
+                            CubeLog::info("core.audio.record invoked");
+                            // TODO: implement audio recording
+                        };
+                        break;
+                    case CoreCapability::Unknown:
+                    default:
+                        // Unknown core capability: leave action as-is (manifest may
+                        // provide an RPC-based implementation) and log for
+                        // visibility.
+                        CubeLog::info("Unrecognized core capability: " + spec.name);
+                        break;
+                }
             }
             registry->registerCapability(spec);
         } catch (const std::exception& e) {
