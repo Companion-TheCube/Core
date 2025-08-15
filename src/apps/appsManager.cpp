@@ -63,6 +63,9 @@ SOFTWARE.
 // files. This will require the installer to create a new user/group for each
 // app.
 
+// See the link below for more information on how we will secure apps and keep them isolated:
+// https://chatgpt.com/g/g-p-675dbedad3d4819187da5ca1d0a4f79b-companion-thecube/c/689e6dcc-2114-832b-bd20-2b5ebd3c63a9
+
 bool AppsManager::consoleLoggingEnabled = true;
 
 
