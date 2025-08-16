@@ -27,6 +27,9 @@ set(BUILD_BT_MANAGER ON)
 # Comment out the following line to disable translation
 set(TRANSLATE_ENABLED ON)
 
+# Optionally sync build information and artifacts with the build server
+option(ENABLE_BUILD_SERVER "Sync build info/artifacts with server" ON)
+
 # This is a hack to make intellisense work well with a bunch of lambdas
 add_definitions(-D_ENABLE_LAMBDAS)
 
@@ -666,28 +669,30 @@ add_custom_command(
 
 
 # Ensure Python is found
-find_package(Python3 REQUIRED)
-# Variables
-set(BUILD_NUMBER_HEADER "${CMAKE_SOURCE_DIR}/libraries/build_number.h")
-set(UPLOAD_ARTIFACT_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/tooling/upload_artifact.py")
+if(ENABLE_BUILD_SERVER)
+    find_package(Python3 REQUIRED)
 
-add_custom_command(
-    TARGET CubeCore POST_BUILD
-    COMMAND ${PYTHON_EXECUTABLE} "${UPLOAD_ARTIFACT_SCRIPT}" "${CMAKE_SOURCE_DIR}" "${BUILD_NUMBER_HEADER}"
-    DEPENDS "${UPLOAD_ARTIFACT_SCRIPT}"
-    COMMENT "Uploading build to server..."
-)
+    # Variables
+    set(BUILD_NUMBER_HEADER "${CMAKE_SOURCE_DIR}/libraries/build_number.h")
+    set(UPLOAD_ARTIFACT_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/tooling/upload_artifact.py")
 
-set(GET_BUILD_NUMBER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/tooling/get_next_build_number.py")
+    add_custom_command(
+        TARGET CubeCore POST_BUILD
+        COMMAND ${PYTHON_EXECUTABLE} "${UPLOAD_ARTIFACT_SCRIPT}" "${CMAKE_SOURCE_DIR}" "${BUILD_NUMBER_HEADER}"
+        DEPENDS "${UPLOAD_ARTIFACT_SCRIPT}"
+        COMMENT "Uploading build to server..."
+    )
 
-# Custom command to generate the build number header
-add_custom_command(
-    TARGET CubeCore PRE_BUILD
-    # OUTPUT "${BUILD_NUMBER_HEADER}"
-    COMMAND ${PYTHON_EXECUTABLE} "${GET_BUILD_NUMBER_SCRIPT}" "${BUILD_NUMBER_HEADER}" "${CMAKE_SOURCE_DIR}"
-    DEPENDS "${GET_BUILD_NUMBER_SCRIPT}"
-    COMMENT "Fetching build number from server..."
-)
+    set(GET_BUILD_NUMBER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/tooling/get_next_build_number.py")
+
+    # Custom command to generate the build number header
+    add_custom_command(
+        TARGET CubeCore PRE_BUILD
+        COMMAND ${PYTHON_EXECUTABLE} "${GET_BUILD_NUMBER_SCRIPT}" "${BUILD_NUMBER_HEADER}" "${CMAKE_SOURCE_DIR}"
+        DEPENDS "${GET_BUILD_NUMBER_SCRIPT}"
+        COMMENT "Fetching build number from server..."
+    )
+endif()
 
 install(TARGETS CubeCore)
 

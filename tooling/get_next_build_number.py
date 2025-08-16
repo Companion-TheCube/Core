@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
+import os
 import sys
 from datetime import datetime
 import urllib.request
 
 def main(output_file, env_file):
+    if os.environ.get("CUBECORE_OFFLINE") == "1":
+        print("CUBECORE_OFFLINE set; skipping build number fetch")
+        with open(output_file, 'w') as f:
+            f.write('#define BUILD_NUMBER 0\n')
+        return
+
     print(f"Updating build number and build info on server")
     url = "http://developmenttracking.lan:9180/TheCube-Core/buildnumber/getNext"
     # set timeout to 10 seconds

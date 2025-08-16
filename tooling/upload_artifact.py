@@ -42,6 +42,10 @@ def create_multipart(filename: str, file_path: str, boundary: str) -> bytes:
 
 
 def upload_artifact(root_dir: str, header_path: str) -> None:
+    if os.environ.get("CUBECORE_OFFLINE") == "1":
+        print("CUBECORE_OFFLINE set; skipping artifact upload")
+        return
+
     build_number = parse_build_number(header_path)
     artifact_path = os.path.join(root_dir, "build", "bin", "CubeCore")
 

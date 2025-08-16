@@ -62,6 +62,14 @@ cd build
 cmake ..
 make
 ```
+
+To skip syncing build information or artifacts with the remote server, configure with:
+
+```bash
+cmake .. -DENABLE_BUILD_SERVER=OFF
+```
+
+Alternatively set the environment variable `CUBECORE_OFFLINE=1` to keep the option enabled but avoid network calls during the build.
 4. Run the application:
 ```bash
 ./CubeCore
@@ -89,7 +97,7 @@ Tests use Google Test and are built as `CubeCoreTests`.
 
 Quick start (Debug):
 ```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DENABLE_BUILD_SERVER=OFF
 cmake --build build -j --target CubeCoreTests
 ctest --test-dir build -C Debug -j
 ```
