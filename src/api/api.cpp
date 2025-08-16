@@ -42,6 +42,8 @@ SOFTWARE.
 #include <fstream>
 #include <sstream>
 #endif
+// JSON Schema validator
+#include <json-schema.hpp>
 
 /**
  * @brief Construct a new API::API object. This creates a new CubeAuth object for authentication.
@@ -251,9 +253,48 @@ void API::httpApiThreadFn()
                     }
                 }
             };
+            // Check for a schema registered by API_Builder for this endpoint name
+            nlohmann::json schema;
+            bool hasSchema = false;
+            try {
+                auto it = API_Builder::endpointSchemas.find(this->endpoints.at(i)->getName());
+                if (it != API_Builder::endpointSchemas.end()) {
+                    schema = it->second;
+                    hasSchema = true;
+                }
+            } catch (...) { hasSchema = false; }
+
+            // Wrap action with schema validation when present
+            std::function<void(const httplib::Request&, httplib::Response&)> validatedPublicAction = publicAction;
+            if (hasSchema) {
+                try {
+                    nlohmann::json_schema::json_validator validator{[](const std::string &uri, nlohmann::json &schema) {
+                        // noop resolver; external refs unsupported for now
+                        throw std::runtime_error("Refs not supported in schema resolver");
+                    }};
+                    validator.set_root_schema(schema);
+                    validatedPublicAction = [publicAction, validator](const httplib::Request& req, httplib::Response& res) mutable {
+                        // Validate JSON body if present and content-type is JSON
+                        if (req.body.size() > 0) {
+                            try {
+                                nlohmann::json body = nlohmann::json::parse(req.body);
+                                validator.validate(body);
+                            } catch (const std::exception &e) {
+                                res.status = httplib::StatusCode::BadRequest_400;
+                                res.set_content(std::string("Schema validation failed: ") + e.what(), "text/plain");
+                                return;
+                            }
+                        }
+                        publicAction(req, res);
+                    };
+                } catch (const std::exception &e) {
+                    CubeLog::error(std::string("Failed to compile JSON schema for endpoint: ") + this->endpoints.at(i)->getName() + ", error: " + e.what());
+                }
+            }
+
             if (this->endpoints.at(i)->isPublic()) {
                 CubeLog::debugSilly("Adding public endpoint: " + this->endpoints.at(i)->getName() + " at " + this->endpoints.at(i)->getPath());
-                this->server->addEndpoint(this->endpoints.at(i)->isGetType(), this->endpoints[i]->getPath(), publicAction);
+                this->server->addEndpoint(this->endpoints.at(i)->isGetType(), this->endpoints[i]->getPath(), validatedPublicAction);
             } else {
                 CubeLog::debugSilly("Adding non public endpoint: " + this->endpoints.at(i)->getName() + " at " + this->endpoints.at(i)->getPath());
                 std::function<void(const httplib::Request&, httplib::Response&)> action = [&, i](const httplib::Request& req, httplib::Response& res) {
@@ -308,6 +349,7 @@ void API::httpApiThreadFn()
                         }
                     }
                 };
+                // For non-public endpoints we don't currently validate (could be added similarly)
                 this->server->addEndpoint(this->endpoints.at(i)->isGetType(), this->endpoints.at(i)->getPath(), action);
             }
             // IPC server is always public. It is only accessible from localhost.

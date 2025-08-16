@@ -36,9 +36,16 @@ SOFTWARE.
 #include <logger.h>
 #endif
 #include "InterfaceCount.h"
+#include <nlohmann/json.hpp>
 
 std::shared_ptr<API> API_Builder::api = nullptr;
 std::unordered_map<std::string, std::shared_ptr<I_API_Interface>> API_Builder::interface_objs;
+std::unordered_map<std::string, nlohmann::json> API_Builder::endpointSchemas;
+
+void API_Builder::addEndpointSchema(const std::string& endpointName, const nlohmann::json& schema)
+{
+    endpointSchemas[endpointName] = schema;
+}
 
 /**
  * @brief Construct a new api builder::api builder object
@@ -287,4 +294,10 @@ void API_Builder::start()
 
     CubeLog::info("API Builder finished build process.");
     this->api->start();
+}
+
+// Add endpoint schema to global registry. Call this before API_Builder::start()
+void API_Builder::addEndpointSchema(const std::string& endpointName, const nlohmann::json& schema)
+{
+    endpointSchemas[endpointName] = schema;
 }

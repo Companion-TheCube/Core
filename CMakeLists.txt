@@ -90,6 +90,16 @@ FetchContent_MakeAvailable(json)
 
 include(FetchContent)
 FetchContent_Declare(
+    json_schema_validator
+    GIT_REPOSITORY https://github.com/pboettch/json-schema-validator.git
+    GIT_TAG master
+    UPDATE_DISCONNECTED FALSE
+)
+FetchContent_MakeAvailable(json_schema_validator)
+include_directories(${json_schema_validator_SOURCE_DIR}/include)
+
+include(FetchContent)
+FetchContent_Declare(
     pqxx
     GIT_REPOSITORY https://github.com/jtv/libpqxx
     GIT_TAG master
