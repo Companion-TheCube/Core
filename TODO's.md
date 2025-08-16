@@ -22,21 +22,21 @@
 - [src/api/authentication.cpp:156] : add checkAuth function that only takes the app_id and returns bool if the app_id has been allowed by the user
 - [src/api/builder.cpp:148] : refactor to get rid of staticFiles vector. update: maybe not?
 - [src/apps/appsDBManager.cpp:110] : add the interfaces for HTTP server
-- [src/apps/appsManager.cpp:1189] : Implement checking if app update is available
-- [src/apps/appsManager.cpp:1202] : Implement checking if app update is required
-- [src/apps/appsManager.cpp:1215] : Implement checking if app update failed
-- [src/apps/appsManager.cpp:1228] : Implement checking if app update check is overdue
-- [src/apps/appsManager.cpp:1276] : Implement getting app memory usage
-- [src/apps/appsManager.cpp:1283] : Implement getting app version
-- [src/apps/appsManager.cpp:1304] : Implement checking if native apps are running
-- [src/apps/appsManager.cpp:1336] : determine if any processes are running
-- [src/apps/appsManager.cpp:1371] : Implement app installation
-- [src/apps/appsManager.cpp:1378] : Implement app uninstallation
-- [src/apps/appsManager.cpp:1385] : Implement app update
-- [src/apps/appsManager.cpp:1392] : Implement app installation check
-- [src/apps/appsManager.cpp:142] : these methods not be needed here since nothing should be running yet
-- [src/apps/appsManager.cpp:170] : check is app is enabled before starting. each app has an "enabled" flag in the database.
-- [src/apps/appsManager.cpp:327] : check that app is enabled before starting
+- [src/apps/appsManager.cpp:1199] : Implement checking if app update is available
+- [src/apps/appsManager.cpp:1212] : Implement checking if app update is required
+- [src/apps/appsManager.cpp:1225] : Implement checking if app update failed
+- [src/apps/appsManager.cpp:1238] : Implement checking if app update check is overdue
+- [src/apps/appsManager.cpp:1286] : Implement getting app memory usage
+- [src/apps/appsManager.cpp:1293] : Implement getting app version
+- [src/apps/appsManager.cpp:1314] : Implement checking if native apps are running
+- [src/apps/appsManager.cpp:1346] : determine if any processes are running
+- [src/apps/appsManager.cpp:1381] : Implement app installation
+- [src/apps/appsManager.cpp:1388] : Implement app uninstallation
+- [src/apps/appsManager.cpp:1395] : Implement app update
+- [src/apps/appsManager.cpp:1402] : Implement app installation check
+- [src/apps/appsManager.cpp:152] : these methods not be needed here since nothing should be running yet
+- [src/apps/appsManager.cpp:180] : check is app is enabled before starting. each app has an "enabled" flag in the database.
+- [src/apps/appsManager.cpp:337] : check that app is enabled before starting
 - [src/apps/appsManager.cpp:36] : Go through this method by method and make sure everything makes sense. Most of this file
 - [src/apps/appsManager.cpp:38] : Finish adding method descriptions and comments
 - [src/apps/appsManager.cpp:39] : The apps manager should start all the app executables that are registered in the database
@@ -46,10 +46,11 @@
 - [src/apps/appsManager.cpp:43] : The apps manager should expose an API to start, stop, and update apps
 - [src/apps/appsManager.cpp:44] : Any app that is not found at the location specified in the database should be marked as "not installed" or removed from the database
 - [src/apps/appsManager.cpp:45] : isAppInstalled() should check once and then keep track of the installed status so that repeated calls to this method are faster and don't require filesystem accesses. Any changes to apps installed status will need to noted.
-- [src/apps/appsManager.cpp:477] : Implement updating docker apps
 - [src/apps/appsManager.cpp:47] : App installation needs to be handled somehow. Apps that come from trusted sources may have scripts that need to
-- [src/apps/appsManager.cpp:481] : Implement updating native apps
+- [src/apps/appsManager.cpp:487] : Implement updating docker apps
+- [src/apps/appsManager.cpp:491] : Implement updating native apps
 - [src/apps/appsManager.cpp:51] : When an app is installed, record its IPC socket location in the apps DB
+- [src/apps/appsManager.cpp:59] : When an app is installed, set the user and group ownership of the app
 - [src/apps/dockerApi.cpp:34] : Go through this method by method and make sure everything makes sense. Most of this file
 - [src/apps/dockerApi.cpp:36] : Add comments and documentation to this file.
 - [src/apps/dockerApi.cpp:41] : remove this function. It is only used for debugging.
@@ -80,17 +81,41 @@
 - [src/database/db.h:253] : make sure all the data is sanitized before being inserted into the database.
 - [src/decisionEngine/cubeWhisper.cpp:40] : initialize whisper.cpp library and load model(s) in a background thread
 - [src/decisionEngine/decisions.cpp:84] :
-- [src/decisionEngine/functionRegistry.cpp:266] : Treating `spec.appName` as a direct socket path is a
-- [src/decisionEngine/functionRegistry.cpp:283] : Defaulting an RPC capability's `entry` to the app
-- [src/decisionEngine/functionRegistry.cpp:301] : Hook into AudioOutput to actually play `file`.
-- [src/decisionEngine/functionRegistry.cpp:309] : implement NFC read behavior
-- [src/decisionEngine/functionRegistry.cpp:314] : implement NFC write behavior
-- [src/decisionEngine/functionRegistry.cpp:319] : implement UI draw behavior (compose primitives)
-- [src/decisionEngine/functionRegistry.cpp:324] : implement audio recording
-- [src/decisionEngine/functionRegistry.cpp:473] : add all the built in capabilities here. each one should have a json manifest in data/capabilities
-- [src/decisionEngine/functionRegistry.cpp:581] : If FunctionSpec supports a local `action` (local/provider-side
-- [src/decisionEngine/functionRegistry.cpp:702] : implement actual JSON-RPC via asio here. For now, return an error
-- [src/decisionEngine/functionRegistry.cpp:70] .
+- [src/decisionEngine/functionRegistry.cpp:287] : Treating `spec.appName` as a direct socket path is a
+- [src/decisionEngine/functionRegistry.cpp:407] : Register built-in CORE capability implementations here. These are
+- [src/decisionEngine/functionRegistry.cpp:421] : Add other built-in core capabilities here (audio playback,
+- [src/decisionEngine/functionRegistry.cpp:425] : NFC-Write
+- [src/decisionEngine/functionRegistry.cpp:427] : NFC-Read
+- [src/decisionEngine/functionRegistry.cpp:429] : NFC-Scan
+- [src/decisionEngine/functionRegistry.cpp:431] : Sound - Play a sound file
+- [src/decisionEngine/functionRegistry.cpp:433] : Sound - Stop playback
+- [src/decisionEngine/functionRegistry.cpp:435] : Sound - Set volume
+- [src/decisionEngine/functionRegistry.cpp:437] : Sound - Get current volume
+- [src/decisionEngine/functionRegistry.cpp:439] : Sound - Mute/unmute
+- [src/decisionEngine/functionRegistry.cpp:441] : Sound - Is muted
+- [src/decisionEngine/functionRegistry.cpp:443] : Sound - Get list of available sound files
+- [src/decisionEngine/functionRegistry.cpp:445] : Sound - Get current sound file
+- [src/decisionEngine/functionRegistry.cpp:447] : UI - Show a notification
+- [src/decisionEngine/functionRegistry.cpp:449] : UI - Show a dialog
+- [src/decisionEngine/functionRegistry.cpp:451] : UI - Show a toast message
+- [src/decisionEngine/functionRegistry.cpp:453] : UI - Show a progress bar
+- [src/decisionEngine/functionRegistry.cpp:455] : UI - Update a progress bar
+- [src/decisionEngine/functionRegistry.cpp:457] : UI - Show a spinner
+- [src/decisionEngine/functionRegistry.cpp:459] : UI - Hide a spinner
+- [src/decisionEngine/functionRegistry.cpp:461] : UI - Show a modal dialog
+- [src/decisionEngine/functionRegistry.cpp:463] : UI - Hide a modal dialog
+- [src/decisionEngine/functionRegistry.cpp:465] : UI - Show a popup menu
+- [src/decisionEngine/functionRegistry.cpp:467] : UI - Hide a popup menu
+- [src/decisionEngine/functionRegistry.cpp:469] : mmWave - Get distance
+- [src/decisionEngine/functionRegistry.cpp:471] : mmWave - Get speed
+- [src/decisionEngine/functionRegistry.cpp:655] : If FunctionSpec supports a local `action` (local/provider-side
+- [src/decisionEngine/functionRegistry.cpp:69] .
+- [src/decisionEngine/functionRegistry.cpp:750] : Consider merging with setCapabilitySocketUnavailable
+- [src/decisionEngine/functionRegistry.cpp:751] : Consider renaming to setFunctionSocketAvailability and inverting bool param
+- [src/decisionEngine/functionRegistry.cpp:761] : Consider merging with setFunctionSocketUnavailable
+- [src/decisionEngine/functionRegistry.cpp:762] : Consider renaming to setCapabilitySocketAvailability and inverting bool param
+- [src/decisionEngine/functionRegistry.cpp:852] : implement actual JSON-RPC via asio here. For now, return an error
+- [src/decisionEngine/functionRegistry.cpp:977] : Suggested additional endpoints to consider implementing:
 - [src/decisionEngine/functionRegistry.h:66] : consider adding `AppsManager::isAppReady(appId)` to allow checking
 - [src/decisionEngine/intentRegistry.cpp:158] : add TTS support
 - [src/decisionEngine/intentRegistry.cpp:185] : Implement this
@@ -116,8 +141,8 @@
 - [src/decisionEngine/remoteServer.cpp:62] : Read the setting for which AI service the user wants to use.
 - [src/decisionEngine/remoteServer.cpp:89] :
 - [src/decisionEngine/remoteServer.cpp:96] :
-- [src/decisionEngine/scheduler.cpp:233] noted below).
-- [src/decisionEngine/scheduler.cpp:246] : check if the task should be repeated and if so, add it back to the scheduledTasks list
+- [src/decisionEngine/scheduler.cpp:238] noted below).
+- [src/decisionEngine/scheduler.cpp:251] : check if the task should be repeated and if so, add it back to the scheduledTasks list
 - [src/decisionEngine/scheduler.cpp:59] :
 - [src/decisionEngine/transcriber.cpp:42] :
 - [src/decisionEngine/transcriber.cpp:47] : construct CubeWhisper and prime any resources required for STT
