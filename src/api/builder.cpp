@@ -291,6 +291,42 @@ void API_Builder::start()
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         });
     }
+    // Build an OpenAPI-like JSON from registered endpoint schemas + metadata
+    nlohmann::json openapi;
+    openapi["openapi"] = "3.0.0";
+    openapi["info"] = {
+        {"title", "Companion TheCube - CORE API"},
+        {"version", "0.1.0"}
+    };
+    nlohmann::json paths = nlohmann::json::object();
+    for (auto& [iname, i_face_obj] : this->interface_objs) {
+        auto endpointData = i_face_obj->getHttpEndpointData();
+        for (size_t i = 0; i < endpointData.size(); i++) {
+            std::string endpointName = std::get<2>(endpointData.at(i));
+            std::string endpointPath = "/" + iname + "-" + endpointName;
+            std::string method = ( (std::get<0>(endpointData.at(i)) & GET_ENDPOINT) == GET_ENDPOINT ) ? "get" : "post";
+            nlohmann::json op;
+            op["summary"] = std::get<4>(endpointData.at(i));
+            // If a schema is registered for the endpoint, attach it
+            std::string fullName = iname + "-" + endpointName;
+            auto it = endpointSchemas.find(fullName);
+            if (it != endpointSchemas.end()) {
+                op["requestBody"]["content"]["application/json"]["schema"] = it->second;
+            }
+            // default response
+            op["responses"]["200"] = { {"description", "OK"} };
+            paths[endpointPath][method] = op;
+        }
+    }
+    openapi["paths"] = paths;
+
+    // Expose openapi JSON at /openapi.json
+    this->api->addEndpoint("openapi", "/openapi.json", PUBLIC_ENDPOINT | GET_ENDPOINT, [openapi](const httplib::Request& req, httplib::Response& res) {
+        res.set_content(openapi.dump(), "application/json");
+        return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
+    });
+
+    CubeLog::info("OpenAPI doc available at /openapi.json");
 
     CubeLog::info("API Builder finished build process.");
     this->api->start();

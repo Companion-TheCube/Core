@@ -342,6 +342,49 @@ int main(int argc, char* argv[])
         auto peripherals = std::make_shared<PeripheralManager>();
         auto decisions = std::make_shared<DecisionEngine::DecisionEngineMain>();
         
+            // Register OpenAPI/JSON schemas for important endpoints before starting the API
+            // Schema keys use the API endpoint name format: "<InterfaceName>-<endpointName>"
+            // TriggerManager-bindTrigger
+            nlohmann::json bindTriggerSchema = {
+                {"type","object"},
+                {"properties", {
+                    {"handle", { {"type","integer"} } },
+                    {"intentName", { {"type","string"} } },
+                    {"capabilityName", { {"type","string"} } },
+                    {"functionName", { {"type","string"} } },
+                    {"args", { {"type","object"} } }
+                }},
+                {"oneOf", nlohmann::json::array({ nlohmann::json::object({{"required", nlohmann::json::array({"handle","intentName"})}}), nlohmann::json::object({{"required", nlohmann::json::array({"handle","capabilityName"})}}), nlohmann::json::object({{"required", nlohmann::json::array({"handle","functionName"})}}) })}
+            };
+            API_Builder::addEndpointSchema("TriggerManager-bindTrigger", bindTriggerSchema);
+
+            // TriggerManager-createEventTrigger
+            nlohmann::json createEventSchema = {
+                {"type","object"},
+                {"properties", {
+                    {"intentName", {{"type","string"}}},
+                    {"capabilityName", {{"type","string"}}},
+                    {"functionName", {{"type","string"}}},
+                    {"args", {{"type","object"}}}
+                }},
+                {"oneOf", nlohmann::json::array({ nlohmann::json::object({{"required", nlohmann::json::array({"intentName"})}}), nlohmann::json::object({{"required", nlohmann::json::array({"capabilityName"})}}), nlohmann::json::object({{"required", nlohmann::json::array({"functionName"})}}) })}
+            };
+            API_Builder::addEndpointSchema("TriggerManager-createEventTrigger", createEventSchema);
+
+            // FunctionRegistry-registerFunction
+            nlohmann::json registerFuncSchema = {
+                {"type","object"},
+                {"properties", {
+                    {"name", {{"type","string"}}},
+                    {"appName", {{"type","string"}}},
+                    {"version", {{"type","string"}}},
+                    {"description", {{"type","string"}}},
+                    {"parameters", {{"type","array"}}}
+                }},
+                {"required", nlohmann::json::array({"name","appName"})}
+            };
+            API_Builder::addEndpointSchema("FunctionRegistry-registerFunction", registerFuncSchema);
+
             API_Builder api_builder(api);
             gui->registerInterface();
             cubeDB->registerInterface();

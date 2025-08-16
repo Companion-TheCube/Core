@@ -350,7 +350,32 @@ void API::httpApiThreadFn()
                     }
                 };
                 // For non-public endpoints we don't currently validate (could be added similarly)
-                this->server->addEndpoint(this->endpoints.at(i)->isGetType(), this->endpoints.at(i)->getPath(), action);
+                // If a schema exists, wrap the non-public action with validation
+                std::function<void(const httplib::Request&, httplib::Response&)> validatedAction = action;
+                if (hasSchema) {
+                    try {
+                        nlohmann::json_schema::json_validator validator{[](const std::string &uri, nlohmann::json &schema) {
+                            throw std::runtime_error("Refs not supported in schema resolver");
+                        }};
+                        validator.set_root_schema(schema);
+                        validatedAction = [action, validator](const httplib::Request& req, httplib::Response& res) mutable {
+                            if (req.body.size() > 0) {
+                                try {
+                                    nlohmann::json body = nlohmann::json::parse(req.body);
+                                    validator.validate(body);
+                                } catch (const std::exception &e) {
+                                    res.status = httplib::StatusCode::BadRequest_400;
+                                    res.set_content(std::string("Schema validation failed: ") + e.what(), "text/plain");
+                                    return;
+                                }
+                            }
+                            action(req, res);
+                        };
+                    } catch (const std::exception &e) {
+                        CubeLog::error(std::string("Failed to compile JSON schema for endpoint: ") + this->endpoints.at(i)->getName() + ", error: " + e.what());
+                    }
+                }
+                this->server->addEndpoint(this->endpoints.at(i)->isGetType(), this->endpoints.at(i)->getPath(), validatedAction);
             }
             // IPC server is always public. It is only accessible from localhost.
             this->serverIPC->addEndpoint(this->endpoints.at(i)->isGetType(), this->endpoints.at(i)->getPath(), publicAction);
