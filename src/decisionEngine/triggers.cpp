@@ -276,7 +276,20 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, e.what());
             }
         },
-        "createTimeTrigger", { "timeEpochMs|delayMs", "intentName?" }, "Create a one-shot time trigger" });
+        "createTimeTrigger",
+        nlohmann::json({
+            {"type","object"},
+            {"properties", {
+                {"timeEpochMs", {{"type","integer"}}},
+                {"delayMs", {{"type","integer"}}},
+                {"intentName", {{"type","string"}}},
+                {"capabilityName", {{"type","string"}}},
+                {"functionName", {{"type","string"}}},
+                {"args", {{"type","object"}}}
+            }},
+            {"oneOf", nlohmann::json::array({ nlohmann::json::object({{"required", nlohmann::json::array({"timeEpochMs"})}}), nlohmann::json::object({{"required", nlohmann::json::array({"delayMs"})}}) })}
+        }),
+        "Create a one-shot time trigger" });
 
     // POST /createEventTrigger: Create an event trigger with an optional bound intent.
     data.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,
@@ -329,7 +342,18 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, e.what());
             }
         },
-        "createEventTrigger", { "intentName?" }, "Create an event trigger" });
+        "createEventTrigger",
+        nlohmann::json({
+            {"type","object"},
+            {"properties", {
+                {"intentName", {{"type","string"}}},
+                {"capabilityName", {{"type","string"}}},
+                {"functionName", {{"type","string"}}},
+                {"args", {{"type","object"}}}
+            }},
+            {"oneOf", nlohmann::json::array({ nlohmann::json::object({{"required", nlohmann::json::array({"intentName"})}}), nlohmann::json::object({{"required", nlohmann::json::array({"capabilityName"})}}), nlohmann::json::object({{"required", nlohmann::json::array({"functionName"})}}) })}
+        }),
+        "Create an event trigger" });
 
     // POST /setTriggerEnabled: Enable or disable an existing trigger by handle.
     // Body: { handle: number, enable: boolean }
@@ -431,7 +455,19 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, e.what());
             }
         },
-        "bindTrigger", { "handle", "intentName?|capabilityName?|functionName?", "args?" }, "Bind a trigger to an intent, capability, or function" });
+        "bindTrigger",
+        nlohmann::json({
+            {"type","object"},
+            {"properties", {
+                {"handle", {{"type","integer"}}},
+                {"intentName", {{"type","string"}}},
+                {"capabilityName", {{"type","string"}}},
+                {"functionName", {{"type","string"}}},
+                {"args", {{"type","object"}}}
+            }},
+            {"oneOf", nlohmann::json::array({ nlohmann::json::object({{"required", nlohmann::json::array({"handle","intentName"})}}), nlohmann::json::object({{"required", nlohmann::json::array({"handle","capabilityName"})}}), nlohmann::json::object({{"required", nlohmann::json::array({"handle","functionName"})}}) })}
+        }),
+        "Bind a trigger to an intent, capability, or function" });
 
     // GET /listTriggers: Return a summary of registered triggers.
     data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,

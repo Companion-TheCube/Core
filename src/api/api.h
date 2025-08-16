@@ -91,7 +91,7 @@ struct EndpointError {
 };
 
 typedef std::function<EndpointError(const httplib::Request& req, httplib::Response& res)> EndpointAction_t;
-typedef std::tuple<unsigned int, EndpointAction_t, std::string, std::vector<std::string>, std::string> HttpEndPointDataSinglet_t;
+typedef std::tuple<unsigned int, EndpointAction_t, std::string, nlohmann::json, std::string> HttpEndPointDataSinglet_t;
 typedef std::vector<HttpEndPointDataSinglet_t> HttpEndPointData_t;
 
 class Endpoint {

@@ -40,12 +40,6 @@ SOFTWARE.
 
 std::shared_ptr<API> API_Builder::api = nullptr;
 std::unordered_map<std::string, std::shared_ptr<I_API_Interface>> API_Builder::interface_objs;
-std::unordered_map<std::string, nlohmann::json> API_Builder::endpointSchemas;
-
-void API_Builder::addEndpointSchema(const std::string& endpointName, const nlohmann::json& schema)
-{
-    endpointSchemas[endpointName] = schema;
-}
 
 /**
  * @brief Construct a new api builder::api builder object
@@ -97,6 +91,13 @@ void API_Builder::start()
             CubeLog::info("Adding endpoint: " + std::get<2>(endpointData.at(i)) + " at " + name + "/" + std::get<2>(endpointData.at(i)));
             std::string endpointPath = name + "-" + std::get<2>(endpointData.at(i));
             this->api->addEndpoint(endpointPath, "/" + endpointPath, std::get<0>(endpointData.at(i)), std::get<1>(endpointData.at(i)));
+            // Capture any schema supplied in the endpoint tuple (index 3)
+            try {
+                auto schema = std::get<3>(endpointData.at(i));
+                if (!schema.is_null()) {
+                    endpointSchemas[endpointPath] = schema;
+                }
+            } catch (...) {}
         }
     }
     // create an endpoint that will return the list of all endpoints as json, including the parameters and whether or not they are public

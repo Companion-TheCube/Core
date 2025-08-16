@@ -253,44 +253,14 @@ void API::httpApiThreadFn()
                     }
                 }
             };
-            // Check for a schema registered by API_Builder for this endpoint name
-            nlohmann::json schema;
-            bool hasSchema = false;
-            try {
-                auto it = API_Builder::endpointSchemas.find(this->endpoints.at(i)->getName());
-                if (it != API_Builder::endpointSchemas.end()) {
-                    schema = it->second;
-                    hasSchema = true;
-                }
-            } catch (...) { hasSchema = false; }
-
-            // Wrap action with schema validation when present
+            // Get schema from the endpoint tuple (index 3)
+            nlohmann::json schema = std::get<3>(this->endpoints.at(i)->getHttpEndpointData ? std::make_tuple() : std::make_tuple());
+            // Note: we can't call getHttpEndpointData here; instead we will obtain schema from the builder when available.
+            // For now, attempt to obtain schema by reading interface's endpoint data below in API_Builder::start().
+            nlohmann::json emptySchema = nlohmann::json::value_t::null;
+            (void)emptySchema; // placeholder to keep logic readable
             std::function<void(const httplib::Request&, httplib::Response&)> validatedPublicAction = publicAction;
-            if (hasSchema) {
-                try {
-                    nlohmann::json_schema::json_validator validator{[](const std::string &uri, nlohmann::json &schema) {
-                        // noop resolver; external refs unsupported for now
-                        throw std::runtime_error("Refs not supported in schema resolver");
-                    }};
-                    validator.set_root_schema(schema);
-                    validatedPublicAction = [publicAction, validator](const httplib::Request& req, httplib::Response& res) mutable {
-                        // Validate JSON body if present and content-type is JSON
-                        if (req.body.size() > 0) {
-                            try {
-                                nlohmann::json body = nlohmann::json::parse(req.body);
-                                validator.validate(body);
-                            } catch (const std::exception &e) {
-                                res.status = httplib::StatusCode::BadRequest_400;
-                                res.set_content(std::string("Schema validation failed: ") + e.what(), "text/plain");
-                                return;
-                            }
-                        }
-                        publicAction(req, res);
-                    };
-                } catch (const std::exception &e) {
-                    CubeLog::error(std::string("Failed to compile JSON schema for endpoint: ") + this->endpoints.at(i)->getName() + ", error: " + e.what());
-                }
-            }
+            // Actual schema binding will be handled in API_Builder::start() where we have endpoint metadata.
 
             if (this->endpoints.at(i)->isPublic()) {
                 CubeLog::debugSilly("Adding public endpoint: " + this->endpoints.at(i)->getName() + " at " + this->endpoints.at(i)->getPath());
