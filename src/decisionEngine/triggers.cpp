@@ -183,6 +183,40 @@ void TriggerManager::setFunctionRegistry(std::shared_ptr<FunctionRegistry> regis
     this->functionRegistry = std::move(registry);
 }
 
+void TriggerManager::runFunctionAsync(const std::string& functionName,
+    const nlohmann::json& args,
+    std::function<void(const nlohmann::json&)> onComplete)
+{
+    if (!functionRegistry) {
+        CubeLog::error("TriggerManager: FunctionRegistry not available when trying to run function: " + functionName);
+        if (onComplete) onComplete(nlohmann::json({ { "error", "function_registry_unavailable" } }));
+        return;
+    }
+    try {
+        functionRegistry->runFunctionAsync(functionName, args, onComplete);
+    } catch (const std::exception& e) {
+        CubeLog::error(std::string("TriggerManager::runFunctionAsync exception: ") + e.what());
+        if (onComplete) onComplete(nlohmann::json({ { "error", std::string("exception: ") + e.what() } }));
+    }
+}
+
+void TriggerManager::runCapabilityAsync(const std::string& capabilityName,
+    const nlohmann::json& args,
+    std::function<void(const nlohmann::json&)> onComplete)
+{
+    if (!functionRegistry) {
+        CubeLog::error("TriggerManager: FunctionRegistry not available when trying to run capability: " + capabilityName);
+        if (onComplete) onComplete(nlohmann::json({ { "error", "function_registry_unavailable" } }));
+        return;
+    }
+    try {
+        functionRegistry->runCapabilityAsync(capabilityName, args, onComplete);
+    } catch (const std::exception& e) {
+        CubeLog::error(std::string("TriggerManager::runCapabilityAsync exception: ") + e.what());
+        if (onComplete) onComplete(nlohmann::json({ { "error", std::string("exception: ") + e.what() } }));
+    }
+}
+
 HttpEndPointData_t TriggerManager::getHttpEndpointData()
 {
     HttpEndPointData_t data;
