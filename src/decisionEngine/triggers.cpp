@@ -237,6 +237,10 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
                 auto epochMs = j.value("timeEpochMs", (int64_t)0);
                 auto delayMs = j.value("delayMs", (int64_t)0);
                 auto intentName = j.value("intentName", std::string(""));
+                auto capabilityName = j.value("capabilityName", std::string(""));
+                auto functionName = j.value("functionName", std::string(""));
+                nlohmann::json args = nlohmann::json::object();
+                if (j.contains("args") && j["args"].is_object()) args = j["args"];
                 TimePoint tp;
                 if (epochMs > 0) tp = TimePoint(std::chrono::milliseconds(epochMs));
                 else tp = std::chrono::system_clock::now() + std::chrono::milliseconds(delayMs);
@@ -250,6 +254,14 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
                             trig->setTriggerFunction([intent]() { intent->execute(); });
                         }
                     }
+                } else if (!capabilityName.empty()) {
+                    trig->setTriggerFunction([this, capabilityName, args]() {
+                        this->runCapabilityAsync(capabilityName, args, nullptr);
+                    });
+                } else if (!functionName.empty()) {
+                    trig->setTriggerFunction([this, functionName, args]() {
+                        this->runFunctionAsync(functionName, args, nullptr);
+                    });
                 }
                 // Store trigger under a unique handle; return it to the client.
                 std::scoped_lock lk(mtx);
@@ -278,15 +290,32 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
             try {
                 auto j = nlohmann::json::parse(req.body);
                 auto intentName = j.value("intentName", std::string(""));
+                auto capabilityName = j.value("capabilityName", std::string(""));
+                auto functionName = j.value("functionName", std::string(""));
+                nlohmann::json args = nlohmann::json::object();
+                if (j.contains("args") && j["args"].is_object()) args = j["args"];
+
                 auto trig = std::make_shared<EventTrigger>();
                 trig->setEnabled(true);
                 trig->setScheduler(scheduler);
+
+                // Priority: explicit intentName -> capabilityName -> functionName
                 if (!intentName.empty()) {
                     if (auto reg = intentRegistry.lock()) {
                         if (auto intent = reg->getIntent(intentName)) {
                             trig->setTriggerFunction([intent]() { intent->execute(); });
                         }
                     }
+                } else if (!capabilityName.empty()) {
+                    // Bind trigger to call a capability via FunctionRegistry
+                    trig->setTriggerFunction([this, capabilityName, args]() {
+                        this->runCapabilityAsync(capabilityName, args, nullptr);
+                    });
+                } else if (!functionName.empty()) {
+                    // Bind trigger to call a function via FunctionRegistry
+                    trig->setTriggerFunction([this, functionName, args]() {
+                        this->runFunctionAsync(functionName, args, nullptr);
+                    });
                 }
                 std::scoped_lock lk(mtx);
                 TriggerHandle h = ++nextHandle;
