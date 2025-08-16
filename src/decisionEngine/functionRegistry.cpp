@@ -421,6 +421,55 @@ FunctionRegistry::FunctionRegistry()
         // TODO: Add other built-in core capabilities here (audio playback,
         // UI drawing, NFC, etc.). Keep implementations in a dedicated
         // source file when they become non-trivial.
+
+        // TODO: NFC-Write
+
+        // TODO: NFC-Read
+
+        // TODO: NFC-Scan
+
+        // TODO: Sound - Play a sound file
+
+        // TODO: Sound - Stop playback
+
+        // TODO: Sound - Set volume
+
+        // TODO: Sound - Get current volume
+
+        // TODO: Sound - Mute/unmute
+
+        // TODO: Sound - Is muted
+
+        // TODO: Sound - Get list of available sound files
+
+        // TODO: Sound - Get current sound file
+
+        // TODO: UI - Show a notification
+
+        // TODO: UI - Show a dialog
+
+        // TODO: UI - Show a toast message
+
+        // TODO: UI - Show a progress bar
+
+        // TODO: UI - Update a progress bar
+
+        // TODO: UI - Show a spinner
+
+        // TODO: UI - Hide a spinner
+
+        // TODO: UI - Show a modal dialog
+
+        // TODO: UI - Hide a modal dialog
+
+        // TODO: UI - Show a popup menu
+
+        // TODO: UI - Hide a popup menu
+
+        // TODO: mmWave - Get distance
+
+        // TODO: mmWave - Get speed
+
     };
     registerBuiltInCoreCapabilities();
     // Start background rechecker for socket availability
@@ -698,6 +747,8 @@ const FunctionSpec* FunctionRegistry::find(const std::string& name) const
     return nullptr;
 }
 
+// TODO: Consider merging with setCapabilitySocketUnavailable
+// TODO: Consider renaming to setFunctionSocketAvailability and inverting bool param
 void FunctionRegistry::setFunctionSocketUnavailable(const std::string& functionName, bool unavailable)
 {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -707,6 +758,8 @@ void FunctionRegistry::setFunctionSocketUnavailable(const std::string& functionN
     }
 }
 
+// TODO: Consider merging with setFunctionSocketUnavailable
+// TODO: Consider renaming to setCapabilitySocketAvailability and inverting bool param
 void FunctionRegistry::setCapabilitySocketUnavailable(const std::string& capabilityName, bool unavailable)
 {
     std::lock_guard<std::mutex> lock(mutex_);
