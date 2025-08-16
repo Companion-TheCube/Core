@@ -378,6 +378,61 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
         },
         "fireTrigger", { "handle" }, "Fire a trigger" });
 
+    // POST /bindTrigger: Attach an action to an existing trigger by handle.
+    // Body: { handle: number, intentName?: string, capabilityName?: string, functionName?: string, args?: object }
+    data.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,
+        [&](const httplib::Request& req, httplib::Response& res) {
+            try {
+                auto j = nlohmann::json::parse(req.body);
+                auto handle = j.at("handle").get<TriggerHandle>();
+                std::string intentName = j.value("intentName", std::string(""));
+                std::string capabilityName = j.value("capabilityName", std::string(""));
+                std::string functionName = j.value("functionName", std::string(""));
+                nlohmann::json args = nlohmann::json::object();
+                if (j.contains("args") && j["args"].is_object()) args = j["args"];
+
+                std::shared_ptr<I_Trigger> trig;
+                {
+                    std::scoped_lock lk(mtx);
+                    if (!triggers.count(handle)) throw std::runtime_error("Trigger not found");
+                    trig = triggers[handle];
+                }
+
+                if (!trig) throw std::runtime_error("Trigger not found");
+
+                // Attach according to priority: intentName -> capabilityName -> functionName
+                if (!intentName.empty()) {
+                    if (auto reg = intentRegistry.lock()) {
+                        if (auto intent = reg->getIntent(intentName)) {
+                            trig->setTriggerFunction([intent]() { intent->execute(); });
+                        } else {
+                            throw std::runtime_error("Intent not found: " + intentName);
+                        }
+                    } else {
+                        throw std::runtime_error("IntentRegistry not available");
+                    }
+                } else if (!capabilityName.empty()) {
+                    // Ensure function registry exists before binding
+                    if (!functionRegistry) throw std::runtime_error("FunctionRegistry not available");
+                    trig->setTriggerFunction([this, capabilityName, args]() { this->runCapabilityAsync(capabilityName, args, nullptr); });
+                } else if (!functionName.empty()) {
+                    if (!functionRegistry) throw std::runtime_error("FunctionRegistry not available");
+                    trig->setTriggerFunction([this, functionName, args]() { this->runFunctionAsync(functionName, args, nullptr); });
+                } else {
+                    throw std::runtime_error("No binding provided");
+                }
+
+                nlohmann::json out; out["success"] = true;
+                res.set_content(out.dump(), "application/json");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
+            } catch (std::exception& e) {
+                nlohmann::json out; out["success"] = false; out["message"] = e.what();
+                res.set_content(out.dump(), "application/json");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, e.what());
+            }
+        },
+        "bindTrigger", { "handle", "intentName?|capabilityName?|functionName?", "args?" }, "Bind a trigger to an intent, capability, or function" });
+
     // GET /listTriggers: Return a summary of registered triggers.
     data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
