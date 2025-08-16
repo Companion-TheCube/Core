@@ -974,7 +974,7 @@ HttpEndPointData_t FunctionRegistry::getHttpEndpointData()
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
         "Get all registered functions", {}, "Get the list of all registered functions" });
-    // Suggested additional endpoints to consider implementing:
+    // TODO: Suggested additional endpoints to consider implementing:
     //
     // - Register a capability (POST): allow apps to register capability
     //   manifests (rpc-backed) via HTTP instead of filesystem. Payload: CapabilitySpec JSON.
