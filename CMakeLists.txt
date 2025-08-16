@@ -162,7 +162,7 @@ if(NOT EXISTS ${WHISPER_MODELS_DIR}/large.bin)
     )
 endif()
 
-
+find_package(sdbus-c++ REQUIRED)
 
 
 if(WIN32)
@@ -462,6 +462,7 @@ target_link_libraries(CubeCoreLib PUBLIC
     json-rpc-cxx
     msgpack-cxx
     cppcodec
+    SDBusCpp::sdbus-c++
 )
 
 # Executable links the core library

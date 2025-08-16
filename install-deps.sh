@@ -29,7 +29,7 @@ if [[ "$MODE" == "dev" ]]; then
     libssl-dev libsodium-dev libsqlite3-dev libglm-dev libpq-dev gettext \
     libx11-dev libxrandr-dev libxcursor-dev libxinerama-dev libxi-dev libudev-dev \
     libopenal-dev libsndfile1-dev libflac-dev libvorbis-dev libogg-dev \
-    libjpeg-dev libpng-dev zlib1g-dev
+    libjpeg-dev libpng-dev zlib1g-dev nlohmann-json3-dev libsdbus-c++-dev libsystemd-dev
 else
   # Deployment (runtime) dependencies
   sudo apt-get install -y \
@@ -39,7 +39,7 @@ else
     libssl3 libsodium23 libsqlite3-0 libpq5 \
     libx11-6 libxrandr2 libxcursor1 libxinerama1 libxi6 libudev1 \
     libopenal1 libsndfile1 libflac8 libvorbis0a libvorbisfile3 libogg0 \
-    libjpeg-turbo8 libpng16-16 zlib1g
+    libjpeg-turbo8 libpng16-16 zlib1g nlohmann-json3-dev libsdbus-c++-dev libsystemd-dev
 fi
 
 echo "[$MODE] dependency installation complete."
