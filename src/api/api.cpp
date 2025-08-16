@@ -404,7 +404,8 @@ void API::httpApiThreadFn()
                         static std::unordered_map<std::string, nlohmann::json> schemaCache;
                         static std::mutex schemaCacheMutex;
                         nlohmann::json rootSchema = schema;
-                        nlohmann::json_schema::json_validator validator([&rootSchema](const std::string &uri, nlohmann::json &resolved) {
+                        nlohmann::json_schema::json_validator validator([&rootSchema](const nlohmann::json_uri &juri, nlohmann::json &resolved) {
+                            std::string uri = juri.to_string();
                             if (!uri.empty() && uri[0] == '#') {
                                 try {
                                     std::string pointer = uri.substr(1);
