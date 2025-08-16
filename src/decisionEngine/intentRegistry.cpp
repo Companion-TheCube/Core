@@ -113,6 +113,51 @@ Intent::Intent(const std::string& intentName, const Action& action, const Parame
     this->type = type;
 }
 
+// Helper: async function invocation via attached FunctionRegistry
+void Intent::runFunctionAsync(const std::string& functionName, const nlohmann::json& args, std::function<void(const nlohmann::json&)> onComplete) const
+{
+    auto reg = functionRegistry.lock();
+    if (!reg) {
+        if (onComplete) onComplete(nlohmann::json({{"error","function_registry_unavailable"}}));
+        return;
+    }
+    reg->runFunctionAsync(functionName, args, onComplete);
+}
+
+nlohmann::json Intent::runFunctionSync(const std::string& functionName, const nlohmann::json& args, uint32_t timeoutMs) const
+{
+    std::promise<nlohmann::json> prom;
+    std::future<nlohmann::json> fut = prom.get_future();
+    auto cb = [&prom](const nlohmann::json& res) mutable { try { prom.set_value(res); } catch(...) { } };
+    runFunctionAsync(functionName, args, cb);
+    if (fut.wait_for(std::chrono::milliseconds(timeoutMs)) == std::future_status::ready) {
+        return fut.get();
+    }
+    return nlohmann::json({{"error","timeout"}});
+}
+
+void Intent::runCapabilityAsync(const std::string& capabilityName, const nlohmann::json& args, std::function<void(const nlohmann::json&)> onComplete) const
+{
+    auto reg = functionRegistry.lock();
+    if (!reg) {
+        if (onComplete) onComplete(nlohmann::json({{"error","function_registry_unavailable"}}));
+        return;
+    }
+    reg->runCapabilityAsync(capabilityName, args, onComplete);
+}
+
+nlohmann::json Intent::runCapabilitySync(const std::string& capabilityName, const nlohmann::json& args, uint32_t timeoutMs) const
+{
+    std::promise<nlohmann::json> prom;
+    std::future<nlohmann::json> fut = prom.get_future();
+    auto cb = [&prom](const nlohmann::json& res) mutable { try { prom.set_value(res); } catch(...) { } };
+    runCapabilityAsync(capabilityName, args, cb);
+    if (fut.wait_for(std::chrono::milliseconds(timeoutMs)) == std::future_status::ready) {
+        return fut.get();
+    }
+    return nlohmann::json({{"error","timeout"}});
+}
+
 Intent::Intent(IntentCTorParams params)
 {
     this->intentName = params.intentName;
@@ -490,6 +535,15 @@ IntentRegistry::IntentRegistry()
         CubeLog::fatal(text);
     } else {
         CubeLog::error("Error getting test data");
+    }
+}
+
+void IntentRegistry::setFunctionRegistry(std::shared_ptr<FunctionRegistry> registry)
+{
+    // store and propagate to existing intents
+    for (auto & kv : intentMap) {
+        auto &intent = kv.second;
+        if (intent) intent->setFunctionRegistry(registry);
     }
 }
 

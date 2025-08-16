@@ -120,6 +120,10 @@ DecisionEngineMain::DecisionEngineMain()
         CubeLog::error("Failed to register FunctionRegistry interface");
     }
 
+    // Provide function registry to intent registry so intents can invoke functions/capabilities
+    if (intentRegistry)
+        intentRegistry->setFunctionRegistry(functionRegistry);
+
     bool remoteIntentRecognition = GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::REMOTE_INTENT_RECOGNITION_ENABLED);
     if (remoteIntentRecognition) {
         intentRecognition = std::make_shared<RemoteIntentRecognition>(intentRegistry);
