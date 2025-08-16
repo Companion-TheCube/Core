@@ -110,6 +110,16 @@ DecisionEngineMain::DecisionEngineMain()
     remoteServerAPI = std::make_shared<TheCubeServer::TheCubeServerAPI>(audioQueue);
     intentRegistry = std::make_shared<IntentRegistry>();
 
+    // Function registry: load capability manifests, start worker pool, and
+    // expose HTTP endpoints. Instantiate and register so the API builder can
+    // discover the function/capability endpoints.
+    functionRegistry = std::make_shared<FunctionRegistry>();
+    try {
+        functionRegistry->registerInterface();
+    } catch (...) {
+        CubeLog::error("Failed to register FunctionRegistry interface");
+    }
+
     bool remoteIntentRecognition = GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::REMOTE_INTENT_RECOGNITION_ENABLED);
     if (remoteIntentRecognition) {
         intentRecognition = std::make_shared<RemoteIntentRecognition>(intentRegistry);
