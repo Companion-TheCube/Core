@@ -178,6 +178,11 @@ void TriggerManager::setIntentRegistry(std::shared_ptr<IntentRegistry> reg)
     intentRegistry = reg;
 }
 
+void TriggerManager::setFunctionRegistry(std::shared_ptr<FunctionRegistry> registry)
+{
+    this->functionRegistry = std::move(registry);
+}
+
 HttpEndPointData_t TriggerManager::getHttpEndpointData()
 {
     HttpEndPointData_t data;

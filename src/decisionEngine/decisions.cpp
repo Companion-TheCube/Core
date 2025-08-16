@@ -138,9 +138,15 @@ DecisionEngineMain::DecisionEngineMain()
     scheduler->registerInterface();
     scheduler->setIntentRecognition(intentRecognition);
     scheduler->setIntentRegistry(intentRegistry);
+    // Provide function registry to scheduler so scheduled tasks/triggers
+    // can invoke functions/capabilities.
+    if (functionRegistry)
+        scheduler->setFunctionRegistry(functionRegistry);
 
     triggerManager = std::make_shared<TriggerManager>(scheduler);
     triggerManager->setIntentRegistry(intentRegistry);
+    if (functionRegistry)
+        triggerManager->setFunctionRegistry(functionRegistry);
     triggerManager->registerInterface();
 
     personalityManager = std::make_shared<Personality::PersonalityManager>();
