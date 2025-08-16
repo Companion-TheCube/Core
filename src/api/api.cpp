@@ -272,60 +272,62 @@ void API::httpApiThreadFn()
                 try {
                     static std::unordered_map<std::string, nlohmann::json> schemaCache;
                     static std::mutex schemaCacheMutex;
-                    nlohmann::json rootSchema = schema;
-                    nlohmann::json_schema::json_validator validator([&rootSchema](const nlohmann::json_uri &juri, nlohmann::json &resolved) {
-                        std::string uri = juri.to_string();
-                        if (!uri.empty() && uri[0] == '#') {
-                            try {
-                                std::string pointer = uri.substr(1);
-                                resolved = rootSchema.at(nlohmann::json::json_pointer(pointer));
-                                return;
-                            } catch (const std::exception &e) {
-                                throw std::runtime_error(std::string("Local $ref resolution failed: ") + e.what());
+                    nlohmann::json rootSchema = schema; // keep a local copy
+                    auto validatorPtr = std::make_shared<nlohmann::json_schema::json_validator>(
+                        [rootSchema](const nlohmann::json_uri &juri, nlohmann::json &resolved) mutable {
+                            std::string uri = juri.to_string();
+                            if (!uri.empty() && uri[0] == '#') {
+                                try {
+                                    std::string pointer = uri.substr(1);
+                                    resolved = rootSchema.at(nlohmann::json::json_pointer(pointer));
+                                    return;
+                                } catch (const std::exception &e) {
+                                    throw std::runtime_error(std::string("Local $ref resolution failed: ") + e.what());
+                                }
                             }
-                        }
-                        {
-                            std::lock_guard<std::mutex> lk(schemaCacheMutex);
-                            auto it = schemaCache.find(uri);
-                            if (it != schemaCache.end()) { resolved = it->second; return; }
-                        }
-                        nlohmann::json fetched;
-                        if (uri.rfind("file://", 0) == 0) {
-                            std::string path = uri.substr(strlen("file://"));
-                            std::ifstream ifs(path);
-                            if (!ifs.is_open()) throw std::runtime_error("Failed to open referenced schema file: " + path);
-                            ifs >> fetched;
-                        } else if (uri.rfind("http://", 0) == 0 || uri.rfind("https://", 0) == 0) {
-                            try {
-                                auto pos = uri.find("//");
-                                std::string hostAndPath = uri.substr(pos + 2);
-                                auto slash = hostAndPath.find('/');
-                                std::string host = hostAndPath.substr(0, slash);
-                                std::string path = "/" + hostAndPath.substr(slash + 1);
-                                httplib::Client cli(host.c_str());
-                                auto res = cli.Get(path.c_str());
-                                if (!res) throw std::runtime_error("HTTP fetch failed for: " + uri);
-                                fetched = nlohmann::json::parse(res->body);
-                            } catch (const std::exception &e) {
-                                throw std::runtime_error(std::string("Remote $ref fetch failed: ") + e.what());
+                            {
+                                std::lock_guard<std::mutex> lk(schemaCacheMutex);
+                                auto it = schemaCache.find(uri);
+                                if (it != schemaCache.end()) { resolved = it->second; return; }
                             }
-                        } else {
-                            std::ifstream ifs(uri);
-                            if (!ifs.is_open()) throw std::runtime_error("Failed to open referenced schema file: " + uri);
-                            ifs >> fetched;
+                            nlohmann::json fetched;
+                            if (uri.rfind("file://", 0) == 0) {
+                                std::string path = uri.substr(strlen("file://"));
+                                std::ifstream ifs(path);
+                                if (!ifs.is_open()) throw std::runtime_error("Failed to open referenced schema file: " + path);
+                                ifs >> fetched;
+                            } else if (uri.rfind("http://", 0) == 0 || uri.rfind("https://", 0) == 0) {
+                                try {
+                                    auto pos = uri.find("//");
+                                    std::string hostAndPath = uri.substr(pos + 2);
+                                    auto slash = hostAndPath.find('/');
+                                    std::string host = hostAndPath.substr(0, slash);
+                                    std::string path = "/" + hostAndPath.substr(slash + 1);
+                                    httplib::Client cli(host.c_str());
+                                    auto res = cli.Get(path.c_str());
+                                    if (!res) throw std::runtime_error("HTTP fetch failed for: " + uri);
+                                    fetched = nlohmann::json::parse(res->body);
+                                } catch (const std::exception &e) {
+                                    throw std::runtime_error(std::string("Remote $ref fetch failed: ") + e.what());
+                                }
+                            } else {
+                                std::ifstream ifs(uri);
+                                if (!ifs.is_open()) throw std::runtime_error("Failed to open referenced schema file: " + uri);
+                                ifs >> fetched;
+                            }
+                            {
+                                std::lock_guard<std::mutex> lk(schemaCacheMutex);
+                                schemaCache[uri] = fetched;
+                            }
+                            resolved = fetched;
                         }
-                        {
-                            std::lock_guard<std::mutex> lk(schemaCacheMutex);
-                            schemaCache[uri] = fetched;
-                        }
-                        resolved = fetched;
-                    });
-                    validator.set_root_schema(schema);
-                    validatedPublicAction = [publicAction, validator = std::move(validator)](const httplib::Request& req, httplib::Response& res) mutable {
+                    );
+                    validatorPtr->set_root_schema(schema);
+                    validatedPublicAction = [publicAction, validatorPtr](const httplib::Request& req, httplib::Response& res) {
                         if (req.body.size() > 0) {
                             try {
                                 nlohmann::json body = nlohmann::json::parse(req.body);
-                                validator.validate(body);
+                                validatorPtr->validate(body);
                             } catch (const std::exception &e) {
                                 res.status = httplib::StatusCode::BadRequest_400;
                                 res.set_content(std::string("Schema validation failed: ") + e.what(), "text/plain");
@@ -404,59 +406,61 @@ void API::httpApiThreadFn()
                         static std::unordered_map<std::string, nlohmann::json> schemaCache;
                         static std::mutex schemaCacheMutex;
                         nlohmann::json rootSchema = schema;
-                        nlohmann::json_schema::json_validator validator([&rootSchema](const nlohmann::json_uri &juri, nlohmann::json &resolved) {
-                            std::string uri = juri.to_string();
-                            if (!uri.empty() && uri[0] == '#') {
-                                try {
-                                    std::string pointer = uri.substr(1);
-                                    resolved = rootSchema.at(nlohmann::json::json_pointer(pointer));
-                                    return;
-                                } catch (const std::exception &e) {
-                                    throw std::runtime_error(std::string("Local $ref resolution failed: ") + e.what());
+                        auto validatorPtr = std::make_shared<nlohmann::json_schema::json_validator>(
+                            [rootSchema](const nlohmann::json_uri &juri, nlohmann::json &resolved) mutable {
+                                std::string uri = juri.to_string();
+                                if (!uri.empty() && uri[0] == '#') {
+                                    try {
+                                        std::string pointer = uri.substr(1);
+                                        resolved = rootSchema.at(nlohmann::json::json_pointer(pointer));
+                                        return;
+                                    } catch (const std::exception &e) {
+                                        throw std::runtime_error(std::string("Local $ref resolution failed: ") + e.what());
+                                    }
                                 }
-                            }
-                            {
-                                std::lock_guard<std::mutex> lk(schemaCacheMutex);
-                                auto it = schemaCache.find(uri);
-                                if (it != schemaCache.end()) { resolved = it->second; return; }
-                            }
-                            nlohmann::json fetched;
-                            if (uri.rfind("file://", 0) == 0) {
-                                std::string path = uri.substr(strlen("file://"));
-                                std::ifstream ifs(path);
-                                if (!ifs.is_open()) throw std::runtime_error("Failed to open referenced schema file: " + path);
-                                ifs >> fetched;
-                            } else if (uri.rfind("http://", 0) == 0 || uri.rfind("https://", 0) == 0) {
-                                try {
-                                    auto pos = uri.find("//");
-                                    std::string hostAndPath = uri.substr(pos + 2);
-                                    auto slash = hostAndPath.find('/');
-                                    std::string host = hostAndPath.substr(0, slash);
-                                    std::string path = "/" + hostAndPath.substr(slash + 1);
-                                    httplib::Client cli(host.c_str());
-                                    auto res = cli.Get(path.c_str());
-                                    if (!res) throw std::runtime_error("HTTP fetch failed for: " + uri);
-                                    fetched = nlohmann::json::parse(res->body);
-                                } catch (const std::exception &e) {
-                                    throw std::runtime_error(std::string("Remote $ref fetch failed: ") + e.what());
+                                {
+                                    std::lock_guard<std::mutex> lk(schemaCacheMutex);
+                                    auto it = schemaCache.find(uri);
+                                    if (it != schemaCache.end()) { resolved = it->second; return; }
                                 }
-                            } else {
-                                std::ifstream ifs(uri);
-                                if (!ifs.is_open()) throw std::runtime_error("Failed to open referenced schema file: " + uri);
-                                ifs >> fetched;
+                                nlohmann::json fetched;
+                                if (uri.rfind("file://", 0) == 0) {
+                                    std::string path = uri.substr(strlen("file://"));
+                                    std::ifstream ifs(path);
+                                    if (!ifs.is_open()) throw std::runtime_error("Failed to open referenced schema file: " + path);
+                                    ifs >> fetched;
+                                } else if (uri.rfind("http://", 0) == 0 || uri.rfind("https://", 0) == 0) {
+                                    try {
+                                        auto pos = uri.find("//");
+                                        std::string hostAndPath = uri.substr(pos + 2);
+                                        auto slash = hostAndPath.find('/');
+                                        std::string host = hostAndPath.substr(0, slash);
+                                        std::string path = "/" + hostAndPath.substr(slash + 1);
+                                        httplib::Client cli(host.c_str());
+                                        auto res = cli.Get(path.c_str());
+                                        if (!res) throw std::runtime_error("HTTP fetch failed for: " + uri);
+                                        fetched = nlohmann::json::parse(res->body);
+                                    } catch (const std::exception &e) {
+                                        throw std::runtime_error(std::string("Remote $ref fetch failed: ") + e.what());
+                                    }
+                                } else {
+                                    std::ifstream ifs(uri);
+                                    if (!ifs.is_open()) throw std::runtime_error("Failed to open referenced schema file: " + uri);
+                                    ifs >> fetched;
+                                }
+                                {
+                                    std::lock_guard<std::mutex> lk(schemaCacheMutex);
+                                    schemaCache[uri] = fetched;
+                                }
+                                resolved = fetched;
                             }
-                            {
-                                std::lock_guard<std::mutex> lk(schemaCacheMutex);
-                                schemaCache[uri] = fetched;
-                            }
-                            resolved = fetched;
-                        });
-                        validator.set_root_schema(schema);
-                        validatedAction = [action, validator = std::move(validator)](const httplib::Request& req, httplib::Response& res) mutable {
+                        );
+                        validatorPtr->set_root_schema(schema);
+                        validatedAction = [action, validatorPtr](const httplib::Request& req, httplib::Response& res) {
                             if (req.body.size() > 0) {
                                 try {
                                     nlohmann::json body = nlohmann::json::parse(req.body);
-                                    validator.validate(body);
+                                    validatorPtr->validate(body);
                                 } catch (const std::exception &e) {
                                     res.status = httplib::StatusCode::BadRequest_400;
                                     res.set_content(std::string("Schema validation failed: ") + e.what(), "text/plain");
