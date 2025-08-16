@@ -223,6 +223,14 @@ if(NOT EXISTS ${HTTPLIB_HEADER})
 endif()
 
 find_package(OpenSSL REQUIRED)
+if (OpenSSL_FOUND)
+    # Ensure OpenSSL libraries are linked for targets that use httplib/OpenSSL functions
+    # Some FetchContent subprojects (vendor cpp-httplib) expect SSL symbols; adding
+    # these linker flags globally ensures the linker can resolve them during subproject
+    # link steps. This is a pragmatic fix for environments where subprojects don't
+    # automatically link OpenSSL.
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenSSL_LIBRARIES}")
+endif()
 ####### spdlog library (for file logging) #######
 include(FetchContent)
 FetchContent_Declare(
