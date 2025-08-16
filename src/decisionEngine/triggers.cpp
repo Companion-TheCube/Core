@@ -1,9 +1,9 @@
 /*
-████████╗██████╗ ██╗ ██████╗  ██████╗ ███████╗██████╗ ███████╗    ██████╗██████╗ ██████╗ 
+████████╗██████╗ ██╗ ██████╗  ██████╗ ███████╗██████╗ ███████╗    ██████╗██████╗ ██████╗
 ╚══██╔══╝██╔══██╗██║██╔════╝ ██╔════╝ ██╔════╝██╔══██╗██╔════╝   ██╔════╝██╔══██╗██╔══██╗
    ██║   ██████╔╝██║██║  ███╗██║  ███╗█████╗  ██████╔╝███████╗   ██║     ██████╔╝██████╔╝
-   ██║   ██╔══██╗██║██║   ██║██║   ██║██╔══╝  ██╔══██╗╚════██║   ██║     ██╔═══╝ ██╔═══╝ 
-   ██║   ██║  ██║██║╚██████╔╝╚██████╔╝███████╗██║  ██║███████║██╗╚██████╗██║     ██║     
+   ██║   ██╔══██╗██║██║   ██║██║   ██║██╔══╝  ██╔══██╗╚════██║   ██║     ██╔═══╝ ██╔═══╝
+   ██║   ██║  ██║██║╚██████╔╝╚██████╔╝███████╗██║  ██║███████║██╗╚██████╗██║     ██║
    ╚═╝   ╚═╝  ╚═╝╚═╝ ╚═════╝  ╚═════╝ ╚══════╝╚═╝  ╚═╝╚══════╝╚═╝ ╚═════╝╚═╝     ╚═╝
 */
 
@@ -30,7 +30,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-
 
 // Triggers implementation: time- and event-based fireables plus a manager
 // that polls and exposes HTTP control to create, enable, fire, and list.
@@ -60,30 +59,36 @@ TimeTrigger::TimeTrigger()
     });
 }
 
-TimeTrigger::TimeTrigger(const TimePoint& t) : TimeTrigger()
+TimeTrigger::TimeTrigger(const TimePoint& t)
+    : TimeTrigger()
 {
     time = t;
 }
 
-TimeTrigger::TimeTrigger(const TimePoint& t, const std::function<void()>& fn) : TimeTrigger(t)
+TimeTrigger::TimeTrigger(const TimePoint& t, const std::function<void()>& fn)
+    : TimeTrigger(t)
 {
     setTriggerFunction(fn);
 }
 
-TimeTrigger::TimeTrigger(const TimePoint& t, const std::function<void()>& fn, const std::function<bool()>& chk) : TimeTrigger(t, fn)
+TimeTrigger::TimeTrigger(const TimePoint& t, const std::function<void()>& fn, const std::function<bool()>& chk)
+    : TimeTrigger(t, fn)
 {
     setCheckTrigger(chk);
 }
 
 void TimeTrigger::trigger()
 {
-    if (!isEnabled()) return;
+    if (!isEnabled())
+        return;
     // If no checkTrigger provided, assume time-based check
     bool ok = true;
-    if (auto ct = this->checkTrigger) ok = ct();
+    if (auto ct = this->checkTrigger)
+        ok = ct();
     if (ok) {
         triggerState = true;
-        if (triggerFunction) triggerFunction();
+        if (triggerFunction)
+            triggerFunction();
     }
 }
 
@@ -102,7 +107,7 @@ void TimeTrigger::setScheduler(std::shared_ptr<Scheduler> s)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // EventTrigger
 
-EventTrigger::EventTrigger() {}
+EventTrigger::EventTrigger() { }
 
 EventTrigger::EventTrigger(const std::function<void()>& fn)
 {
@@ -117,12 +122,15 @@ EventTrigger::EventTrigger(const std::function<void()>& fn, const std::function<
 
 void EventTrigger::trigger()
 {
-    if (!isEnabled()) return;
+    if (!isEnabled())
+        return;
     bool ok = true;
-    if (auto ct = this->checkTrigger) ok = ct();
+    if (auto ct = this->checkTrigger)
+        ok = ct();
     if (ok) {
         triggerState = true;
-        if (triggerFunction) triggerFunction();
+        if (triggerFunction)
+            triggerFunction();
     }
 }
 
@@ -134,7 +142,7 @@ void EventTrigger::setScheduler(std::shared_ptr<Scheduler> s)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // TriggerManager
 
-TriggerManager::TriggerManager() {}
+TriggerManager::TriggerManager() { }
 
 TriggerManager::TriggerManager(const std::shared_ptr<Scheduler>& s)
 {
@@ -160,7 +168,8 @@ TriggerManager::TriggerManager(const std::shared_ptr<Scheduler>& s)
     });
 }
 
-TriggerManager::~TriggerManager() {
+TriggerManager::~TriggerManager()
+{
     if (pollThread) {
         delete pollThread;
         pollThread = nullptr;
@@ -189,14 +198,16 @@ void TriggerManager::runFunctionAsync(const std::string& functionName,
 {
     if (!functionRegistry) {
         CubeLog::error("TriggerManager: FunctionRegistry not available when trying to run function: " + functionName);
-        if (onComplete) onComplete(nlohmann::json({ { "error", "function_registry_unavailable" } }));
+        if (onComplete)
+            onComplete(nlohmann::json({ { "error", "function_registry_unavailable" } }));
         return;
     }
     try {
         functionRegistry->runFunctionAsync(functionName, args, onComplete);
     } catch (const std::exception& e) {
         CubeLog::error(std::string("TriggerManager::runFunctionAsync exception: ") + e.what());
-        if (onComplete) onComplete(nlohmann::json({ { "error", std::string("exception: ") + e.what() } }));
+        if (onComplete)
+            onComplete(nlohmann::json({ { "error", std::string("exception: ") + e.what() } }));
     }
 }
 
@@ -206,14 +217,16 @@ void TriggerManager::runCapabilityAsync(const std::string& capabilityName,
 {
     if (!functionRegistry) {
         CubeLog::error("TriggerManager: FunctionRegistry not available when trying to run capability: " + capabilityName);
-        if (onComplete) onComplete(nlohmann::json({ { "error", "function_registry_unavailable" } }));
+        if (onComplete)
+            onComplete(nlohmann::json({ { "error", "function_registry_unavailable" } }));
         return;
     }
     try {
         functionRegistry->runCapabilityAsync(capabilityName, args, onComplete);
     } catch (const std::exception& e) {
         CubeLog::error(std::string("TriggerManager::runCapabilityAsync exception: ") + e.what());
-        if (onComplete) onComplete(nlohmann::json({ { "error", std::string("exception: ") + e.what() } }));
+        if (onComplete)
+            onComplete(nlohmann::json({ { "error", std::string("exception: ") + e.what() } }));
     }
 }
 
@@ -228,7 +241,9 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
         [&](const httplib::Request& req, httplib::Response& res) {
             // Validate content type and parse body; compute the trigger time.
             if (!(req.has_header("Content-Type") && req.get_header_value("Content-Type") == "application/json")) {
-                nlohmann::json j; j["success"] = false; j["message"] = "Content-Type must be application/json";
+                nlohmann::json j;
+                j["success"] = false;
+                j["message"] = "Content-Type must be application/json";
                 res.set_content(j.dump(), "application/json");
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, "Content-Type must be application/json");
             }
@@ -240,10 +255,13 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
                 auto capabilityName = j.value("capabilityName", std::string(""));
                 auto functionName = j.value("functionName", std::string(""));
                 nlohmann::json args = nlohmann::json::object();
-                if (j.contains("args") && j["args"].is_object()) args = j["args"];
+                if (j.contains("args") && j["args"].is_object())
+                    args = j["args"];
                 TimePoint tp;
-                if (epochMs > 0) tp = TimePoint(std::chrono::milliseconds(epochMs));
-                else tp = std::chrono::system_clock::now() + std::chrono::milliseconds(delayMs);
+                if (epochMs > 0)
+                    tp = TimePoint(std::chrono::milliseconds(epochMs));
+                else
+                    tp = std::chrono::system_clock::now() + std::chrono::milliseconds(delayMs);
                 // Instantiate and enable the trigger; optionally bind to an intent.
                 auto trig = std::make_shared<TimeTrigger>(tp);
                 trig->setEnabled(true);
@@ -267,28 +285,27 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
                 std::scoped_lock lk(mtx);
                 TriggerHandle h = ++nextHandle;
                 triggers[h] = trig;
-                nlohmann::json out; out["success"] = true; out["handle"] = h;
+                nlohmann::json out;
+                out["success"] = true;
+                out["handle"] = h;
                 res.set_content(out.dump(), "application/json");
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
             } catch (std::exception& e) {
-                nlohmann::json out; out["success"] = false; out["message"] = e.what();
+                nlohmann::json out;
+                out["success"] = false;
+                out["message"] = e.what();
                 res.set_content(out.dump(), "application/json");
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, e.what());
             }
         },
         "createTimeTrigger",
-        nlohmann::json({
-            {"type","object"},
-            {"properties", {
-                {"timeEpochMs", {{"type","integer"}}},
-                {"delayMs", {{"type","integer"}}},
-                {"intentName", {{"type","string"}}},
-                {"capabilityName", {{"type","string"}}},
-                {"functionName", {{"type","string"}}},
-                {"args", {{"type","object"}}}
-            }},
-            {"oneOf", nlohmann::json::array({ nlohmann::json::object({{"required", nlohmann::json::array({"timeEpochMs"})}}), nlohmann::json::object({{"required", nlohmann::json::array({"delayMs"})}}) })}
-        }),
+        nlohmann::json({ { "type", "object" },
+            { "properties", { { "timeEpochMs", { { "type", "integer" } } }, { "delayMs", { { "type", "integer" } } }, { "intentName", { { "type", "string" } } }, { "capabilityName", { { "type", "string" } } }, { "functionName", { { "type", "string" } } }, { "args", { { "type", "object" } } } } },
+            { "oneOf",
+                nlohmann::json::array({ nlohmann::json::object({ { "required",
+                                            nlohmann::json::array({ "timeEpochMs" }) } }),
+                    nlohmann::json::object({ { "required",
+                        nlohmann::json::array({ "delayMs" }) } }) }) } }),
         "Create a one-shot time trigger" });
 
     // POST /createEventTrigger: Create an event trigger with an optional bound intent.
@@ -296,7 +313,9 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
         [&](const httplib::Request& req, httplib::Response& res) {
             // Validate content type; if intentName is provided and registered, bind it to the trigger action.
             if (!(req.has_header("Content-Type") && req.get_header_value("Content-Type") == "application/json")) {
-                nlohmann::json j; j["success"] = false; j["message"] = "Content-Type must be application/json";
+                nlohmann::json j;
+                j["success"] = false;
+                j["message"] = "Content-Type must be application/json";
                 res.set_content(j.dump(), "application/json");
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, "Content-Type must be application/json");
             }
@@ -306,7 +325,8 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
                 auto capabilityName = j.value("capabilityName", std::string(""));
                 auto functionName = j.value("functionName", std::string(""));
                 nlohmann::json args = nlohmann::json::object();
-                if (j.contains("args") && j["args"].is_object()) args = j["args"];
+                if (j.contains("args") && j["args"].is_object())
+                    args = j["args"];
 
                 auto trig = std::make_shared<EventTrigger>();
                 trig->setEnabled(true);
@@ -333,26 +353,23 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
                 std::scoped_lock lk(mtx);
                 TriggerHandle h = ++nextHandle;
                 triggers[h] = trig;
-                nlohmann::json out; out["success"] = true; out["handle"] = h;
+                nlohmann::json out;
+                out["success"] = true;
+                out["handle"] = h;
                 res.set_content(out.dump(), "application/json");
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
             } catch (std::exception& e) {
-                nlohmann::json out; out["success"] = false; out["message"] = e.what();
+                nlohmann::json out;
+                out["success"] = false;
+                out["message"] = e.what();
                 res.set_content(out.dump(), "application/json");
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, e.what());
             }
         },
         "createEventTrigger",
-        nlohmann::json({
-            {"type","object"},
-            {"properties", {
-                {"intentName", {{"type","string"}}},
-                {"capabilityName", {{"type","string"}}},
-                {"functionName", {{"type","string"}}},
-                {"args", {{"type","object"}}}
-            }},
-            {"oneOf", nlohmann::json::array({ nlohmann::json::object({{"required", nlohmann::json::array({"intentName"})}}), nlohmann::json::object({{"required", nlohmann::json::array({"capabilityName"})}}), nlohmann::json::object({{"required", nlohmann::json::array({"functionName"})}}) })}
-        }),
+        nlohmann::json({ { "type", "object" },
+            { "properties", { { "intentName", { { "type", "string" } } }, { "capabilityName", { { "type", "string" } } }, { "functionName", { { "type", "string" } } }, { "args", { { "type", "object" } } } } },
+            { "oneOf", nlohmann::json::array({ nlohmann::json::object({ { "required", nlohmann::json::array({ "intentName" }) } }), nlohmann::json::object({ { "required", nlohmann::json::array({ "capabilityName" }) } }), nlohmann::json::object({ { "required", nlohmann::json::array({ "functionName" }) } }) }) } }),
         "Create an event trigger" });
 
     // POST /setTriggerEnabled: Enable or disable an existing trigger by handle.
@@ -364,13 +381,17 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
                 auto handle = j.at("handle").get<TriggerHandle>();
                 auto enable = j.value("enable", true);
                 std::scoped_lock lk(mtx);
-                if (!triggers.count(handle)) throw std::runtime_error("Trigger not found");
+                if (!triggers.count(handle))
+                    throw std::runtime_error("Trigger not found");
                 triggers[handle]->setEnabled(enable);
-                nlohmann::json out; out["success"] = true;
+                nlohmann::json out;
+                out["success"] = true;
                 res.set_content(out.dump(), "application/json");
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
             } catch (std::exception& e) {
-                nlohmann::json out; out["success"] = false; out["message"] = e.what();
+                nlohmann::json out;
+                out["success"] = false;
+                out["message"] = e.what();
                 res.set_content(out.dump(), "application/json");
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, e.what());
             }
@@ -387,15 +408,20 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
                 {
                     // Acquire trigger under lock, then release before invoking to avoid holding mutex during execution.
                     std::scoped_lock lk(mtx);
-                    if (!triggers.count(handle)) throw std::runtime_error("Trigger not found");
+                    if (!triggers.count(handle))
+                        throw std::runtime_error("Trigger not found");
                     trig = triggers[handle];
                 }
-                if (trig) trig->trigger();
-                nlohmann::json out; out["success"] = true;
+                if (trig)
+                    trig->trigger();
+                nlohmann::json out;
+                out["success"] = true;
                 res.set_content(out.dump(), "application/json");
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
             } catch (std::exception& e) {
-                nlohmann::json out; out["success"] = false; out["message"] = e.what();
+                nlohmann::json out;
+                out["success"] = false;
+                out["message"] = e.what();
                 res.set_content(out.dump(), "application/json");
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, e.what());
             }
@@ -413,16 +439,19 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
                 std::string capabilityName = j.value("capabilityName", std::string(""));
                 std::string functionName = j.value("functionName", std::string(""));
                 nlohmann::json args = nlohmann::json::object();
-                if (j.contains("args") && j["args"].is_object()) args = j["args"];
+                if (j.contains("args") && j["args"].is_object())
+                    args = j["args"];
 
                 std::shared_ptr<I_Trigger> trig;
                 {
                     std::scoped_lock lk(mtx);
-                    if (!triggers.count(handle)) throw std::runtime_error("Trigger not found");
+                    if (!triggers.count(handle))
+                        throw std::runtime_error("Trigger not found");
                     trig = triggers[handle];
                 }
 
-                if (!trig) throw std::runtime_error("Trigger not found");
+                if (!trig)
+                    throw std::runtime_error("Trigger not found");
 
                 // Attach according to priority: intentName -> capabilityName -> functionName
                 if (!intentName.empty()) {
@@ -437,43 +466,42 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
                     }
                 } else if (!capabilityName.empty()) {
                     // Ensure function registry exists before binding
-                    if (!functionRegistry) throw std::runtime_error("FunctionRegistry not available");
+                    if (!functionRegistry)
+                        throw std::runtime_error("FunctionRegistry not available");
                     trig->setTriggerFunction([this, capabilityName, args]() { this->runCapabilityAsync(capabilityName, args, nullptr); });
                 } else if (!functionName.empty()) {
-                    if (!functionRegistry) throw std::runtime_error("FunctionRegistry not available");
+                    if (!functionRegistry)
+                        throw std::runtime_error("FunctionRegistry not available");
                     trig->setTriggerFunction([this, functionName, args]() { this->runFunctionAsync(functionName, args, nullptr); });
                 } else {
                     throw std::runtime_error("No binding provided");
                 }
 
-                nlohmann::json out; out["success"] = true;
+                nlohmann::json out;
+                out["success"] = true;
                 res.set_content(out.dump(), "application/json");
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
             } catch (std::exception& e) {
-                nlohmann::json out; out["success"] = false; out["message"] = e.what();
+                nlohmann::json out;
+                out["success"] = false;
+                out["message"] = e.what();
                 res.set_content(out.dump(), "application/json");
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, e.what());
             }
         },
         "bindTrigger",
-        nlohmann::json({
-            {"type","object"},
-            {"properties", {
-                {"handle", {{"type","integer"}}},
-                {"intentName", {{"type","string"}}},
-                {"capabilityName", {{"type","string"}}},
-                {"functionName", {{"type","string"}}},
-                {"args", {{"type","object"}}}
-            }},
-            {"oneOf", nlohmann::json::array({ nlohmann::json::object({{"required", nlohmann::json::array({"handle","intentName"})}}), nlohmann::json::object({{"required", nlohmann::json::array({"handle","capabilityName"})}}), nlohmann::json::object({{"required", nlohmann::json::array({"handle","functionName"})}}) })}
-        }),
+        nlohmann::json({ { "type", "object" },
+            { "properties", { { "handle", { { "type", "integer" } } }, { "intentName", { { "type", "string" } } }, { "capabilityName", { { "type", "string" } } }, { "functionName", { { "type", "string" } } }, { "args", { { "type", "object" } } } } },
+            { "oneOf", nlohmann::json::array({ nlohmann::json::object({ { "required", nlohmann::json::array({ "handle", "intentName" }) } }), nlohmann::json::object({ { "required", nlohmann::json::array({ "handle", "capabilityName" }) } }), nlohmann::json::object({ { "required", nlohmann::json::array({ "handle", "functionName" }) } }) }) } }),
         "Bind a trigger to an intent, capability, or function" });
 
     // GET /listTriggers: Return a summary of registered triggers.
     data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
             // Each entry includes handle, enabled flag, whether a predicate exists, and type (time/event).
-            nlohmann::json j; j["success"] = true; j["triggers"] = nlohmann::json::array();
+            nlohmann::json j;
+            j["success"] = true;
+            j["triggers"] = nlohmann::json::array();
             std::scoped_lock lk(mtx);
             for (auto& kv : triggers) {
                 nlohmann::json tj;

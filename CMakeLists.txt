@@ -95,8 +95,12 @@ FetchContent_Declare(
     GIT_TAG master
     UPDATE_DISCONNECTED FALSE
 )
-FetchContent_MakeAvailable(json_schema_validator)
-include_directories(${json_schema_validator_SOURCE_DIR}/include)
+# Avoid adding the validator as a subproject to prevent its install() rules
+# from exporting targets that depend on nlohmann_json's export set.
+FetchContent_Populate(json_schema_validator)
+# Use headers directly; header lives at src/nlohmann/json-schema.hpp
+# Our code includes <json-schema.hpp>, so expose the nested path.
+include_directories(${json_schema_validator_SOURCE_DIR}/src/nlohmann)
 
 include(FetchContent)
 FetchContent_Declare(

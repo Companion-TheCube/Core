@@ -138,7 +138,6 @@ public:
 
     void setEmotionalScoreRanges(const std::vector<Personality::EmotionRange>& emotionRanges);
     void setEmotionScoreRange(const Personality::EmotionRange& emotionRange);
-    void setFunctionRegistry(std::shared_ptr<FunctionRegistry> registry);
 
     // Function/Capability helpers. These forward to an attached FunctionRegistry
     void runFunctionAsync(const std::string& functionName, const nlohmann::json& args, std::function<void(const nlohmann::json&)> onComplete = nullptr) const;

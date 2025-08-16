@@ -31,7 +31,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-
+#pragma once
 #ifndef API_H
 #define API_H
 #include <any>
@@ -184,7 +184,7 @@ class API_Builder {
 private:
     static std::shared_ptr<API> api;
     static std::unordered_map<std::string, std::shared_ptr<I_API_Interface>> interface_objs;
-    static std::unordered_map<std::string, nlohmann::json> endpointSchemas;
+    
 
 public:
     // Pass in all the dependencies the API needs
@@ -210,6 +210,7 @@ public:
         // CubeLog::info("Adding interface object: " + interface_object->getInterfaceName());
         interface_objs[interface_object->getInterfaceName()] = interface_object;
     }
+    static std::unordered_map<std::string, nlohmann::json> endpointSchemas;
 };
 
 /*

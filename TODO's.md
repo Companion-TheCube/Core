@@ -15,12 +15,12 @@
 -   Need to go through all the http endpoints and make sure they all return valid json or endpoint specific data. probably should all be json.
 -   Sometimes, if /tmp/.X11-unix/X0 does not exist when the GUI starts, the GUI will fail to start. Need to add a check for this and create a link if it does not exist. "sudo ln -s /tmp/.X11-unix/X1 /tmp/.X11-unix/X0"
 -   API authentication flow with device confirmation does not work. TheCube does not show the widget.
-- [src/api/api.cpp:103] : add checks to make sure these are valid calls.
-- [src/api/api.cpp:52] : Since we need to make sure that the entire API is built before letting any clients connect,
-- [src/api/api.cpp:59] : // TESTING AUTHENTICATION //// remove
-- [src/api/api.h:203] : We need to make the API server is able to handle new interfaces being added at runtime.
+- [src/api/api.cpp:109] : add checks to make sure these are valid calls.
+- [src/api/api.cpp:58] : Since we need to make sure that the entire API is built before letting any clients connect,
+- [src/api/api.cpp:65] : // TESTING AUTHENTICATION //// remove
+- [src/api/api.h:205] : We need to make the API server is able to handle new interfaces being added at runtime.
 - [src/api/authentication.cpp:156] : add checkAuth function that only takes the app_id and returns bool if the app_id has been allowed by the user
-- [src/api/builder.cpp:148] : refactor to get rid of staticFiles vector. update: maybe not?
+- [src/api/builder.cpp:156] : refactor to get rid of staticFiles vector. update: maybe not?
 - [src/apps/appsDBManager.cpp:110] : add the interfaces for HTTP server
 - [src/apps/appsManager.cpp:1199] : Implement checking if app update is available
 - [src/apps/appsManager.cpp:1212] : Implement checking if app update is required
@@ -117,21 +117,21 @@
 - [src/decisionEngine/functionRegistry.cpp:852] : implement actual JSON-RPC via asio here. For now, return an error
 - [src/decisionEngine/functionRegistry.cpp:977] : Suggested additional endpoints to consider implementing:
 - [src/decisionEngine/functionRegistry.h:66] : consider adding `AppsManager::isAppReady(appId)` to allow checking
-- [src/decisionEngine/intentRegistry.cpp:158] : add TTS support
-- [src/decisionEngine/intentRegistry.cpp:185] : Implement this
-- [src/decisionEngine/intentRegistry.cpp:191] : This needs checks to ensure properly formatted JSON
-- [src/decisionEngine/intentRegistry.cpp:323] : define all the system intents. this should include things like "What time is it?" and "What apps are installed?"
-- [src/decisionEngine/intentRegistry.cpp:356] : although this code works, we need to implement a more advanced pattern matching system and we need to
-- [src/decisionEngine/intentRegistry.cpp:359] : This function should somehow return a score for the match so that when multiple intents match, we can
-- [src/decisionEngine/intentRegistry.cpp:407] : convert this to std::future and make callback the progress callback or remove it
-- [src/decisionEngine/intentRegistry.cpp:450] : convert this to std::future
-- [src/decisionEngine/intentRegistry.cpp:456] : convert this to std::future and make callback the progress callback or remove it
-- [src/decisionEngine/intentRegistry.cpp:461] :
-- [src/decisionEngine/intentRegistry.cpp:468] :
-- [src/decisionEngine/intentRegistry.cpp:476] : remove).
-- [src/decisionEngine/intentRegistry.cpp:485] : remove this. Testing only.
-- [src/decisionEngine/intentRegistry.cpp:540] :
-- [src/decisionEngine/intentRegistry.h:99] : add a mutex so that the calling of execute can be thread safe
+- [src/decisionEngine/intentRegistry.cpp:203] : add TTS support
+- [src/decisionEngine/intentRegistry.cpp:230] : Implement this
+- [src/decisionEngine/intentRegistry.cpp:236] : This needs checks to ensure properly formatted JSON
+- [src/decisionEngine/intentRegistry.cpp:368] : define all the system intents. this should include things like "What time is it?" and "What apps are installed?"
+- [src/decisionEngine/intentRegistry.cpp:401] : although this code works, we need to implement a more advanced pattern matching system and we need to
+- [src/decisionEngine/intentRegistry.cpp:404] : This function should somehow return a score for the match so that when multiple intents match, we can
+- [src/decisionEngine/intentRegistry.cpp:452] : convert this to std::future and make callback the progress callback or remove it
+- [src/decisionEngine/intentRegistry.cpp:495] : convert this to std::future
+- [src/decisionEngine/intentRegistry.cpp:501] : convert this to std::future and make callback the progress callback or remove it
+- [src/decisionEngine/intentRegistry.cpp:506] :
+- [src/decisionEngine/intentRegistry.cpp:513] :
+- [src/decisionEngine/intentRegistry.cpp:521] : remove).
+- [src/decisionEngine/intentRegistry.cpp:530] : remove this. Testing only.
+- [src/decisionEngine/intentRegistry.cpp:594] :
+- [src/decisionEngine/intentRegistry.h:100] : add a mutex so that the calling of execute can be thread safe
 - [src/decisionEngine/personalityManager.h:147] : add methods that allow for ramp type of expiration
 - [src/decisionEngine/remoteServer.cpp:103] :
 - [src/decisionEngine/remoteServer.cpp:200] :
