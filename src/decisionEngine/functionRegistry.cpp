@@ -912,7 +912,21 @@ HttpEndPointData_t FunctionRegistry::getHttpEndpointData()
             res.body = j.dump();
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        "registerFunction", {}, "Register a new function with the function registry" });
+        "registerFunction",
+        nlohmann::json({
+            { "type", "object" },
+            { "properties", {
+                { "name", { { "type", "string" } } },
+                { "appName", { { "type", "string" } } },
+                { "description", { { "type", "string" } } },
+                { "humanReadableName", { { "type", "string" } } },
+                { "parameters", { { "type", "array" }, { "items", nlohmann::json({ { "type", "object" },
+                    { "properties", { { "name", { { "type", "string" } } }, { "type", { { "type", "string" } } }, { "description", { { "type", "string" } } }, { "required", { { "type", "boolean" } } } } },
+                    { "required", nlohmann::json::array({ "name", "type" }) } }) } } }
+            } },
+            { "required", nlohmann::json::array({ "name" }) }
+        }),
+        "Register a new function with the function registry" });
     endpoints.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
             // Get function catalogue
