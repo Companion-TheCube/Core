@@ -230,7 +230,16 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Blob saved");
         },
         "CubeDB-saveBlob",
-        { "client_id", "app_id", "stringBlob", "blob" },
+        nlohmann::json({
+            { "type", "object" },
+            { "properties", {
+                { "client_id", { { "type", "string" } } },
+                { "app_id", { { "type", "string" } } },
+                { "stringBlob", { { "type", "string" } } },
+                { "blob", { { "type", "string" } } }
+            } },
+            { "allOf", nlohmann::json::array({ nlohmann::json::object({ { "oneOf", nlohmann::json::array({ nlohmann::json::object({ { "required", nlohmann::json::array({ "client_id" }) } }), nlohmann::json::object({ { "required", nlohmann::json::array({ "app_id" }) } }) }) } }), nlohmann::json::object({ { "oneOf", nlohmann::json::array({ nlohmann::json::object({ { "required", nlohmann::json::array({ "stringBlob" }) } }), nlohmann::json::object({ { "required", nlohmann::json::array({ "blob" }) } }) }) } }) }) }
+        ),
         "Save a blob to the database. client_id or app_id is required. stringBlob is a string blob, blob is a base64 encoded binary blob." });
 
     // TODO: fix this endpoint. It has testing data in it.
@@ -423,7 +432,7 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Blob retrieved");
         },
         "retrieveBlobString",
-        { "clientOrApp_id", "blob_id" },
+        nlohmann::json({ { "type", "object" }, { "properties", { { "clientOrApp_id", { { "type", "string" } } }, { "blob_id", { { "type", "string" } } } } }, { "required", nlohmann::json::array({ "clientOrApp_id", "blob_id" }) } }),
         "Retrieve a string blob from the database. clientOrApp_id is the client_id or app_id of the owner of the blob. blob_id is the id of the blob. Returns string." });
     // TODO: endpoints to write:
     // retrieveData - private, get - get data from the database, returns json
