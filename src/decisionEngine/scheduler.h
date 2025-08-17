@@ -185,6 +185,7 @@ public:
     void restart(); // Convenience: stop then start
     void setIntentRecognition(std::shared_ptr<I_IntentRecognition> intentRecognition);
     void setIntentRegistry(std::shared_ptr<IntentRegistry> intentRegistry);
+    void setFunctionRegistry(std::shared_ptr<FunctionRegistry> functionRegistry);
     // CRUD on tasks (thread-safe)
     uint32_t addTask(const ScheduledTask& task);                // Returns handle
     void removeTask(const std::shared_ptr<Intent>& intent);     // Remove by pointer match
@@ -198,6 +199,7 @@ public:
 private:
     std::shared_ptr<I_IntentRecognition> intentRecognition;
     std::weak_ptr<IntentRegistry> intentRegistry;
+    std::shared_ptr<FunctionRegistry> functionRegistry;
     ScheduledTaskList scheduledTasks;
     std::jthread* schedulerThread;
     std::mutex schedulerMutex;

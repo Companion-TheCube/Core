@@ -79,6 +79,7 @@ SOFTWARE.
 #include "globalSettings.h"
 #include "httplib.h"
 #include "personalityManager.h"
+#include "functionRegistry.h"
 // #include "decisionsError.hpp"
 #include "remoteApi.h"
 
@@ -138,6 +139,12 @@ public:
     void setEmotionalScoreRanges(const std::vector<Personality::EmotionRange>& emotionRanges);
     void setEmotionScoreRange(const Personality::EmotionRange& emotionRange);
 
+    // Function/Capability helpers. These forward to an attached FunctionRegistry
+    void runFunctionAsync(const std::string& functionName, const nlohmann::json& args, std::function<void(const nlohmann::json&)> onComplete = nullptr) const;
+    nlohmann::json runFunctionSync(const std::string& functionName, const nlohmann::json& args, uint32_t timeoutMs = 4000) const;
+    void runCapabilityAsync(const std::string& capabilityName, const nlohmann::json& args, std::function<void(const nlohmann::json&)> onComplete = nullptr) const;
+    nlohmann::json runCapabilitySync(const std::string& capabilityName, const nlohmann::json& args, uint32_t timeoutMs = 4000) const;
+
     const std::vector<std::string> getMatchingParams();
     void setMatchingParams(const std::vector<std::string>& matchingParams);
     const std::vector<std::string> getMatchingPhrases();
@@ -161,6 +168,11 @@ private:
      */
     std::vector<std::string> responseStringScored = {};
     std::shared_ptr<Personality::PersonalityManager> personalityManager;
+
+    // Optional FunctionRegistry used by Intent helper methods
+    std::weak_ptr<FunctionRegistry> functionRegistry;
+public:
+    void setFunctionRegistry(std::shared_ptr<FunctionRegistry> registry) { functionRegistry = registry; }
 
     std::vector<Personality::EmotionRange> emotionRanges;
 
@@ -193,6 +205,7 @@ public:
     // API Interface
     HttpEndPointData_t getHttpEndpointData() override;
     constexpr std::string getInterfaceName() const override;
+    void setFunctionRegistry(std::shared_ptr<FunctionRegistry> registry);
 
 private:
     /**

@@ -110,6 +110,20 @@ DecisionEngineMain::DecisionEngineMain()
     remoteServerAPI = std::make_shared<TheCubeServer::TheCubeServerAPI>(audioQueue);
     intentRegistry = std::make_shared<IntentRegistry>();
 
+    // Function registry: load capability manifests, start worker pool, and
+    // expose HTTP endpoints. Instantiate and register so the API builder can
+    // discover the function/capability endpoints.
+    functionRegistry = std::make_shared<FunctionRegistry>();
+    try {
+        functionRegistry->registerInterface();
+    } catch (...) {
+        CubeLog::error("Failed to register FunctionRegistry interface");
+    }
+
+    // Provide function registry to intent registry so intents can invoke functions/capabilities
+    if (intentRegistry)
+        intentRegistry->setFunctionRegistry(functionRegistry);
+
     bool remoteIntentRecognition = GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::REMOTE_INTENT_RECOGNITION_ENABLED);
     if (remoteIntentRecognition) {
         intentRecognition = std::make_shared<RemoteIntentRecognition>(intentRegistry);
@@ -128,9 +142,15 @@ DecisionEngineMain::DecisionEngineMain()
     scheduler->registerInterface();
     scheduler->setIntentRecognition(intentRecognition);
     scheduler->setIntentRegistry(intentRegistry);
+    // Provide function registry to scheduler so scheduled tasks/triggers
+    // can invoke functions/capabilities.
+    if (functionRegistry)
+        scheduler->setFunctionRegistry(functionRegistry);
 
     triggerManager = std::make_shared<TriggerManager>(scheduler);
     triggerManager->setIntentRegistry(intentRegistry);
+    if (functionRegistry)
+        triggerManager->setFunctionRegistry(functionRegistry);
     triggerManager->registerInterface();
 
     personalityManager = std::make_shared<Personality::PersonalityManager>();

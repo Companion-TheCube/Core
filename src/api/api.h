@@ -31,7 +31,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-
+#pragma once
 #ifndef API_H
 #define API_H
 #include <any>
@@ -91,7 +91,7 @@ struct EndpointError {
 };
 
 typedef std::function<EndpointError(const httplib::Request& req, httplib::Response& res)> EndpointAction_t;
-typedef std::tuple<unsigned int, EndpointAction_t, std::string, std::vector<std::string>, std::string> HttpEndPointDataSinglet_t;
+typedef std::tuple<unsigned int, EndpointAction_t, std::string, nlohmann::json, std::string> HttpEndPointDataSinglet_t;
 typedef std::vector<HttpEndPointDataSinglet_t> HttpEndPointData_t;
 
 class Endpoint {
@@ -184,12 +184,14 @@ class API_Builder {
 private:
     static std::shared_ptr<API> api;
     static std::unordered_map<std::string, std::shared_ptr<I_API_Interface>> interface_objs;
+    
 
 public:
     // Pass in all the dependencies the API needs
     API_Builder(std::shared_ptr<API> api);
     ~API_Builder();
     void start();
+    static void addEndpointSchema(const std::string& endpointName, const nlohmann::json& schema);
     template <typename T>
     static void addInterfaceStatic(std::shared_ptr<T> interface_object)
     {
@@ -208,6 +210,7 @@ public:
         // CubeLog::info("Adding interface object: " + interface_object->getInterfaceName());
         interface_objs[interface_object->getInterfaceName()] = interface_object;
     }
+    static std::unordered_map<std::string, nlohmann::json> endpointSchemas;
 };
 
 /*

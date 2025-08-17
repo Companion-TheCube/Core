@@ -189,6 +189,11 @@ void Scheduler::setIntentRegistry(std::shared_ptr<IntentRegistry> intentRegistry
     this->intentRegistry = intentRegistry;
 }
 
+void Scheduler::setFunctionRegistry(std::shared_ptr<FunctionRegistry> functionRegistry)
+{
+    this->functionRegistry = std::move(functionRegistry);
+}
+
 uint32_t Scheduler::addTask(const ScheduledTask& task)
 {
     std::unique_lock<std::mutex> lock(schedulerMutex);

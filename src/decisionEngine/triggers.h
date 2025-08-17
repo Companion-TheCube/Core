@@ -158,6 +158,15 @@ public:
     ~TriggerManager();
     void setScheduler(std::shared_ptr<Scheduler> scheduler);
     void setIntentRegistry(std::shared_ptr<IntentRegistry> intentRegistry);
+    void setFunctionRegistry(std::shared_ptr<FunctionRegistry> registry);
+    // Helpers: invoke functions/capabilities via the FunctionRegistry
+    void runFunctionAsync(const std::string& functionName,
+        const nlohmann::json& args,
+        std::function<void(const nlohmann::json&)> onComplete = nullptr);
+
+    void runCapabilityAsync(const std::string& capabilityName,
+        const nlohmann::json& args,
+        std::function<void(const nlohmann::json&)> onComplete = nullptr);
     // API Interface
     HttpEndPointData_t getHttpEndpointData() override;
     constexpr std::string getInterfaceName() const override;
@@ -165,6 +174,7 @@ public:
 private:
     std::shared_ptr<Scheduler> scheduler;
     std::weak_ptr<IntentRegistry> intentRegistry;
+    std::shared_ptr<FunctionRegistry> functionRegistry;
     using TriggerHandle = uint32_t;
     std::unordered_map<TriggerHandle, std::shared_ptr<I_Trigger>> triggers;
     std::jthread* pollThread{ nullptr };

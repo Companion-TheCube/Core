@@ -102,6 +102,7 @@ public:
 private:
     std::shared_ptr<I_IntentRecognition> intentRecognition;
     std::shared_ptr<IntentRegistry> intentRegistry;
+    std::shared_ptr<FunctionRegistry> functionRegistry;
     std::shared_ptr<I_Transcriber> transcriber;
     std::shared_ptr<Scheduler> scheduler;
     std::shared_ptr<TriggerManager> triggerManager;
