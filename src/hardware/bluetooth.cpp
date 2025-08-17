@@ -1189,7 +1189,7 @@ HttpEndPointData_t BTManager::getHttpEndpointData()
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR , "");
         },
         "/stopBTManager",
-        {},
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
         "Stops the BTManager class and allows adding new BT Services."
     });
     data.push_back({
@@ -1202,7 +1202,7 @@ HttpEndPointData_t BTManager::getHttpEndpointData()
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR , "");
         },
         "/startBTManager",
-        {},
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
         "Starts the BTManager class after it has been stopped."
     });
     data.push_back({
@@ -1223,7 +1223,7 @@ HttpEndPointData_t BTManager::getHttpEndpointData()
             */
         },
         "/addBTService",
-        {},
+        nlohmann::json({ { "type", "object" }, { "properties", { { "client_id", { { "type", "string" } } }, { "serviceConfig", { { "type", "object" } } } } } }),
         "Adds a new BT Service to the BTManager."
     });
     return data;
