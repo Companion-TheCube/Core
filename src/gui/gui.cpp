@@ -1931,7 +1931,7 @@ HttpEndPointData_t GUI::getHttpEndpointData()
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
             },
             "messageBox",
-            { "text", "title" },
+            nlohmann::json({ { "type", "object" }, { "properties", { { "text", { { "type", "string" } } }, { "title", { { "type", "string" } } } } }, { "required", nlohmann::json::array({ "text", "title" }) } }),
             _("Show a message box with a title and message") });
     actions.push_back(
         { PUBLIC_ENDPOINT | GET_ENDPOINT,
@@ -1969,7 +1969,7 @@ HttpEndPointData_t GUI::getHttpEndpointData()
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
             },
             "textBox",
-            { "text", "title", "size-x", "size-y", "position-x", "position-y" },
+            nlohmann::json({ { "type", "object" }, { "properties", { { "text", { { "type", "string" } } }, { "title", { { "type", "string" } } }, { "size-x", { { "type", "integer" } } }, { "size-y", { { "type", "integer" } } }, { "position-x", { { "type", "integer" } } }, { "position-y", { { "type", "integer" } } } } }, { "required", nlohmann::json::array({ "text", "title" }) } }),
             _("Show a text box with a title and message of a specified size and position. Default values for size and position are 720x720 at 0,0.") });
     actions.push_back(
         { PRIVATE_ENDPOINT | POST_ENDPOINT,
@@ -2007,7 +2007,7 @@ HttpEndPointData_t GUI::getHttpEndpointData()
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
             },
             "addMenu",
-            {},
+            nlohmann::json({ { "type", "object" }, { "properties", { { "menuName", { { "type", "string" } } }, { "uniqueID", { { "type", "string" } } }, { "parentID", { { "type", "string" } } }, { "data", { { "type", "object" } } } } }, { "required", nlohmann::json::array({ "menuName", "data" }) } }),
             _("Add a menu to the GUI") });
     return actions;
 }
