@@ -844,7 +844,7 @@ HttpEndPointData_t CubeLog::getHttpEndpointData()
             }
         },
         "log",
-        { "message", "level", "source", "line", "function" },
+        nlohmann::json({ { "type", "object" }, { "properties", { { "message", { { "type", "string" } } }, { "level", { { "type", "integer" } } }, { "source", { { "type", "string" } } }, { "line", { { "type", "string" } } }, { "function", { { "type", "string" } } } } }, { "required", nlohmann::json::array({ "message", "level" }) } }),
         "Log a message" });
     data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
@@ -863,7 +863,7 @@ HttpEndPointData_t CubeLog::getHttpEndpointData()
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
         "getLogs",
-        {},
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
         "Get logs" });
     return data;
 }
