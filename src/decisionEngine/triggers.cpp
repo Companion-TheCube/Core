@@ -514,7 +514,7 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
             res.set_content(j.dump(), "application/json");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        "listTriggers", {}, "List triggers" });
+        "listTriggers", nlohmann::json({ { "type", "object" }, { "properties", { } } }), "List triggers" });
     return data;
 }
 
