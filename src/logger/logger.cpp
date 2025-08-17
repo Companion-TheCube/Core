@@ -845,10 +845,10 @@ HttpEndPointData_t CubeLog::getHttpEndpointData()
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, "Content-Type header must be set to \"application/json\".");
             }
         },
-        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        "log",
         nlohmann::json({ { "type", "object" }, { "properties", { { "message", { { "type", "string" } } }, { "level", { { "type", "integer" } } }, { "source", { { "type", "string" } } }, { "line", { { "type", "string" } } }, { "function", { { "type", "string" } } } } }, { "required", nlohmann::json::array({ "message", "level" }) } }),
         "Log a message"
-    })
+    });
     data.push_back({
         PRIVATE_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req,
@@ -867,10 +867,10 @@ HttpEndPointData_t CubeLog::getHttpEndpointData()
             res.set_content(j.dump(), "application/json");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        "getLogs",
         nlohmann::json({ { "type", "object" }, { "properties", { } } }),
         "Get logs"
-    })
+    });
     return data;
 }
 
