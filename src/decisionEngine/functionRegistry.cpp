@@ -929,7 +929,7 @@ HttpEndPointData_t FunctionRegistry::getHttpEndpointData()
             { "required", nlohmann::json::array({ "name" }) }
         }),
         "Register a new function with the function registry"
-    })
+    });
     endpoints.push_back({
         PRIVATE_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req,
@@ -943,7 +943,7 @@ HttpEndPointData_t FunctionRegistry::getHttpEndpointData()
         nlohmann::json({ { "type", "object" }, { "properties", { } } }),
         nlohmann::json({ { "type", "object" }, { "properties", { { "name", { { "type", "string" } } } } } }),
         "Get the list of registered functions"
-    })
+    });
     endpoints.push_back({
         PRIVATE_ENDPOINT | POST_ENDPOINT,
         [&](const httplib::Request& req,
@@ -969,7 +969,7 @@ HttpEndPointData_t FunctionRegistry::getHttpEndpointData()
         nlohmann::json({ { "type", "object" }, { "properties", { } } }),
         nlohmann::json({ { "type", "object" }, { "properties", { { "name", { { "type", "string" } } } } }, { "required", nlohmann::json::array({ "name" }) } }),
         "Find a registered function by its name"
-    })
+    });
     endpoints.push_back({
         PRIVATE_ENDPOINT | POST_ENDPOINT,
         [&](const httplib::Request& req,
@@ -996,7 +996,7 @@ HttpEndPointData_t FunctionRegistry::getHttpEndpointData()
         nlohmann::json({ { "type", "object" }, { "properties", { } } }),
         nlohmann::json({ { "type", "object" }, { "properties", { { "name", { { "type", "string" } } } } }, { "required", nlohmann::json::array({ "name" }) } }),
         "Unregister a function from the function registry"
-    })
+    });
     endpoints.push_back({
         PRIVATE_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req,
@@ -1010,7 +1010,7 @@ HttpEndPointData_t FunctionRegistry::getHttpEndpointData()
         nlohmann::json({ { "type", "object" }, { "properties", { } } }),
         nlohmann::json({ { "type", "object" }, { "properties", { } } }),
         "Get the list of all registered functions"
-    })
+    });
     // TODO: Suggested additional endpoints to consider implementing:
     //
     // - Register a capability (POST): allow apps to register capability
