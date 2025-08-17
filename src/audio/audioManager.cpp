@@ -95,10 +95,10 @@ HttpEndPointData_t AudioManager::getHttpEndpointData()
             CubeLog::info("Endpoint start called.");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        "start",
         nlohmann::json({ { "type", "object" }, { "properties", { } } }),
         "Start the audio."
-    })
+    });
     data.push_back({
         PUBLIC_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req,
@@ -107,10 +107,10 @@ HttpEndPointData_t AudioManager::getHttpEndpointData()
             CubeLog::info("Endpoint stop called");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        "stop",
         nlohmann::json({ { "type", "object" }, { "properties", { } } }),
         "Stop the audio."
-    })
+    });
     data.push_back({
         PUBLIC_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req,
@@ -119,10 +119,10 @@ HttpEndPointData_t AudioManager::getHttpEndpointData()
             CubeLog::info("Endpoint toggle sound called");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        "toggleSound",
         nlohmann::json({ { "type", "object" }, { "properties", { } } }),
         "Toggle the sound."
-    })
+    });
     data.push_back({
         PUBLIC_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req,
@@ -140,6 +140,6 @@ HttpEndPointData_t AudioManager::getHttpEndpointData()
         nlohmann::json({ { "type", "object" }, { "properties", { } } }),
         nlohmann::json({ { "type", "object" }, { "properties", { { "soundOn", { { "type", "boolean" } } } } }, { "required", nlohmann::json::array({ "soundOn" }) } }),
         "Set sound to boolean state. \"true\" is on."
-    })
+    });
     return data;
 }
