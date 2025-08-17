@@ -513,7 +513,7 @@ HttpEndPointData_t PersonalityManager::getHttpEndpointData()
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
         "getEmotionValue",
-        { "emotion" },
+        nlohmann::json({ { "type", "object" }, { "properties", { { "emotion", { { "type", "string" } } } } }, { "required", nlohmann::json::array({ "emotion" }) } }),
         "Get the value of an emotion. Emotion can be curiosity, playfulness, empathy, assertiveness, attentiveness, or caution." });
     data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
@@ -663,7 +663,7 @@ HttpEndPointData_t PersonalityManager::getHttpEndpointData()
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
         "setEmotionValue",
-        { "emotion", "value", "targetValue", "targetTime", "expiration", "rampType" },
+        nlohmann::json({ { "type", "object" }, { "properties", { { "emotion", { { "type", "string" } } }, { "value", { { "type", "integer" } } }, { "targetValue", { { "type", "integer" } } }, { "targetTime", { { "type", "integer" } } }, { "expiration", { { "type", "integer" } } }, { "rampType", { { "type", "integer" } } } } }, { "required", nlohmann::json::array({ "emotion" }) } }),
         "Set the value of an emotion. Emotion can be curiosity, playfulness, empathy, assertiveness, attentiveness, or caution. Value must be between "+std::to_string(EMOTION_MIN_VALUE)+" and "+std::to_string(EMOTION_MAX_VALUE)+". Optional parameters: [targetValue, targetTime], [expiration], [rampType]." });
     return data;
 }
