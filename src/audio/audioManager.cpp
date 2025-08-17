@@ -87,29 +87,46 @@ HttpEndPointData_t AudioManager::getHttpEndpointData()
     // TODO: Additional endpoints will be defined in the audioOutput.cpp file and speechIn.cpp file so we
     //  need to pull those in here and add them to the data vector.
     HttpEndPointData_t data;
-    data.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
-        [&](const httplib::Request& req, httplib::Response& res) {
+    data.push_back({
+        PUBLIC_ENDPOINT | GET_ENDPOINT,
+        [&](const httplib::Request& req,
+        httplib::Response& res) {
             this->start();
             CubeLog::info("Endpoint start called.");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        "start", nlohmann::json({ { "type", "object" }, { "properties", { } } }), "Start the audio." });
-    data.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
-        [&](const httplib::Request& req, httplib::Response& res) {
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        "Start the audio."
+    })
+    data.push_back({
+        PUBLIC_ENDPOINT | GET_ENDPOINT,
+        [&](const httplib::Request& req,
+        httplib::Response& res) {
             this->stop();
             CubeLog::info("Endpoint stop called");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        "stop", nlohmann::json({ { "type", "object" }, { "properties", { } } }), "Stop the audio." });
-    data.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
-        [&](const httplib::Request& req, httplib::Response& res) {
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        "Stop the audio."
+    })
+    data.push_back({
+        PUBLIC_ENDPOINT | GET_ENDPOINT,
+        [&](const httplib::Request& req,
+        httplib::Response& res) {
             this->toggleSound();
             CubeLog::info("Endpoint toggle sound called");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        "toggleSound", nlohmann::json({ { "type", "object" }, { "properties", { } } }), "Toggle the sound." });
-    data.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
-        [&](const httplib::Request& req, httplib::Response& res) {
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        "Toggle the sound."
+    })
+    data.push_back({
+        PUBLIC_ENDPOINT | GET_ENDPOINT,
+        [&](const httplib::Request& req,
+        httplib::Response& res) {
             std::string p = "no param";
             for (auto& [paramName, paramValue] : req.params) {
                 if (paramName == "soundOn") {
@@ -120,6 +137,9 @@ HttpEndPointData_t AudioManager::getHttpEndpointData()
             CubeLog::info("Endpoint set sound called with param: " + p);
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        "setSound", nlohmann::json({ { "type", "object" }, { "properties", { { "soundOn", { { "type", "boolean" } } } } }, { "required", nlohmann::json::array({ "soundOn" }) } }), "Set sound to boolean state. \"true\" is on." });
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        nlohmann::json({ { "type", "object" }, { "properties", { { "soundOn", { { "type", "boolean" } } } } }, { "required", nlohmann::json::array({ "soundOn" }) } }),
+        "Set sound to boolean state. \"true\" is on."
+    })
     return data;
 }

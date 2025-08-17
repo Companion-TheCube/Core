@@ -536,8 +536,10 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
         nlohmann::json({ { "type", "object" }, { "properties", { { "client_id", { { "type", "string" } } }, { "initial_code", { { "type", "string" } } } } }, { "required", nlohmann::json::array({ "client_id", "initial_code" }) } }),
         "Authorize the client. Returns an authentication header." });
     // Revoke token
-    data.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,
-        [&](const httplib::Request& req, httplib::Response& res) {
+    data.push_back({
+        PRIVATE_ENDPOINT | POST_ENDPOINT,
+        [&](const httplib::Request& req,
+        httplib::Response& res) {
             try {
                 auto j = nlohmann::json::parse(req.body);
                 auto clientID = j.value("client_id", std::string(""));
@@ -563,9 +565,10 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, e.what());
             }
         },
-        "revokeToken",
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
         nlohmann::json({ { "type", "object" }, { "properties", { { "client_id", { { "type", "string" } } }, { "token", { { "type", "string" } } } } } }),
-        "Revoke a token by client_id or token" });
+        "Revoke a token by client_id or token"
+    })
 
     // Rotate token (issue new, revoke old)
     data.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,

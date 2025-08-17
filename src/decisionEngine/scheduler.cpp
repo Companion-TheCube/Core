@@ -265,52 +265,74 @@ HttpEndPointData_t Scheduler::getHttpEndpointData()
     HttpEndPointData_t data;
     // Control endpoints
     // GET /start: Transition scheduler to running state. No request body required.
-    data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
-        [&](const httplib::Request& req, httplib::Response& res) {
+    data.push_back({
+        PRIVATE_ENDPOINT | GET_ENDPOINT,
+        [&](const httplib::Request& req,
+        httplib::Response& res) {
             // Flip the running flag and wake the thread; respond with JSON result.
             this->start();
             nlohmann::json j; j["success"] = true; j["message"] = "Scheduler started";
             res.set_content(j.dump(), "application/json");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        "start", nlohmann::json({ { "type", "object" }, { "properties", { } } }), "Start scheduler" });
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        "Start scheduler"
+    })
 
     // GET /stop: Stop the scheduler thread and clear running state.
-    data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
-        [&](const httplib::Request& req, httplib::Response& res) {
+    data.push_back({
+        PRIVATE_ENDPOINT | GET_ENDPOINT,
+        [&](const httplib::Request& req,
+        httplib::Response& res) {
             // Signal stop and acknowledge. Safe to call idempotently.
             this->stop();
             nlohmann::json j; j["success"] = true; j["message"] = "Scheduler stopped";
             res.set_content(j.dump(), "application/json");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        "stop", nlohmann::json({ { "type", "object" }, { "properties", { } } }), "Stop scheduler" });
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        "Stop scheduler"
+    })
 
     // GET /pause: Temporarily halt evaluation without destroying the thread.
-    data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
-        [&](const httplib::Request& req, httplib::Response& res) {
+    data.push_back({
+        PRIVATE_ENDPOINT | GET_ENDPOINT,
+        [&](const httplib::Request& req,
+        httplib::Response& res) {
             // Set paused=true; scheduler loop will stop evaluating pending tasks.
             this->pause();
             nlohmann::json j; j["success"] = true; j["message"] = "Scheduler paused";
             res.set_content(j.dump(), "application/json");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        "pause", nlohmann::json({ { "type", "object" }, { "properties", { } } }), "Pause scheduler" });
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        "Pause scheduler"
+    })
 
     // GET /resume: Resume evaluation after a pause.
-    data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
-        [&](const httplib::Request& req, httplib::Response& res) {
+    data.push_back({
+        PRIVATE_ENDPOINT | GET_ENDPOINT,
+        [&](const httplib::Request& req,
+        httplib::Response& res) {
             // Clear paused flag and wake loop to continue.
             this->resume();
             nlohmann::json j; j["success"] = true; j["message"] = "Scheduler resumed";
             res.set_content(j.dump(), "application/json");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        "resume", nlohmann::json({ { "type", "object" }, { "properties", { } } }), "Resume scheduler" });
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        "Resume scheduler"
+    })
 
     // GET /listTasks: Emit a JSON array of scheduled tasks.
-    data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
-        [&](const httplib::Request& req, httplib::Response& res) {
+    data.push_back({
+        PRIVATE_ENDPOINT | GET_ENDPOINT,
+        [&](const httplib::Request& req,
+        httplib::Response& res) {
             // Take a snapshot under mutex; include handle, enable state, due time, repeat interval, and intent name.
             std::scoped_lock lk(this->schedulerMutex);
             nlohmann::json j; j["success"] = true; j["tasks"] = nlohmann::json::array();
@@ -327,7 +349,10 @@ HttpEndPointData_t Scheduler::getHttpEndpointData()
             res.set_content(j.dump(), "application/json");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        "listTasks", nlohmann::json({ { "type", "object" }, { "properties", { } } }), "List scheduled tasks" });
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        "List scheduled tasks"
+    })
 
     // POST /addTask: Create a one-shot or repeating task.
     // Body (application/json): { intentName: string, timeEpochMs?: number, delayMs?: number, repeatSeconds?: number }
@@ -384,8 +409,10 @@ HttpEndPointData_t Scheduler::getHttpEndpointData()
 
     // POST /removeTask: Remove a task by numeric handle.
     // Body: { handle: number }
-    data.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,
-        [&](const httplib::Request& req, httplib::Response& res) {
+    data.push_back({
+        PRIVATE_ENDPOINT | POST_ENDPOINT,
+        [&](const httplib::Request& req,
+        httplib::Response& res) {
             // Require JSON and a valid handle field; ignore missing handles with error.
             if (!(req.has_header("Content-Type") && req.get_header_value("Content-Type") == "application/json")) {
                 nlohmann::json j; j["success"] = false; j["message"] = "Content-Type must be application/json";
@@ -406,9 +433,10 @@ HttpEndPointData_t Scheduler::getHttpEndpointData()
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, e.what());
             }
         },
-        "removeTask",
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
         nlohmann::json({ { "type", "object" }, { "properties", { { "handle", { { "type", "integer" } } } } }, { "required", nlohmann::json::array({ "handle" }) } }),
-        "Remove a task by handle" });
+        "Remove a task by handle"
+    })
 
     return data;
 }

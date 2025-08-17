@@ -115,7 +115,7 @@
 - [src/decisionEngine/functionRegistry.cpp:761] : Consider merging with setFunctionSocketUnavailable
 - [src/decisionEngine/functionRegistry.cpp:762] : Consider renaming to setCapabilitySocketAvailability and inverting bool param
 - [src/decisionEngine/functionRegistry.cpp:852] : implement actual JSON-RPC via asio here. For now, return an error
-- [src/decisionEngine/functionRegistry.cpp:977] : Suggested additional endpoints to consider implementing:
+- [src/decisionEngine/functionRegistry.cpp:999] : Suggested additional endpoints to consider implementing:
 - [src/decisionEngine/functionRegistry.h:66] : consider adding `AppsManager::isAppReady(appId)` to allow checking
 - [src/decisionEngine/intentRegistry.cpp:203] : add TTS support
 - [src/decisionEngine/intentRegistry.cpp:230] : Implement this

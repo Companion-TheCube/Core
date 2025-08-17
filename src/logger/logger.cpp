@@ -784,8 +784,10 @@ const std::string sanitizeString(std::string str)
 HttpEndPointData_t CubeLog::getHttpEndpointData()
 {
     HttpEndPointData_t data;
-    data.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,
-        [](const httplib::Request& req, httplib::Response& res) {
+    data.push_back({
+        PRIVATE_ENDPOINT | POST_ENDPOINT,
+        [](const httplib::Request& req,
+        httplib::Response& res) {
             // log info
             CubeLog::info("Logging message from endpoint");
             if ((req.has_header("Content-Type") && req.get_header_value("Content-Type") == "application/json")) {
@@ -843,11 +845,14 @@ HttpEndPointData_t CubeLog::getHttpEndpointData()
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, "Content-Type header must be set to \"application/json\".");
             }
         },
-        "log",
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
         nlohmann::json({ { "type", "object" }, { "properties", { { "message", { { "type", "string" } } }, { "level", { { "type", "integer" } } }, { "source", { { "type", "string" } } }, { "line", { { "type", "string" } } }, { "function", { { "type", "string" } } } } }, { "required", nlohmann::json::array({ "message", "level" }) } }),
-        "Log a message" });
-    data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
-        [&](const httplib::Request& req, httplib::Response& res) {
+        "Log a message"
+    })
+    data.push_back({
+        PRIVATE_ENDPOINT | GET_ENDPOINT,
+        [&](const httplib::Request& req,
+        httplib::Response& res) {
             CUBELOG_TRACE("Getting logs for endpoint");
             std::vector<CUBE_LOG_ENTRY> entries = CubeLog::getLogEntries();
             nlohmann::json j;
@@ -862,9 +867,10 @@ HttpEndPointData_t CubeLog::getHttpEndpointData()
             res.set_content(j.dump(), "application/json");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        "getLogs",
         nlohmann::json({ { "type", "object" }, { "properties", { } } }),
-        "Get logs" });
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        "Get logs"
+    })
     return data;
 }
 

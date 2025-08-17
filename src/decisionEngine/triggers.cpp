@@ -374,8 +374,10 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
 
     // POST /setTriggerEnabled: Enable or disable an existing trigger by handle.
     // Body: { handle: number, enable: boolean }
-    data.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,
-        [&](const httplib::Request& req, httplib::Response& res) {
+    data.push_back({
+        PRIVATE_ENDPOINT | POST_ENDPOINT,
+        [&](const httplib::Request& req,
+        httplib::Response& res) {
             try {
                 auto j = nlohmann::json::parse(req.body);
                 auto handle = j.at("handle").get<TriggerHandle>();
@@ -396,11 +398,16 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, e.what());
             }
         },
-        "setTriggerEnabled", { "handle", "enable" }, "Enable/disable a trigger" });
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        { "handle", "enable" },
+        "Enable/disable a trigger"
+    })
 
     // POST /fireTrigger: Manually fire a trigger by handle (useful for event-type triggers).
-    data.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,
-        [&](const httplib::Request& req, httplib::Response& res) {
+    data.push_back({
+        PRIVATE_ENDPOINT | POST_ENDPOINT,
+        [&](const httplib::Request& req,
+        httplib::Response& res) {
             try {
                 auto j = nlohmann::json::parse(req.body);
                 auto handle = j.at("handle").get<TriggerHandle>();
@@ -426,7 +433,10 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, e.what());
             }
         },
-        "fireTrigger", { "handle" }, "Fire a trigger" });
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        { "handle" },
+        "Fire a trigger"
+    })
 
     // POST /bindTrigger: Attach an action to an existing trigger by handle.
     // Body: { handle: number, intentName?: string, capabilityName?: string, functionName?: string, args?: object }
@@ -496,8 +506,10 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
         "Bind a trigger to an intent, capability, or function" });
 
     // GET /listTriggers: Return a summary of registered triggers.
-    data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
-        [&](const httplib::Request& req, httplib::Response& res) {
+    data.push_back({
+        PRIVATE_ENDPOINT | GET_ENDPOINT,
+        [&](const httplib::Request& req,
+        httplib::Response& res) {
             // Each entry includes handle, enabled flag, whether a predicate exists, and type (time/event).
             nlohmann::json j;
             j["success"] = true;
@@ -514,7 +526,10 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
             res.set_content(j.dump(), "application/json");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        "listTriggers", nlohmann::json({ { "type", "object" }, { "properties", { } } }), "List triggers" });
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        "List triggers"
+    })
     return data;
 }
 
