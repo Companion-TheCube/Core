@@ -109,6 +109,11 @@ DecisionEngineMain::DecisionEngineMain()
     this->audioQueue = AudioManager::audioInQueue;
     remoteServerAPI = std::make_shared<TheCubeServer::TheCubeServerAPI>(audioQueue);
     intentRegistry = std::make_shared<IntentRegistry>();
+    try {
+        intentRegistry->registerInterface();
+    } catch (...) {
+        CubeLog::error("Failed to register IntentRegistry interface");
+    }
 
     // Function registry: load capability manifests, start worker pool, and
     // expose HTTP endpoints. Instantiate and register so the API builder can
