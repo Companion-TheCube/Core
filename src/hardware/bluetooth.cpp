@@ -1189,10 +1189,10 @@ HttpEndPointData_t BTManager::getHttpEndpointData()
             res.set_content(j.dump(), "application/json");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR , "");
         },
-        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        "stopBTManager",
         nlohmann::json({ { "type", "object" }, { "properties", { } } }),
         "Stops the BTManager class and allows adding new BT Services."
-    })
+    });
     data.push_back({
         GET_ENDPOINT | PRIVATE_ENDPOINT,
         [this](const httplib::Request& req,
@@ -1203,10 +1203,10 @@ HttpEndPointData_t BTManager::getHttpEndpointData()
             res.set_content(j.dump(), "application/json");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR , "");
         },
-        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        "startBTManager",
         nlohmann::json({ { "type", "object" }, { "properties", { } } }),
         "Starts the BTManager class after it has been stopped."
-    })
+    });
     data.push_back({
         POST_ENDPOINT | PRIVATE_ENDPOINT,
         [this](const httplib::Request& req,
@@ -1225,10 +1225,10 @@ HttpEndPointData_t BTManager::getHttpEndpointData()
             way, the app can use the auth key to communicate with the BT_manager app directly.
             */
         },
-        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
-        nlohmann::json({ { "type", "object" }, { "properties", { { "client_id", { { "type", "string" } } }, { "serviceConfig", { { "type", "object" } } } } } }),
+        "addBTService",
+        nlohmann::json({ { "type", "object" }, { "properties", { { "client_id", { { "type", "string" } } }, { "serviceConfig", { { "type", "object" } } } } }, { "required", nlohmann::json::array({ "client_id", "serviceConfig" }) } }),
         "Adds a new BT Service to the BTManager."
-    })
+    });
     return data;
 }
 
