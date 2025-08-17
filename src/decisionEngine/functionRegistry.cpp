@@ -935,7 +935,9 @@ HttpEndPointData_t FunctionRegistry::getHttpEndpointData()
             res.set_content(catalogue.dump(), "application/json");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        "getFunctionCatalogue", {}, "Get the list of registered functions" });
+        "getFunctionCatalogue",
+        nlohmann::json({ { "type", "object" }, { "properties", { { "name", { { "type", "string" } } } } } }),
+        "Get the list of registered functions" });
     endpoints.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
             // Find a function by name
@@ -956,7 +958,9 @@ HttpEndPointData_t FunctionRegistry::getHttpEndpointData()
             res.set_content(j.dump(), "application/json");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        "findFunctionByName", {}, "Find a registered function by its name" });
+        "findFunctionByName",
+        nlohmann::json({ { "type", "object" }, { "properties", { { "name", { { "type", "string" } } } } }, { "required", nlohmann::json::array({ "name" }) } }),
+        "Find a registered function by its name" });
     endpoints.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
             // Unregister a function
@@ -978,7 +982,9 @@ HttpEndPointData_t FunctionRegistry::getHttpEndpointData()
             res.set_content("Function unregistered successfully", "text/plain");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        "unregisterFunction", {}, "Unregister a function from the function registry" });
+        "unregisterFunction",
+        nlohmann::json({ { "type", "object" }, { "properties", { { "name", { { "type", "string" } } } } }, { "required", nlohmann::json::array({ "name" }) } }),
+        "Unregister a function from the function registry" });
     endpoints.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
             // Get the list of all registered functions
@@ -987,7 +993,9 @@ HttpEndPointData_t FunctionRegistry::getHttpEndpointData()
             res.set_content(catalogue.dump(), "application/json");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        "getAllRegisteredFunctions", {}, "Get the list of all registered functions" });
+        "getAllRegisteredFunctions",
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        "Get the list of all registered functions" });
     // TODO: Suggested additional endpoints to consider implementing:
     //
     // - Register a capability (POST): allow apps to register capability
