@@ -2879,7 +2879,7 @@ HttpEndPointData_t NotificationsManager::getHttpEndpointData()
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
             },
             "showNotificationOkayWarningError",
-            {},
+            nlohmann::json({ { "type", "object" }, { "properties", { { "title", { { "type", "string" } } }, { "message", { { "type", "string" } } }, { "type", { { "type", "string" } } } } }, { "required", nlohmann::json::array({ "title", "message" }) } }),
             _("Show a notification with an optional callback") });
     actions.push_back(
         { PRIVATE_ENDPOINT | POST_ENDPOINT,
@@ -2887,7 +2887,7 @@ HttpEndPointData_t NotificationsManager::getHttpEndpointData()
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
             },
             "showNotificationYesNo",
-            {},
+            nlohmann::json({ { "type", "object" }, { "properties", { { "title", { { "type", "string" } } }, { "message", { { "type", "string" } } } } }, { "required", nlohmann::json::array({ "title", "message" }) } }),
             _("Show a yes/no notification with two callbacks") });
     return actions;
 }
