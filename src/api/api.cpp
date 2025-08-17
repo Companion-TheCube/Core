@@ -42,12 +42,8 @@ SOFTWARE.
 #include <fstream>
 #include <sstream>
 #endif
-// JSON Schema validator
-#include <json-schema.hpp>
-#include <mutex>
-#include <unordered_map>
-#include <filesystem>
-#include <fstream>
+
+
 
 /**
  * @brief Construct a new API::API object. This creates a new CubeAuth object for authentication.

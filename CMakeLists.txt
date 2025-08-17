@@ -87,22 +87,27 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(infoware)
 include_directories(${infoware_SOURCE_DIR}/include)
 
-include(FetchContent)
-FetchContent_Declare(nlohmann-json URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz)
-FetchContent_MakeAvailable(nlohmann-json)
 
-include(FetchContent)
+# Use the name "json" to satisfy subprojects that call FetchContent_Declare(json ...)
 FetchContent_Declare(
-    json_schema_validator
-    GIT_REPOSITORY https://github.com/pboettch/json-schema-validator.git
-    GIT_TAG master
-    UPDATE_DISCONNECTED FALSE
+  json
+  GIT_REPOSITORY https://github.com/nlohmann/json.git
+  GIT_TAG v3.12.0
 )
+FetchContent_MakeAvailable(json)
 
+FetchContent_Declare(
+  json_schema_validator
+  GIT_REPOSITORY https://github.com/pboettch/json-schema-validator.git
+  GIT_TAG 2.3.0
+)
+# optional: the project has tests/examples—disable to keep things minimal
+set(JSON_VALIDATOR_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(JSON_VALIDATOR_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(json_schema_validator)
-include_directories(${json_schema_validator_SOURCE_DIR}/include)
+include_directories(${json_schema_validator_SOURCE_DIR}/src)
 
-include(FetchContent)
+
 FetchContent_Declare(
     pqxx
     GIT_REPOSITORY https://github.com/jtv/libpqxx
@@ -110,7 +115,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(pqxx)
 
-include(FetchContent)
+
 FetchContent_Declare(
     SFML
     GIT_REPOSITORY https://github.com/SFML/SFML.git
@@ -118,7 +123,12 @@ FetchContent_Declare(
     UPDATE_DISCONNECTED FALSE
 )
 FetchContent_MakeAvailable(SFML)
-include(FetchContent)
+
+set(WHISPER_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(WHISPER_BUILD_SERVER   OFF CACHE BOOL "" FORCE)
+set(WHISPER_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
+set(WHISPER_SDL2           OFF CACHE BOOL "" FORCE)
+set(WHISPER_CURL           OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(
     WhisperCPP
     GIT_REPOSITORY https://github.com/ggerganov/whisper.cpp.git
@@ -126,7 +136,7 @@ FetchContent_Declare(
     UPDATE_DISCONNECTED FALSE
 )
 FetchContent_MakeAvailable(WhisperCPP)
-include(FetchContent)
+
 FetchContent_Declare(
     cppcodec
     GIT_REPOSITORY https://github.com/tplgy/cppcodec.git
@@ -136,17 +146,25 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(cppcodec)
 include_directories(${cppcodec_SOURCE_DIR}/cppcodec)
 
-include(FetchContent)
 FetchContent_Declare(
     json_rpc_cxx
     GIT_REPOSITORY https://github.com/jsonrpcx/json-rpc-cxx.git
     GIT_TAG master
     UPDATE_DISCONNECTED FALSE
 )
-FetchContent_MakeAvailable(json_rpc_cxx)
-include_directories(${json_rpc_cxx_SOURCE_DIR}/include)
 
-include(FetchContent)
+FetchContent_GetProperties(json_rpc_cxx)
+if(NOT json_rpc_cxx_POPULATED)
+  FetchContent_Populate(json_rpc_cxx)
+  # header-only: just add include path
+  add_library(json-rpc-cxx INTERFACE)
+  target_include_directories(json-rpc-cxx INTERFACE
+    ${json_rpc_cxx_SOURCE_DIR}/include)
+  # It needs nlohmann_json for types
+  target_link_libraries(json-rpc-cxx INTERFACE nlohmann_json::nlohmann_json)
+endif()
+
+
 FetchContent_Declare(
     msgpack_c
     GIT_REPOSITORY https://github.com/msgpack/msgpack-c.git
@@ -156,7 +174,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(msgpack_c)
 include_directories(${msgpack_c_SOURCE_DIR}/include)
 
-include(FetchContent)
+
 FetchContent_Declare(
     asio
     GIT_REPOSITORY https://github.com/chriskohlhoff/asio.git
@@ -469,6 +487,7 @@ target_link_libraries(CubeCoreLib PUBLIC
     ${OPENGL_LIBRARIES}
     ${GLEW_LIBRARIES}
     nlohmann_json::nlohmann_json
+    nlohmann_json_schema_validator
     SQLiteCpp
     sqlite3
     ${SODIUM_LIBRARIES}

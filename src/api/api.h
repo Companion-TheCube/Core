@@ -63,6 +63,11 @@ SOFTWARE.
 #endif
 #endif
 #include <nlohmann/json.hpp>
+#include "nlohmann/json-schema.hpp"
+#include <mutex>
+#include <unordered_map>
+#include <filesystem>
+#include <fstream>
 #include <utils.h>
 
 #define CUBE_SOCKET_PATH "cube.sock"

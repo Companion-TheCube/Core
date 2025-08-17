@@ -36,8 +36,8 @@ SOFTWARE.
 #include <logger.h>
 #endif
 #include "InterfaceCount.h"
-#include <nlohmann/json.hpp>
 
+std::unordered_map<std::string, nlohmann::json> API_Builder::endpointSchemas = {};
 std::shared_ptr<API> API_Builder::api = nullptr;
 std::unordered_map<std::string, std::shared_ptr<I_API_Interface>> API_Builder::interface_objs;
 

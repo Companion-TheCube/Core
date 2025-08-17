@@ -15,10 +15,10 @@
 -   Need to go through all the http endpoints and make sure they all return valid json or endpoint specific data. probably should all be json.
 -   Sometimes, if /tmp/.X11-unix/X0 does not exist when the GUI starts, the GUI will fail to start. Need to add a check for this and create a link if it does not exist. "sudo ln -s /tmp/.X11-unix/X1 /tmp/.X11-unix/X0"
 -   API authentication flow with device confirmation does not work. TheCube does not show the widget.
-- [src/api/api.cpp:109] : add checks to make sure these are valid calls.
-- [src/api/api.cpp:58] : Since we need to make sure that the entire API is built before letting any clients connect,
-- [src/api/api.cpp:65] : // TESTING AUTHENTICATION //// remove
-- [src/api/api.h:205] : We need to make the API server is able to handle new interfaces being added at runtime.
+- [src/api/api.cpp:105] : add checks to make sure these are valid calls.
+- [src/api/api.cpp:54] : Since we need to make sure that the entire API is built before letting any clients connect,
+- [src/api/api.cpp:61] : // TESTING AUTHENTICATION //// remove
+- [src/api/api.h:210] : We need to make the API server is able to handle new interfaces being added at runtime.
 - [src/api/authentication.cpp:156] : add checkAuth function that only takes the app_id and returns bool if the app_id has been allowed by the user
 - [src/api/builder.cpp:156] : refactor to get rid of staticFiles vector. update: maybe not?
 - [src/apps/appsDBManager.cpp:110] : add the interfaces for HTTP server
