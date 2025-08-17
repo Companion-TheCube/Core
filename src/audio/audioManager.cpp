@@ -93,21 +93,21 @@ HttpEndPointData_t AudioManager::getHttpEndpointData()
             CubeLog::info("Endpoint start called.");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        "start", {}, "Start the audio." });
+        "start", nlohmann::json({ { "type", "object" }, { "properties", { } } }), "Start the audio." });
     data.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
             this->stop();
             CubeLog::info("Endpoint stop called");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        "stop", {}, "Stop the audio." });
+        "stop", nlohmann::json({ { "type", "object" }, { "properties", { } } }), "Stop the audio." });
     data.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
             this->toggleSound();
             CubeLog::info("Endpoint toggle sound called");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        "toggleSound", {}, "Toggle the sound." });
+        "toggleSound", nlohmann::json({ { "type", "object" }, { "properties", { } } }), "Toggle the sound." });
     data.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
             std::string p = "no param";
@@ -120,6 +120,6 @@ HttpEndPointData_t AudioManager::getHttpEndpointData()
             CubeLog::info("Endpoint set sound called with param: " + p);
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        "setSound", { "soundOn" }, "Set sound to boolean state. \"true\" is on." });
+        "setSound", nlohmann::json({ { "type", "object" }, { "properties", { { "soundOn", { { "type", "boolean" } } } } }, { "required", nlohmann::json::array({ "soundOn" }) } }), "Set sound to boolean state. \"true\" is on." });
     return data;
 }
