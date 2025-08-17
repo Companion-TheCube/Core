@@ -9,7 +9,7 @@
 # Release build should also set the PRODUCTION_BUILD define.
 
 # Minimum version of CMake required
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.5)
 
 # Project name and the language used
 project(CubeCore VERSION 0.1.0 LANGUAGES CXX)
@@ -28,7 +28,7 @@ set(BUILD_BT_MANAGER ON)
 set(TRANSLATE_ENABLED ON)
 
 # Optionally sync build information and artifacts with the build server
-option(ENABLE_BUILD_SERVER "Sync build info/artifacts with server" ON)
+option(ENABLE_BUILD_SERVER "Sync build info/artifacts with server" OFF)
 
 # This is a hack to make intellisense work well with a bunch of lambdas
 add_definitions(-D_ENABLE_LAMBDAS)
@@ -88,8 +88,8 @@ FetchContent_MakeAvailable(infoware)
 include_directories(${infoware_SOURCE_DIR}/include)
 
 include(FetchContent)
-FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz)
-FetchContent_MakeAvailable(json)
+FetchContent_Declare(nlohmann-json URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz)
+FetchContent_MakeAvailable(nlohmann-json)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -98,12 +98,9 @@ FetchContent_Declare(
     GIT_TAG master
     UPDATE_DISCONNECTED FALSE
 )
-# Avoid adding the validator as a subproject to prevent its install() rules
-# from exporting targets that depend on nlohmann_json's export set.
-FetchContent_Populate(json_schema_validator)
-# Use headers directly; header lives at src/nlohmann/json-schema.hpp
-# Our code includes <json-schema.hpp>, so expose the nested path.
-include_directories(${json_schema_validator_SOURCE_DIR}/src/nlohmann)
+
+FetchContent_MakeAvailable(json_schema_validator)
+include_directories(${json_schema_validator_SOURCE_DIR}/include)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -492,10 +489,6 @@ target_link_libraries(CubeCoreLib PUBLIC
 
 # Executable links the core library
 target_link_libraries(CubeCore PRIVATE CubeCoreLib)
-
-# set_target_properties(CubeCore PROPERTIES
-#     WIN32_EXECUTABLE TRUE
-# )
 
 target_compile_features(CubeCoreLib PUBLIC cxx_std_17)
 
