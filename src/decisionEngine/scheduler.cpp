@@ -273,7 +273,7 @@ HttpEndPointData_t Scheduler::getHttpEndpointData()
             res.set_content(j.dump(), "application/json");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        "start", {}, "Start scheduler" });
+        "start", nlohmann::json({ { "type", "object" }, { "properties", { } } }), "Start scheduler" });
 
     // GET /stop: Stop the scheduler thread and clear running state.
     data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
@@ -284,7 +284,7 @@ HttpEndPointData_t Scheduler::getHttpEndpointData()
             res.set_content(j.dump(), "application/json");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        "stop", {}, "Stop scheduler" });
+        "stop", nlohmann::json({ { "type", "object" }, { "properties", { } } }), "Stop scheduler" });
 
     // GET /pause: Temporarily halt evaluation without destroying the thread.
     data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
@@ -295,7 +295,7 @@ HttpEndPointData_t Scheduler::getHttpEndpointData()
             res.set_content(j.dump(), "application/json");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        "pause", {}, "Pause scheduler" });
+        "pause", nlohmann::json({ { "type", "object" }, { "properties", { } } }), "Pause scheduler" });
 
     // GET /resume: Resume evaluation after a pause.
     data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
@@ -306,7 +306,7 @@ HttpEndPointData_t Scheduler::getHttpEndpointData()
             res.set_content(j.dump(), "application/json");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        "resume", {}, "Resume scheduler" });
+        "resume", nlohmann::json({ { "type", "object" }, { "properties", { } } }), "Resume scheduler" });
 
     // GET /listTasks: Emit a JSON array of scheduled tasks.
     data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
@@ -327,7 +327,7 @@ HttpEndPointData_t Scheduler::getHttpEndpointData()
             res.set_content(j.dump(), "application/json");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        "listTasks", {}, "List scheduled tasks" });
+        "listTasks", nlohmann::json({ { "type", "object" }, { "properties", { } } }), "List scheduled tasks" });
 
     // POST /addTask: Create a one-shot or repeating task.
     // Body (application/json): { intentName: string, timeEpochMs?: number, delayMs?: number, repeatSeconds?: number }
@@ -378,7 +378,9 @@ HttpEndPointData_t Scheduler::getHttpEndpointData()
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, e.what());
             }
         },
-        "addTask", { "intentName", "timeEpochMs|delayMs", "repeatSeconds" }, "Add a scheduled task" });
+        "addTask",
+        nlohmann::json({ { "type", "object" }, { "properties", { { "intentName", { { "type", "string" } } }, { "timeEpochMs", { { "type", "integer" } } }, { "delayMs", { { "type", "integer" } } }, { "repeatSeconds", { { "type", "integer" } } } } }, { "required", nlohmann::json::array({ "intentName" }) } }),
+        "Add a scheduled task" });
 
     // POST /removeTask: Remove a task by numeric handle.
     // Body: { handle: number }
@@ -404,7 +406,9 @@ HttpEndPointData_t Scheduler::getHttpEndpointData()
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, e.what());
             }
         },
-        "removeTask", { "handle" }, "Remove a task by handle" });
+        "removeTask",
+        nlohmann::json({ { "type", "object" }, { "properties", { { "handle", { { "type", "integer" } } } } }, { "required", nlohmann::json::array({ "handle" }) } }),
+        "Remove a task by handle" });
 
     return data;
 }
