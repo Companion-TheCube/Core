@@ -358,8 +358,8 @@
 - [src/logger/logger.cpp:830] : source string should be prepended with the name of the source app or it's IP or something. That way, we know
 - [src/main.cpp:280] : All the base apps should be inserted into the database and/or verified in the database here.
 - [src/main.cpp:335] : add the insert for the openwakeword python script here. This will be a native app and will use the python executable in the openwakeword/venv/bin(Linux) or openwakeword/Scripts(Windows) directory.
-- [src/main.cpp:377] : any other place where main() might return, change the return value to something meaningful. this way, when
-- [src/main.cpp:382] : this probably needs a mutex for breakMain
+- [src/main.cpp:379] : any other place where main() might return, change the return value to something meaningful. this way, when
+- [src/main.cpp:384] : this probably needs a mutex for breakMain
 - [src/main.cpp:79] : rather than set this environment variable in this application, set it in the manager application. The manager app
 - [src/telemetry/telemetry.cpp:34] : Implement telemetry.cpp
 - [src/telemetry/telemetry.cpp:38] : Implement telemetry.cpp

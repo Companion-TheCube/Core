@@ -368,7 +368,9 @@ int main(int argc, char* argv[])
         }
         CubeLog::info("Exited main loop...");
         CubeLog::info("CubeLog reference count: " + std::to_string(logger.use_count()));
+#ifndef PRODUCTION_BUILD
         cpuAndMemoryThread.request_stop();
+#endif
         CubeLog::info("Stopping GUI...");
         gui->stop();
     }
