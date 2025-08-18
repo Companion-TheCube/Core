@@ -71,9 +71,9 @@
 - [src/audio/speechIn.h:91] : make sure this works
 - [src/audio/speechIn.h:92] : make sure this is thread safe
 - [src/database/cubeDB.cpp:220] : use this as an example for the mutex lock below.
-- [src/database/cubeDB.cpp:236] : fix this endpoint. It has testing data in it.
-- [src/database/cubeDB.cpp:278] : fix this endpoint. It has testing data in it.
-- [src/database/cubeDB.cpp:428] : endpoints to write:
+- [src/database/cubeDB.cpp:245] : fix this endpoint. It has testing data in it.
+- [src/database/cubeDB.cpp:287] : fix this endpoint. It has testing data in it.
+- [src/database/cubeDB.cpp:437] : endpoints to write:
 - [src/database/cubeDB.cpp:55] : Ensure app installation paths and metadata include the app IPC socket
 - [src/database/cubeDB.h:79] : move these to the utils.h file
 - [src/database/db.cpp:34] : this file needs a line by line evaluation
@@ -81,6 +81,7 @@
 - [src/database/db.h:253] : make sure all the data is sanitized before being inserted into the database.
 - [src/decisionEngine/cubeWhisper.cpp:40] : initialize whisper.cpp library and load model(s) in a background thread
 - [src/decisionEngine/decisions.cpp:84] :
+- [src/decisionEngine/functionRegistry.cpp:1014] : Suggested additional endpoints to consider implementing:
 - [src/decisionEngine/functionRegistry.cpp:287] : Treating `spec.appName` as a direct socket path is a
 - [src/decisionEngine/functionRegistry.cpp:407] : Register built-in CORE capability implementations here. These are
 - [src/decisionEngine/functionRegistry.cpp:421] : Add other built-in core capabilities here (audio playback,
@@ -115,7 +116,6 @@
 - [src/decisionEngine/functionRegistry.cpp:761] : Consider merging with setFunctionSocketUnavailable
 - [src/decisionEngine/functionRegistry.cpp:762] : Consider renaming to setCapabilitySocketAvailability and inverting bool param
 - [src/decisionEngine/functionRegistry.cpp:852] : implement actual JSON-RPC via asio here. For now, return an error
-- [src/decisionEngine/functionRegistry.cpp:999] : Suggested additional endpoints to consider implementing:
 - [src/decisionEngine/functionRegistry.h:66] : consider adding `AppsManager::isAppReady(appId)` to allow checking
 - [src/decisionEngine/intentRegistry.cpp:203] : add TTS support
 - [src/decisionEngine/intentRegistry.cpp:230] : Implement this
@@ -329,9 +329,9 @@
 - [src/hardware/bluetooth.cpp:1066] : add all the services that we want to use
 - [src/hardware/bluetooth.cpp:1073] : this->client_id needs a mutex. When this class is destroyed, we need to make sure we can get a lock on that mutex
 - [src/hardware/bluetooth.cpp:1118] : The server will need to listen for any incoming requests from the BTManager application and handle them.
-- [src/hardware/bluetooth.cpp:1185] : This should shutdown the BTManager class enough to allow adding new BT Services.
-- [src/hardware/bluetooth.cpp:1198] : This should start the BTManager class after it has been stopped.
-- [src/hardware/bluetooth.cpp:1211] : This should provide a way to add a new BT Service to the BTManager.
+- [src/hardware/bluetooth.cpp:1186] : This should shutdown the BTManager class enough to allow adding new BT Services.
+- [src/hardware/bluetooth.cpp:1200] : This should start the BTManager class after it has been stopped.
+- [src/hardware/bluetooth.cpp:1214] : This should provide a way to add a new BT Service to the BTManager.
 - [src/hardware/bluetooth.cpp:125] : Setup all the callback endpoints
 - [src/hardware/bluetooth.cpp:43] : since the BT_Manager app is far from complete, we should just mock the bluetooth functions for now.
 - [src/hardware/bluetooth.cpp:527] : need to prompt the user to accept the pairing request. This will require a call to the appropriate GUI function.
@@ -355,7 +355,7 @@
 - [src/hardware/wifi.cpp:61] : finish implementing the WifiManager class
 - [src/logger/logger.cpp:496] : this may not be needed since the log is just going to grow again
 - [src/logger/logger.cpp:783] : add endpoint(s) to get logs. perhaps have the ability to get logs by level, by date, etc. and/or logs from memory or from file
-- [src/logger/logger.cpp:828] : source string should be prepended with the name of the source app or it's IP or something. That way, we know
+- [src/logger/logger.cpp:830] : source string should be prepended with the name of the source app or it's IP or something. That way, we know
 - [src/main.cpp:280] : All the base apps should be inserted into the database and/or verified in the database here.
 - [src/main.cpp:335] : add the insert for the openwakeword python script here. This will be a native app and will use the python executable in the openwakeword/venv/bin(Linux) or openwakeword/Scripts(Windows) directory.
 - [src/main.cpp:377] : any other place where main() might return, change the return value to something meaningful. this way, when

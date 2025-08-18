@@ -137,7 +137,7 @@ HttpEndPointData_t AudioManager::getHttpEndpointData()
             CubeLog::info("Endpoint set sound called with param: " + p);
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        "setSound",
         nlohmann::json({ { "type", "object" }, { "properties", { { "soundOn", { { "type", "boolean" } } } } }, { "required", nlohmann::json::array({ "soundOn" }) } }),
         "Set sound to boolean state. \"true\" is on."
     });

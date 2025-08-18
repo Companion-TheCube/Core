@@ -914,7 +914,7 @@ HttpEndPointData_t FunctionRegistry::getHttpEndpointData()
             res.body = j.dump();
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        "registeredFunction",
         nlohmann::json({
             { "type", "object" },
             { "properties", {
@@ -940,7 +940,7 @@ HttpEndPointData_t FunctionRegistry::getHttpEndpointData()
             res.set_content(catalogue.dump(), "application/json");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        "getListOfRegisteredFunctions",
         nlohmann::json({ { "type", "object" }, { "properties", { { "name", { { "type", "string" } } } } } }),
         "Get the list of registered functions"
     });
@@ -966,7 +966,7 @@ HttpEndPointData_t FunctionRegistry::getHttpEndpointData()
             res.set_content(j.dump(), "application/json");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        "findRegisteredFunctionByName",
         nlohmann::json({ { "type", "object" }, { "properties", { { "name", { { "type", "string" } } } } }, { "required", nlohmann::json::array({ "name" }) } }),
         "Find a registered function by its name"
     });
@@ -993,7 +993,7 @@ HttpEndPointData_t FunctionRegistry::getHttpEndpointData()
             res.set_content("Function unregistered successfully", "text/plain");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        "unregisterFunction",
         nlohmann::json({ { "type", "object" }, { "properties", { { "name", { { "type", "string" } } } } }, { "required", nlohmann::json::array({ "name" }) } }),
         "Unregister a function from the function registry"
     });
@@ -1007,7 +1007,7 @@ HttpEndPointData_t FunctionRegistry::getHttpEndpointData()
             res.set_content(catalogue.dump(), "application/json");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        "getAllRegisteredFunctions",
         nlohmann::json({ { "type", "object" }, { "properties", { } } }),
         "Get the list of all registered functions"
     });

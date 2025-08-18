@@ -398,10 +398,14 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, e.what());
             }
         },
-        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
-        { "handle", "enable" },
+        "setTriggerEnabled",
+        nlohmann::json({ { "type", "object" }, { "properties", 
+            {{ "handle", { { "type", "integer" } } },
+            { "enable", { { "type", "boolean" } } } } }, 
+            { "required", nlohmann::json::array({ "handle", "enable" })
+        } }),
         "Enable/disable a trigger"
-    })
+    });
 
     // POST /fireTrigger: Manually fire a trigger by handle (useful for event-type triggers).
     data.push_back({
@@ -433,10 +437,10 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, e.what());
             }
         },
-        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
-        { "handle" },
+        "fireTrigger",
+        nlohmann::json({ { "type", "object" }, { "properties", { { "handle", { { "type", "integer" } } } } }, { "required", nlohmann::json::array({ "handle" }) } }),
         "Fire a trigger"
-    })
+    });
 
     // POST /bindTrigger: Attach an action to an existing trigger by handle.
     // Body: { handle: number, intentName?: string, capabilityName?: string, functionName?: string, args?: object }
@@ -526,10 +530,10 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
             res.set_content(j.dump(), "application/json");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        "listTriggers",
         nlohmann::json({ { "type", "object" }, { "properties", { } } }),
         "List triggers"
-    })
+    });
     return data;
 }
 

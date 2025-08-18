@@ -565,10 +565,10 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, e.what());
             }
         },
-        nlohmann::json({ { "type", "object" }, { "properties", { } } }),
+        "revokeToken",
         nlohmann::json({ { "type", "object" }, { "properties", { { "client_id", { { "type", "string" } } }, { "token", { { "type", "string" } } } } } }),
         "Revoke a token by client_id or token"
-    })
+    });
 
     // Rotate token (issue new, revoke old)
     data.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,
@@ -684,7 +684,9 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
             }).detach();
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        "initCode", { "client_id" }, "Generate an initial code for the client." });
+        "initCode", 
+        nlohmann::json({ { "type", "object" }, { "properties", { } } }), 
+        "Generate an initial code for the client." });
     return data;
 }
 
