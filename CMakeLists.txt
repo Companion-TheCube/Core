@@ -4,9 +4,8 @@
 #    ██║   ██║   ██║██║  ██║██║   ██║
 #    ██║   ╚██████╔╝██████╔╝╚██████╔╝
 #    ╚═╝    ╚═════╝ ╚═════╝  ╚═════╝ 
-# TODO: add build targets for debug and release. release target needs to set a build define for PRODUCTION_BUILD.
-# Release build should have optimizations enabled and debug symbols stripped.
-# Release build should also set the PRODUCTION_BUILD define.
+# Build targets for Debug and Release are configured below.
+# Release builds enable optimizations, strip debug symbols, and define PRODUCTION_BUILD.
 
 # Minimum version of CMake required
 cmake_minimum_required(VERSION 3.5)
@@ -51,6 +50,28 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
 endif()
+
+# Configure compiler and linker flags for each build type
+if(MSVC)
+    add_compile_options(
+        "$<$<CONFIG:Debug>:/Od;/Zi>"
+        "$<$<CONFIG:Release>:/O2;/DNDEBUG>"
+    )
+    add_link_options(
+        "$<$<CONFIG:Release>:/INCREMENTAL:NO;/DEBUG:NONE>"
+    )
+else()
+    add_compile_options(
+        "$<$<CONFIG:Debug>:-O0;-g3>"
+        "$<$<CONFIG:Release>:-O3;-DNDEBUG>"
+    )
+    add_link_options(
+        "$<$<CONFIG:Release>:-s>"
+    )
+endif()
+
+# Define PRODUCTION_BUILD for release configuration
+add_compile_definitions($<$<CONFIG:Release>:PRODUCTION_BUILD>)
 
 if(WIN32)
     set(FREETYPE_INCLUDE_DIRS "C:/Users/Andrew/Documents/freetype/include")
