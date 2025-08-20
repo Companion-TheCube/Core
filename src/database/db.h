@@ -136,9 +136,9 @@ const std::vector<DB_NS::Database_T> dbDefs = {
         { 
             { 
                 DB_NS::TableNames::APPS, 
-                { "id", "app_id", "app_name", "enabled", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason" }, 
-                { "INTEGER PRIMARY KEY", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT" }, 
-                { true, true, false, false, false, false, false, false, false, false, false, false, false } 
+                { "id", "app_id", "app_name", "enabled", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason", "socket_location" }, 
+                { "INTEGER PRIMARY KEY", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT" }, 
+                { true, true, true, false, false, false, false, false, false, false, false, false, false, true } 
             } 
         } 
     },
