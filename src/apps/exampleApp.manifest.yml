@@ -1,0 +1,90 @@
+# Schema version for forward-compat
+schema: v1
+
+id: "weather.clock"          # unique app id (used as instance name)
+name: "Weather Clock"
+version: "0.2.1"
+entry:
+  exec: ["/app/bin/weather-clock", "--theme=mono"]
+  # OR for scripts:
+  # exec: ["/app/.venv/bin/python", "/app/main.py"]
+
+runtime:
+  # Optional hints (purely informational to CORE; systemd is language-agnostic)
+  language: "python"   # c, c++, csharp, node, python, go, other
+  needs_x11: false     # TheCube likely renders via your core API instead of X
+  needs_tty: false
+
+fs:
+  # App package is mounted read-only at /app by the unit template
+  state_dir: true      # allocate persistent state dir
+  extra_rw:            # additional writeable bind-mounts (discouraged)
+    - "/app/data/cache"   # created and bind-mounted RW
+  extra_ro:            # extra read-only binds (assets, fonts)
+    - "/var/lib/thecube/assets/fonts"
+
+permissions:
+  network:
+    outbound:
+      allow: false                # default deny
+      # examples:
+      # allow: true
+      # cidrs: ["0.0.0.0/0", "::/0"]
+      # domains: ["api.weather.gov", "time.google.com"]
+    inbound:
+      allow: false                # always false for apps (CORE handles IPC)
+  ipc:
+    core_api: true                # allow AF_UNIX to CORE’s socket
+  database:
+    # CORE will create a database in the PostgreSQL instance
+    # with the app id as the schema name. User and pass are
+    # provide by CORE via secrets mechanism.
+    enabled: true                 # enable app database
+    schema: "v1"                  # schema version (for migrations)
+  hardware:
+    microphone: false
+    speaker: false
+    camera: false
+    bluetooth: false
+    nfc: false
+    gpio: []                      # list of BCM pins, e.g., [17, 27] AND/OR external GPIOs, eg. ["EXT1", "EXT2"]
+    i2c: []                       # list of bus addresses
+    spi: []                       # list of SPI aliases with CS pins, e.g., ["GPS:CS0", "ACCEL:CS1"]
+    serial: false                 # CORE will provide a PTY device for serial
+    raw_devices: []               # explicit device nodes to permit
+  time:
+    monotonic: true               # default
+    realtime: read                # none|read
+  files:
+    read: []                      # extra directories allowed RO
+    write: []                     # extra directories allowed RW (discouraged)
+  env:
+    # safe env vars exported to the process (no secrets; secrets via file)
+    THECUBE_LOCALE: "en-US"
+
+cgroups:
+  cpu_quota: "50%"       # systemd CPUQuota
+  mem_max: "256M"        # systemd MemoryMax
+  tasks_max: 256
+
+secrets:
+  # CORE will materialize these as files in /run/thecube/apps/<id>/secrets/
+  # and set ENV VARs pointing to the file paths.
+  - name: WEATHER_API_KEY
+    source: "vault://thecube/keys/weather"  # plug your secrets backend later
+  - name: TIME_API_KEY
+    source: "vault://thecube/keys/time"
+  - name: POSTGRES_USER
+    source: "vault://thecube/keys/postgres/user"
+  - name: POSTGRES_PASSWORD
+    source: "vault://thecube/keys/postgres/password"
+
+events:
+  # What signals the app wants from CORE (pub/sub style)
+  subscribe:
+    - "presence.changed"
+    - "clock.minute"
+    - "net.status"
+  publish:
+    - "display.update"
+    - "notification.push"
