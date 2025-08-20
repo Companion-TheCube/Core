@@ -229,7 +229,7 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
             delete[] blob;
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Blob saved");
         },
-        "CubeDB-saveBlob",
+        "saveBlob",
         nlohmann::json({
             { "type", "object" },
             { "properties", {
