@@ -117,6 +117,7 @@ namespace {
                     try {
                         rpc_io->run();
                     } catch (...) {
+                        CubeLog::error("RPC io_context thread exception");
                     }
                 });
             }
@@ -153,7 +154,8 @@ namespace {
                     if (!res)
                         throw std::runtime_error("HTTP request failed");
                     return res->body;
-                } catch (...) {
+                } catch (const std::exception& e) {
+                    CubeLog::error("HttplibConnector Send failed: " + std::string(e.what()));
                     throw;
                 }
             }
@@ -194,6 +196,7 @@ namespace {
                         nlohmann::json err = nlohmann::json::object();
                         err["error"] = std::string("rpc_exception: ") + e.what();
                         prom->set_value(err.dump());
+                        CubeLog::error("RPC call failed: " + std::string(e.what()));
                     }
                 }
             } catch (const std::exception& e) {
@@ -201,6 +204,7 @@ namespace {
                     nlohmann::json err = nlohmann::json::object();
                     err["error"] = std::string("connector_exception: ") + e.what();
                     prom->set_value(err.dump());
+                    CubeLog::error("RPC connector failed: " + std::string(e.what()));
                 }
             }
         });
@@ -215,7 +219,9 @@ namespace {
                     nlohmann::json err = nlohmann::json::object();
                     err["error"] = "timeout";
                     prom->set_value(err.dump());
-                } catch (...) {
+                    CubeLog::error("RPC request timed out");
+                } catch (const std::exception& e) {
+                    CubeLog::error("RPC timeout handler exception: " + std::string(e.what()));
                 }
             }
         });
@@ -236,9 +242,11 @@ namespace {
 
         try {
             return nlohmann::json::parse(raw);
-        } catch (...) {
+        } catch (const std::exception& e) {
             nlohmann::json j;
             j["result"] = raw;
+            j["error"] = std::string("parse_exception: ") + e.what();
+            CubeLog::error("RPC response parse failed: " + std::string(e.what()));
             return j;
         }
     }
@@ -300,8 +308,10 @@ namespace {
             std::ifstream ifs(filePath);
             nlohmann::json j = nlohmann::json::parse(ifs);
             CapabilitySpec spec = FunctionUtils::capabilityFromJson(j);
-            if (spec.name.empty())
+            if (spec.name.empty()){
+                CubeLog::error("Capability manifest has no name: " + filePath.string());
                 return;
+            }
             if (spec.action == nullptr && spec.type == "rpc" && spec.entry.empty() && !appDir.empty()) {
                 // Default the RPC capability `entry` to the app directory name
                 // when the manifest leaves it empty. This helps identify the
@@ -481,13 +491,18 @@ FunctionRegistry::~FunctionRegistry()
     // Stop the runner to ensure clean shutdown
     try {
         runner_.stop();
+    } catch (const std::exception& e) {
+        CubeLog::error(std::string("Exception while stopping FunctionRunner: ") + e.what());
     } catch (...) {
         CubeLog::error("Exception while stopping FunctionRunner");
     }
     // Stop background thread
     try {
         stopSocketRechecker();
+    } catch (const std::exception& e) {
+        CubeLog::error(std::string("Exception while stopping socket rechecker: ") + e.what());
     } catch (...) {
+        CubeLog::error("Unknown exception while stopping socket rechecker");
     }
 }
 
@@ -505,6 +520,11 @@ bool FunctionRegistry::registerCapability(const CapabilitySpec& spec)
 
 const CapabilitySpec* FunctionRegistry::findCapability(const std::string& name) const
 {
+    CubeLog::debugSilly("FunctionRegistry::findCapability: " + name);
+    if (name.empty()) {
+        CubeLog::error("Capability name cannot be empty");
+        return nullptr;
+    }
     std::lock_guard<std::mutex> lock(mutex_);
     auto it = capabilities_.find(name);
     if (it != capabilities_.end())
@@ -628,6 +648,7 @@ void FunctionRegistry::runFunctionAsync(const std::string& functionName,
             if (onComplete) {
                 onComplete(nlohmann::json({ { "error", "function_not_found" } }));
             }
+            CubeLog::error("Function '" + functionName + "' not found in registry");
             return;
         }
         spec = it->second; // copy
@@ -636,6 +657,7 @@ void FunctionRegistry::runFunctionAsync(const std::string& functionName,
     if (!spec.enabled) {
         if (onComplete)
             onComplete(nlohmann::json({ { "error", "function_disabled" } }));
+        CubeLog::error("Function '" + functionName + "' is disabled");
         return;
     }
 
@@ -728,8 +750,10 @@ void FunctionRegistry::runCapabilityAsync(const std::string& capabilityName,
             }
             return nlohmann::json({ { "error", "no_action" } });
         } catch (const std::exception& e) {
+            CubeLog::error(std::string("action_exception: ") + e.what());
             return nlohmann::json({ { "error", std::string("action_exception: ") + e.what() } });
         } catch (...) {
+            CubeLog::error("action_unknown_exception");
             return nlohmann::json({ { "error", "action_unknown_exception" } });
         }
     };
@@ -744,6 +768,7 @@ const FunctionSpec* FunctionRegistry::find(const std::string& name) const
     if (it != funcs_.end()) {
         return &it->second;
     }
+    CubeLog::debugSilly("FunctionRegistry::find: " + name + " not found");
     return nullptr;
 }
 
@@ -830,6 +855,7 @@ void FunctionRegistry::startSocketRechecker()
 
 void FunctionRegistry::stopSocketRechecker()
 {
+    CubeLog::moreInfo("Stopping socket rechecker thread");
     {
         std::lock_guard<std::mutex> lock(mutex_);
         socketRecheckerStop_ = true;
@@ -840,6 +866,7 @@ void FunctionRegistry::stopSocketRechecker()
 
 std::vector<nlohmann::json> FunctionRegistry::catalogueJson() const
 {
+    CubeLog::debugSilly("FunctionRegistry::catalogueJson called");
     std::lock_guard<std::mutex> lock(mutex_);
     std::vector<nlohmann::json> catalogue;
     for (const auto& [name, spec] : funcs_) {
@@ -914,7 +941,7 @@ HttpEndPointData_t FunctionRegistry::getHttpEndpointData()
             res.body = j.dump();
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
-        "registeredFunction",
+        "registerFunction",
         nlohmann::json({
             { "type", "object" },
             { "properties", {
