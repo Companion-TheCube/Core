@@ -27,10 +27,13 @@ set(BUILD_BT_MANAGER ON)
 set(TRANSLATE_ENABLED ON)
 
 # Optionally sync build information and artifacts with the build server
-option(ENABLE_BUILD_SERVER "Sync build info/artifacts with server" OFF)
+option(ENABLE_BUILD_SERVER "Sync build info/artifacts with server" ON)
 
 # This is a hack to make intellisense work well with a bunch of lambdas
 add_definitions(-D_ENABLE_LAMBDAS)
+
+# Define the number of threads in the thread pool for httplib
+add_definitions(-DCPPHTTPLIB_THREAD_POOL_COUNT=32)
 
 # set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE "ON" FORCE)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")

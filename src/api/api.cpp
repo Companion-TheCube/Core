@@ -207,6 +207,12 @@ void API::httpApiThreadFn()
         }
         // Use configured binding for HTTP server
         this->server = std::make_unique<CubeHttpServer>(this->httpAddress, this->httpPort);
+        // Set timeouts so that the server does not block indefinitely
+        this->server->getServer()->set_read_timeout(10, 0); // 10 seconds read timeout
+        this->server->getServer()->set_write_timeout(10, 0); // 10 seconds write timeout
+        this->server->getServer()->set_keep_alive_timeout(10); // 10 seconds keep-alive timeout
+        this->server->getServer()->set_idle_interval(5); // 5 seconds idle interval
+        this->server->getServer()->set_keep_alive_max_count(100); // 100 keep-alive connections max
         // Resolve IPC socket path from centralized config (utils Config)
         std::string ipc = Config::get("IPC_SOCKET_PATH", this->ipcPath);
         if (std::filesystem::exists(ipc)) {

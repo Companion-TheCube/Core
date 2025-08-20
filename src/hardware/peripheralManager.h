@@ -37,7 +37,7 @@ SOFTWARE.
 
 #include "mmWave.h"
 #include "nfc.h"
-#include "imu.h"
+#include "spi.h"
 #include <memory>
 
 class PeripheralManager {

@@ -75,47 +75,47 @@
 - [src/database/cubeDB.cpp:287] : fix this endpoint. It has testing data in it.
 - [src/database/cubeDB.cpp:437] : endpoints to write:
 - [src/database/cubeDB.cpp:55] : Ensure app installation paths and metadata include the app IPC socket
-- [src/database/cubeDB.h:79] : move these to the utils.h file
+- [src/database/cubeDB.h:80] : move these to the utils.h file
 - [src/database/db.cpp:34] : this file needs a line by line evaluation
 - [src/database/db.h:145] : Add a "socket_location" TEXT column to the "apps" table so we can store
 - [src/database/db.h:253] : make sure all the data is sanitized before being inserted into the database.
 - [src/decisionEngine/cubeWhisper.cpp:40] : initialize whisper.cpp library and load model(s) in a background thread
 - [src/decisionEngine/decisions.cpp:84] :
-- [src/decisionEngine/functionRegistry.cpp:1014] : Suggested additional endpoints to consider implementing:
-- [src/decisionEngine/functionRegistry.cpp:287] : Treating `spec.appName` as a direct socket path is a
-- [src/decisionEngine/functionRegistry.cpp:407] : Register built-in CORE capability implementations here. These are
-- [src/decisionEngine/functionRegistry.cpp:421] : Add other built-in core capabilities here (audio playback,
-- [src/decisionEngine/functionRegistry.cpp:425] : NFC-Write
-- [src/decisionEngine/functionRegistry.cpp:427] : NFC-Read
-- [src/decisionEngine/functionRegistry.cpp:429] : NFC-Scan
-- [src/decisionEngine/functionRegistry.cpp:431] : Sound - Play a sound file
-- [src/decisionEngine/functionRegistry.cpp:433] : Sound - Stop playback
-- [src/decisionEngine/functionRegistry.cpp:435] : Sound - Set volume
-- [src/decisionEngine/functionRegistry.cpp:437] : Sound - Get current volume
-- [src/decisionEngine/functionRegistry.cpp:439] : Sound - Mute/unmute
-- [src/decisionEngine/functionRegistry.cpp:441] : Sound - Is muted
-- [src/decisionEngine/functionRegistry.cpp:443] : Sound - Get list of available sound files
-- [src/decisionEngine/functionRegistry.cpp:445] : Sound - Get current sound file
-- [src/decisionEngine/functionRegistry.cpp:447] : UI - Show a notification
-- [src/decisionEngine/functionRegistry.cpp:449] : UI - Show a dialog
-- [src/decisionEngine/functionRegistry.cpp:451] : UI - Show a toast message
-- [src/decisionEngine/functionRegistry.cpp:453] : UI - Show a progress bar
-- [src/decisionEngine/functionRegistry.cpp:455] : UI - Update a progress bar
-- [src/decisionEngine/functionRegistry.cpp:457] : UI - Show a spinner
-- [src/decisionEngine/functionRegistry.cpp:459] : UI - Hide a spinner
-- [src/decisionEngine/functionRegistry.cpp:461] : UI - Show a modal dialog
-- [src/decisionEngine/functionRegistry.cpp:463] : UI - Hide a modal dialog
-- [src/decisionEngine/functionRegistry.cpp:465] : UI - Show a popup menu
-- [src/decisionEngine/functionRegistry.cpp:467] : UI - Hide a popup menu
-- [src/decisionEngine/functionRegistry.cpp:469] : mmWave - Get distance
-- [src/decisionEngine/functionRegistry.cpp:471] : mmWave - Get speed
-- [src/decisionEngine/functionRegistry.cpp:655] : If FunctionSpec supports a local `action` (local/provider-side
+- [src/decisionEngine/functionRegistry.cpp:1041] : Suggested additional endpoints to consider implementing:
+- [src/decisionEngine/functionRegistry.cpp:295] : Treating `spec.appName` as a direct socket path is a
+- [src/decisionEngine/functionRegistry.cpp:417] : Register built-in CORE capability implementations here. These are
+- [src/decisionEngine/functionRegistry.cpp:431] : Add other built-in core capabilities here (audio playback,
+- [src/decisionEngine/functionRegistry.cpp:435] : NFC-Write
+- [src/decisionEngine/functionRegistry.cpp:437] : NFC-Read
+- [src/decisionEngine/functionRegistry.cpp:439] : NFC-Scan
+- [src/decisionEngine/functionRegistry.cpp:441] : Sound - Play a sound file
+- [src/decisionEngine/functionRegistry.cpp:443] : Sound - Stop playback
+- [src/decisionEngine/functionRegistry.cpp:445] : Sound - Set volume
+- [src/decisionEngine/functionRegistry.cpp:447] : Sound - Get current volume
+- [src/decisionEngine/functionRegistry.cpp:449] : Sound - Mute/unmute
+- [src/decisionEngine/functionRegistry.cpp:451] : Sound - Is muted
+- [src/decisionEngine/functionRegistry.cpp:453] : Sound - Get list of available sound files
+- [src/decisionEngine/functionRegistry.cpp:455] : Sound - Get current sound file
+- [src/decisionEngine/functionRegistry.cpp:457] : UI - Show a notification
+- [src/decisionEngine/functionRegistry.cpp:459] : UI - Show a dialog
+- [src/decisionEngine/functionRegistry.cpp:461] : UI - Show a toast message
+- [src/decisionEngine/functionRegistry.cpp:463] : UI - Show a progress bar
+- [src/decisionEngine/functionRegistry.cpp:465] : UI - Update a progress bar
+- [src/decisionEngine/functionRegistry.cpp:467] : UI - Show a spinner
+- [src/decisionEngine/functionRegistry.cpp:469] : UI - Hide a spinner
+- [src/decisionEngine/functionRegistry.cpp:471] : UI - Show a modal dialog
+- [src/decisionEngine/functionRegistry.cpp:473] : UI - Hide a modal dialog
+- [src/decisionEngine/functionRegistry.cpp:475] : UI - Show a popup menu
+- [src/decisionEngine/functionRegistry.cpp:477] : UI - Hide a popup menu
+- [src/decisionEngine/functionRegistry.cpp:479] : mmWave - Get distance
+- [src/decisionEngine/functionRegistry.cpp:481] : mmWave - Get speed
+- [src/decisionEngine/functionRegistry.cpp:677] : If FunctionSpec supports a local `action` (local/provider-side
 - [src/decisionEngine/functionRegistry.cpp:69] .
-- [src/decisionEngine/functionRegistry.cpp:750] : Consider merging with setCapabilitySocketUnavailable
-- [src/decisionEngine/functionRegistry.cpp:751] : Consider renaming to setFunctionSocketAvailability and inverting bool param
-- [src/decisionEngine/functionRegistry.cpp:761] : Consider merging with setFunctionSocketUnavailable
-- [src/decisionEngine/functionRegistry.cpp:762] : Consider renaming to setCapabilitySocketAvailability and inverting bool param
-- [src/decisionEngine/functionRegistry.cpp:852] : implement actual JSON-RPC via asio here. For now, return an error
+- [src/decisionEngine/functionRegistry.cpp:775] : Consider merging with setCapabilitySocketUnavailable
+- [src/decisionEngine/functionRegistry.cpp:776] : Consider renaming to setFunctionSocketAvailability and inverting bool param
+- [src/decisionEngine/functionRegistry.cpp:786] : Consider merging with setFunctionSocketUnavailable
+- [src/decisionEngine/functionRegistry.cpp:787] : Consider renaming to setCapabilitySocketAvailability and inverting bool param
+- [src/decisionEngine/functionRegistry.cpp:879] : implement actual JSON-RPC via asio here. For now, return an error
 - [src/decisionEngine/functionRegistry.h:66] : consider adding `AppsManager::isAppReady(appId)` to allow checking
 - [src/decisionEngine/intentRegistry.cpp:203] : add TTS support
 - [src/decisionEngine/intentRegistry.cpp:230] : Implement this
