@@ -18,25 +18,25 @@
 - [src/api/api.cpp:105] : add checks to make sure these are valid calls.
 - [src/api/api.cpp:54] : Since we need to make sure that the entire API is built before letting any clients connect,
 - [src/api/api.cpp:61] : // TESTING AUTHENTICATION //// remove
-- [src/api/api.h:210] : We need to make the API server is able to handle new interfaces being added at runtime.
+- [src/api/api.h:200] : We need to make the API server is able to handle new interfaces being added at runtime.
 - [src/api/authentication.cpp:156] : add checkAuth function that only takes the app_id and returns bool if the app_id has been allowed by the user
 - [src/api/builder.cpp:156] : refactor to get rid of staticFiles vector. update: maybe not?
 - [src/apps/appsDBManager.cpp:110] : add the interfaces for HTTP server
-- [src/apps/appsManager.cpp:1199] : Implement checking if app update is available
-- [src/apps/appsManager.cpp:1212] : Implement checking if app update is required
-- [src/apps/appsManager.cpp:1225] : Implement checking if app update failed
-- [src/apps/appsManager.cpp:1238] : Implement checking if app update check is overdue
-- [src/apps/appsManager.cpp:1286] : Implement getting app memory usage
-- [src/apps/appsManager.cpp:1293] : Implement getting app version
-- [src/apps/appsManager.cpp:1314] : Implement checking if native apps are running
-- [src/apps/appsManager.cpp:1346] : determine if any processes are running
-- [src/apps/appsManager.cpp:1381] : Implement app installation
-- [src/apps/appsManager.cpp:1388] : Implement app uninstallation
-- [src/apps/appsManager.cpp:1395] : Implement app update
-- [src/apps/appsManager.cpp:1402] : Implement app installation check
-- [src/apps/appsManager.cpp:152] : these methods not be needed here since nothing should be running yet
-- [src/apps/appsManager.cpp:180] : check is app is enabled before starting. each app has an "enabled" flag in the database.
-- [src/apps/appsManager.cpp:337] : check that app is enabled before starting
+- [src/apps/appsManager.cpp:1158] : Implement checking if app update is available
+- [src/apps/appsManager.cpp:1171] : Implement checking if app update is required
+- [src/apps/appsManager.cpp:1184] : Implement checking if app update failed
+- [src/apps/appsManager.cpp:1197] : Implement checking if app update check is overdue
+- [src/apps/appsManager.cpp:1245] : Implement getting app memory usage
+- [src/apps/appsManager.cpp:1252] : Implement getting app version
+- [src/apps/appsManager.cpp:1273] : Implement checking if native apps are running
+- [src/apps/appsManager.cpp:1305] : determine if any processes are running
+- [src/apps/appsManager.cpp:1340] : Implement app installation
+- [src/apps/appsManager.cpp:1347] : Implement app uninstallation
+- [src/apps/appsManager.cpp:1354] : Implement app update
+- [src/apps/appsManager.cpp:1361] : Implement app installation check
+- [src/apps/appsManager.cpp:146] : these methods not be needed here since nothing should be running yet
+- [src/apps/appsManager.cpp:174] : check is app is enabled before starting. each app has an "enabled" flag in the database.
+- [src/apps/appsManager.cpp:296] : check that app is enabled before starting
 - [src/apps/appsManager.cpp:36] : Go through this method by method and make sure everything makes sense. Most of this file
 - [src/apps/appsManager.cpp:38] : Finish adding method descriptions and comments
 - [src/apps/appsManager.cpp:39] : The apps manager should start all the app executables that are registered in the database
@@ -44,11 +44,11 @@
 - [src/apps/appsManager.cpp:41] : The apps manager should handle updates to the app executables
 - [src/apps/appsManager.cpp:42] : The apps manager will use the docker/dockerApi.cpp class(es) to manage the docker containers
 - [src/apps/appsManager.cpp:43] : The apps manager should expose an API to start, stop, and update apps
+- [src/apps/appsManager.cpp:446] : Implement updating docker apps
 - [src/apps/appsManager.cpp:44] : Any app that is not found at the location specified in the database should be marked as "not installed" or removed from the database
+- [src/apps/appsManager.cpp:450] : Implement updating native apps
 - [src/apps/appsManager.cpp:45] : isAppInstalled() should check once and then keep track of the installed status so that repeated calls to this method are faster and don't require filesystem accesses. Any changes to apps installed status will need to noted.
 - [src/apps/appsManager.cpp:47] : App installation needs to be handled somehow. Apps that come from trusted sources may have scripts that need to
-- [src/apps/appsManager.cpp:487] : Implement updating docker apps
-- [src/apps/appsManager.cpp:491] : Implement updating native apps
 - [src/apps/appsManager.cpp:51] : When an app is installed, record its IPC socket location in the apps DB
 - [src/apps/appsManager.cpp:59] : When an app is installed, set the user and group ownership of the app
 - [src/apps/dockerApi.cpp:34] : Go through this method by method and make sure everything makes sense. Most of this file
@@ -57,23 +57,23 @@
 - [src/audio/audioManager.cpp:43] : NOTE: Audio input needs to be configured for RTAUDIO_INT16 or all the threadsafeQueue
 - [src/audio/audioManager.cpp:47] : this whole thing, basically
 - [src/audio/audioManager.cpp:87] : Additional endpoints will be defined in the audioOutput.cpp file and speechIn.cpp file so we
-- [src/audio/audioOutput.cpp:107] : Need to have a way to recover from this error.
-- [src/audio/audioOutput.cpp:108] : Any call to exit should use an enum value to indicate the reason for the exit.
-- [src/audio/audioOutput.cpp:159] : create a function that the output can use to stream data from a ThreadSafeQueue<> to the audio output.
+- [src/audio/audioOutput.cpp:105] : Need to have a way to recover from this error.
+- [src/audio/audioOutput.cpp:106] : Any call to exit should use an enum value to indicate the reason for the exit.
+- [src/audio/audioOutput.cpp:157] : create a function that the output can use to stream data from a ThreadSafeQueue<> to the audio output.
 - [src/audio/audioOutput.cpp:47] : Local TTS using Piper
 - [src/audio/audioOutput.cpp:55] : load all the audio blobs from the DB.
 - [src/audio/audioOutput.cpp:56] : load all the audio files from the filesystem.
-- [src/audio/audioOutput.cpp:64] : The RTAudio instance needs to be instantiated in the audioManager and passed to this class and to the speechIn class.
+- [src/audio/audioOutput.cpp:62] : The RTAudio instance needs to be instantiated in the audioManager and passed to this class and to the speechIn class.
 - [src/audio/speechIn.cpp:204] : this needs to happen in another thread so that we don't block the audio input thread
 - [src/audio/speechIn.cpp:251] : implement silence detection to determine when the user is done speaking.
 - [src/audio/speechIn.h:84] : make sure this works
 - [src/audio/speechIn.h:85] : make sure this is thread safe
 - [src/audio/speechIn.h:91] : make sure this works
 - [src/audio/speechIn.h:92] : make sure this is thread safe
-- [src/database/cubeDB.cpp:220] : use this as an example for the mutex lock below.
-- [src/database/cubeDB.cpp:245] : fix this endpoint. It has testing data in it.
-- [src/database/cubeDB.cpp:287] : fix this endpoint. It has testing data in it.
-- [src/database/cubeDB.cpp:437] : endpoints to write:
+- [src/database/cubeDB.cpp:216] : use this as an example for the mutex lock below.
+- [src/database/cubeDB.cpp:240] : fix this endpoint. It has testing data in it.
+- [src/database/cubeDB.cpp:282] : fix this endpoint. It has testing data in it.
+- [src/database/cubeDB.cpp:432] : endpoints to write:
 - [src/database/cubeDB.cpp:55] : Ensure app installation paths and metadata include the app IPC socket
 - [src/database/cubeDB.h:80] : move these to the utils.h file
 - [src/database/db.cpp:34] : this file needs a line by line evaluation
@@ -324,27 +324,26 @@
 - [src/gui/renderer.cpp:98] : figure out how to pause rendering and close the window when the emulator starts up.
 - [src/gui/statusBar.cpp:36] : Implement StatusBar
 - [src/gui/statusBar.h:37] :
-- [src/hardware/bluetooth.cpp:1020] : this section depends on the BTManager application being completed. We will need to update this section
-- [src/hardware/bluetooth.cpp:1024] : Start the BTManager. The command line args for this should include the address for an http endpoint
-- [src/hardware/bluetooth.cpp:1066] : add all the services that we want to use
-- [src/hardware/bluetooth.cpp:1073] : this->client_id needs a mutex. When this class is destroyed, we need to make sure we can get a lock on that mutex
-- [src/hardware/bluetooth.cpp:1118] : The server will need to listen for any incoming requests from the BTManager application and handle them.
-- [src/hardware/bluetooth.cpp:1186] : This should shutdown the BTManager class enough to allow adding new BT Services.
-- [src/hardware/bluetooth.cpp:1200] : This should start the BTManager class after it has been stopped.
-- [src/hardware/bluetooth.cpp:1214] : This should provide a way to add a new BT Service to the BTManager.
-- [src/hardware/bluetooth.cpp:125] : Setup all the callback endpoints
+- [src/hardware/bluetooth.cpp:1026] : add all the services that we want to use
+- [src/hardware/bluetooth.cpp:1033] : this->client_id needs a mutex. When this class is destroyed, we need to make sure we can get a lock on that mutex
+- [src/hardware/bluetooth.cpp:1078] : The server will need to listen for any incoming requests from the BTManager application and handle them.
+- [src/hardware/bluetooth.cpp:1143] : This should shutdown the BTManager class enough to allow adding new BT Services.
+- [src/hardware/bluetooth.cpp:1157] : This should start the BTManager class after it has been stopped.
+- [src/hardware/bluetooth.cpp:1171] : This should provide a way to add a new BT Service to the BTManager.
+- [src/hardware/bluetooth.cpp:119] : Setup all the callback endpoints
 - [src/hardware/bluetooth.cpp:43] : since the BT_Manager app is far from complete, we should just mock the bluetooth functions for now.
-- [src/hardware/bluetooth.cpp:527] : need to prompt the user to accept the pairing request. This will require a call to the appropriate GUI function.
-- [src/hardware/bluetooth.cpp:542] : notify the user
-- [src/hardware/bluetooth.cpp:556] : notify the user
+- [src/hardware/bluetooth.cpp:521] : need to prompt the user to accept the pairing request. This will require a call to the appropriate GUI function.
+- [src/hardware/bluetooth.cpp:536] : notify the user
+- [src/hardware/bluetooth.cpp:550] : notify the user
+- [src/hardware/bluetooth.cpp:556] : update the Global setting for bluetooth enabled
 - [src/hardware/bluetooth.cpp:562] : update the Global setting for bluetooth enabled
-- [src/hardware/bluetooth.cpp:568] : update the Global setting for bluetooth enabled
-- [src/hardware/bluetooth.cpp:572] :
-- [src/hardware/bluetooth.cpp:578] : register the callbacks with the GlobalSettings class so that the enabled/disable/etc actions get called when the setting is changed.
+- [src/hardware/bluetooth.cpp:566] :
+- [src/hardware/bluetooth.cpp:572] : register the callbacks with the GlobalSettings class so that the enabled/disable/etc actions get called when the setting is changed.
 - [src/hardware/bluetooth.cpp:65] : In order to comply with Qt licensing, we will have to have all the code that interfaces
-- [src/hardware/bluetooth.cpp:83] : Need to check if the port is available
-- [src/hardware/bluetooth.cpp:962] : we need to add this characteristic to config json for this service
-- [src/hardware/bluetooth.cpp:98] : create a default config for basic functionality in the event the file is not found
+- [src/hardware/bluetooth.cpp:92] : create a default config for basic functionality in the event the file is not found
+- [src/hardware/bluetooth.cpp:952] : we need to add this characteristic to config json for this service
+- [src/hardware/bluetooth.cpp:980] : this section depends on the BTManager application being completed. We will need to update this section
+- [src/hardware/bluetooth.cpp:984] : Start the BTManager. The command line args for this should include the address for an http endpoint
 - [src/hardware/mmWave.cpp:353] : Check this
 - [src/hardware/mmWave.h:49] : add some ifdefs and defines for the port name on RasPi
 - [src/hardware/mmWave.h:50] : add ifdefs for Windows so that this will compile on Windows
@@ -356,11 +355,11 @@
 - [src/logger/logger.cpp:496] : this may not be needed since the log is just going to grow again
 - [src/logger/logger.cpp:783] : add endpoint(s) to get logs. perhaps have the ability to get logs by level, by date, etc. and/or logs from memory or from file
 - [src/logger/logger.cpp:830] : source string should be prepended with the name of the source app or it's IP or something. That way, we know
-- [src/main.cpp:280] : All the base apps should be inserted into the database and/or verified in the database here.
-- [src/main.cpp:335] : add the insert for the openwakeword python script here. This will be a native app and will use the python executable in the openwakeword/venv/bin(Linux) or openwakeword/Scripts(Windows) directory.
-- [src/main.cpp:379] : any other place where main() might return, change the return value to something meaningful. this way, when
-- [src/main.cpp:384] : this probably needs a mutex for breakMain
-- [src/main.cpp:79] : rather than set this environment variable in this application, set it in the manager application. The manager app
+- [src/main.cpp:260] : All the base apps should be inserted into the database and/or verified in the database here.
+- [src/main.cpp:303] : add the insert for the openwakeword python script here. This will be a native app and will use the python executable in the openwakeword/venv/bin(Linux) or openwakeword/Scripts(Windows) directory.
+- [src/main.cpp:347] : any other place where main() might return, change the return value to something meaningful. this way, when
+- [src/main.cpp:352] : this probably needs a mutex for breakMain
+- [src/main.cpp:81] : rather than set this environment variable in this application, set it in the manager application. The manager app
 - [src/telemetry/telemetry.cpp:34] : Implement telemetry.cpp
 - [src/telemetry/telemetry.cpp:38] : Implement telemetry.cpp
-- [src/utils.cpp:163] : fix this
+- [src/utils.cpp:76] : fix this

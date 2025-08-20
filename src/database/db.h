@@ -176,7 +176,7 @@ const std::vector<DB_NS::Database_T> dbDefs = {
 
 class Database {
     std::string dbPath;
-    SQLite::Database* db;
+    std::shared_ptr<SQLite::Database> db;
     std::string lastError;
     bool openFlag;
     std::string dbName;

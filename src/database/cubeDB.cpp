@@ -129,7 +129,7 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
             // char* buffer = new char[65535];
             std::string stringBlob = "none";
             // 1MB blob size limit
-            char* blob = new char[1024 * 1024];
+            std::unique_ptr<char[]> blob(new char[1024 * 1024]);
             bool binaryBlob = false;
             size_t blobSize = 0;
             std::string client_id = "none";
@@ -151,7 +151,6 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
                         j["success"] = false;
                         j["message"] = "saveBlob called: failed to save blob, base64 decoding failed.";
                         res.set_content(j.dump(), "application/json");
-                        delete[] blob;
                         return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, "Base64 decoding failed.");
                     }
                     blobSize = decoded.size();
@@ -161,7 +160,6 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
                         j["success"] = false;
                         j["message"] = "saveBlob called: failed to save blob, blob size exceeds 1MB limit.";
                         res.set_content(j.dump(), "application/json");
-                        delete[] blob;
                         return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, "Blob size exceeds 1MB limit.");
                     }
                     size_t decodedSize = 0;
@@ -181,7 +179,6 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
                 j["success"] = false;
                 j["message"] = "saveBlob called: failed to save blob, " + std::string(e.what());
                 res.set_content(j.dump(), "application/json");
-                delete[] blob;
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, e.what());
             }
             nlohmann::json j;
@@ -192,7 +189,7 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
             std::function<void()> fn;
             if (client_id != "none") {
                 fn = [&]() {
-                    blob_id = CubeDB::getDBManager()->getDatabase("blobs")->insertData("client_blobs", { "id", "blob", "blob_size", "owner_client_id" }, { "", binaryBlob ? std::string(blob, blobSize) : stringBlob, std::to_string(blobSize), client_id });
+                    blob_id = CubeDB::getDBManager()->getDatabase("blobs")->insertData("client_blobs", { "id", "blob", "blob_size", "owner_client_id" }, { "", binaryBlob ? std::string(blob.get(), blobSize) : stringBlob, std::to_string(blobSize), client_id });
                     CubeLog::info("Blob saved");
                     std::lock_guard<std::mutex> lock(m);
                     wait = false;
@@ -200,7 +197,7 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
                 };
             } else if (app_id != "none") {
                 fn = [&]() {
-                    blob_id = CubeDB::getDBManager()->getDatabase("blobs")->insertData("app_blobs", { "id", "blob", "blob_size", "owner_app_id" }, { "", binaryBlob ? std::string(blob, blobSize) : stringBlob, std::to_string(blobSize), app_id });
+                    blob_id = CubeDB::getDBManager()->getDatabase("blobs")->insertData("app_blobs", { "id", "blob", "blob_size", "owner_app_id" }, { "", binaryBlob ? std::string(blob.get(), blobSize) : stringBlob, std::to_string(blobSize), app_id });
                     CubeLog::info("Blob saved");
                     std::lock_guard<std::mutex> lock(m);
                     wait = false;
@@ -211,7 +208,6 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
                 j["success"] = false;
                 j["message"] = "saveBlob called: failed to save blob, no client_id or app_id provided.";
                 res.set_content(j.dump(), "application/json");
-                delete[] blob;
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, "No client_id or app_id provided");
             }
             CubeDB::getDBManager()->addDbTask(fn); // ensures that the database operation is performed on the database thread.
@@ -226,7 +222,6 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
             }
             j["blob_id"] = blob_id;
             res.set_content(j.dump(), "application/json");
-            delete[] blob;
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Blob saved");
         },
         "saveBlob",

@@ -170,9 +170,12 @@ int main(int argc, char* argv[])
     /////////////////////////////////////////////////////////////////
     GlobalSettings settings;
     auto logger = std::make_shared<CubeLog>();
-    auto settingsLoader = new SettingsLoader(&settings); // This could probably just be a function.
-    settingsLoader->loadSettings();
-    delete settingsLoader;
+    // auto settingsLoader = new SettingsLoader(&settings); // This could probably just be a function.
+    {
+        auto settingsLoader = std::make_unique<SettingsLoader>(&settings);
+        settingsLoader->loadSettings();
+        // delete settingsLoader;
+    }
     if (argumentParser["--print"] == true) {
         std::cout << "\n\n" + settings.toString() << std::endl;
         exit(0);

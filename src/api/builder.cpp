@@ -283,12 +283,10 @@ void API_Builder::start()
                 CubeLog::warning("Unknown file type: " + l_path);
                 contentType = "application/octet-stream";
             }
-            char* fileData = new char[fileSize];
-            memcpy(fileData, buffer.data(), fileSize);
-            res.set_content(fileData, fileSize, contentType);
-            delete[] fileData;
+            std::unique_ptr<char[]> fileData(new char[fileSize]);
+            memcpy(fileData.get(), buffer.data(), fileSize);
+            res.set_content(fileData.get(), fileSize, contentType);
             CubeLog::debug("File sent: " + l_path + " (" + std::to_string(fileSize) + " bytes)");
-            // return std::string("");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         });
     }

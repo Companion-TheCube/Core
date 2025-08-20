@@ -510,7 +510,7 @@ bool Database::open()
         return false;
     }
     try {
-        this->db = new SQLite::Database(this->dbPath, SQLite::OPEN_READWRITE);
+        this->db = std::make_shared<SQLite::Database>(this->dbPath, SQLite::OPEN_READWRITE);
         this->openFlag = true;
         return true;
     } catch (std::exception& e) {
@@ -532,7 +532,7 @@ bool Database::close()
         return false;
     }
     try {
-        delete this->db;
+        // delete this->db;
         this->openFlag = false;
         return true;
     } catch (std::exception& e) {
