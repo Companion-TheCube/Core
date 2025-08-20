@@ -50,18 +50,8 @@ SOFTWARE.
 #define HTTPLIB_INCLUDED
 #include <httplib.h>
 #endif
-#ifdef __linux__
 #include <sys/wait.h>
 #include <unistd.h>
-#endif
-#ifndef WIN32_INCLUDED
-#define WIN32_INCLUDED
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
-#endif
-#endif
 #include <nlohmann/json.hpp>
 #include "nlohmann/json-schema.hpp"
 #include <mutex>

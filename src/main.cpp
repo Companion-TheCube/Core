@@ -57,6 +57,9 @@ bool breakMain = false;
 
 int main(int argc, char* argv[])
 {
+#ifndef __linux__
+    static_assert(false, "This code is only for Linux.");
+#endif
     // Load configuration from .env once (available globally via Config::get())
     Config::loadFromDotEnv(".env");
     // std::signal(SIGINT, signalHandler);
@@ -65,7 +68,6 @@ int main(int argc, char* argv[])
     std::signal(SIGSEGV, signalHandler);
     std::signal(SIGILL, signalHandler);
     std::signal(SIGFPE, signalHandler);
-#ifdef __linux__
     std::signal(SIGKILL, signalHandler);
     std::signal(SIGQUIT, signalHandler);
     std::signal(SIGBUS, signalHandler);
@@ -73,16 +75,16 @@ int main(int argc, char* argv[])
     std::signal(SIGPIPE, signalHandler);
     std::signal(SIGALRM, signalHandler);
     std::signal(SIGHUP, signalHandler);
-#endif
+
     std::cout << "Starting..." << std::endl;
-#ifdef __linux__
+
     // TODO: rather than set this environment variable in this application, set it in the manager application. The manager app
     // should also verify if a symbolic link is needed and create it if necessary.
     if (setenv("DISPLAY", ":0", 1) != 0) {
         std::cout << "Error setting DISPLAY=:0 environment variable. Exiting." << std::endl;
         return 1;
     }
-#endif
+
     /////////////////////////////////////////////////////////////////
     // Argument parsing
     /////////////////////////////////////////////////////////////////
@@ -91,12 +93,7 @@ int main(int argc, char* argv[])
     versionInfo += "\n";
     versionInfo += "Built on: " + std::string(__DATE__) + " " + std::string(__TIME__) + "\n";
     versionInfo += "Built on: ";
-#ifdef __linux__
     versionInfo += "Linux";
-#endif
-#ifdef _WIN32
-    versionInfo += "Windows";
-#endif
     versionInfo += "\nCompiler: ";
 #ifdef __clang__
     versionInfo += "Clang";
@@ -104,27 +101,8 @@ int main(int argc, char* argv[])
 #ifdef __GNUC__
     versionInfo += "GCC";
 #endif
-#ifdef _MSC_VER
-    versionInfo += "MSVC";
-#endif
     versionInfo += "\nC++ Standard: ";
 #ifdef __cplusplus
-#ifdef _MSVC_LANG
-    if (_MSVC_LANG == 202300L)
-        versionInfo += "C++23";
-    else if (_MSVC_LANG == 202100L)
-        versionInfo += "C++21";
-    else if (_MSVC_LANG == 202002L)
-        versionInfo += "C++20";
-    else if (_MSVC_LANG == 201703L)
-        versionInfo += "C++17";
-    else if (_MSVC_LANG == 201402L)
-        versionInfo += "C++14";
-    else if (_MSVC_LANG == 201103L)
-        versionInfo += "C++11";
-    else
-        versionInfo += std::to_string(_MSVC_LANG);
-#else
     if (__cplusplus == 202300L)
         versionInfo += "C++23";
     else if (__cplusplus == 202100L)
@@ -139,7 +117,6 @@ int main(int argc, char* argv[])
         versionInfo += "C++11";
     else
         versionInfo += std::to_string(__cplusplus);
-#endif
 #endif
     versionInfo += "\nAuthor: Andrew McDaniel\nCopyright: 2024\n";
     bool customLogVerbosity = false;
@@ -283,11 +260,7 @@ int main(int argc, char* argv[])
             { { "app_id", "2" },
                 { "app_name", "ConsoleApp1" },
                 { "role", DB_NS::Roles::NATIVE_APP },
-#ifdef _WIN32
-                { "exec_path", "apps/consoleApp1.exe" },
-#else
                 { "exec_path", "apps/consoleApp1/consoleApp1" },
-#endif
                 { "exec_args", "arg1 arg2 arg3 arg4" },
                 { "app_source", "test source" },
                 { "update_path", "test update path" },
@@ -301,11 +274,7 @@ int main(int argc, char* argv[])
             { { "app_id", "3" },
                 { "app_name", "ConsoleApp2" },
                 { "role", DB_NS::Roles::NATIVE_APP },
-#ifdef _WIN32
-                { "exec_path", "apps/consoleApp1.exe" },
-#else
                 { "exec_path", "apps/consoleApp1/consoleApp1" },
-#endif
                 { "exec_args", "arg5 arg6 arg7 arg8" },
                 { "app_source", "test source" },
                 { "update_path", "test update path" },
@@ -319,11 +288,7 @@ int main(int argc, char* argv[])
             { { "app_id", "5" },
                 { "app_name", "openwakeword" },
                 { "role", DB_NS::Roles::NATIVE_APP },
-#ifdef _WIN32
-                { "exec_path", "apps/consoleApp1.exe" },
-#else
                 { "exec_path", "apps/openwakeword/bin/python3" },
-#endif
                 { "exec_args", "apps/openwakeword/openww.py --model_path apps/openwakeword/hey_cube.onnx,apps/openwakeword/hey_cuba.onnx,apps/openwakeword/hey_cube2.onnx,apps/openwakeword/hey_cue.onnx --inference_framework onnx" },
                 { "app_source", "test source" },
                 { "update_path", "test update path" },
@@ -417,7 +382,6 @@ void signalHandler(int signal)
         printStackTrace();
         breakMain = true;
         break;
-#ifdef __linux__
     case SIGKILL:
         CubeLog::info("Caught SIGKILL signal.");
         // Note: SIGKILL cannot be caught or ignored, so this will not actually execute.
@@ -448,7 +412,6 @@ void signalHandler(int signal)
         printStackTrace();
         breakMain = true;
         break;
-#endif
     default:
         CubeLog::info("Caught unknown signal.");
         breakMain = true;
@@ -459,7 +422,6 @@ void signalHandler(int signal)
 // Function to print stack trace
 void printStackTrace()
 {
-#ifdef __linux__
     const int maxFrames = 100;
     void* frames[maxFrames];
     int numFrames = backtrace(frames, maxFrames);
@@ -513,52 +475,9 @@ void printStackTrace()
     }
 
     free(symbols);
-#endif
 }
 
-#ifdef _WIN32
 
-bool supportsBasicColors()
-{
-    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-    if (hOut == INVALID_HANDLE_VALUE) {
-        return false;
-    }
-
-    DWORD dwMode = 0;
-    if (!GetConsoleMode(hOut, &dwMode)) {
-        return false;
-    }
-
-    return (dwMode & ENABLE_PROCESSED_OUTPUT) && (dwMode & ENABLE_WRAP_AT_EOL_OUTPUT);
-}
-
-bool supportsExtendedColors()
-{
-    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-    if (hOut == INVALID_HANDLE_VALUE) {
-        return false;
-    }
-
-    DWORD dwMode = 0;
-    if (!GetConsoleMode(hOut, &dwMode)) {
-        return false;
-    }
-
-    if (dwMode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) {
-        return true;
-    }
-
-    // Try to enable the flag
-    dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-    if (!SetConsoleMode(hOut, dwMode)) {
-        return false;
-    }
-
-    return true;
-}
-
-#elif __linux__
 
 int getTermColors()
 {
@@ -596,5 +515,3 @@ bool supportsExtendedColors()
 {
     return getTermColors() >= 256;
 }
-
-#endif

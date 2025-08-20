@@ -68,14 +68,14 @@ public:
     constexpr std::string getInterfaceName() const override;
 };
 
-static const std::string base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                                        "abcdefghijklmnopqrstuvwxyz"
-                                        "0123456789+/";
+// static const std::string base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+//                                         "abcdefghijklmnopqrstuvwxyz"
+//                                         "0123456789+/";
 
-static inline bool is_base64(unsigned char c)
-{
-    return (isalnum(c) || (c == '+') || (c == '/'));
-}
+// static inline bool is_base64(unsigned char c)
+// {
+//     return (isalnum(c) || (c == '+') || (c == '/'));
+// }
 
 // TODO: move these to the utils.h file
 std::vector<unsigned char> base64_decode_cube(std::string const& encoded_string);

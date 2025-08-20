@@ -38,23 +38,18 @@ SOFTWARE.
 #include <logger.h>
 #endif
 #include <string>
-#ifdef __linux__
 #include <cstdlib>
 #include <dirent.h>
 #include <iostream>
 #include <spawn.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#endif
 #include "RunningApp.h"
 #include <algorithm>
 #include <fstream>
 #include <string>
 #include <utils.h>
 
-#ifndef __linux__
-static_assert(false, "This code is only for Linux.");
-#endif
 
 class PythonAPI {
 public:

@@ -33,14 +33,12 @@ SOFTWARE.
 
 // #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <cstdlib>
-#ifdef __linux__
 #include <cstdlib>
 #include <cxxabi.h>
 #include <execinfo.h>
 #include <string>
 #include <sys/wait.h>
 #include <unistd.h>
-#endif
 #include "api/api.h"
 #include "api/authentication.h"
 #include "apps/appsManager.h"

@@ -44,18 +44,6 @@ SOFTWARE.
 #include <queue>
 #include <thread>
 #include <vector>
-#ifndef WIN32_INCLUDED
-#define WIN32_INCLUDED
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
-#endif
-#endif
-#ifdef _WIN32
-#include "psapi.h"
-#include <codecvt>
-#endif
 
 #ifndef _TASK_QUEUE_H_
 #define _TASK_QUEUE_H_
@@ -239,11 +227,6 @@ private:
     std::mutex mutex_;
     std::condition_variable cv_;
 };
-
-#ifdef _WIN32
-std::string convertWCHARToString(const WCHAR* wstr);
-void convertStringToWCHAR(const std::string& str, WCHAR* wstr);
-#endif
 
 std::string sha256(std::string input);
 std::string crc32(std::string input);

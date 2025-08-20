@@ -37,9 +37,7 @@ SOFTWARE.
 #include "RunningApp.h"
 #include "dockerApi.h"
 #include "nativeApi.h"
-#ifdef __linux__
 #include <poll.h>
-#endif
 
 class AppsManager {
 private:

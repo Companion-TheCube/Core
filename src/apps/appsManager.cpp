@@ -90,7 +90,6 @@ AppsManager::~AppsManager()
     std::stop_token st = this->appsManagerThread.get_stop_token();
     this->appsManagerThread.request_stop();
     this->appsManagerThread.join();
-#ifdef __linux__
     // destroy all the pipes
     for (auto app : this->runningApps) {
         if (app.second->getStdOutRead() != 0) {
@@ -115,7 +114,6 @@ AppsManager::~AppsManager()
             posix_spawn_file_actions_destroy(app.second->getActions());
         }
     }
-#endif
     CubeLog::debug("Stopping all apps.");
     this->stopAllApps();
     CubeLog::info("AppsManager destructor finished.");
@@ -142,12 +140,8 @@ void AppsManager::appsManagerThreadFn()
         CubeLog::error("Error getting app IDs from database.");
         return;
     }
-#ifdef __linux__
+
     this->dockerApi = std::make_shared<DockerAPI>("/var/run/docker.sock");
-#endif
-#ifdef _WIN32
-    this->dockerApi = std::make_shared<DockerAPI>("http://127.0.0.1:2375");
-#endif
     this->killAbandonedContainers();
     this->killAbandonedProcesses(); // TODO: these methods not be needed here since nothing should be running yet
     CubeLog::info("AppsManager thread started.");
@@ -192,41 +186,6 @@ void AppsManager::appsManagerThreadFn()
         // Check for stdout from running native apps
         for (auto appID : this->appIDs) {
             if (this->isAppInstalled(appID) && this->isAppRunning(appID) && this->runningApps[appID]->getPID() != 0) {
-#ifdef _WIN32
-                // first we check to see if the HANDLE is valid
-                if (this->runningApps[appID]->getStdOutReadHandle() != nullptr) {
-                    bool bSuccess = false;
-                    DWORD dwRead = 0, dwAvailable = 0;
-                    CHAR chBuf[4096];
-                    if (AppsManager::consoleLoggingEnabled)
-                        CubeLog::debug("Checking stdout and stderr for app: " + appID);
-                    if (PeekNamedPipe(this->runningApps[appID]->getStdOutReadHandle(), NULL, 0, NULL, &dwAvailable, NULL) && dwAvailable > 0) {
-                        bSuccess = ReadFile(this->runningApps[appID]->getStdOutReadHandle(), chBuf, sizeof(chBuf) - 1, &dwRead, NULL);
-                        if (bSuccess && dwRead > 0) {
-                            chBuf[dwRead] = '\0';
-                            std::string str(chBuf);
-                            CubeLog::debug("STDOUT - " + this->runningApps[appID]->getAppName() + ": " + str);
-                        }
-                    }
-                }
-                // then we check stderr
-                if (this->runningApps[appID]->getStdErrReadHandle() != nullptr) {
-                    bool bSuccess = false;
-                    DWORD dwRead = 0, dwAvailable = 0;
-                    CHAR chBuf[4096];
-                    if (AppsManager::consoleLoggingEnabled)
-                        CubeLog::debug("Checking stderr for app: " + appID);
-                    if (PeekNamedPipe(this->runningApps[appID]->getStdErrReadHandle(), NULL, 0, NULL, &dwAvailable, NULL) && dwAvailable > 0) {
-                        bSuccess = ReadFile(this->runningApps[appID]->getStdErrReadHandle(), chBuf, sizeof(chBuf) - 1, &dwRead, NULL);
-                        if (bSuccess && dwRead > 0) {
-                            chBuf[dwRead] = '\0';
-                            std::string str(chBuf);
-                            CubeLog::debug("STDERR - " + this->runningApps[appID]->getAppName() + ": " + str);
-                        }
-                    }
-                }
-#endif
-#ifdef __linux__
                 // first we check to see if the pipe is valid
                 if (this->runningApps[appID]->getStdOutRead() != 0) {
                     char buffer[4096];
@@ -292,7 +251,7 @@ void AppsManager::appsManagerThreadFn()
                 } else {
                     CubeLog::error("Stdin pipe is null for app: " + appID);
                 }
-#endif
+
                 if (AppsManager::consoleLoggingEnabled)
                     CubeLog::debug("Finished checking stdout and stderr for app: " + appID);
             }

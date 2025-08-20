@@ -53,36 +53,19 @@ SOFTWARE.
 #define HTTPLIB_INCLUDED
 #include <httplib.h>
 #endif
-#ifdef __linux__
 #include <cstdlib>
 #include <dirent.h>
 #include <iostream>
 #include <spawn.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#endif
-#ifndef WIN32_INCLUDED
-#define WIN32_INCLUDED
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
-#endif
-#endif
+
 #ifdef PRODUCTION_BUILD
-#ifdef __linux__
 #define BT_MANAGER_ADDRESS "/tmp/cube/bt_manager.sock"
 #else
 #define BT_MANAGER_ADDRESS "http://localhost:55290"
 #endif
-#else
-#define BT_MANAGER_ADDRESS "http://localhost:55290"
-#endif
-#ifdef __linux__
 #define BT_MANAGER_EXECUTABLE "bt_manager"
-#else
-#define BT_MANAGER_EXECUTABLE "bt_manager.exe"
-#endif
 #include "../api/api.h"
 #include "nlohmann/json.hpp"
 #include "utils.h"

@@ -33,7 +33,6 @@ SOFTWARE.
 
 #include "nativeApi.h"
 
-#ifdef __linux__
 bool NativeAPI::isProcessRunning(const std::string& processName)
 {
     DIR* dir = opendir("/proc");
@@ -91,52 +90,8 @@ bool NativeAPI::isProcessRunning(long pid)
     CubeLog::debug("Process with PID " + std::to_string(pid) + " is NOT running");
     return false;
 }
-#endif
 
-#ifdef _WIN32
-bool NativeAPI::isProcessRunning(const std::string& processName)
-{
-    HANDLE hProcessSnap;
-    PROCESSENTRY32 pe32;
-    bool found = false;
-    hProcessSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    if (hProcessSnap == INVALID_HANDLE_VALUE) {
-        std::cerr << "CreateToolhelp32Snapshot failed: " << GetLastError() << std::endl;
-        return false;
-    }
-    pe32.dwSize = sizeof(PROCESSENTRY32);
-    if (!Process32First(hProcessSnap, &pe32)) {
-        std::cerr << "Process32First failed: " << GetLastError() << std::endl;
-        CloseHandle(hProcessSnap);
-        return false;
-    }
-    do {
-        if (processName == pe32.szExeFile) {
-            found = true;
-            break;
-        }
-    } while (Process32Next(hProcessSnap, &pe32));
 
-    CloseHandle(hProcessSnap);
-    return found;
-}
-
-bool NativeAPI::isProcessRunning(long pid)
-{
-    HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, pid);
-    if (hProcess == NULL) {
-        return false;
-    }
-    DWORD exitCode;
-    if (GetExitCodeProcess(hProcess, &exitCode) == 0) {
-        return false;
-    }
-    if (exitCode == STILL_ACTIVE) {
-        return true;
-    }
-    return false;
-}
-#endif
 
 /**
  * @brief Start a native app
@@ -154,9 +109,7 @@ std::unique_ptr<RunningApp> NativeAPI::startApp(const std::string& execPath, con
     CubeLog::info("Starting app: " + execPath + " " + execArgs);
     std::filesystem::path cwd = std::filesystem::current_path();
     std::filesystem::path fullPath = cwd / execPath;
-#ifdef __linux__
     // std::replace(ePath.begin(), ePath.end(), '\\', '/');
-#endif
     // std::filesystem::path p = std::filesystem::path(ePath);
     if (!std::filesystem::exists(fullPath)) {
         CubeLog::error("App not found: " + fullPath.string());
@@ -166,86 +119,6 @@ std::unique_ptr<RunningApp> NativeAPI::startApp(const std::string& execPath, con
 
     auto temp = std::make_unique<RunningApp>(0, appID, appName, execPath, execArgs, appSource, updatePath, "native", "", "", "", "", 0);
 
-    #ifdef _WIN32
-    SECURITY_ATTRIBUTES saAttr;
-    saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
-    saAttr.bInheritHandle = TRUE;
-    saAttr.lpSecurityDescriptor = NULL;
-
-    CubeLog::debug("Creating pipes for stdout and stderr");
-    if (!CreatePipe(temp->getStdOutRead(), temp->getStdOutWrite(), &saAttr, 0)) {
-        CubeLog::error("Stdout pipe creation failed");
-        return nullptr;
-    }
-
-    CubeLog::debug("Setting stdout pipe information");
-    if (!SetHandleInformation(temp->getStdOutReadHandle(), HANDLE_FLAG_INHERIT, 0)) {
-        CubeLog::error("Stdout SetHandleInformation failed");
-        return nullptr;
-    }
-
-    CubeLog::debug("Creating pipes for stderr");
-    if (!CreatePipe(temp->getStdErrRead(), temp->getStdErrWrite(), &saAttr, 0)) {
-        CubeLog::error("Stderr pipe creation failed");
-        return nullptr;
-    }
-
-    CubeLog::debug("Setting stderr pipe information");
-    if (!SetHandleInformation(temp->getStdErrReadHandle(), HANDLE_FLAG_INHERIT, 0)) {
-        CubeLog::error("Stderr SetHandleInformation failed");
-        return nullptr;
-    }
-
-    CubeLog::debug("Creating pipes for stdin");
-    if (!CreatePipe(temp->getStdInRead(), temp->getStdInWrite(), &saAttr, 0)) {
-        CubeLog::error("Stdin pipe creation failed");
-        return nullptr;
-    }
-
-    CubeLog::debug("Setting stdin pipe information");
-    if (!SetHandleInformation(temp->getStdInWriteHandle(), HANDLE_FLAG_INHERIT, 0)) {
-        CubeLog::error("Stdin SetHandleInformation failed");
-        return nullptr;
-    }
-
-    STARTUPINFO si;
-    PROCESS_INFORMATION pi;
-    ZeroMemory(&si, sizeof(si));
-    si.cb = sizeof(si);
-    ZeroMemory(&pi, sizeof(pi));
-
-    si.hStdError = temp->getStdErrWriteHandle();
-    si.hStdOutput = temp->getStdOutWriteHandle();
-    si.hStdInput = temp->getStdInReadHandle();
-    si.dwFlags |= STARTF_USESTDHANDLES;
-
-    cwd = std::filesystem::current_path().string();
-    // std::string execCommand = cwd + "\\" + execPath + " " + execArgs;
-    auto execCommand = cwd / execPath;
-    execCommand += " " + execArgs;
-    CubeLog::debug("Exec command: " + execCommand.string());
-    // WCHAR tempCommand[1024];
-    // convertStringToWCHAR(execCommand.string(), tempCommand);
-    if (!CreateProcess(NULL,
-            (LPSTR)execCommand.string().c_str(), // command line
-            NULL, // process security attributes
-            NULL, // primary thread security attributes
-            TRUE, // handles are inherited
-            0, // creation flags
-            NULL, // use parent's environment
-            NULL, // use parent's current directory
-            &si, // STARTUPINFO pointer
-            &pi)) { // receives PROCESS_INFORMATION
-        CubeLog::error("Error: " + std::to_string(GetLastError()));
-        return nullptr;
-    } else {
-        temp->setPID(pi.dwProcessId);
-        CloseHandle(pi.hProcess);
-        CloseHandle(pi.hThread);
-        return temp;
-    }
-#endif
-#ifdef __linux__
     pid_t pid = 0;
     std::string execCommand = fullPath.string() + " " + execArgs;
     CubeLog::debug("Exec command: " + execCommand);
@@ -309,22 +182,13 @@ std::unique_ptr<RunningApp> NativeAPI::startApp(const std::string& execPath, con
     CubeLog::debug("Process created with PID: " + std::to_string(pid));
     CubeLog::info("App started: " + execPath + " " + execArgs);
     return temp;
-#endif
-#ifndef _WIN32
-#ifndef __linux__
-    CubeLog::error("Unsupported platform");
-    return nullptr;
-#endif
-#endif
 }
 
 bool NativeAPI::stopApp(const std::string& execPath)
 {
     CubeLog::info("Stopping app: " + execPath);
     std::string ePath = execPath;
-#ifdef __linux__
     std::replace(ePath.begin(), ePath.end(), '\\', '/');
-#endif
     if (isProcessRunning(ePath)) {
         std::string command = "pkill " + ePath;
         if (system(command.c_str()) == -1) {
@@ -347,25 +211,12 @@ bool NativeAPI::stopApp(const std::string& execPath)
 bool NativeAPI::stopApp(long pid)
 {
     CubeLog::info("Stopping app with PID: " + std::to_string(pid));
-#ifdef _WIN32
-    HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, pid);
-    if (hProcess == NULL) {
-        CubeLog::error("Failed to stop app with PID: " + std::to_string(pid));
-        return false;
-    }
-    if (TerminateProcess(hProcess, 0) == 0) {
-        CubeLog::error("Failed to stop app with PID: " + std::to_string(pid));
-        return false;
-    }
-#endif
-#ifdef __linux__
     int status = kill(pid, SIGKILL);
     if (status == -1) {
         CubeLog::error("Failed to stop app with PID=" + std::to_string(pid) + ". Error: " + std::to_string(errno));
         CubeLog::error("status: " + std::to_string(status));
         return false;
     }
-#endif
     if (isProcessRunning(pid)) {
         CubeLog::error("Failed to stop app with PID: " + std::to_string(pid));
         return false;
@@ -375,7 +226,7 @@ bool NativeAPI::stopApp(long pid)
     }
 }
 
-#ifdef __linux__
+
 long NativeAPI::getPID(const std::string& execPath)
 {
     CubeLog::info("Getting PID for app: " + execPath);
@@ -389,49 +240,12 @@ long NativeAPI::getPID(const std::string& execPath)
         return -1;
     }
 }
-#endif
 
-#ifdef _WIN32
-long NativeAPI::getPID(const std::string& execPath)
-{
-    CubeLog::info("Getting PID for app: " + execPath);
-    if (isProcessRunning(execPath)) {
-        HANDLE hProcessSnap;
-        PROCESSENTRY32 pe32;
-        hProcessSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-        if (hProcessSnap == INVALID_HANDLE_VALUE) {
-            std::cerr << "CreateToolhelp32Snapshot failed: " << GetLastError() << std::endl;
-            return -1;
-        }
-        pe32.dwSize = sizeof(PROCESSENTRY32);
-        if (!Process32First(hProcessSnap, &pe32)) {
-            std::cerr << "Process32First failed: " << GetLastError() << std::endl;
-            CloseHandle(hProcessSnap);
-            return -1;
-        }
-        do {
-            // CubeLog::debugSilly("Checking process: " + convertWCHARToString(pe32.szExeFile));
-            if (execPath == pe32.szExeFile) {
-                CubeLog::debug("PID for app: " + execPath + " is " + std::to_string(pe32.th32ProcessID));
-                return pe32.th32ProcessID;
-            }
-        } while (Process32Next(hProcessSnap, &pe32));
-        CloseHandle(hProcessSnap);
-        return -1;
-    } else {
-        CubeLog::error("App is not running: " + execPath);
-        return -1;
-    }
-}
-#endif
 
 bool NativeAPI::isExecutableInstalled(const std::string& execPath)
 {
-#ifdef __linux__
     std::filesystem::path p = std::filesystem::path(std::regex_replace(execPath, std::regex("\\\\"), "/"));
-#else
-    std::filesystem::path p = std::filesystem::path(execPath);
-#endif
+
     if (!std::filesystem::exists(p)) {
         return false;
     } else {

@@ -675,14 +675,12 @@ void CubeHttpServer::stop()
     // ever connected, listen thread may hang during stop(). Connect a dummy client.
     if (this->port == 0 && !this->address.empty()) {
         int dummy_fd = socket(AF_UNIX, SOCK_STREAM, 0);
-#ifdef __linux__
         struct sockaddr_un addr;
         memset(&addr, 0, sizeof(addr));
         addr.sun_family = AF_UNIX;
         strncpy(addr.sun_path, this->address.c_str(), sizeof(addr.sun_path) - 1);
         connect(dummy_fd, (struct sockaddr*)&addr, sizeof(addr));
         close(dummy_fd);
-#endif
     }
     while (this->server->is_running()) {
         genericSleep(100);

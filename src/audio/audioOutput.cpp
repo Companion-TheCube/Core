@@ -55,11 +55,9 @@ AudioOutput::AudioOutput()
     // TODO: load all the audio blobs from the DB.
     // TODO: load all the audio files from the filesystem.
     CubeLog::info("Initializing audio output.");
-#ifdef __linux__
+
     RtAudio::Api api = RtAudio::RtAudio::LINUX_PULSE;
-#elif _WIN32
-    RtAudio::Api api = RtAudio::RtAudio::WINDOWS_DS;
-#endif
+
     dac = std::make_unique<RtAudio>(api);
     // TODO: The RTAudio instance needs to be instantiated in the audioManager and passed to this class and to the speechIn class.
     std::vector<unsigned int> deviceIds = dac->getDeviceIds();

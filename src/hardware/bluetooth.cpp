@@ -77,15 +77,9 @@ BTControl::BTControl(uuids::uuid authUUID)
     mockThread = new std::jthread(startMock);
 #endif
     this->server = new httplib::Server();
-#ifdef _WIN32
-    this->address = "0.0.0.0";
-    this->port = 55285;
-    // TODO: Need to check if the port is available
-#else
     unlink("/tmp/cube/bt_control.sock");
     this->address = "/tmp/cube/bt_control.sock";
     this->port = 0;
-#endif
 
     nlohmann::json config;
     std::filesystem::path configPath = std::filesystem::current_path() / "data" / "bt_control.json";
@@ -579,11 +573,7 @@ BTControl::BTControl(uuids::uuid authUUID)
 
     // Start the server
     this->serverThread = new std::jthread([&] {
-#ifdef _WIN32
-        this->server->listen(this->address, this->port);
-#else
         this->server->set_address_family(AF_UNIX).listen(this->address, 80);
-#endif
     });
 
     // Start the heartbeat thread
@@ -981,40 +971,10 @@ BTManager::BTManager()
 
     // check to see if the BTManager application is running. If it is not, we will need to start it.
     // Get running processes
-#ifdef _WIN32
-    std::string command = "tasklist";
-    STARTUPINFO si;
-    PROCESS_INFORMATION pi;
-    ZeroMemory(&si, sizeof(si));
-    si.cb = sizeof(si);
-    ZeroMemory(&pi, sizeof(pi));
-    // WCHAR tempCommand[128];
-    // convertStringToWCHAR(command, tempCommand);
-    if(!CreateProcess(NULL, (LPSTR)command.c_str(), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
-        CubeLog::error("Error starting process: " + command);
-        return;
-    }
-    WaitForSingleObject(pi.hProcess, INFINITE);
-    DWORD exitCode;
-    GetExitCodeProcess(pi.hProcess, &exitCode);
-    CloseHandle(pi.hProcess);
-    CloseHandle(pi.hThread);
-    if (exitCode != 0) {
-        CubeLog::error("Error starting process: " + command);
-        return;
-    }
-    char buffer[128];
-    DWORD bytesRead;
-    std::string result = "";
-    while (ReadFile(pi.hProcess, buffer, sizeof(buffer), &bytesRead, NULL) && bytesRead > 0) {
-        result += std::string(buffer, bytesRead);
-    }
-#else
     std::string command = "ps | grep ";
     command += BT_MANAGER_EXECUTABLE;
     std::string result = "";
     launchProcess(command, "", result);
-#endif
     
     if (result.find(BT_MANAGER_EXECUTABLE) == std::string::npos) {
         // TODO: this section depends on the BTManager application being completed. We will need to update this section
@@ -1162,11 +1122,8 @@ BTManager::BTManager()
     // });
 
     this->serverThread = new std::jthread([&] {
-#ifdef _WIN32
-        //this->server->listen(this->config["address"], this->config["port"]);
-#else
+
         //this->server->set_address_family(AF_UNIX).listen(this->config["address"], this->config["port"]);
-#endif
     });
 }
 
@@ -1342,80 +1299,6 @@ bool launchProcess(const std::string& execPath, const std::string& execArgs, std
         CubeLog::error("App not found: " + fullPath.string());
         return false;
     }
-#ifdef _WIN32
-    SECURITY_ATTRIBUTES saAttr;
-    saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
-    saAttr.bInheritHandle = TRUE;
-    saAttr.lpSecurityDescriptor = NULL;
-
-    HANDLE hStdOutRead = NULL;
-    HANDLE hStdOutWrite = NULL;
-    HANDLE hStdErrRead = NULL;
-    HANDLE hStdErrWrite = NULL;
-    HANDLE hStdInRead = NULL;
-    HANDLE hStdInWrite = NULL;
-
-    if (!CreatePipe(&hStdOutRead, &hStdOutWrite, &saAttr, 0)) {
-        CubeLog::error("Stdout pipe creation failed");
-        return false;
-    }
-    if (!SetHandleInformation(hStdOutRead, HANDLE_FLAG_INHERIT, 0)) {
-        CubeLog::error("Stdout SetHandleInformation failed");
-        return false;
-    }
-    if (!CreatePipe(&hStdErrRead, &hStdErrWrite, &saAttr, 0)) {
-        CubeLog::error("Stderr pipe creation failed");
-        return false;
-    }
-    if (!SetHandleInformation(hStdErrRead, HANDLE_FLAG_INHERIT, 0)) {
-        CubeLog::error("Stderr SetHandleInformation failed");
-        return false;
-    }
-    if (!CreatePipe(&hStdInRead, &hStdInWrite, &saAttr, 0)) {
-        CubeLog::error("Stdin pipe creation failed");
-        return false;
-    }
-    if (!SetHandleInformation(hStdInWrite, HANDLE_FLAG_INHERIT, 0)) {
-        CubeLog::error("Stdin SetHandleInformation failed");
-        return false;
-    }
-
-    STARTUPINFO si;
-    PROCESS_INFORMATION pi;
-    ZeroMemory(&si, sizeof(si));
-    si.cb = sizeof(si);
-    ZeroMemory(&pi, sizeof(pi));
-
-    si.hStdError = hStdErrWrite;
-    si.hStdOutput = hStdOutWrite;
-    si.hStdInput = hStdInRead;
-    si.dwFlags |= STARTF_USESTDHANDLES;
-
-    cwd = std::filesystem::current_path().string();
-    std::string execCommand = execPath + " " + execArgs;
-    // WCHAR tempCommand[128];
-    // convertStringToWCHAR(execCommand, tempCommand);
-    if (!CreateProcess(NULL,
-            (LPSTR)execCommand.c_str(), // command line
-            NULL, // process security attributes
-            NULL, // primary thread security attributes
-            TRUE, // handles are inherited
-            0, // creation flags
-            NULL, // use parent's environment
-            NULL, // use parent's current directory
-            &si, // STARTUPINFO pointer
-            &pi)) { // receives PROCESS_INFORMATION
-        CubeLog::error("Error: " + std::to_string(GetLastError()));
-        return false;
-    } else {
-        CubeLog::info("App started: " + execPath + " " + execArgs);
-        CubeLog::info("Process ID: " + std::to_string(pi.dwProcessId));
-        CloseHandle(pi.hProcess);
-        CloseHandle(pi.hThread);
-        return true;
-    }
-#endif
-#ifdef __linux__
     pid_t pid = 0;
     std::string execCommand = execPath + " " + execArgs;
     CubeLog::debug("Exec command: " + execCommand);
@@ -1480,7 +1363,6 @@ bool launchProcess(const std::string& execPath, const std::string& execArgs, std
     close(stderrPipe[0]);
     close(stdinPipe[1]);
     return true;
-#endif
 }
 
 bool launchProcess(const std::string& execPath, const std::string& execArgs)
@@ -1492,80 +1374,6 @@ bool launchProcess(const std::string& execPath, const std::string& execArgs)
         CubeLog::error("App not found: " + fullPath.string());
         return false;
     }
-#ifdef _WIN32
-    SECURITY_ATTRIBUTES saAttr;
-    saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
-    saAttr.bInheritHandle = TRUE;
-    saAttr.lpSecurityDescriptor = NULL;
-
-    HANDLE hStdOutRead = NULL;
-    HANDLE hStdOutWrite = NULL;
-    HANDLE hStdErrRead = NULL;
-    HANDLE hStdErrWrite = NULL;
-    HANDLE hStdInRead = NULL;
-    HANDLE hStdInWrite = NULL;
-
-    if (!CreatePipe(&hStdOutRead, &hStdOutWrite, &saAttr, 0)) {
-        CubeLog::error("Stdout pipe creation failed");
-        return false;
-    }
-    if (!SetHandleInformation(hStdOutRead, HANDLE_FLAG_INHERIT, 0)) {
-        CubeLog::error("Stdout SetHandleInformation failed");
-        return false;
-    }
-    if (!CreatePipe(&hStdErrRead, &hStdErrWrite, &saAttr, 0)) {
-        CubeLog::error("Stderr pipe creation failed");
-        return false;
-    }
-    if (!SetHandleInformation(hStdErrRead, HANDLE_FLAG_INHERIT, 0)) {
-        CubeLog::error("Stderr SetHandleInformation failed");
-        return false;
-    }
-    if (!CreatePipe(&hStdInRead, &hStdInWrite, &saAttr, 0)) {
-        CubeLog::error("Stdin pipe creation failed");
-        return false;
-    }
-    if (!SetHandleInformation(hStdInWrite, HANDLE_FLAG_INHERIT, 0)) {
-        CubeLog::error("Stdin SetHandleInformation failed");
-        return false;
-    }
-
-    STARTUPINFO si;
-    PROCESS_INFORMATION pi;
-    ZeroMemory(&si, sizeof(si));
-    si.cb = sizeof(si);
-    ZeroMemory(&pi, sizeof(pi));
-
-    si.hStdError = hStdErrWrite;
-    si.hStdOutput = hStdOutWrite;
-    si.hStdInput = hStdInRead;
-    si.dwFlags |= STARTF_USESTDHANDLES;
-
-    cwd = std::filesystem::current_path().string();
-    std::string execCommand = execPath + " " + execArgs;
-    // WCHAR tempCommand[128];
-    // convertStringToWCHAR(execCommand, tempCommand);
-    if (!CreateProcess(NULL,
-            (LPSTR)execCommand.c_str(), // command line
-            NULL, // process security attributes
-            NULL, // primary thread security attributes
-            TRUE, // handles are inherited
-            0, // creation flags
-            NULL, // use parent's environment
-            NULL, // use parent's current directory
-            &si, // STARTUPINFO pointer
-            &pi)) { // receives PROCESS_INFORMATION
-        CubeLog::error("Error: " + std::to_string(GetLastError()));
-        return false;
-    } else {
-        CubeLog::info("App started: " + execPath + " " + execArgs);
-        CubeLog::info("Process ID: " + std::to_string(pi.dwProcessId));
-        CloseHandle(pi.hProcess);
-        CloseHandle(pi.hThread);
-        return true;
-    }
-#endif
-#ifdef __linux__
     pid_t pid = 0;
     std::string execCommand = execPath + " " + execArgs;
     CubeLog::debug("Exec command: " + execCommand);
@@ -1624,11 +1432,9 @@ bool launchProcess(const std::string& execPath, const std::string& execArgs)
     CubeLog::debug("Process created with PID: " + std::to_string(pid));
     CubeLog::info("App started: " + execPath + " " + execArgs);
     return true;
-#endif
-#ifndef _WIN32
+
 #ifndef __linux__
     CubeLog::error("Unsupported platform");
     return false;
-#endif
 #endif
 }

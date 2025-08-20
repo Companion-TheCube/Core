@@ -52,26 +52,19 @@ RunningApp::RunningApp(unsigned long pid, const std::string& appID, const std::s
 
 RunningApp::~RunningApp()
 {
-#ifdef _WIN32
-    if (this->g_hChildStd_OUT_Rd != NULL) {
-        CloseHandle(this->g_hChildStd_OUT_Rd);
-    }
-    if (this->g_hChildStd_OUT_Wr != NULL) {
-        CloseHandle(this->g_hChildStd_OUT_Wr);
-    }
-    if (this->g_hChildStd_ERR_Rd != NULL) {
-        CloseHandle(this->g_hChildStd_ERR_Rd);
-    }
-    if (this->g_hChildStd_ERR_Wr != NULL) {
-        CloseHandle(this->g_hChildStd_ERR_Wr);
-    }
-    if (this->g_hChildStd_IN_Rd != NULL) {
-        CloseHandle(this->g_hChildStd_IN_Rd);
-    }
-    if (this->g_hChildStd_IN_Wr != NULL) {
-        CloseHandle(this->g_hChildStd_IN_Wr);
-    }
-#endif
+    this->pid = 0;
+    this->appID.clear();
+    this->appName.clear();
+    this->execPath.clear();
+    this->execArgs.clear();
+    this->appSource.clear();
+    this->updatePath.clear();
+    this->role.clear();
+    this->updateLastCheck.clear();
+    this->updateLastUpdate.clear();
+    this->updateLastFail.clear();
+    this->updateLastFailReason.clear();
+    this->containerID = 0;
 }
 
 unsigned long RunningApp::getPID()
@@ -196,69 +189,6 @@ void RunningApp::setUpdateLastFailReason(const std::string& updateLastFailReason
     this->updateLastFailReason = updateLastFailReason;
 }
 
-#ifdef _WIN32
-HANDLE* RunningApp::getStdOutRead()
-{
-    return &this->g_hChildStd_OUT_Rd;
-}
-
-HANDLE* RunningApp::getStdOutWrite()
-{
-    return &this->g_hChildStd_OUT_Wr;
-}
-
-HANDLE* RunningApp::getStdErrRead()
-{
-    return &this->g_hChildStd_ERR_Rd;
-}
-
-HANDLE* RunningApp::getStdErrWrite()
-{
-    return &this->g_hChildStd_ERR_Wr;
-}
-
-HANDLE* RunningApp::getStdInRead()
-{
-    return &this->g_hChildStd_IN_Rd;
-}
-
-HANDLE* RunningApp::getStdInWrite()
-{
-    return &this->g_hChildStd_IN_Wr;
-}
-
-HANDLE RunningApp::getStdOutReadHandle()
-{
-    return this->g_hChildStd_OUT_Rd;
-}
-
-HANDLE RunningApp::getStdOutWriteHandle()
-{
-    return this->g_hChildStd_OUT_Wr;
-}
-
-HANDLE RunningApp::getStdErrReadHandle()
-{
-    return this->g_hChildStd_ERR_Rd;
-}
-
-HANDLE RunningApp::getStdErrWriteHandle()
-{
-    return this->g_hChildStd_ERR_Wr;
-}
-
-HANDLE RunningApp::getStdInReadHandle()
-{
-    return this->g_hChildStd_IN_Rd;
-}
-
-HANDLE RunningApp::getStdInWriteHandle()
-{
-    return this->g_hChildStd_IN_Wr;
-}
-#endif
-
-#ifdef __linux__
 int RunningApp::getStdOutRead()
 {
     return this->g_hChildStd_OUT_Rd;
@@ -323,4 +253,3 @@ void RunningApp::setStdInWrite(int fd)
 {
     this->g_hChildStd_IN_Wr = fd;
 }
-#endif

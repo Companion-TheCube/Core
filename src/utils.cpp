@@ -38,12 +38,7 @@ SOFTWARE.
 
 void genericSleep(int ms)
 {
-#ifdef __linux__
     usleep(ms * 1000);
-#endif
-#ifdef _WIN32
-    Sleep(ms);
-#endif
 }
 
 void monitorMemoryAndCPU()
@@ -54,12 +49,6 @@ void monitorMemoryAndCPU()
 
 std::string getMemoryFootprint()
 {
-#ifdef _WIN32
-    PROCESS_MEMORY_COUNTERS pmc;
-    GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc));
-    return std::to_string(pmc.WorkingSetSize / 1024) + " KB";
-#endif
-#ifdef __linux__
     std::ifstream file("/proc/self/status");
     std::string line;
     while (std::getline(file, line)) {
@@ -70,86 +59,10 @@ std::string getMemoryFootprint()
         }
     }
     return "0";
-#endif
 }
 
 std::string getCpuUsage()
 {
-#ifdef _WIN32
-    FILETIME idleTime, kernelTime, userTime;
-    if (GetSystemTimes(&idleTime, &kernelTime, &userTime) == 0) {
-        return "0";
-    }
-    static ULONGLONG lastIdleTime = 0;
-    static ULONGLONG lastKernelTime = 0;
-    static ULONGLONG lastUserTime = 0;
-    ULONGLONG idle = (reinterpret_cast<ULARGE_INTEGER*>(&idleTime)->QuadPart - lastIdleTime);
-    ULONGLONG kernel = (reinterpret_cast<ULARGE_INTEGER*>(&kernelTime)->QuadPart - lastKernelTime);
-    ULONGLONG user = (reinterpret_cast<ULARGE_INTEGER*>(&userTime)->QuadPart - lastUserTime);
-    ULONGLONG total = kernel + user;
-    lastIdleTime = reinterpret_cast<ULARGE_INTEGER*>(&idleTime)->QuadPart;
-    lastKernelTime = reinterpret_cast<ULARGE_INTEGER*>(&kernelTime)->QuadPart;
-    lastUserTime = reinterpret_cast<ULARGE_INTEGER*>(&userTime)->QuadPart;
-    std::string returnString = "Overall CPU: " + std::to_string((total - idle) * 100 / total) + "%   ";
-
-    static ULONGLONG lastProcessKernelTime = 0;
-    static ULONGLONG lastProcessUserTime = 0;
-    static ULONGLONG lastTime = 0;
-
-    FILETIME ftCreation, ftExit, ftKernel, ftUser;
-    ULARGE_INTEGER now, processKernelTime, processUserTime;
-
-    // Get current process times
-    if (!GetProcessTimes(GetCurrentProcess(), &ftCreation, &ftExit, &ftKernel, &ftUser)) {
-        returnString += "Process CPU: 0%";
-        return returnString;
-    }
-
-    processKernelTime.QuadPart = reinterpret_cast<ULARGE_INTEGER*>(&ftKernel)->QuadPart;
-    processUserTime.QuadPart = reinterpret_cast<ULARGE_INTEGER*>(&ftUser)->QuadPart;
-
-    // Get the current time
-    FILETIME ftNow;
-    GetSystemTimeAsFileTime(&ftNow);
-    now.QuadPart = reinterpret_cast<ULARGE_INTEGER*>(&ftNow)->QuadPart;
-
-    if (lastTime != 0) {
-        ULONGLONG systemTime = now.QuadPart - lastTime;
-        ULONGLONG processTime = (processKernelTime.QuadPart - lastProcessKernelTime) +
-                                (processUserTime.QuadPart - lastProcessUserTime);
-
-        // Get the number of logical processors
-        SYSTEM_INFO sysInfo;
-        GetSystemInfo(&sysInfo);
-        DWORD numProcessors = sysInfo.dwNumberOfProcessors;
-
-        double cpuUsage = (double(processTime) * 100.0) / (double(systemTime) * double(numProcessors));
-
-        // Update last times
-        lastProcessKernelTime = processKernelTime.QuadPart;
-        lastProcessUserTime = processUserTime.QuadPart;
-        lastTime = now.QuadPart;
-
-        // get cpuUsage as a float with 2 decimal places
-        cpuUsage = std::floor(cpuUsage * 100 + 0.5) / 100;
-        std::stringstream ss;
-        ss << std::fixed << std::setprecision(2) << cpuUsage;
-        std::string cpuUsageString = ss.str();
-
-        returnString += "Process CPU: " + cpuUsageString + "%";
-        return returnString;
-    }
-
-    // First call, initialize last times
-    lastProcessKernelTime = processKernelTime.QuadPart;
-    lastProcessUserTime = processUserTime.QuadPart;
-    lastTime = now.QuadPart;
-
-    returnString += "Process CPU: 0%";
-
-    return returnString;
-#endif
-#ifdef __linux__
     std::ifstream file("/proc/stat");
     std::string line;
     while (std::getline(file, line)) {
@@ -178,21 +91,7 @@ std::string getCpuUsage()
         }
     }
     return "0";
-#endif
 }
-
-#ifdef _WIN32
-std::string convertWCHARToString(const WCHAR* wstr) {
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-    return converter.to_bytes(wstr);
-}
-
-void convertStringToWCHAR(const std::string& str, WCHAR* wstr) {
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-    std::wstring wstrTemp = converter.from_bytes(str);
-    wcscpy(wstr, wstrTemp.c_str());
-}
-#endif
 
 std::string sha256(std::string input){
     unsigned char hash[SHA256_DIGEST_LENGTH];

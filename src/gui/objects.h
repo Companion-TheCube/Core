@@ -33,14 +33,6 @@ SOFTWARE.
 
 #ifndef OBJECTS_H
 #define OBJECTS_H
-#ifndef WIN32_INCLUDED
-#define WIN32_INCLUDED
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
-#endif
-#endif
 #include "GL/glew.h"
 #include <SFML/Graphics.hpp>
 #include <SFML/OpenGL.hpp>

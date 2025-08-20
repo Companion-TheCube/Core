@@ -38,17 +38,8 @@ SOFTWARE.
 #include <sstream>
 #include <string>
 #include <vector>
-#ifdef __linux__
 #include <spawn.h>
-#endif
-#ifndef WIN32_INCLUDED
-#define WIN32_INCLUDED
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
-#endif
-#endif
+
 
 class RunningApp {
     unsigned long pid = 0;
@@ -65,15 +56,6 @@ class RunningApp {
     std::string updateLastUpdate = "";
     std::string updateLastFail = "";
     std::string updateLastFailReason = "";
-#ifdef _WIN32
-    HANDLE g_hChildStd_OUT_Rd = NULL;
-    HANDLE g_hChildStd_OUT_Wr = NULL;
-    HANDLE g_hChildStd_ERR_Rd = NULL;
-    HANDLE g_hChildStd_ERR_Wr = NULL;
-    HANDLE g_hChildStd_IN_Rd = NULL;
-    HANDLE g_hChildStd_IN_Wr = NULL;
-#endif
-#ifdef __linux__
     int g_hChildStd_OUT_Rd = 0;
     int g_hChildStd_OUT_Wr = 0;
     int g_hChildStd_ERR_Rd = 0;
@@ -81,7 +63,6 @@ class RunningApp {
     int g_hChildStd_IN_Rd = 0;
     int g_hChildStd_IN_Wr = 0;
     posix_spawn_file_actions_t g_actions;
-#endif
 public:
     RunningApp(unsigned long pid, const std::string& appID, const std::string& appName, const std::string& execPath, const std::string& execArgs, const std::string& appSource, const std::string& updatePath, const std::string& role, const std::string& updateLastCheck, const std::string& updateLastUpdate, const std::string& updateLastFail, const std::string& updateLastFailReason, long containerID);
     ~RunningApp();
@@ -106,21 +87,6 @@ public:
     void setUpdateLastFail(const std::string& updateLastFail);
     std::string getUpdateLastFailReason();
     void setUpdateLastFailReason(const std::string& updateLastFailReason);
-#ifdef _WIN32
-    HANDLE* getStdOutRead();
-    HANDLE* getStdOutWrite();
-    HANDLE* getStdErrRead();
-    HANDLE* getStdErrWrite();
-    HANDLE* getStdInRead();
-    HANDLE* getStdInWrite();
-    HANDLE getStdOutReadHandle();
-    HANDLE getStdOutWriteHandle();
-    HANDLE getStdErrReadHandle();
-    HANDLE getStdErrWriteHandle();
-    HANDLE getStdInReadHandle();
-    HANDLE getStdInWriteHandle();
-#endif
-#ifdef __linux__
     int getStdOutRead();
     int getStdOutWrite();
     int getStdErrRead();
@@ -134,5 +100,4 @@ public:
     void setStdErrWrite(int fd);
     void setStdInRead(int fd);
     void setStdInWrite(int fd);
-#endif
 };

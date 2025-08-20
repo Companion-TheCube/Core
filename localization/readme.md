@@ -8,16 +8,11 @@ In order to enable translation in your code, you need to use the `gettext` libra
 Place the following code at the beginning of your program to include the necessary headers:
 
 ```cpp
-#ifdef __linux__
 #ifdef TRANSLATE_ENABLED
 #include <libintl.h>
 #include <locale.h>
 #define _(String) gettext(String)
 #define N_(String) String
-#else
-#define _(String) String
-#define N_(String) String
-#endif
 #else
 #define _(String) String
 #define N_(String) String

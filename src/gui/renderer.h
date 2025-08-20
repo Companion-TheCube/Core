@@ -34,14 +34,6 @@ SOFTWARE.
 #pragma once
 #ifndef RENDERER_H
 #define RENDERER_H
-#ifndef WIN32_INCLUDED
-#define WIN32_INCLUDED
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
-#endif
-#endif
 #ifndef __GLEW_H__
 #include "GL/glew.h"
 #endif

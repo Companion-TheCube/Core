@@ -38,24 +38,12 @@ SOFTWARE.
 #include <logger.h>
 #endif
 #include <string>
-#ifdef __linux__
 #include <cstdlib>
 #include <dirent.h>
 #include <iostream>
 #include <spawn.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#endif
-#ifdef _WIN32
-#ifndef WIN32_INCLUDED
-#define WIN32_INCLUDED
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
-
-#endif
-#include <tlhelp32.h>
-#endif
 #include "RunningApp.h"
 #include <algorithm>
 #include <fstream>

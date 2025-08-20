@@ -76,16 +76,12 @@ SOFTWARE.
 #include "globalSettings.h"
 #endif
 
-#ifdef __linux__
+
 #ifdef TRANSLATE_ENABLED
 #include <libintl.h>
 #include <locale.h>
 #define _(String) gettext(String)
 #define N_(String) String
-#else
-#define _(String) String
-#define N_(String) String
-#endif
 #else
 #define _(String) String
 #define N_(String) String
