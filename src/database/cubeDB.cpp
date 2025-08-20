@@ -457,6 +457,7 @@ constexpr std::string CubeDB::getInterfaceName() const
     return "CubeDB";
 }
 
+
 /**
  * @brief Base64 decode a string. Based on code from https://renenyffenegger.ch/notes/development/Base64/Encoding-and-decoding-base-64-with-cpp
  *
@@ -465,6 +466,9 @@ constexpr std::string CubeDB::getInterfaceName() const
  */
 std::vector<unsigned char> base64_decode_cube(const std::string& encoded_string)
 {
+    return cppcodec::base64_rfc4648::decode(encoded_string);
+}
+/*
     int in_len = encoded_string.size();
     int i = 0;
     int j = 0;
@@ -502,6 +506,7 @@ std::vector<unsigned char> base64_decode_cube(const std::string& encoded_string)
 
     return ret;
 }
+*/
 
 /**
  * @brief Base64 encode a string. Based on code from https://renenyffenegger.ch/notes/development/Base64/Encoding-and-decoding-base-64-with-cpp
@@ -511,6 +516,9 @@ std::vector<unsigned char> base64_decode_cube(const std::string& encoded_string)
  */
 std::string base64_encode_cube(const std::vector<unsigned char>& bytes_to_encode)
 {
+    return cppcodec::base64_rfc4648::encode(bytes_to_encode);
+}
+/*
     std::string ret;
     int i = 0;
     int j = 0;
@@ -548,6 +556,7 @@ std::string base64_encode_cube(const std::vector<unsigned char>& bytes_to_encode
 
     return ret;
 }
+*/
 
 /**
  * @brief Base64 encode a string. Based on code from https://renenyffenegger.ch/notes/development/Base64/Encoding-and-decoding-base-64-with-cpp
@@ -557,5 +566,9 @@ std::string base64_encode_cube(const std::vector<unsigned char>& bytes_to_encode
  */
 std::string base64_encode_cube(const std::string& bytes_to_encode)
 {
+    return cppcodec::base64_rfc4648::encode(std::vector<unsigned char>(bytes_to_encode.begin(), bytes_to_encode.end()));
+}
+/*
     return base64_encode_cube(std::vector<unsigned char>(bytes_to_encode.begin(), bytes_to_encode.end()));
 }
+*/

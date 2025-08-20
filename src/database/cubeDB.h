@@ -44,6 +44,7 @@ SOFTWARE.
 #include <condition_variable>
 #include <functional>
 #include <mutex>
+#include <cppcodec/base64_rfc4648.hpp>
 
 class CubeDB : public AutoRegisterAPI<CubeDB> {
     static std::shared_ptr<CubeDatabaseManager> dbManager;
