@@ -1,13 +1,4 @@
 /*
-██╗███╗   ███╗██╗   ██╗    ██████╗██████╗ ██████╗ 
-██║████╗ ████║██║   ██║   ██╔════╝██╔══██╗██╔══██╗
-██║██╔████╔██║██║   ██║   ██║     ██████╔╝██████╔╝
-██║██║╚██╔╝██║██║   ██║   ██║     ██╔═══╝ ██╔═══╝ 
-██║██║ ╚═╝ ██║╚██████╔╝██╗╚██████╗██║     ██║     
-╚═╝╚═╝     ╚═╝ ╚═════╝ ╚═╝ ╚═════╝╚═╝     ╚═╝
-*/
-
-/*
 MIT License
 
 Copyright (c) 2025 A-McD Technology LLC
@@ -31,3 +22,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+#pragma once
+#ifndef SPI_H
+#define SPI_H
+
+
+#endif// IMU_H
