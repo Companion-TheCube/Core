@@ -1,56 +1,17 @@
 #include "pi_i2c.h"
 
-// TODO: Break the I2C class out into header and implementation files like SPI class.
+// TODO: The I2C Class methods that take care of writing and reading to the I2C bus need to be rewritten so that
+// they don't have to look up the handle by string name every time. Instead, we should be able to use the index directly.
 
-// TODO: This needs a bit of a rewrite so that it is more easily used by NFC, FANCTRL, and other I2C related classes.
+unsigned int I2C::nextHandleIndex = 1; // Start from 1
 
-// Allows to return an object that represents a handle to an I2C device.
-// This object can be used to perform I2C operations on the device.
-I2CHandle::I2CHandle(int fd, uint16_t addr, bool tenbit)
-    : fd_(fd)
-    , addr_(addr)
-    , tenbit_(tenbit)
-{
-}
-
-I2CHandle::~I2CHandle()
-{
-    if (fd_ >= 0) {
-        close(fd_);
-        fd_ = -1;
-    }
-}
-
-// Prevent copying
-I2CHandle::I2CHandle(const I2CHandle&) = delete;
-
-// Allow moving
-I2CHandle::I2CHandle(I2CHandle&& other) noexcept
-    : fd_(other.fd_)
-    , addr_(other.addr_)
-    , tenbit_(other.tenbit_)
-{
-    other.fd_ = -1; // Invalidate the moved-from object
-}
-
-int I2CHandle::getFd() const { return fd_; }
-uint16_t I2CHandle::getAddress() const { return addr_; }
-bool I2CHandle::isTenBit() const { return tenbit_; }
-
-////////////////////////////////////////////////////////////////////////////////
-
-I2C::I2C() { 
-
-}
+I2C::I2C() { CubeLog::info("I2C class initialized"); }
 I2C::~I2C() { CubeLog::info("I2C class destroyed"); }
 
 // Register a logical handle for a target device address
 // addr is 7-bit by default; set tenbit=true for 10-bit addressing.
-std::expected<I2CHandle, I2CError> I2C::registerHandle(const std::string& handle,
-    uint16_t addr,
-    bool tenbit = false)
+std::expected<unsigned int, I2CError> I2C::registerHandle(const std::string& handle, uint16_t addr, bool tenbit = false)
 {
-    // TODO: move the sanitizeHandleString function to utils.h/cpp
     if (!sanitizeHandleString(handle)) {
         CubeLog::error("Invalid I2C handle name: " + handle);
         return std::unexpected(I2CError::INVALID_HANDLE);
@@ -74,24 +35,52 @@ std::expected<I2CHandle, I2CError> I2C::registerHandle(const std::string& handle
     nlohmann::json settings;
     settings["addr"] = addr;
     settings["tenbit"] = tenbit;
+    settings["index"] = I2C::nextHandleIndex;
     handles_[handle] = settings;
 
     CubeLog::info("I2C handle registered: " + handle);
-    return I2CHandle(-1, addr, tenbit); // fd will be opened on each transaction
+    return I2C::nextHandleIndex++;
 }
 
 // Same signature style as your SPI class
-std::optional<base64String> I2C::transferTx(const std::string& handle,
-    const base64String& txBase64)
+std::optional<base64String> I2C::transferTx(const unsigned int handle, const base64String& txBase64)
 {
     return writeOnly(handle, txBase64);
 }
 
-std::optional<base64String> I2C::transferTxRx(const std::string& handle,
-    const base64String& txBase64,
-    size_t rxLen)
+std::optional<base64String> I2C::transferTxRx(const unsigned int handle, const base64String& txBase64, size_t rxLen)
 {
     return writeRead(handle, txBase64, rxLen);
+}
+
+std::optional<base64String> I2C::transferTx(const std::string& handle, const base64String& txBase64)
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    nlohmann::json settings = getHandleSettings(handle);
+    if (settings.is_null()) {
+        return std::nullopt;
+    }
+    unsigned int index = settings.value("index", 0);
+    if (index == 0) {
+        CubeLog::error("I2C handle has no valid index: " + handle);
+        return std::nullopt;
+    }
+    return writeOnly(index, txBase64);
+}
+
+std::optional<base64String> I2C::transferTxRx(const std::string& handle, const base64String& txBase64, size_t rxLen)
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    nlohmann::json settings = getHandleSettings(handle);
+    if (settings.is_null()) {
+        return std::nullopt;
+    }
+    unsigned int index = settings.value("index", 0);
+    if (index == 0) {
+        CubeLog::error("I2C handle has no valid index: " + handle);
+        return std::nullopt;
+    }
+    return writeRead(index, txBase64, rxLen);
 }
 
 nlohmann::json I2C::getSettings(const std::string& handle)
@@ -156,12 +145,20 @@ bool I2C::bindAddress(int fd, uint16_t addr, bool tenbit)
 }
 
 // write-only transaction (STOP after)
-std::optional<base64String> I2C::writeOnly(const std::string& handle,
-    const base64String& txBase64)
+std::optional<base64String> I2C::writeOnly(const unsigned int handle, const base64String& txBase64)
 {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (!isHandleRegistered(handle)) {
-        CubeLog::error("I2C handle not registered: " + handle);
+    // Find handle by index
+    std::string handle_str;
+    for (const auto& kv : handles_) {
+        if (kv.second.value("index", 0) == handle) {
+            handle_str = kv.first;
+            break;
+        }
+    }
+
+    if (handle_str.empty()) {
+        CubeLog::error("I2C handle not registered for index: " + std::to_string(handle));
         return std::nullopt;
     }
 
@@ -179,8 +176,8 @@ std::optional<base64String> I2C::writeOnly(const std::string& handle,
         return std::nullopt;
     }
 
-    auto addr = static_cast<uint16_t>(handles_[handle].value("addr", 0));
-    bool tenbit = handles_[handle].value("tenbit", false);
+    auto addr = static_cast<uint16_t>(handles_[handle_str].value("addr", 0));
+    bool tenbit = handles_[handle_str].value("tenbit", false);
 
     if (!bindAddress(fd, addr, tenbit)) {
         close(fd);
@@ -202,13 +199,21 @@ std::optional<base64String> I2C::writeOnly(const std::string& handle,
 
 
 // combined repeated-start write→read in one I2C_RDWR
-std::optional<base64String> I2C::writeRead(const std::string& handle,
-    const base64String& txBase64,
-    size_t rxLen)
+std::optional<base64String> I2C::writeRead(const unsigned int handle, const base64String& txBase64, size_t rxLen)
 {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (!isHandleRegistered(handle)) {
-        CubeLog::error("I2C handle not registered: " + handle);
+    
+    // Find handle by index
+    std::string handle_str;
+    for (const auto& kv : handles_) {
+        if (kv.second.value("index", 0) == handle) {
+            handle_str = kv.first;
+            break;
+        }
+    }
+
+    if (handle_str.empty()) {
+        CubeLog::error("I2C handle not registered for index: " + std::to_string(handle));
         return std::nullopt;
     }
 
@@ -228,8 +233,8 @@ std::optional<base64String> I2C::writeRead(const std::string& handle,
         return std::nullopt;
     }
 
-    auto addr = static_cast<uint16_t>(handles_[handle].value("addr", 0));
-    bool tenbit = handles_[handle].value("tenbit", false);
+    auto addr = static_cast<uint16_t>(handles_[handle_str].value("addr", 0));
+    bool tenbit = handles_[handle_str].value("tenbit", false);
 
     if (!bindAddress(fd, addr, tenbit)) {
         close(fd);
