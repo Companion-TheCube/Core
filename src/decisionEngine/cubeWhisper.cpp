@@ -110,7 +110,6 @@ std::future<std::string> CubeWhisper::transcribe(std::shared_ptr<ThreadSafeQueue
             }
             p.set_value(result);
         });
-
     return future;
 }
 
