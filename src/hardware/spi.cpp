@@ -136,50 +136,81 @@ std::optional<base64String> SPI::transfer(const std::string& handle, const base6
         return std::nullopt;
     }
 
+    /*
+    
+    TODO:
+    The code below interacts directly with the SPI device but we need to make it so that it instead interacts with
+    the IO Bridge (which will then interact with the Pi's SPI device).
+
+    The IO Bridge is an RP2354 IC connected via SPI that provides I2C, SPI, UART, GPIO, and other interfaces to the Cube.
+    See ioBridge.h and ioBridge.cpp for more information.
+    
+    */
+
     uint8_t mode = spiHandles[handle]["mode"];
     int speed = spiHandles[handle]["speed"];
-    int fd = open(spiDevicePath.c_str(), O_RDWR);
-    if (fd < 0) {
-        CubeLog::error("Failed to open SPI device: " + spiDevicePath);
-        return std::nullopt;
-    }
+    // int fd = open(spiDevicePath.c_str(), O_RDWR | O_CLOEXEC);
+    // if (fd < 0) {
+    //     CubeLog::error("Failed to open SPI device: " + spiDevicePath);
+    //     return std::nullopt;
+    // }
 
-    // Set SPI mode
-    if (ioctl(fd, SPI_IOC_WR_MODE, &mode) == -1) {
-        CubeLog::error("Failed to set SPI mode for handle: " + handle);
-        close(fd);
-        return std::nullopt;
-    }
+    // // Set SPI mode
+    // if (ioctl(fd, SPI_IOC_WR_MODE, &mode) == -1) {
+    //     CubeLog::error("Failed to set SPI mode for handle: " + handle);
+    //     close(fd);
+    //     return std::nullopt;
+    // }
+    // // Read back SPI mode to verify
+    // uint8_t modeRead = 0;
+    // if (ioctl(fd, SPI_IOC_RD_MODE, &modeRead) == -1) {
+    //     CubeLog::error("Failed to read back SPI mode for handle: " + handle);
+    //     close(fd);
+    //     return std::nullopt;
+    // }
+    // if (modeRead != mode) {
+    //     CubeLog::error("SPI mode verification failed for handle: " + handle +
+    //                    ". Written mode: " + std::to_string(mode) +
+    //                    ", Read mode: " + std::to_string(modeRead));
+    //     close(fd);
+    //     return std::nullopt;
+    // }
 
-    // Set SPI speed
-    if (ioctl(fd, SPI_IOC_WR_MAX_SPEED_HZ, &speed) == -1) {
-        CubeLog::error("Failed to set SPI speed for handle: " + handle);
-        close(fd);
-        return std::nullopt;
-    }
+    // // Set SPI speed
+    // if (ioctl(fd, SPI_IOC_WR_MAX_SPEED_HZ, &speed) == -1) {
+    //     CubeLog::error("Failed to set SPI speed for handle: " + handle);
+    //     close(fd);
+    //     return std::nullopt;
+    // }
 
-    auto _tx_data = base64_decode_cube (txData);
-    std::vector<unsigned char> rxBytes(rxLen, 0);
+    // std::vector<unsigned char> rxBytes(rxLen, 0);
 
-    struct spi_ioc_transfer tr;
-    memset(&tr, 0, sizeof(tr));
-    tr.tx_buf = reinterpret_cast<unsigned long>(txBytes.data());
-    tr.rx_buf = reinterpret_cast<unsigned long>(rxBytes.data());
-    tr.len = txBytes.size() > rxLen ? txBytes.size() : rxLen;
-    tr.speed_hz = speed;
-    tr.delay_usecs = 0;
-    tr.bits_per_word = 8;
+    // struct spi_ioc_transfer tr;
+    // memset(&tr, 0, sizeof(tr));
+    // tr.len = txBytes.size() > rxLen ? txBytes.size() : rxLen;
+    // // if tx.len is longer than txBytes.size(), pad the rest with 0s
+    // if (tr.len > txBytes.size()) {
+    //     std::vector<unsigned char> paddedTx(tr.len, 0);
+    //     std::copy(txBytes.begin(), txBytes.end(), paddedTx.begin());
+    //     tr.tx_buf = static_cast<__u64>(reinterpret_cast<uintptr_t>(paddedTx.data()));
+    // } else {
+    //     tr.tx_buf = static_cast<__u64>(reinterpret_cast<uintptr_t>(txBytes.data()));
+    // }
+    // tr.rx_buf = static_cast<__u64>(reinterpret_cast<uintptr_t>(rxBytes.data()));
+    // tr.speed_hz = speed;
+    // tr.delay_usecs = 0;
+    // tr.bits_per_word = 8;
 
-    if (ioctl(fd, SPI_IOC_MESSAGE(1), &tr) < 1) {
-        CubeLog::error("Failed to perform SPI transfer for handle: " + handle);
-        close(fd);
-        return std::nullopt;
-    }
+    // if (ioctl(fd, SPI_IOC_MESSAGE(1), &tr) < 1) {
+    //     CubeLog::error("Failed to perform SPI transfer for handle: " + handle);
+    //     close(fd);
+    //     return std::nullopt;
+    // }
 
-    close(fd);
+    // close(fd);
 
     // Encode the received data back to base64
-    return base64_encode_cube(rxBytes);
+    return base64_encode_cube(txBytes); // TODO: Placeholder: return txBytes as rxBytes for now 
 }
 
 bool SPI::setSpiDevicePath(const std::string& path)
@@ -303,7 +334,7 @@ HttpEndPointData_t SPI::getHttpEndpointData()
             res.set_content(j.dump(), "application/json");
             res.status = 200;
             CubeLog::info("SPI.transfer called: transfer successful for handle: " + handle);
-            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "")
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
         "SPI_transfer_txrx",
         nlohmann::json({ { "type", "object" }, { "properties", { } } }),
