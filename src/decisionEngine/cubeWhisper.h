@@ -45,6 +45,8 @@ SOFTWARE.
 #include <functional>
 #include <httplib.h>
 #include <iostream>
+#include <future>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -60,14 +62,14 @@ SOFTWARE.
 class CubeWhisper {
 public:
     CubeWhisper();
-    static std::string transcribe(std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue);
+    static std::future<std::string> transcribe(std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue);
     static std::string getPartialTranscription();
 
 private:
     static std::mutex partialMutex;
     static std::string partialResult;
     static struct whisper_context* ctx;
-    std::jthread* transcriberThread;
+    static std::jthread transcriberThread;
 };
 
 #endif // CUBEWHISPER_H
