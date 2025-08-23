@@ -74,6 +74,8 @@ void API_Builder::start()
     int waitCount = 0;
     while (this->interface_objs.size() < NUM_INTERFACES && waitCount < 20) {
         CubeLog::info("Waiting for interfaces to be added. Current number of interfaces: " + std::to_string(this->interface_objs.size()));
+        CubeLog::info("Number of interfaces expected: " + std::to_string(NUM_INTERFACES));
+        // Sleep for a second to avoid busy waiting
         std::this_thread::sleep_for(std::chrono::seconds(1));
         waitCount++;
     }
@@ -97,12 +99,16 @@ void API_Builder::start()
                 if (!schema.is_null()) {
                     endpointSchemas[endpointPath] = schema;
                 }
-            } catch (...) {}
+            } catch (std::exception e) {
+                CubeLog::error("Error getting schema for endpoint " + std::get<2>(endpointData.at(i)) + ": " + e.what());
+            }
+
         }
     }
     // create an endpoint that will return the list of all endpoints as json, including the parameters and whether or not they are public
     CubeLog::info("Adding endpoint: getEndpoints at /getEndpoints");
     this->api->addEndpoint("getEndpoints", "/getEndpoints", PUBLIC_ENDPOINT | GET_ENDPOINT, [&](const httplib::Request& req, httplib::Response& res) {
+        
         nlohmann::json j;
         CubeLog::moreInfo("Returning list of endpoints as JSON");
         // iterate through all the interface objects and get their endpoint data
@@ -153,7 +159,7 @@ void API_Builder::start()
         }
     }
     staticFiles.push_back(std::filesystem::path("http/"));
-    // TODO: refactor to get rid of staticFiles vector. update: maybe not?
+    // TODO: refactor to get rid of staticFiles vector. update: maybe not? update2: perhaps there should be a hardcoded list of static files so that we don't have to search the filesystem every time?
     for (auto file : staticFiles) {
         CubeLog::info("Adding static file: " + file.string());
         // strip off the ./http/ part of the path

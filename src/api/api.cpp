@@ -222,7 +222,7 @@ void API::httpApiThreadFn()
         this->serverIPC = std::make_unique<CubeHttpServer>(ipc, 0);
         for (size_t i = 0; i < this->endpoints.size(); i++) {
             // Public endpoints are accessible by any device on the
-            // network. Non public endpoints are only available to devices that have been authenticated. The authentication process is not yet implemented.
+            // network. Non public endpoints are only available to devices that have been authenticated. The authentication process is implemented but not tested yet.
             // Non public endpoints are those that perform actions on the Cube such as displaying messages on the screen, changing the brightness, etc.
             // Public endpoints are those that provide information about the Cube such as human presence, temperature, etc.
             // Certain public endpoints should have the option to be secured as well. For example, the endpoint that provides the current state of human

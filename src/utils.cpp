@@ -120,3 +120,36 @@ std::string crc32(std::string input){
     ss << std::hex << crc;
     return ss.str();
 }
+/**
+ * @brief Base64 decode a string. Based on code from https://renenyffenegger.ch/notes/development/Base64/Encoding-and-decoding-base-64-with-cpp
+ *
+ * @param encoded_string
+ * @return std::vector<unsigned char>
+ */
+std::vector<unsigned char> base64_decode_cube(const std::string& encoded_string)
+{
+    return cppcodec::base64_rfc4648::decode(encoded_string);
+}
+
+
+/**
+ * @brief Base64 encode a string. Based on code from https://renenyffenegger.ch/notes/development/Base64/Encoding-and-decoding-base-64-with-cpp
+ *
+ * @param bytes_to_encode
+ * @return std::string
+ */
+std::string base64_encode_cube(const std::vector<unsigned char>& bytes_to_encode)
+{
+    return cppcodec::base64_rfc4648::encode(bytes_to_encode);
+}
+
+/**
+ * @brief Base64 encode a string. Based on code from https://renenyffenegger.ch/notes/development/Base64/Encoding-and-decoding-base-64-with-cpp
+ *
+ * @param bytes_to_encode std::string
+ * @return std::string
+ */
+std::string base64_encode_cube(const std::string& bytes_to_encode)
+{
+    return cppcodec::base64_rfc4648::encode(std::vector<unsigned char>(bytes_to_encode.begin(), bytes_to_encode.end()));
+}

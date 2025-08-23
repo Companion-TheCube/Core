@@ -44,6 +44,7 @@ SOFTWARE.
 #include <queue>
 #include <thread>
 #include <vector>
+#include <cppcodec/base64_rfc4648.hpp>
 
 #ifndef _TASK_QUEUE_H_
 #define _TASK_QUEUE_H_
@@ -230,6 +231,10 @@ private:
 
 std::string sha256(std::string input);
 std::string crc32(std::string input);
+
+std::vector<unsigned char> base64_decode_cube(std::string const& encoded_string);
+std::string base64_encode_cube(const std::vector<unsigned char>& bytes_to_encode);
+std::string base64_encode_cube(const std::string& bytes_to_encode);
 
 #endif
 #endif // UTILS_H

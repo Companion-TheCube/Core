@@ -44,7 +44,7 @@ SOFTWARE.
 #include <condition_variable>
 #include <functional>
 #include <mutex>
-#include <cppcodec/base64_rfc4648.hpp>
+#include <utils.h>
 
 class CubeDB : public AutoRegisterAPI<CubeDB> {
     static std::shared_ptr<CubeDatabaseManager> dbManager;
@@ -68,18 +68,5 @@ public:
     constexpr std::string getInterfaceName() const override;
 };
 
-// static const std::string base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-//                                         "abcdefghijklmnopqrstuvwxyz"
-//                                         "0123456789+/";
-
-// static inline bool is_base64(unsigned char c)
-// {
-//     return (isalnum(c) || (c == '+') || (c == '/'));
-// }
-
-// TODO: move these to the utils.h file
-std::vector<unsigned char> base64_decode_cube(std::string const& encoded_string);
-std::string base64_encode_cube(const std::vector<unsigned char>& bytes_to_encode);
-std::string base64_encode_cube(const std::string& bytes_to_encode);
 
 #endif // CUBEDB_H
