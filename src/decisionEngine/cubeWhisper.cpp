@@ -34,15 +34,88 @@ SOFTWARE.
 // CubeWhisper implementation: placeholder that will wrap whisper.cpp APIs.
 // For now, logs initialization and returns a canned transcription.
 #include "cubeWhisper.h"
+#include <future>
+#include <sstream>
+
+// static members
+whisper_context* CubeWhisper::ctx = nullptr;
+std::mutex CubeWhisper::partialMutex;
+std::string CubeWhisper::partialResult;
+std::jthread CubeWhisper::transcriberThread;
 
 CubeWhisper::CubeWhisper()
 {
-    // TODO: initialize whisper.cpp library and load model(s) in a background thread
+    if (!ctx) {
+        ctx = whisper_init_from_file("libraries/whisper_models/large.bin");
+        if (!ctx)
+            CubeLog::error("Failed to load Whisper model");
+    }
     CubeLog::info("CubeWhisper initialized");
 }
 
-std::string CubeWhisper::transcribe(const std::string& audio)
+std::future<std::string> CubeWhisper::transcribe(std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue)
 {
-    CubeLog::info("Transcribing audio");
-    return "This is a test transcription";
+    std::promise<std::string> promise;
+    auto future = promise.get_future();
+
+    if (!ctx) {
+        CubeLog::error("Whisper context not initialized");
+        promise.set_value("");
+        return future;
+    }
+
+    transcriberThread = std::jthread(
+        [audioQueue, p = std::move(promise)]() mutable {
+            whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
+            params.print_progress = false;
+            params.print_realtime = false;
+            params.print_timestamps = false;
+
+            std::vector<float> pcmf32;
+            {
+                std::lock_guard<std::mutex> lk(partialMutex);
+                partialResult.clear();
+            }
+
+            while (true) {
+                auto dataOpt = audioQueue->pop();
+                if (!dataOpt || dataOpt->empty()) {
+                    break;
+                }
+
+                pcmf32.reserve(pcmf32.size() + dataOpt->size());
+                for (int16_t s : *dataOpt)
+                    pcmf32.push_back(static_cast<float>(s) / 32768.0f);
+
+                if (whisper_full(ctx, params, pcmf32.data(), pcmf32.size()) != 0) {
+                    CubeLog::error("whisper_full failed");
+                    break;
+                }
+
+                std::stringstream ss;
+                int n = whisper_full_n_segments(ctx);
+                for (int i = 0; i < n; ++i)
+                    ss << whisper_full_get_segment_text(ctx, i);
+
+                {
+                    std::lock_guard<std::mutex> lk(partialMutex);
+                    partialResult = ss.str();
+                }
+            }
+
+            std::string result;
+            {
+                std::lock_guard<std::mutex> lk(partialMutex);
+                result = partialResult;
+            }
+            p.set_value(result);
+        });
+
+    return future;
+}
+
+std::string CubeWhisper::getPartialTranscription()
+{
+    std::lock_guard<std::mutex> lk(partialMutex);
+    return partialResult;
 }

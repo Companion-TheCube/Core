@@ -45,22 +45,31 @@ SOFTWARE.
 #include <functional>
 #include <httplib.h>
 #include <iostream>
+#include <future>
+#include <memory>
+#include <mutex>
 #include <string>
 #include <thread>
+#include <vector>
 #ifndef LOGGER_H
 #include <logger.h>
 #endif
 #include "nlohmann/json.hpp"
+#include "threadsafeQueue.h"
 #include "utils.h"
 #include "whisper.h"
 
 class CubeWhisper {
 public:
     CubeWhisper();
-    static std::string transcribe(const std::string& audio);
+    static std::future<std::string> transcribe(std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue);
+    static std::string getPartialTranscription();
 
 private:
-    std::jthread* transcriberThread;
+    static std::mutex partialMutex;
+    static std::string partialResult;
+    static struct whisper_context* ctx;
+    static std::jthread transcriberThread;
 };
 
 #endif // CUBEWHISPER_H
