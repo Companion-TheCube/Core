@@ -153,3 +153,10 @@ std::string base64_encode_cube(const std::string& bytes_to_encode)
 {
     return cppcodec::base64_rfc4648::encode(std::vector<unsigned char>(bytes_to_encode.begin(), bytes_to_encode.end()));
 }
+
+bool sanitizeHandleString(const std::string& handle) {
+    // Allow only alphanumeric characters and underscores
+    return std::all_of(handle.begin(), handle.end(), [](char c) {
+        return std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-' || c == '.';
+    });
+}

@@ -46,8 +46,6 @@ There should be a separate SPI class for registering handles.
 
 #include "spi.h"
 
-bool sanitizeHandleString(const std::string& handle);
-
 SPI::SPI()
 {
     CubeLog::info("SPI class initialized");
@@ -355,9 +353,3 @@ HttpEndPointData_t SPI::getHttpEndpointData()
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool sanitizeHandleString(const std::string& handle) {
-    // Allow only alphanumeric characters and underscores
-    return std::all_of(handle.begin(), handle.end(), [](char c) {
-        return std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-' || c == '.';
-    });
-}
