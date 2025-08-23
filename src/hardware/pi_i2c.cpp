@@ -20,6 +20,8 @@
 
 // TODO: Break the I2C class out into header and implementation files like SPI class.
 
+// TODO: This needs a bit of a rewrite so that it is more easily used by NFC, FANCTRL, and other I2C related classes.
+
 enum class I2CError {
     INVALID_HANDLE,
     HANDLE_ALREADY_REGISTERED,
