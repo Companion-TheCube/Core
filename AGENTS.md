@@ -8,6 +8,7 @@
 - Build output: `build/bin/` with resources copied to `build/bin/{shaders,meshes,fonts,http,data,apps}`.
 
 ## Build, Test, and Development Commands
+- Do not attempt to build unless specifically ask to. Building will fail without the required dependencies.
 - Configure (Debug): `cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug`
 - Build: `cmake --build build -j`
 - Run (Linux/macOS): `./build/bin/CubeCore`
