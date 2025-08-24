@@ -53,6 +53,13 @@ CubeWhisper::CubeWhisper()
     CubeLog::info("CubeWhisper initialized");
 }
 
+/*
+    * Transcribe audio from the provided ThreadSafeQueue.
+    * The queue should provide vectors of int16_t PCM samples (16kHz mono).
+    * Returns a future that will hold the final transcription string.
+    * Partial transcriptions can be retrieved via getPartialTranscription().
+    * Place an empty vector in the queue to signal end of input.
+*/
 std::future<std::string> CubeWhisper::transcribe(std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue)
 {
     std::promise<std::string> promise;
