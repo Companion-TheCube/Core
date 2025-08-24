@@ -1,9 +1,9 @@
 /*
- ██████╗██╗   ██╗██████╗ ███████╗██╗    ██╗██╗  ██╗██╗███████╗██████╗ ███████╗██████╗     ██████╗██████╗ ██████╗ 
+ ██████╗██╗   ██╗██████╗ ███████╗██╗    ██╗██╗  ██╗██╗███████╗██████╗ ███████╗██████╗     ██████╗██████╗ ██████╗
 ██╔════╝██║   ██║██╔══██╗██╔════╝██║    ██║██║  ██║██║██╔════╝██╔══██╗██╔════╝██╔══██╗   ██╔════╝██╔══██╗██╔══██╗
 ██║     ██║   ██║██████╔╝█████╗  ██║ █╗ ██║███████║██║███████╗██████╔╝█████╗  ██████╔╝   ██║     ██████╔╝██████╔╝
-██║     ██║   ██║██╔══██╗██╔══╝  ██║███╗██║██╔══██║██║╚════██║██╔═══╝ ██╔══╝  ██╔══██╗   ██║     ██╔═══╝ ██╔═══╝ 
-╚██████╗╚██████╔╝██████╔╝███████╗╚███╔███╔╝██║  ██║██║███████║██║     ███████╗██║  ██║██╗╚██████╗██║     ██║     
+██║     ██║   ██║██╔══██╗██╔══╝  ██║███╗██║██╔══██║██║╚════██║██╔═══╝ ██╔══╝  ██╔══██╗   ██║     ██╔═══╝ ██╔═══╝
+╚██████╗╚██████╔╝██████╔╝███████╗╚███╔███╔╝██║  ██║██║███████║██║     ███████╗██║  ██║██╗╚██████╗██║     ██║
  ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝ ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝╚═╝ ╚═════╝╚═╝     ╚═╝
 */
 
@@ -54,12 +54,12 @@ CubeWhisper::CubeWhisper()
 }
 
 /*
-    * Transcribe audio from the provided ThreadSafeQueue.
-    * The queue should provide vectors of int16_t PCM samples (16kHz mono).
-    * Returns a future that will hold the final transcription string.
-    * Partial transcriptions can be retrieved via getPartialTranscription().
-    * Place an empty vector in the queue to signal end of input.
-*/
+ * Transcribe audio from the provided ThreadSafeQueue.
+ * The queue should provide vectors of int16_t PCM samples (16kHz mono).
+ * Returns a future that will hold the final transcription string.
+ * Partial transcriptions can be retrieved via getPartialTranscription().
+ * Place an empty vector in the queue to signal end of input.
+ */
 std::future<std::string> CubeWhisper::transcribe(std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue)
 {
     std::promise<std::string> promise;
@@ -72,7 +72,7 @@ std::future<std::string> CubeWhisper::transcribe(std::shared_ptr<ThreadSafeQueue
     }
 
     transcriberThread = std::jthread(
-        [audioQueue, p = std::move(promise)]() mutable {
+        [audioQueue, p = std::move(promise)](std::stop_token st) mutable {
             whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
             params.print_progress = false;
             params.print_realtime = false;
@@ -107,6 +107,10 @@ std::future<std::string> CubeWhisper::transcribe(std::shared_ptr<ThreadSafeQueue
                 {
                     std::lock_guard<std::mutex> lk(partialMutex);
                     partialResult = ss.str();
+                }
+
+                if (st.stop_requested()) {
+                    break;
                 }
             }
 
