@@ -24,8 +24,8 @@ jobs:
               ~/.cache
               ~/.ccache
               ~/.cmake
-            key: ${{ runner.os }}-build-${{ hashFiles('**/CMakeLists.txt') }}-${{ hashFiles('**/*.cpp', '**/*.h') }}
-            restore-keys: |
+              key: ${{ runner.os }}-build-${{ hashFiles('**/CMakeLists.txt') }}-${{ hashFiles('**/*.cpp', '**/*.h') }}
+              restore-keys: |
               ${{ runner.os }}-build-
       - name: Install dependencies
         run: sudo ./install-deps.sh
