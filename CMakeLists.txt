@@ -29,6 +29,9 @@ set(TRANSLATE_ENABLED ON)
 # Optionally sync build information and artifacts with the build server
 option(ENABLE_BUILD_SERVER "Sync build info/artifacts with server" ON)
 
+# Optionally run helper scripts from the tooling directory
+option(ENABLE_TOOLING_SCRIPTS "Run helper tooling scripts" ON)
+
 # This is a hack to make intellisense work well with a bunch of lambdas
 add_definitions(-D_ENABLE_LAMBDAS)
 
@@ -725,11 +728,12 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E echo "Copying openwakeword to apps directory"
 )
 
-
-# Ensure Python is found
-if(ENABLE_BUILD_SERVER)
+# Ensure Python is found when needed
+if(ENABLE_BUILD_SERVER OR ENABLE_TOOLING_SCRIPTS)
     find_package(Python3 REQUIRED)
+endif()
 
+if(ENABLE_BUILD_SERVER AND ENABLE_TOOLING_SCRIPTS)
     # Variables
     set(BUILD_NUMBER_HEADER "${CMAKE_SOURCE_DIR}/libraries/build_number.h")
     set(UPLOAD_ARTIFACT_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/tooling/upload_artifact.py")
@@ -808,15 +812,17 @@ else()
 endif()
 
 # ─── TODO synchronisation ────────────────────────────────────────────────────
-set(UPDATE_TODOS_SCRIPT "${CMAKE_SOURCE_DIR}/tooling/update_todos.py")
-set(TODO_MARKDOWN_FILE  "${CMAKE_SOURCE_DIR}/TODO's.md")
+if(ENABLE_TOOLING_SCRIPTS)
+    set(UPDATE_TODOS_SCRIPT "${CMAKE_SOURCE_DIR}/tooling/update_todos.py")
+    set(TODO_MARKDOWN_FILE  "${CMAKE_SOURCE_DIR}/TODO's.md")
 
-add_custom_target(update_todos
-    COMMAND ${Python3_EXECUTABLE} "${UPDATE_TODOS_SCRIPT}"
-    BYPRODUCTS "${TODO_MARKDOWN_FILE}"
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    COMMENT "Scanning source tree and refreshing TODO's.md"
-)
+    add_custom_target(update_todos
+        COMMAND ${Python3_EXECUTABLE} "${UPDATE_TODOS_SCRIPT}"
+        BYPRODUCTS "${TODO_MARKDOWN_FILE}"
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+        COMMENT "Scanning source tree and refreshing TODO's.md"
+    )
 
-# Always refresh the TODO list before we compile anything else
-add_dependencies(CubeCore update_todos)
+    # Always refresh the TODO list before we compile anything else
+    add_dependencies(CubeCore update_todos)
+endif()
