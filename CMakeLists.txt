@@ -21,7 +21,9 @@ add_definitions(-DPATCH_VERSION=${PROJECT_VERSION_PATCH})
 add_definitions(-DCPPHTTPLIB_OPENSSL_SUPPORT)
 
 # Comment out the follwoing line to disable building the BTManager application
-set(BUILD_BT_MANAGER ON)
+if(NOT DEFINED BUILD_BT_MANAGER)
+    option(BUILD_BT_MANAGER "Build the BTManager application" ON)
+endif()
 
 # Comment out the following line to disable translation
 set(TRANSLATE_ENABLED ON)
