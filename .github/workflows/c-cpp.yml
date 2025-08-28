@@ -20,13 +20,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            build
-            ~/.cache
-            ~/.ccache
-            ~/.cmake
-              key: ${{ runner.os }}-build-${{ hashFiles('**/CMakeLists.txt') }}-${{ hashFiles('**/*.cpp', '**/*.h') }}
-              restore-keys: |
-            ${{ runner.os }}-build-
+              build
+              ~/.cache
+              ~/.ccache
+              ~/.cmake
+            key: ${{ runner.os }}-build-${{ hashFiles('**/CMakeLists.txt') }}-${{ hashFiles('**/*.cpp', '**/*.h') }}
+            restore-keys: |
+              ${{ runner.os }}-build-
       - name: Install dependencies
         run: sudo ./install-deps.sh
       - name: Create SSL certs
