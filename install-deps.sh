@@ -88,10 +88,10 @@ else
   apt-get install ${APT_INSTALL_OPTS} \
     ca-certificates \
     libglew2.2 libfreetype6 libgl1 libglu1-mesa \
-    libasound2 libpulse0 \
+    libpulse0 \
     libssl3 libsodium23 libsqlite3-0 libpq5 \
     libx11-6 libxrandr2 libxcursor1 libxinerama1 libxi6 libudev1 \
-    libopenal1 libsndfile1 libflac8 libvorbis0a libvorbisfile3 libogg0 \
+    libopenal1 libsndfile1 libvorbis0a libvorbisfile3 libogg0 \
     libjpeg-turbo8 libpng16-16 zlib1g
 fi
 
