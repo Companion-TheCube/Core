@@ -411,10 +411,12 @@ endif()
 # copy ./.env file to the output directory
 if(WIN32)
     set(ENV_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Debug")
-else()  
+else()
     set(ENV_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 endif()
-file(COPY ${CMAKE_SOURCE_DIR}/.env DESTINATION ${ENV_DEST_DIR})
+if(EXISTS ${CMAKE_SOURCE_DIR}/.env)
+    file(COPY ${CMAKE_SOURCE_DIR}/.env DESTINATION ${ENV_DEST_DIR})
+endif()
 
 # Create the destination directories if they don't exist
 file(MAKE_DIRECTORY ${SHADER_DEST_DIR})
