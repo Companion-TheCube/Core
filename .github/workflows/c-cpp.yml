@@ -12,13 +12,13 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30   # ↑ allow cold builds to finish
     env:
       CC: gcc
       CXX: g++
-      # Speed up CMake/Make/Ninja parallelism; cmake --build -j will also use this implicitly
-      CMAKE_BUILD_PARALLEL_LEVEL: 8
-      # Put all third-party source/downloads somewhere we can cache
+      # Limit parallelism to fit the 2-core/7GB runner and avoid OOM
+      JOBS: 2
+      CMAKE_BUILD_PARALLEL_LEVEL: 2
       CMAKE_DL_DIR: ${{ github.workspace }}/.cache/cmake
       FETCHCONTENT_BASE_DIR: ${{ github.workspace }}/.cache/cmake
       CPM_SOURCE_CACHE: ${{ github.workspace }}/.cache/CPM
@@ -27,7 +27,6 @@ jobs:
         with:
           submodules: recursive
 
-      # --- Determine compiler versions for cache keys ---
       - name: Capture compiler versions
         id: compver
         shell: bash
@@ -35,12 +34,10 @@ jobs:
           echo "gcc=$(/usr/bin/gcc -dumpfullversion -dumpversion)" >> $GITHUB_OUTPUT
           echo "gpp=$(/usr/bin/g++ -dumpfullversion -dumpversion)" >> $GITHUB_OUTPUT
 
-      # --- Restore caches EARLY ---
       - name: Restore ccache
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.cache/ccache
+          path: ~/.cache/ccache
           key: ${{ runner.os }}-ccache-gcc${{ steps.compver.outputs.gcc }}-gpp${{ steps.compver.outputs.gpp }}-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
           restore-keys: |
             ${{ runner.os }}-ccache-gcc${{ steps.compver.outputs.gcc }}-gpp${{ steps.compver.outputs.gpp }}-
@@ -66,20 +63,15 @@ jobs:
             ${{ runner.os }}-build-gcc${{ steps.compver.outputs.gcc }}-Debug-
             ${{ runner.os }}-build-
 
-      # --- System dependencies ---
-      - name: Install dependencies
-        run: sudo ./install-deps.sh
-
-      # --- ccache enablement and tuning ---
-      - name: Install ccache
+      - name: Install dependencies (system + ninja + ccache)
         run: |
           sudo apt-get update
-          sudo apt-get install -y ccache
-          ccache --version
+          sudo apt-get install -y ninja-build ccache
+          sudo ./install-deps.sh
           ccache --set-config=max_size=500M || true
+          ccache --zero-stats || true
           ccache --show-config || true
 
-      # --- Any project setup prior to configure ---
       - name: Create SSL certs
         run: |
           cd ssl
@@ -89,10 +81,9 @@ jobs:
       - name: Copy env file
         run: cp .env.example .env
 
-      # --- Configure (point CMake at our cacheable download dirs and enable ccache) ---
-      - name: Configure
+      - name: Configure (Ninja + ccache)
         run: >
-          cmake -S . -B build
+          cmake -S . -B build -G Ninja
           -DCMAKE_BUILD_TYPE=Debug
           -DENABLE_TOOLING_SCRIPTS=OFF
           -DENABLE_BUILD_SERVER=OFF
@@ -102,19 +93,13 @@ jobs:
           -DCMAKE_DOWNLOAD_DIRECTORY="${CMAKE_DL_DIR}"
           -DFETCHCONTENT_BASE_DIR="${FETCHCONTENT_BASE_DIR}"
 
-      # --- Build ---
       - name: Build
-        run: cmake --build build -j --target CubeCoreTests
-        timeout-minutes: 10
+        timeout-minutes: 25     # ↑ was 10; let cold cache builds finish
+        run: cmake --build build --target CubeCoreTests --parallel ${JOBS}
 
-      # --- ccache stats (nice to see hits/misses) ---
       - name: ccache statistics (post-build)
         if: always()
         run: ccache -s || true
 
-      # --- Tests ---
       - name: Run tests
-        run: ctest --test-dir build -C Debug -j --output-on-failure
-
-      # --- Save caches (best-effort; cache@v4 handles this automatically when keys miss) ---
-      # No explicit "save" steps are required; cache@v4 saves on a cache miss at the end of the job.
+        run: ctest --test-dir build -C Debug -j ${JOBS} --output-on-failure
