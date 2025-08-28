@@ -81,6 +81,7 @@ public:
     // Subscribe to wake word detection events
     static void subscribeToWakeWordDetection(std::function<void()> callback)
     {
+        // TODO: This function should return a handle that can be used to unsubscribe.
         // TODO: make sure this works
         // TODO: make sure this is thread safe
         SpeechIn::wakeWordDetectionCallbacks.push_back(callback);
@@ -88,6 +89,7 @@ public:
     // Unsubscribe from wake word detection events
     static void unsubscribeFromWakeWordDetection(std::function<void()> callback)
     {
+        // TODO: This function should take a handle that was returned from subscribeToWakeWordDetection.
         // TODO: make sure this works
         // TODO: make sure this is thread safe
         // auto it = std::remove(SpeechIn::wakeWordDetectionCallbacks.begin(), SpeechIn::wakeWordDetectionCallbacks.end(), callback);
