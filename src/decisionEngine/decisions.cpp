@@ -107,7 +107,7 @@ DecisionEngineMain::DecisionEngineMain()
 
     // Initialize queues and strategy objects according to settings.
     this->audioQueue = AudioManager::audioInQueue;
-    remoteServerAPI = std::make_shared<TheCubeServer::TheCubeServerAPI>(audioQueue);
+    // remoteServerAPI = std::make_shared<TheCubeServer::TheCubeServerAPI>(audioQueue);
     intentRegistry = std::make_shared<IntentRegistry>();
     try {
         intentRegistry->registerInterface();
@@ -129,8 +129,7 @@ DecisionEngineMain::DecisionEngineMain()
     if (intentRegistry)
         intentRegistry->setFunctionRegistry(functionRegistry);
 
-    bool remoteIntentRecognition = GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::REMOTE_INTENT_RECOGNITION_ENABLED);
-    if (remoteIntentRecognition) {
+    if (GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::REMOTE_INTENT_RECOGNITION_ENABLED)) {
         intentRecognition = std::make_shared<RemoteIntentRecognition>(intentRegistry);
         (std::dynamic_pointer_cast<RemoteIntentRecognition>(intentRecognition))->setRemoteServerAPIObject(remoteServerAPI);
     } else

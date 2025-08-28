@@ -107,7 +107,7 @@ private:
     std::shared_ptr<Scheduler> scheduler;
     std::shared_ptr<TriggerManager> triggerManager;
     std::shared_ptr<Personality::PersonalityManager> personalityManager;
-    std::shared_ptr<TheCubeServer::TheCubeServerAPI> remoteServerAPI;
+    // std::shared_ptr<TheCubeServer::TheCubeServerAPI> remoteServerAPI;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////

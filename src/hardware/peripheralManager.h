@@ -37,7 +37,7 @@ SOFTWARE.
 
 #include "mmWave.h"
 #include "nfc.h"
-#include "spi.h"
+#include "io_bridge/ioBridge.h"
 #include <memory>
 
 class PeripheralManager {
