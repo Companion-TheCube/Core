@@ -64,6 +64,8 @@ SOFTWARE.
 #include <thread>
 #include <vector>
 
+// TODO: This URL should be configurable via settings or environment variable so that we
+// can point to different server instances for deployment and for user implementations.
 #define SERVER_API_URL "https://api.4thecube.com"
 
 namespace TheCubeServer {

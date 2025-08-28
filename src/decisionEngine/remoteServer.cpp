@@ -46,8 +46,11 @@ TheCubeServerAPI::TheCubeServerAPI(std::shared_ptr<ThreadSafeQueue<std::vector<i
 {
     // TODO:
     // Read the serial number from the hardwareInfo class
+    this->serialNumber = "TESTING-SERIAL-NUMBER";
     // Read the API key from the CubeDB and decrypt it
+    this->apiKey = "";
     // Read the auth key from the CubeDB and decrypt it
+    this->authKey = "";
 
     this->cli = new httplib::Client(SERVER_API_URL);
     this->cli->set_default_headers({ { "Content-Type", "application/json" },
