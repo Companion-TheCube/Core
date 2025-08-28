@@ -19,6 +19,8 @@ jobs:
           cd ssl
           ./generateCert.sh
           cd ..
+      - name: Copy env file
+        run: cp .env.example .env
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DENABLE_TOOLING_SCRIPTS=OFF -DENABLE_BUILD_SERVER=OFF
       - name: Build
