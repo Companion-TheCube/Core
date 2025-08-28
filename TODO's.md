@@ -133,14 +133,15 @@
 - [src/decisionEngine/intentRegistry.cpp:594] :
 - [src/decisionEngine/intentRegistry.h:100] : add a mutex so that the calling of execute can be thread safe
 - [src/decisionEngine/personalityManager.h:147] : add methods that allow for ramp type of expiration
-- [src/decisionEngine/remoteServer.cpp:103] :
-- [src/decisionEngine/remoteServer.cpp:200] :
+- [src/decisionEngine/remoteServer.cpp:106] :
+- [src/decisionEngine/remoteServer.cpp:203] :
 - [src/decisionEngine/remoteServer.cpp:35] while the wire format
 - [src/decisionEngine/remoteServer.cpp:41] : Implement this class
 - [src/decisionEngine/remoteServer.cpp:47] :
-- [src/decisionEngine/remoteServer.cpp:62] : Read the setting for which AI service the user wants to use.
-- [src/decisionEngine/remoteServer.cpp:89] :
-- [src/decisionEngine/remoteServer.cpp:96] :
+- [src/decisionEngine/remoteServer.cpp:65] : Read the setting for which AI service the user wants to use.
+- [src/decisionEngine/remoteServer.cpp:92] :
+- [src/decisionEngine/remoteServer.cpp:99] :
+- [src/decisionEngine/remoteServer.h:67] : This URL should be configurable via settings or environment variable so that we
 - [src/decisionEngine/scheduler.cpp:238] noted below).
 - [src/decisionEngine/scheduler.cpp:251] : check if the task should be repeated and if so, add it back to the scheduledTasks list
 - [src/decisionEngine/scheduler.cpp:59] :

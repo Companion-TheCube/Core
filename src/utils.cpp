@@ -95,10 +95,6 @@ std::string getCpuUsage()
 
 std::string sha256(std::string input){
     unsigned char hash[SHA256_DIGEST_LENGTH];
-    // SHA256_CTX sha256;
-    // SHA256_Init(&sha256);
-    // SHA256_Update(&sha256, input.c_str(), input.length());
-    // SHA256_Final(hash, &sha256);
     auto ctx = EVP_MD_CTX_new();
     EVP_DigestInit_ex(ctx, EVP_sha256(), NULL);
     EVP_DigestUpdate(ctx, input.c_str(), input.length());
