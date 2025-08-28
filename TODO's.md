@@ -20,7 +20,7 @@
 - [src/api/api.cpp:61] : // TESTING AUTHENTICATION //// remove
 - [src/api/api.h:200] : We need to make the API server is able to handle new interfaces being added at runtime.
 - [src/api/authentication.cpp:156] : add checkAuth function that only takes the app_id and returns bool if the app_id has been allowed by the user
-- [src/api/builder.cpp:156] : refactor to get rid of staticFiles vector. update: maybe not?
+- [src/api/builder.cpp:162] : refactor to get rid of staticFiles vector. update: maybe not? update2: perhaps there should be a hardcoded list of static files so that we don't have to search the filesystem every time?
 - [src/apps/appsDBManager.cpp:110] : add the interfaces for HTTP server
 - [src/apps/appsManager.cpp:1158] : Implement checking if app update is available
 - [src/apps/appsManager.cpp:1171] : Implement checking if app update is required
@@ -66,20 +66,20 @@
 - [src/audio/audioOutput.cpp:62] : The RTAudio instance needs to be instantiated in the audioManager and passed to this class and to the speechIn class.
 - [src/audio/speechIn.cpp:204] : this needs to happen in another thread so that we don't block the audio input thread
 - [src/audio/speechIn.cpp:251] : implement silence detection to determine when the user is done speaking.
-- [src/audio/speechIn.h:84] : make sure this works
-- [src/audio/speechIn.h:85] : make sure this is thread safe
-- [src/audio/speechIn.h:91] : make sure this works
-- [src/audio/speechIn.h:92] : make sure this is thread safe
+- [src/audio/speechIn.h:84] : This function should return a handle that can be used to unsubscribe.
+- [src/audio/speechIn.h:85] : make sure this works
+- [src/audio/speechIn.h:86] : make sure this is thread safe
+- [src/audio/speechIn.h:92] : This function should take a handle that was returned from subscribeToWakeWordDetection.
+- [src/audio/speechIn.h:93] : make sure this works
+- [src/audio/speechIn.h:94] : make sure this is thread safe
 - [src/database/cubeDB.cpp:216] : use this as an example for the mutex lock below.
 - [src/database/cubeDB.cpp:240] : fix this endpoint. It has testing data in it.
 - [src/database/cubeDB.cpp:282] : fix this endpoint. It has testing data in it.
 - [src/database/cubeDB.cpp:432] : endpoints to write:
 - [src/database/cubeDB.cpp:55] : Ensure app installation paths and metadata include the app IPC socket
-- [src/database/cubeDB.h:80] : move these to the utils.h file
 - [src/database/db.cpp:34] : this file needs a line by line evaluation
 - [src/database/db.h:145] : Add a "socket_location" TEXT column to the "apps" table so we can store
 - [src/database/db.h:253] : make sure all the data is sanitized before being inserted into the database.
-- [src/decisionEngine/cubeWhisper.cpp:40] : initialize whisper.cpp library and load model(s) in a background thread
 - [src/decisionEngine/decisions.cpp:84] :
 - [src/decisionEngine/functionRegistry.cpp:1041] : Suggested additional endpoints to consider implementing:
 - [src/decisionEngine/functionRegistry.cpp:295] : Treating `spec.appName` as a direct socket path is a
@@ -344,10 +344,16 @@
 - [src/hardware/bluetooth.cpp:952] : we need to add this characteristic to config json for this service
 - [src/hardware/bluetooth.cpp:980] : this section depends on the BTManager application being completed. We will need to update this section
 - [src/hardware/bluetooth.cpp:984] : Start the BTManager. The command line args for this should include the address for an http endpoint
+- [src/hardware/io_bridge/spi.cpp:139] :
+- [src/hardware/io_bridge/spi.cpp:211] : Placeholder: return txBytes as rxBytes for now
+- [src/hardware/io_bridge/spi.cpp:341] : Implement the other endpoints
 - [src/hardware/mmWave.cpp:353] : Check this
 - [src/hardware/mmWave.h:49] : add some ifdefs and defines for the port name on RasPi
 - [src/hardware/mmWave.h:50] : add ifdefs for Windows so that this will compile on Windows
 - [src/hardware/peripheralManager.cpp:36] : Implement the peripheral manager. This class will be responsible for managing all the hardware and providing the API endpoints.
+- [src/hardware/pi_i2c.cpp:3] : The I2C Class methods that take care of writing and reading to the I2C bus need to be rewritten so that
+- [src/hardware/pi_i2c.h:21] : Break the I2C class out into header and implementation files like SPI class.
+- [src/hardware/pi_i2c.h:23] : This needs a bit of a rewrite so that it is more easily used by NFC, FANCTRL, and other I2C related classes.
 - [src/hardware/wifi.cpp:225] : many of the functions below use the same boilerplate code, consider refactoring.
 - [src/hardware/wifi.cpp:34] : all of te nmcli commands can use the -t flag to get a terse version of the output. This is easier to parse and has fewer spaces. This should make it faster(?).
 - [src/hardware/wifi.cpp:35] : refactor all the nmcli commands so that the function that use it can have a more reusable version.

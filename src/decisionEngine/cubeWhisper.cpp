@@ -46,7 +46,17 @@ std::jthread CubeWhisper::transcriberThread;
 CubeWhisper::CubeWhisper()
 {
     if (!ctx) {
-        ctx = whisper_init_from_file("libraries/whisper_models/large.bin");
+        auto params = whisper_context_params{
+            .use_gpu = false,
+            .flash_attn = false,
+            .gpu_device = -1,
+            .dtw_token_timestamps = false,
+            .dtw_aheads_preset = WHISPER_AHEADS_NONE,
+            .dtw_n_top = 1,
+            .dtw_aheads = {0},
+            .dtw_mem_size = 0,
+        };
+        ctx = whisper_init_from_file_with_params("libraries/whisper_models/large.bin", params);
         if (!ctx)
             CubeLog::error("Failed to load Whisper model");
     }

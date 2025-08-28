@@ -10,7 +10,7 @@ I2C::~I2C() { CubeLog::info("I2C class destroyed"); }
 
 // Register a logical handle for a target device address
 // addr is 7-bit by default; set tenbit=true for 10-bit addressing.
-std::expected<unsigned int, I2CError> I2C::registerHandle(const std::string& handle, uint16_t addr, bool tenbit = false)
+std::expected<unsigned int, I2CError> I2C::registerHandle(const std::string& handle, uint16_t addr, bool tenbit)
 {
     if (!sanitizeHandleString(handle)) {
         CubeLog::error("Invalid I2C handle name: " + handle);

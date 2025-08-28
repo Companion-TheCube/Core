@@ -107,7 +107,7 @@ DecisionEngineMain::DecisionEngineMain()
 
     // Initialize queues and strategy objects according to settings.
     this->audioQueue = AudioManager::audioInQueue;
-    // remoteServerAPI = std::make_shared<TheCubeServer::TheCubeServerAPI>(audioQueue);
+    remoteServerAPI = std::make_shared<TheCubeServer::TheCubeServerAPI>(audioQueue);
     intentRegistry = std::make_shared<IntentRegistry>();
     try {
         intentRegistry->registerInterface();
