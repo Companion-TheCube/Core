@@ -12,6 +12,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install dependencies
         run: sudo ./install-deps.sh
+      - name: Create SSL certs
+        run: ./ssl/create-certs.sh
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DENABLE_TOOLING_SCRIPTS=OFF -DENABLE_BUILD_SERVER=OFF
       - name: Build
