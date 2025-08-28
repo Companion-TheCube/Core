@@ -5,42 +5,116 @@ on:
     branches: ["master"]
   workflow_dispatch:
 
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      CXX: g++
       CC: gcc
+      CXX: g++
+      # Speed up CMake/Make/Ninja parallelism; cmake --build -j will also use this implicitly
+      CMAKE_BUILD_PARALLEL_LEVEL: 8
+      # Put all third-party source/downloads somewhere we can cache
+      CMAKE_DL_DIR: ${{ github.workspace }}/.cache/cmake
+      FETCHCONTENT_BASE_DIR: ${{ github.workspace }}/.cache/cmake
+      CPM_SOURCE_CACHE: ${{ github.workspace }}/.cache/CPM
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - name: Cache build and dependencies
+
+      # --- Determine compiler versions for cache keys ---
+      - name: Capture compiler versions
+        id: compver
+        shell: bash
+        run: |
+          echo "gcc=$(/usr/bin/gcc -dumpfullversion -dumpversion)" >> $GITHUB_OUTPUT
+          echo "gpp=$(/usr/bin/g++ -dumpfullversion -dumpversion)" >> $GITHUB_OUTPUT
+
+      # --- Restore caches EARLY ---
+      - name: Restore ccache
         uses: actions/cache@v4
         with:
           path: |
-              build
-              ~/.cache
-              ~/.ccache
-              ~/.cmake
-              key: ${{ runner.os }}-build-${{ hashFiles('**/CMakeLists.txt') }}-${{ hashFiles('**/*.cpp', '**/*.h') }}
-              restore-keys: |
-              ${{ runner.os }}-build-
+            ~/.cache/ccache
+          key: ${{ runner.os }}-ccache-gcc${{ steps.compver.outputs.gcc }}-gpp${{ steps.compver.outputs.gpp }}-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-gcc${{ steps.compver.outputs.gcc }}-gpp${{ steps.compver.outputs.gpp }}-
+            ${{ runner.os }}-ccache-
+
+      - name: Restore CMake/FetchContent downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            .cache/cmake
+            .cache/CPM
+          key: ${{ runner.os }}-cmake-dl-gcc${{ steps.compver.outputs.gcc }}-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake', '.gitmodules') }}
+          restore-keys: |
+            ${{ runner.os }}-cmake-dl-gcc${{ steps.compver.outputs.gcc }}-
+            ${{ runner.os }}-cmake-dl-
+
+      - name: Restore CMake build directory
+        uses: actions/cache@v4
+        with:
+          path: build
+          key: ${{ runner.os }}-build-gcc${{ steps.compver.outputs.gcc }}-Debug-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake', 'install-deps.sh', '.gitmodules') }}
+          restore-keys: |
+            ${{ runner.os }}-build-gcc${{ steps.compver.outputs.gcc }}-Debug-
+            ${{ runner.os }}-build-
+
+      # --- System dependencies ---
       - name: Install dependencies
         run: sudo ./install-deps.sh
+
+      # --- ccache enablement and tuning ---
+      - name: Install ccache
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ccache
+          ccache --version
+          ccache --set-config=max_size=500M || true
+          ccache --show-config || true
+
+      # --- Any project setup prior to configure ---
       - name: Create SSL certs
         run: |
           cd ssl
           ./generateCert.sh
           cd ..
+
       - name: Copy env file
         run: cp .env.example .env
+
+      # --- Configure (point CMake at our cacheable download dirs and enable ccache) ---
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DENABLE_TOOLING_SCRIPTS=OFF -DENABLE_BUILD_SERVER=OFF -DBUILD_BT_MANAGER=OFF
+        run: >
+          cmake -S . -B build
+          -DCMAKE_BUILD_TYPE=Debug
+          -DENABLE_TOOLING_SCRIPTS=OFF
+          -DENABLE_BUILD_SERVER=OFF
+          -DBUILD_BT_MANAGER=OFF
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          -DCMAKE_DOWNLOAD_DIRECTORY="${CMAKE_DL_DIR}"
+          -DFETCHCONTENT_BASE_DIR="${FETCHCONTENT_BASE_DIR}"
+
+      # --- Build ---
       - name: Build
         run: cmake --build build -j --target CubeCoreTests
         timeout-minutes: 10
+
+      # --- ccache stats (nice to see hits/misses) ---
+      - name: ccache statistics (post-build)
+        if: always()
+        run: ccache -s || true
+
+      # --- Tests ---
       - name: Run tests
-        run: ctest --test-dir build -C Debug -j
-      
+        run: ctest --test-dir build -C Debug -j --output-on-failure
+
+      # --- Save caches (best-effort; cache@v4 handles this automatically when keys miss) ---
+      # No explicit "save" steps are required; cache@v4 saves on a cache miss at the end of the job.
