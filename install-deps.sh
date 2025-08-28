@@ -77,7 +77,7 @@ if [[ "$MODE" == "dev" ]]; then
     build-essential cmake pkg-config git python3 \
     libglew-dev libfreetype6-dev libgl1-mesa-dev libglu1-mesa-dev \
     libasound2-dev libpulse-dev \
-    libssl-dev libsodium-dev libsqlite3-dev libglm-dev libpq-dev gettext \
+    libssl-dev libsodium-dev libsqlite3-dev libglm-dev libpq-dev gettext libboost-all-dev \
     libx11-dev libxrandr-dev libxcursor-dev libxinerama-dev libxi-dev libudev-dev \
     libopenal-dev libsndfile1-dev libflac-dev libvorbis-dev libogg-dev \
     libjpeg-dev libpng-dev zlib1g-dev nlohmann-json3-dev \
