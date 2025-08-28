@@ -1,6 +1,6 @@
 [submodule "BTManager"]
 	path = BTManager
-	url = git@github.com:andrewmcdan/Companion-TheCube-BTManager.git
+	url = git@github.com:Companion-TheCube/BTManager.git
 [submodule "openwakeword"]
 	path = openwakeword
-	url = git@github.com:andrewmcdan/openwakeword.git
+	url = git@github.com:Companion-TheCube/openwakeword.git
