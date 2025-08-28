@@ -3,7 +3,8 @@ src/libs
 .VSCodeCounter
 .vscode*
 vcpkg*
-libraries
+libraries/*
+!libraries/SQLiteCpp
 .codechecker
 .env
 minimaps

@@ -4,3 +4,6 @@
 [submodule "openwakeword"]
 	path = openwakeword
 	url = git@github.com:Companion-TheCube/openwakeword.git
+[submodule "libraries/SQLiteCpp"]
+	path = libraries/SQLiteCpp
+	url = https://github.com/SRombauts/SQLiteCpp
