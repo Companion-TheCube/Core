@@ -156,7 +156,7 @@ We use [SemVer](http://semver.org/) for versioning. For the versions available, 
 ## Authors
 * **Andrew McDaniel** - *Initial work* - [AndrewMcDan](https://github.com/AndrewMcDan)
 ## License
-This project is licensed under an end user license agreement - see the [LICENSE.md]() file for details. Various parts of the project are licensed under different licenses. See the [DEPENDENCIES.md]() file for details.
+This project is licensed under the MIT License - see the [LICENSE.md]() file for details. Various parts of the project are licensed under different licenses. See the [DEPENDENCIES.md]() file for details.
 ## Contributing
 Please read [CONTRIBUTING.md]() for details on our code of conduct, and the process for submitting pull requests to us.
 ## Roadmap
@@ -168,5 +168,3 @@ Please read [CODE_OF_CONDUCT.md]() for details on our code of conduct.
 ## Acknowledgments
 * Hat tip to ChatGPT for all the help
 * Inspiration: I saw a video on [YouTube](https://youtu.be/KgEp91__0cY?t=170) that showed an Eilik Robot and thought it was dumb. Decided to make my own version that would be more useful.
-
-https://patorjk.com/software/taag/#p=display&h=0&v=0&f=ANSI%20Shadow&t=The%0ADecision%0AEngine
