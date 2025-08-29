@@ -15,7 +15,7 @@ sudo apt-get install -y \
   build-essential cmake pkg-config git python3 \
   libglew-dev libfreetype6-dev libgl1-mesa-dev libglu1-mesa-dev \
   libasound2-dev libpulse-dev \
-  libssl-dev libsodium-dev libsqlite3-dev libglm-dev libpq-dev gettext \
+  libssl-dev libsodium-dev libsqlite3-dev libglm-dev libpq-dev gettext libboost-all-dev \
   # Windowing/X11 headers used by SFML
   libx11-dev libxrandr-dev libxcursor-dev libxinerama-dev libxi-dev libudev-dev \
   # SFML audio stack
@@ -30,13 +30,12 @@ sudo apt-get update
 sudo apt-get install -y \
   ca-certificates \
   # Core runtime libs
-  libglew2.2 libfreetype6 libgl1 libglu1-mesa \
-  libasound2 libpulse0 \
+  libglew2.2 libfreetype6 libgl1 libglu1-mesa libpulse0 \
   libssl3 libsodium23 libsqlite3-0 libpq5 \
   # Windowing/X11 runtime used by SFML
   libx11-6 libxrandr2 libxcursor1 libxinerama1 libxi6 libudev1 \
   # SFML audio runtime codecs
-  libopenal1 libsndfile1 libflac8 libvorbis0a libvorbisfile3 libogg0
+  libopenal1 libsndfile1 libvorbis0a libvorbisfile3 libogg0 \
   # Images and compression runtime
   libjpeg-turbo8 libpng16-16 zlib1g
 ```
@@ -61,15 +60,16 @@ cd Companion-TheCube---Core
 3. Build the project:
 ```bash
 mkdir build
-cd build
-cmake ..
-make
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_BUILD_SERVER=ON
+# or for Debug build
+# cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DENABLE_BUILD_SERVER=ON
+cmake --build build -j --target CubeCore
 ```
 
 To skip syncing build information or artifacts with the remote server, configure with:
 
-```bash
-cmake .. -DENABLE_BUILD_SERVER=OFF
+```
+-DENABLE_BUILD_SERVER=OFF
 ```
 
 Alternatively set the environment variable `CUBECORE_OFFLINE=1` to keep the option enabled but avoid network calls during the build.
