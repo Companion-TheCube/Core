@@ -13,3 +13,5 @@ testing/
 ssl/*.key
 ssl/*.crt
 ssl/*.pem
+docs/
+Doxyfile

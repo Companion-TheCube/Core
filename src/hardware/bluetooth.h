@@ -194,7 +194,7 @@ public:
     void addService(BTService* service);
     void removeService(BTService* service);
     // CUBE API Interface
-    HttpEndPointData_t getHttpEndpointData();
+    HttpEndPointData_t getHttpEndpointData() override;
     constexpr std::string getInterfaceName() const override;
 };
 

@@ -145,7 +145,7 @@ public:
     static void showTextInputBox(const std::string& title, std::vector<std::string> fields, std::function<void(std::vector<std::string>&)> callback);
     static void showTextInputBox(const std::string& title, const std::string& field, std::function<void(std::string&)> callback);
     // API Interface
-    HttpEndPointData_t getHttpEndpointData();
+    HttpEndPointData_t getHttpEndpointData() override;
     constexpr std::string getInterfaceName() const override;
 
 private:
