@@ -148,8 +148,14 @@ std::shared_ptr<ThreadSafeQueue<std::string>> LocalTranscriber::transcribeQueue(
             if (inSpeech && (now - lastSpeech) >= std::chrono::duration<double>(hangSec)) {
                 inSpeech = false;
                 CubeLog::info("LocalTranscriber: end-of-speech detected (hangover=" + std::to_string(hangSec) + "s)");
+                // Ensure the final recognized text is delivered to both
+                // the event bus and the downstream consumer queue.
                 if (!lastText.empty()) {
+                    // Publish final to subscribers
                     TranscriptionEvents::publish(lastText, true);
+                    // Also push to decision engine consumer queue so
+                    // it receives a result even if no partials were enqueued.
+                    textQueue->push(lastText);
                 }
                 // reset state for next utterance
                 window.clear();
