@@ -78,7 +78,9 @@ public:
     Server::ServerError getServerError(){return remoteServerAPI->getServerError();}
     Server::ServerState getServerState(){return remoteServerAPI->getServerState();}
     Server::FourBit getAvailableServices(){return remoteServerAPI->services;}
-    void setRemoteServerAPIObject(std::shared_ptr<Server> remoteServerAPI){}
+    void setRemoteServerAPIObject(std::shared_ptr<Server> remoteServerAPI){
+        this->remoteServerAPI = std::move(remoteServerAPI);
+    }
 
 protected:
     std::shared_ptr<Server> remoteServerAPI;

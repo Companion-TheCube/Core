@@ -162,6 +162,40 @@ DecisionEngineMain::DecisionEngineMain()
 
     // Connect transcriber to audio input queue
     // TODO: create as a member variable a threadsafequeue for audio that we will register with speechIn and send audio to the transcriber
+
+    SpeechIn::registerWakeAudioQueue(audioQueue);
+    SpeechIn::subscribeToWakeWordDetection([this]() {
+        CubeLog::info("Wake word detected, starting transcription");
+        if (transcriber && audioQueue) {
+            auto transcription = transcriber->transcribeQueue(audioQueue);
+            // TODO: create a thread to consume the output queue and send to intent recognition
+            std::jthread([this, transcription](std::stop_token st) {
+                while (!st.stop_requested()) {
+                    auto result = transcription->pop();
+                    if (result) {
+                        CubeLog::info("Transcription result: " + *result);
+                        if (intentRecognition) {
+                            auto intent = intentRecognition->recognizeIntentAsync(*result, [this](std::shared_ptr<Intent> intent) {
+                                CubeLog::info("Recognized intent: " + (intent ? intent->getIntentName() : "null"));
+                                // TODO: Finish processing the intent
+                            });
+                            if (!intent) {
+                                CubeLog::error("Failed to start async intent recognition");
+                            }
+                        } else {
+                            CubeLog::error("Intent recognition not initialized");
+                        }
+                    } else {
+                        // No result, wait a bit before trying again
+                        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                    }
+                }
+            });
+        } else {
+            CubeLog::error("Transcriber or audio queue not initialized");
+        }
+    });
+    
 }
 
 DecisionEngineMain::~DecisionEngineMain()

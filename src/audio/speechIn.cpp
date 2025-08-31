@@ -53,6 +53,12 @@ When the wake word is detected, we'll need to tell the audioOutput class to play
 */
 
 #include "speechIn.h"
+// UNIX domain socket & errno
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
+#include <cerrno>
+#include <cstring>
 
 // Audio router
 // This class will need a reference to the decision engine so that it can pass the audio to the it.
@@ -104,7 +110,7 @@ void SpeechIn::audioInputThreadFn(std::stop_token st)
 {
     // set up rt audio
     RtAudio::Api api = RtAudio::RtAudio::LINUX_PULSE;
-    std::unique_ptr audio = std::make_unique<RtAudio>(api);
+    std::unique_ptr<RtAudio> audio = std::make_unique<RtAudio>(api);
     if (audio->getDeviceCount() == 0) {
         CubeLog::error("No audio devices found.");
         return;
@@ -125,11 +131,13 @@ void SpeechIn::audioInputThreadFn(std::stop_token st)
 
     RtAudio::StreamParameters params;
     params.deviceId = soundInInd;
-    params.nChannels = NUM_CHANNELS;
+    // Prefer mono input to simplify downstream processing
+    params.nChannels = 1; // request mono capture
     params.firstChannel = 0;
 
     RtAudio::StreamOptions options;
-    options.flags = RTAUDIO_NONINTERLEAVED | RTAUDIO_SINT16;
+    // Use non-interleaved layout; with 1 channel this is equivalent to interleaved
+    options.flags = RTAUDIO_NONINTERLEAVED;
     options.streamName = "SpeechIn";
     options.numberOfBuffers = 1;
 
@@ -155,6 +163,8 @@ void SpeechIn::audioInputThreadFn(std::stop_token st)
 void SpeechIn::writeAudioDataToSocket()
 {
     // using base64 = cppcodec::base64_rfc4648;
+    // Max number of pre-trigger blocks to retain (~5s at current config)
+    static constexpr size_t kPreTriggerMaxBlocks = (5 * SAMPLE_RATE + ROUTER_FIFO_SIZE - 1) / ROUTER_FIFO_SIZE;
     auto dataOpt = this->audioQueue->pop();
     // openwakeword creates a unix socket at /tmp/openww. We send the audio data to this socket.
     // When a wake word is detected, we "tee" audio into any registered queues.
@@ -180,12 +190,10 @@ void SpeechIn::writeAudioDataToSocket()
 
     while (dataOpt && !stopFlag.load()) {
         auto& data = *dataOpt;
-        // Add the audio data to the 5 second buffer
-        for (size_t i = 0; i < data.size(); i++) {
-            preTriggerAudioData->push(data);
-        }
-        // truncate the audio data to 5 seconds
-        while (preTriggerAudioData->size() > PRE_TRIGGER_FIFO_SIZE) {
+        // Add the audio block once to the rolling pre-trigger buffer
+        preTriggerAudioData->push(data);
+        // Truncate to maintain ~5 seconds of prior audio (by block count)
+        while (preTriggerAudioData->size() > kPreTriggerMaxBlocks) {
             preTriggerAudioData->pop();
         }
 
@@ -222,7 +230,10 @@ void SpeechIn::writeAudioDataToSocket()
                 }
                 std::thread([cb = std::move(callbacks)]() {
                     for (const auto &fn : cb) {
-                        try { fn(); }
+                        try { 
+                            CubeLog::info("Invoking wake word callback");
+                            fn(); 
+                        }
                         catch (const std::exception &e) {
                             CubeLog::error(std::string("Wake word callback error: ") + e.what());
                         } catch (...) {
@@ -294,9 +305,10 @@ void SpeechIn::writeAudioDataToSocket()
 
 int audioInputCallback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData)
 {
-    int16_t* buffer = (int16_t*)inputBuffer;
+    if (!inputBuffer || nBufferFrames == 0) return 0;
+    int16_t* buffer = static_cast<int16_t*>(inputBuffer);
     std::vector<int16_t> audioData(buffer, buffer + nBufferFrames);
-    SpeechIn::audioQueue->push(audioData);
+    SpeechIn::audioQueue->push(std::move(audioData));
     return 0;
 }
 

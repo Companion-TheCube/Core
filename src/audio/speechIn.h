@@ -39,7 +39,6 @@ SOFTWARE.
 #ifndef LOGGER_H
 #include <logger.h>
 #endif
-#include "base64_rfc4648.hpp"
 #include "threadsafeQueue.h"
 // include time library for time point
 #include <chrono>
