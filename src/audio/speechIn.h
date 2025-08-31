@@ -36,6 +36,7 @@ SOFTWARE.
 #define SPEECHIN_H
 #include "RtAudio.h"
 #include "utils.h"
+#include "audio/constants.h"
 #ifndef LOGGER_H
 #include <logger.h>
 #endif
@@ -46,27 +47,11 @@ SOFTWARE.
 #include <mutex>
 #include <functional>
 
-#define SAMPLE_RATE 16000
-#define NUM_CHANNELS 2
-#define BITS_PER_SAMPLE 16
-#define BYTES_PER_SAMPLE (BITS_PER_SAMPLE / 8)
-// Audio data from RTAudio gets stored in a FIFO buffer to be read out by
-// the speech recognition engine (openwakeword) and the decision engine.
-// Expected data type is int16_t[]
-#define ROUTER_FIFO_SIZE (1280) // 32ms of audio at 16kHz 16bit mono
-// The pre-trigger FIFO buffer is used to store audio data before the wake word
-// is detected. Once the wake word is detected, the decision engine will read
-// the audio data from the pre-trigger FIFO buffer to be analyzed for missed
-// wake words.
-// Expected data type is int16_t[]
-#define PRE_TRIGGER_FIFO_SIZE (5 * 1000 * 16) // 5 seconds of audio at 16kHz 16bit mono
-#define SILENCE_TIME (30 * SAMPLE_RATE) // 0.7 seconds of averaged audio data
-#define SILENCE_TIMEOUT (0.7 * SAMPLE_RATE) // 0.5 seconds of silence
-#define WAKEWORD_RETRIGGER_TIME (5 * 1000) // 5 seconds
+// Audio constants moved to audio/constants.h to decouple dependencies
 
 class SpeechIn {
 public:
-    SpeechIn() = default;
+    SpeechIn();
     ~SpeechIn();
 
     // Start the audio input thread

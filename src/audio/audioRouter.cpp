@@ -5,14 +5,15 @@ Copyright (c) 2025 A-McD Technology LLC
 
 #include "audioRouter.h"
 #include "wakeWordClient.h"
-#include "speechIn.h" // for SAMPLE_RATE, ROUTER_FIFO_SIZE
+#include "audio/constants.h"
+#include <chrono>
 #ifndef LOGGER_H
 #include <logger.h>
 #endif
 
 AudioRouter::AudioRouter()
 {
-    maxBlocks_ = (5 * SAMPLE_RATE + ROUTER_FIFO_SIZE - 1) / ROUTER_FIFO_SIZE;
+    maxBlocks_ = (audio::PRE_TRIGGER_SECONDS * audio::SAMPLE_RATE + audio::ROUTER_FIFO_FRAMES - 1) / audio::ROUTER_FIFO_FRAMES;
 }
 
 AudioRouter::~AudioRouter() { stop(); }
@@ -49,6 +50,9 @@ void AudioRouter::onWakeDetected()
     // Fan-out pre-trigger buffers to queues that requested them
     if (preTargetsProvider_) {
         auto preTargets = preTargetsProvider_();
+        CubeLog::info("AudioRouter wake: ringBlocks=" + std::to_string(ring_.size()) + 
+                      ", preTargets=" + std::to_string(preTargets.size()) +
+                      ", wakeTargets=" + std::to_string(currentWakeTargets_.size()));
         for (const auto& block : ring_) {
             for (auto& q : preTargets) if (q) q->push(block);
         }
@@ -58,6 +62,8 @@ void AudioRouter::onWakeDetected()
 
 void AudioRouter::run(std::stop_token st)
 {
+    using clock = std::chrono::steady_clock;
+    auto lastLog = clock::now();
     while (!st.stop_requested() && !stop_.load()) {
         auto opt = ingest_->pop();
         if (!opt) {
@@ -76,7 +82,16 @@ void AudioRouter::run(std::stop_token st)
             if (streaming_ && !currentWakeTargets_.empty()) {
                 for (auto& q : currentWakeTargets_) if (q) q->push(block);
             }
+            // periodic health log
+            auto now = clock::now();
+            if (now - lastLog > std::chrono::seconds(5)) {
+                lastLog = now;
+                size_t ingSize = ingest_->size();
+                CubeLog::debug("AudioRouter health: ringBlocks=" + std::to_string(ring_.size()) +
+                               ", ingestQ=" + std::to_string(ingSize) +
+                               ", streaming=" + std::string(streaming_ ? "true" : "false") +
+                               ", wakeTargets=" + std::to_string(currentWakeTargets_.size()));
+            }
         }
     }
 }
-

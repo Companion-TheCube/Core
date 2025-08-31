@@ -1,0 +1,53 @@
+[0/2] Re-checking globbed directories...
+[1/13] cd "/home/andrew/Documents/projects/Companion, TheCube/Companion-TheCube---Core/build" && /usr/bin/cmake -P /home/andrew/Documents/projects/Companion,\ TheCube/Companion-TheCube---Core/build/count_interfaces.cmake
+-- Number of interfaces: 14
+[2/13] Building CXX object CMakeFiles/CubeCoreLib.dir/src/audio/audioManager.cpp.o
+[3/13] Building CXX object CMakeFiles/CubeCoreLib.dir/src/audio/speechIn.cpp.o
+[4/13] Building CXX object CMakeFiles/CubeCoreLib.dir/src/audio/audioRouter.cpp.o
+[5/13] Building CXX object CMakeFiles/CubeCoreLib.dir/src/audio/wakeWordClient.cpp.o
+[6/13] Building CXX object CMakeFiles/CubeCoreLib.dir/src/decisionEngine/scheduler.cpp.o
+[7/13] Building CXX object CMakeFiles/CubeCoreLib.dir/src/decisionEngine/decisions.cpp.o
+In file included from /home/andrew/Documents/projects/Companion, TheCube/Companion-TheCube---Core/src/decisionEngine/decisions.h:79,
+                 from /home/andrew/Documents/projects/Companion, TheCube/Companion-TheCube---Core/src/decisionEngine/decisions.cpp:76:
+/home/andrew/Documents/projects/Companion, TheCube/Companion-TheCube---Core/src/decisionEngine/intentRegistry.h:207:27: warning: inline function ‘virtual constexpr std::string DecisionEngine::IntentRegistry::getInterfaceName() const’ used but never defined
+  207 |     constexpr std::string getInterfaceName() const override;
+      |                           ^~~~~~~~~~~~~~~~
+In file included from /home/andrew/Documents/projects/Companion, TheCube/Companion-TheCube---Core/src/decisionEngine/decisions.h:82:
+/home/andrew/Documents/projects/Companion, TheCube/Companion-TheCube---Core/src/decisionEngine/triggers.h:172:27: warning: inline function ‘virtual constexpr std::string DecisionEngine::TriggerManager::getInterfaceName() const’ used but never defined
+  172 |     constexpr std::string getInterfaceName() const override;
+      |                           ^~~~~~~~~~~~~~~~
+In file included from /home/andrew/Documents/projects/Companion, TheCube/Companion-TheCube---Core/src/decisionEngine/decisions.h:78:
+/home/andrew/Documents/projects/Companion, TheCube/Companion-TheCube---Core/src/decisionEngine/personalityManager.h:157:27: warning: inline function ‘virtual constexpr std::string Personality::PersonalityManager::getInterfaceName() const’ used but never defined
+  157 |     constexpr std::string getInterfaceName() const override;
+      |                           ^~~~~~~~~~~~~~~~
+[8/13] Building CXX object CMakeFiles/CubeCoreLib.dir/src/decisionEngine/intentRegistry.cpp.o
+[9/13] Building CXX object CMakeFiles/CubeCore.dir/src/main.cpp.o
+In file included from /home/andrew/Documents/projects/Companion, TheCube/Companion-TheCube---Core/src/api/authentication.h:51,
+                 from /home/andrew/Documents/projects/Companion, TheCube/Companion-TheCube---Core/src/main.h:43,
+                 from /home/andrew/Documents/projects/Companion, TheCube/Companion-TheCube---Core/src/main.cpp:54:
+/home/andrew/Documents/projects/Companion, TheCube/Companion-TheCube---Core/src/api/./../gui/gui.h:149:27: warning: inline function ‘virtual constexpr std::string GUI::getInterfaceName() const’ used but never defined
+  149 |     constexpr std::string getInterfaceName() const override;
+      |                           ^~~~~~~~~~~~~~~~
+In file included from /home/andrew/Documents/projects/Companion, TheCube/Companion-TheCube---Core/src/api/authentication.h:45:
+/home/andrew/Documents/projects/Companion, TheCube/Companion-TheCube---Core/src/api/./../database/cubeDB.h:68:27: warning: inline function ‘virtual constexpr std::string CubeDB::getInterfaceName() const’ used but never defined
+   68 |     constexpr std::string getInterfaceName() const override;
+      |                           ^~~~~~~~~~~~~~~~
+In file included from /home/andrew/Documents/projects/Companion, TheCube/Companion-TheCube---Core/src/main.cpp:50:
+/home/andrew/Documents/projects/Companion, TheCube/Companion-TheCube---Core/src/logger/logger.h:203:27: warning: inline function ‘virtual constexpr std::string CubeLog::getInterfaceName() const’ used but never defined
+  203 |     constexpr std::string getInterfaceName() const override;
+      |                           ^~~~~~~~~~~~~~~~
+/home/andrew/Documents/projects/Companion, TheCube/Companion-TheCube---Core/src/api/authentication.h:90:27: warning: inline function ‘virtual constexpr std::string CubeAuth::getInterfaceName() const’ used but never defined
+   90 |     constexpr std::string getInterfaceName() const override;
+      |                           ^~~~~~~~~~~~~~~~
+[10/13] Building CXX object CMakeFiles/CubeCoreLib.dir/src/decisionEngine/transcriber.cpp.o
+[11/13] Building CXX object CMakeFiles/CubeCoreLib.dir/src/decisionEngine/triggers.cpp.o
+[12/13] Linking CXX static library libCubeCoreLib.a
+[13/13] Linking CXX executable bin/CubeCore
+Copying shaders to output directory
+Copying meshess to output directory
+Copying black_and_white.mtl to output directory
+Copying fonts to output directory
+Copying http to output directory
+Copying data to output directory
+Copying BTManager to apps directory
+Copying openwakeword to apps directory

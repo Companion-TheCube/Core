@@ -60,6 +60,8 @@ SpeechIn::~SpeechIn()
     stop();
 }
 
+SpeechIn::SpeechIn() = default;
+
 void SpeechIn::start()
 {
     // Build components
@@ -132,4 +134,3 @@ std::vector<std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>>> SpeechIn::sn
     }
     return out;
 }
-

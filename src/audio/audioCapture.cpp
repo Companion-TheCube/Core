@@ -4,6 +4,7 @@ Copyright (c) 2025 A-McD Technology LLC
 */
 
 #include "audioCapture.h"
+#include "audio/constants.h"
 #ifndef LOGGER_H
 #include <logger.h>
 #endif
@@ -64,9 +65,9 @@ void AudioCapture::run(std::stop_token st)
         options.streamName = "AudioCapture";
         options.numberOfBuffers = 1;
 
-        unsigned int bufferFrames = 1280; // defaults to SpeechIn ROUTER_FIFO_SIZE
+        unsigned int bufferFrames = audio::ROUTER_FIFO_FRAMES; // capture block size
         CaptureCtx ctx{ queue_ };
-        audio->openStream(nullptr, &params, RTAUDIO_SINT16, 16000, &bufferFrames, &rtCallback, &ctx, &options);
+        audio->openStream(nullptr, &params, RTAUDIO_SINT16, audio::SAMPLE_RATE, &bufferFrames, &rtCallback, &ctx, &options);
         audio->startStream();
 
         while (!st.stop_requested() && !stop_.load()) {
@@ -78,4 +79,3 @@ void AudioCapture::run(std::stop_token st)
         CubeLog::error("AudioCapture: exception during run()");
     }
 }
-
