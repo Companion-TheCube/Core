@@ -109,6 +109,7 @@ private:
     std::shared_ptr<Personality::PersonalityManager> personalityManager;
     std::shared_ptr<TheCubeServer::TheCubeServerAPI> remoteServerAPI;
     std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue;
+    std::jthread transcriptionConsumerThread;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////

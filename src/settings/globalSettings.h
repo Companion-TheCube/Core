@@ -97,6 +97,9 @@ struct GlobalSettings {
         EMOTION_ANNOYANCE,
         REMOTE_INTENT_RECOGNITION_ENABLED,
         REMOTE_TRANSCRIPTION_ENABLED,
+        // Local transcriber aggregation window (seconds, fractional allowed)
+        TRANSCRIBER_MIN_SECONDS,
+        TRANSCRIBER_MAX_SECONDS,
 
         SETTING_TYPE_COUNT
     };
@@ -184,6 +187,9 @@ struct GlobalSettings {
         GlobalSettings::setSetting(SettingType::REMOTE_INTENT_RECOGNITION_ENABLED, false);
         // set the default remote transcription to false
         GlobalSettings::setSetting(SettingType::REMOTE_TRANSCRIPTION_ENABLED, false);
+        // default local transcriber aggregation window (seconds)
+        GlobalSettings::setSetting(SettingType::TRANSCRIBER_MIN_SECONDS, 2.0);
+        GlobalSettings::setSetting(SettingType::TRANSCRIBER_MAX_SECONDS, 10.0);
     }
 
     static void setSettingCB(SettingType key, std::function<void()> callback)

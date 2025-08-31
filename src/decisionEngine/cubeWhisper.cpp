@@ -57,7 +57,7 @@ bool hasWhisperMagic(const std::filesystem::path& p)
     char hdr[4] = {0};
     ifs.read(hdr, 4);
     return (ifs.gcount() == 4) &&
-           ((hdr[0]=='g'&&hdr[1]=='g'&&hdr[2]=='m'&&hdr[3]=='l') ||
+           ((hdr[0]=='l'&&hdr[1]=='m'&&hdr[2]=='g'&&hdr[3]=='g') ||
             (hdr[0]=='G'&&hdr[1]=='G'&&hdr[2]=='U'&&hdr[3]=='F'));
 }
 
@@ -85,6 +85,7 @@ std::string resolveWhisperModelPath()
             };
             for (std::string_view name : prefs) {
                 auto cand = dir / std::string(name);
+                CubeLog::info("Checking for whisper model at " + cand.string());
                 if (std::filesystem::exists(cand) && hasWhisperMagic(cand)) return cand.string();
             }
             for (auto& entry : std::filesystem::directory_iterator(dir)) {

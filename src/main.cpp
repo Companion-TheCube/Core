@@ -258,34 +258,34 @@ int main(int argc, char* argv[])
         CubeLog::info("Deleting all apps with app_id 0 to 9 from apps database.");
         CubeDB::getDBManager()->getDatabase("apps")->deleteData(DB_NS::TableNames::APPS, deleteWhereClause);
         // TODO: All the base apps should be inserted into the database and/or verified in the database here.
-        dbInsertReturnVal = CubeDB::getDBManager()->getDatabase("apps")->insertData(
-            DB_NS::TableNames::APPS,
-            { { "app_id", "2" },
-                { "app_name", "ConsoleApp1" },
-                { "role", DB_NS::Roles::NATIVE_APP },
-                { "exec_path", "apps/consoleApp1/consoleApp1" },
-                { "exec_args", "arg1 arg2 arg3 arg4" },
-                { "app_source", "test source" },
-                { "update_path", "test update path" },
-                { "update_last_check", "test last check" },
-                { "update_last_update", "test last update" },
-                { "update_last_fail", "test last fail" },
-                { "update_last_fail_reason", "test last fail reason" } }); // test insert
-        allInsertionsSuccess &= (-1 < dbInsertReturnVal);
-        dbInsertReturnVal = CubeDB::getDBManager()->getDatabase("apps")->insertData(
-            DB_NS::TableNames::APPS,
-            { { "app_id", "3" },
-                { "app_name", "ConsoleApp2" },
-                { "role", DB_NS::Roles::NATIVE_APP },
-                { "exec_path", "apps/consoleApp1/consoleApp1" },
-                { "exec_args", "arg5 arg6 arg7 arg8" },
-                { "app_source", "test source" },
-                { "update_path", "test update path" },
-                { "update_last_check", "test last check" },
-                { "update_last_update", "test last update" },
-                { "update_last_fail", "test last fail" },
-                { "update_last_fail_reason", "test last fail reason" } }); // test insert
-        allInsertionsSuccess &= (-1 < dbInsertReturnVal);
+        // dbInsertReturnVal = CubeDB::getDBManager()->getDatabase("apps")->insertData(
+        //     DB_NS::TableNames::APPS,
+        //     { { "app_id", "2" },
+        //         { "app_name", "ConsoleApp1" },
+        //         { "role", DB_NS::Roles::NATIVE_APP },
+        //         { "exec_path", "apps/consoleApp1/consoleApp1" },
+        //         { "exec_args", "arg1 arg2 arg3 arg4" },
+        //         { "app_source", "test source" },
+        //         { "update_path", "test update path" },
+        //         { "update_last_check", "test last check" },
+        //         { "update_last_update", "test last update" },
+        //         { "update_last_fail", "test last fail" },
+        //         { "update_last_fail_reason", "test last fail reason" } }); // test insert
+        // allInsertionsSuccess &= (-1 < dbInsertReturnVal);
+        // dbInsertReturnVal = CubeDB::getDBManager()->getDatabase("apps")->insertData(
+        //     DB_NS::TableNames::APPS,
+        //     { { "app_id", "3" },
+        //         { "app_name", "ConsoleApp2" },
+        //         { "role", DB_NS::Roles::NATIVE_APP },
+        //         { "exec_path", "apps/consoleApp1/consoleApp1" },
+        //         { "exec_args", "arg5 arg6 arg7 arg8" },
+        //         { "app_source", "test source" },
+        //         { "update_path", "test update path" },
+        //         { "update_last_check", "test last check" },
+        //         { "update_last_update", "test last update" },
+        //         { "update_last_fail", "test last fail" },
+        //         { "update_last_fail_reason", "test last fail reason" } }); // test insert
+        // allInsertionsSuccess &= (-1 < dbInsertReturnVal);
         dbInsertReturnVal = CubeDB::getDBManager()->getDatabase("apps")->insertData(
             DB_NS::TableNames::APPS,
             { { "app_id", "5" },

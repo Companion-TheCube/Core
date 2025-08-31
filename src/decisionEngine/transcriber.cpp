@@ -36,6 +36,7 @@ SOFTWARE.
 // These are currently stubs. Buffer/stream methods should convert audio into
 // text either by calling whisper.cpp locally or by streaming to the server.
 #include "transcriber.h"
+#include "audio/constants.h"
 
 
 namespace DecisionEngine {
@@ -78,14 +79,40 @@ std::string LocalTranscriber::transcribeStream(const int16_t* audio, size_t bufS
 std::shared_ptr<ThreadSafeQueue<std::string>> LocalTranscriber::transcribeQueue(std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue)
 {
     auto textQueue = std::make_shared<ThreadSafeQueue<std::string>>(10);
-    workerThread = std::jthread([this, audioQueue, textQueue](std::stop_token stoken) {
-        while (!stoken.stop_requested()) {
-            auto audioOpt = audioQueue->pop();
-            if (audioOpt) {
-                const auto& audioVec = *audioOpt;
-                std::string transcription = transcribeBuffer(audioVec.data(), audioVec.size());
-                textQueue->push(transcription);
+    workerThread = std::jthread([this, audioQueue, textQueue](std::stop_token st) {
+        // Aggregate short blocks into a minimum utterance length to avoid
+        // whisper "input too short" errors. Simple time-based chunking.
+        double minSec = GlobalSettings::getSettingOfType<double>(GlobalSettings::SettingType::TRANSCRIBER_MIN_SECONDS);
+        double maxSec = GlobalSettings::getSettingOfType<double>(GlobalSettings::SettingType::TRANSCRIBER_MAX_SECONDS);
+        if (minSec <= 0.1) minSec = 0.5; // clamp to sane default
+        if (maxSec < minSec) maxSec = std::max(minSec, 10.0);
+        const size_t kMinSamples = static_cast<size_t>(minSec * audio::SAMPLE_RATE);
+        const size_t kMaxSamples = static_cast<size_t>(maxSec * audio::SAMPLE_RATE);
+
+        std::vector<int16_t> buffer;
+        buffer.reserve(kMinSamples);
+
+        while (!st.stop_requested()) {
+            buffer.clear();
+            // Collect until minimum duration or stop
+            while (!st.stop_requested() && buffer.size() < kMinSamples) {
+                auto audioOpt = audioQueue->pop();
+                if (!audioOpt) continue; // defensive; pop blocks anyway
+                const auto& blk = *audioOpt;
+                if (!blk.empty()) {
+                    buffer.insert(buffer.end(), blk.begin(), blk.end());
+                    if (buffer.size() >= kMaxSamples) break;
+                }
             }
+            if (buffer.size() < kMinSamples) {
+                // interrupted or shutdown
+                continue;
+            }
+            // Transcribe the aggregated buffer as one utterance
+            CubeLog::info("LocalTranscriber: transcribing ~" + std::to_string(buffer.size() / static_cast<double>(audio::SAMPLE_RATE)) + "s of audio");
+            std::string transcription = transcribeBuffer(buffer.data(), buffer.size());
+            if (!transcription.empty())
+                textQueue->push(transcription);
         }
     });
     return textQueue;

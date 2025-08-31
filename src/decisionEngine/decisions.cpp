@@ -170,8 +170,12 @@ DecisionEngineMain::DecisionEngineMain()
         CubeLog::info("Wake word detected, starting transcription");
         if (transcriber && audioQueue) {
             auto transcription = transcriber->transcribeQueue(audioQueue);
-            // TODO: create a thread to consume the output queue and send to intent recognition
-            std::jthread([this, transcription](std::stop_token st) {
+            // Consume the output queue and send to intent recognition
+            // Persist the consumer thread on the DecisionEngineMain instance
+            if (transcriptionConsumerThread.joinable()) {
+                transcriptionConsumerThread.request_stop();
+            }
+            transcriptionConsumerThread = std::jthread([this, transcription](std::stop_token st) {
                 while (!st.stop_requested()) {
                     auto result = transcription->pop();
                     if (result) {
