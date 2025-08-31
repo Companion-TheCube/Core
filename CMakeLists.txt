@@ -716,6 +716,20 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E echo "Copying data to output directory"
 )
 
+# Copy Whisper model to runtime output directory
+set(WHISPER_MODEL_SRC "${CMAKE_SOURCE_DIR}/libraries/whisper_models/large.bin")
+if(EXISTS ${WHISPER_MODEL_SRC})
+    set(WHISPER_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/whisper_models")
+    add_custom_command(
+        TARGET CubeCore POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${WHISPER_DEST_DIR}
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${WHISPER_MODEL_SRC} ${WHISPER_DEST_DIR}/large.bin
+        COMMENT "Copying Whisper model to output directory"
+    )
+else()
+    message(WARNING "Whisper model not found at ${WHISPER_MODEL_SRC}. Skipping copy.")
+endif()
+
 # copy base apps to the apps directory
 add_custom_command(
     TARGET CubeCore POST_BUILD
