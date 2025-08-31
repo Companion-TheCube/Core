@@ -35,12 +35,14 @@ AudioCapture::~AudioCapture() { stop(); }
 
 void AudioCapture::start()
 {
+    CubeLog::info("AudioCapture: start requested");
     stop_.store(false);
     thread_ = std::jthread([this](std::stop_token st) { this->run(st); });
 }
 
 void AudioCapture::stop()
 {
+    CubeLog::info("AudioCapture: stop requested");
     stop_.store(true);
     if (thread_.joinable()) thread_.request_stop();
 }
@@ -68,12 +70,18 @@ void AudioCapture::run(std::stop_token st)
         unsigned int bufferFrames = audio::ROUTER_FIFO_FRAMES; // capture block size
         CaptureCtx ctx{ queue_ };
         audio->openStream(nullptr, &params, RTAUDIO_SINT16, audio::SAMPLE_RATE, &bufferFrames, &rtCallback, &ctx, &options);
+        auto info = audio->getDeviceInfo(deviceId);
+        CubeLog::info("AudioCapture: opening device '" + info.name + "' id=" + std::to_string(deviceId) +
+                      ", rate=" + std::to_string(audio::SAMPLE_RATE) +
+                      ", frames=" + std::to_string(bufferFrames));
         audio->startStream();
+        CubeLog::info("AudioCapture: stream started");
 
         while (!st.stop_requested() && !stop_.load()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
         audio->stopStream();
+        CubeLog::info("AudioCapture: stream stopped");
         audio->closeStream();
     } catch (...) {
         CubeLog::error("AudioCapture: exception during run()");

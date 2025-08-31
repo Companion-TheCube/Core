@@ -44,7 +44,8 @@ namespace DecisionEngine {
 // LocalTranscriber - class that interacts with the whisper class. Whisper class should be initialized and a reference to it saved for future use.
 LocalTranscriber::LocalTranscriber()
 {
-    // TODO: construct CubeWhisper and prime any resources required for STT
+    if (!cubeWhisper)
+        cubeWhisper = std::make_shared<CubeWhisper>();
 }
 LocalTranscriber::~LocalTranscriber()
 {

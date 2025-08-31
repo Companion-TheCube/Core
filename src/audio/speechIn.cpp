@@ -64,6 +64,7 @@ SpeechIn::SpeechIn() = default;
 
 void SpeechIn::start()
 {
+    CubeLog::info("SpeechIn: start requested");
     // Build components
     wwClient = std::make_unique<WakeWordClient>();
     router = std::make_unique<AudioRouter>();
@@ -72,6 +73,7 @@ void SpeechIn::start()
         []() { return SpeechIn::snapshotWakeTargets(); },
         []() { return SpeechIn::snapshotPreTriggerTargets(); }
     );
+    CubeLog::debug("SpeechIn: components created and wired");
     // When wake is detected, update router and notify subscribers
     wwClient->setOnWake([this]() {
         if (router) router->onWakeDetected();
@@ -93,13 +95,16 @@ void SpeechIn::start()
     router->start();
     wwClient->start();
     capture->start();
+    CubeLog::info("SpeechIn: started");
 }
 
 void SpeechIn::stop()
 {
+    CubeLog::info("SpeechIn: stop requested");
     if (capture) capture->stop();
     if (wwClient) wwClient->stop();
     if (router) router->stop();
+    CubeLog::info("SpeechIn: stopped");
 }
 
 // Snapshot helpers for router

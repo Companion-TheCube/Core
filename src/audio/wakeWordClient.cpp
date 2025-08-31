@@ -26,12 +26,14 @@ void WakeWordClient::setOnWake(OnWake cb) { onWake_ = std::move(cb); }
 
 void WakeWordClient::start()
 {
+    CubeLog::info("WakeWordClient: start requested");
     stop_.store(false);
     thread_ = std::jthread([this](std::stop_token st) { this->run(st); });
 }
 
 void WakeWordClient::stop()
 {
+    CubeLog::info("WakeWordClient: stop requested");
     stop_.store(true);
     if (thread_.joinable()) thread_.request_stop();
 }
@@ -64,6 +66,7 @@ void WakeWordClient::run(std::stop_token st)
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
             continue;
         }
+        CubeLog::info("WakeWordClient: connected to openwakeword socket");
 
         // Connected. Pump audio and poll for control messages.
         while (!st.stop_requested() && !stop_.load()) {
@@ -108,5 +111,6 @@ void WakeWordClient::run(std::stop_token st)
             }
         }
         close(sockfd);
+        CubeLog::debug("WakeWordClient: socket closed, will attempt reconnect if not stopping");
     }
 }

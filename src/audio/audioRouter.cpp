@@ -21,6 +21,7 @@ AudioRouter::~AudioRouter() { stop(); }
 void AudioRouter::setWakeWordClient(const std::shared_ptr<WakeWordClient>& client)
 {
     wakeClient_ = client;
+    CubeLog::debug("AudioRouter: WakeWordClient bound");
 }
 
 void AudioRouter::setProviders(TargetsProvider wakeTargets, TargetsProvider preTargets)
@@ -28,16 +29,19 @@ void AudioRouter::setProviders(TargetsProvider wakeTargets, TargetsProvider preT
 {
     wakeTargetsProvider_ = std::move(wakeTargets);
     preTargetsProvider_ = std::move(preTargets);
+    CubeLog::debug("AudioRouter: target providers set");
 }
 
 void AudioRouter::start()
 {
+    CubeLog::info("AudioRouter: start requested");
     stop_.store(false);
     thread_ = std::jthread([this](std::stop_token st) { this->run(st); });
 }
 
 void AudioRouter::stop()
 {
+    CubeLog::info("AudioRouter: stop requested");
     stop_.store(true);
     if (thread_.joinable()) thread_.request_stop();
 }
@@ -58,6 +62,7 @@ void AudioRouter::onWakeDetected()
         }
     }
     streaming_ = true;
+    CubeLog::debug("AudioRouter: streaming enabled after wake");
 }
 
 void AudioRouter::run(std::stop_token st)

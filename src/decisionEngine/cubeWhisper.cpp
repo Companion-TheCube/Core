@@ -56,7 +56,7 @@ CubeWhisper::CubeWhisper()
             .dtw_aheads = {0},
             .dtw_mem_size = 0,
         };
-        ctx = whisper_init_from_file_with_params("libraries/whisper_models/large.bin", params);
+        ctx = whisper_init_from_file_with_params("whisper_models/large.bin", params);
         if (!ctx)
             CubeLog::error("Failed to load Whisper model");
     }

@@ -80,6 +80,7 @@ public:
     Server::FourBit getAvailableServices(){return remoteServerAPI->services;}
     void setRemoteServerAPIObject(std::shared_ptr<Server> remoteServerAPI){
         this->remoteServerAPI = std::move(remoteServerAPI);
+        CubeLog::info("RemoteApi: remoteServerAPI object set");
     }
 
 protected:

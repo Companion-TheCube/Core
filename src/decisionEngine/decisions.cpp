@@ -161,9 +161,11 @@ DecisionEngineMain::DecisionEngineMain()
     personalityManager->registerInterface();
 
     // Connect transcriber to audio input queue
-    // TODO: create as a member variable a threadsafequeue for audio that we will register with speechIn and send audio to the transcriber
-
-    SpeechIn::registerWakeAudioQueue(audioQueue);
+    // Allocate a fresh audio queue and register it with SpeechIn so we receive
+    // post-wake audio blocks for transcription.
+    this->audioQueue = std::make_shared<ThreadSafeQueue<std::vector<int16_t>>>();
+    auto regId = SpeechIn::registerWakeAudioQueue(this->audioQueue);
+    CubeLog::info("DecisionEngine: audio queue created and registered with SpeechIn id=" + std::to_string(regId));
     SpeechIn::subscribeToWakeWordDetection([this]() {
         CubeLog::info("Wake word detected, starting transcription");
         if (transcriber && audioQueue) {
