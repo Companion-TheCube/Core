@@ -39,6 +39,9 @@ SOFTWARE.
 #include <filesystem>
 #include <cstdlib>
 #include <unistd.h>
+#include <fstream>
+#include <array>
+#include <string_view>
 
 // static members
 whisper_context* CubeWhisper::ctx = nullptr;
@@ -73,9 +76,15 @@ std::string resolveWhisperModelPath()
         auto base = p.parent_path();
         auto dir = base / "whisper_models";
         if (std::filesystem::exists(dir)) {
-            const char* prefs[] = { "ggml-large-v3.bin", "ggml-large.bin", "ggml-medium.en.bin", "ggml-base.en.bin", "ggml-large-v3-turbo.bin" };
-            for (auto* name : prefs) {
-                auto cand = dir / name;
+            static constexpr std::array<std::string_view, 5> prefs = {
+                "ggml-large-v3.bin",
+                "ggml-large.bin",
+                "ggml-medium.en.bin",
+                "ggml-base.en.bin",
+                "ggml-large-v3-turbo.bin"
+            };
+            for (std::string_view name : prefs) {
+                auto cand = dir / std::string(name);
                 if (std::filesystem::exists(cand) && hasWhisperMagic(cand)) return cand.string();
             }
             for (auto& entry : std::filesystem::directory_iterator(dir)) {
