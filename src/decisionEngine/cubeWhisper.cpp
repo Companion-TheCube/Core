@@ -173,7 +173,7 @@ std::future<std::string> CubeWhisper::transcribe(std::shared_ptr<ThreadSafeQueue
     transcriberThread = std::jthread(
         [audioQueue, p = std::move(promise)](std::stop_token st) mutable {
             whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
-            params.print_progress = false;
+            params.print_progress = true;
             params.print_realtime = false;
             params.print_timestamps = false;
 
