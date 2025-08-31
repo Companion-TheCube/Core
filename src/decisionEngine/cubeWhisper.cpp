@@ -36,12 +36,83 @@ SOFTWARE.
 #include "cubeWhisper.h"
 #include <future>
 #include <sstream>
+#include <filesystem>
+#include <cstdlib>
+#include <unistd.h>
 
 // static members
 whisper_context* CubeWhisper::ctx = nullptr;
 std::mutex CubeWhisper::partialMutex;
 std::string CubeWhisper::partialResult;
 std::jthread CubeWhisper::transcriberThread;
+
+namespace {
+bool hasWhisperMagic(const std::filesystem::path& p)
+{
+    std::ifstream ifs(p, std::ios::binary);
+    if (!ifs) return false;
+    char hdr[4] = {0};
+    ifs.read(hdr, 4);
+    return (ifs.gcount() == 4) &&
+           ((hdr[0]=='g'&&hdr[1]=='g'&&hdr[2]=='m'&&hdr[3]=='l') ||
+            (hdr[0]=='G'&&hdr[1]=='G'&&hdr[2]=='U'&&hdr[3]=='F'));
+}
+
+std::string resolveWhisperModelPath()
+{
+    // Priority 1: environment variable
+    if (const char* env = std::getenv("WHISPER_MODEL_PATH")) {
+        if (std::filesystem::exists(env)) return std::string(env);
+        CubeLog::warning(std::string("WHISPER_MODEL_PATH set but not found: ") + env);
+    }
+    // Priority 2: alongside binary: <bin>/whisper_models/*.{bin,gguf}
+    char exePath[4096] = {0};
+    ssize_t len = ::readlink("/proc/self/exe", exePath, sizeof(exePath) - 1);
+    if (len > 0) {
+        std::filesystem::path p(exePath);
+        auto base = p.parent_path();
+        auto dir = base / "whisper_models";
+        if (std::filesystem::exists(dir)) {
+            const char* prefs[] = { "ggml-large-v3.bin", "ggml-large.bin", "ggml-medium.en.bin", "ggml-base.en.bin", "ggml-large-v3-turbo.bin" };
+            for (auto* name : prefs) {
+                auto cand = dir / name;
+                if (std::filesystem::exists(cand) && hasWhisperMagic(cand)) return cand.string();
+            }
+            for (auto& entry : std::filesystem::directory_iterator(dir)) {
+                auto sp = entry.path();
+                if (!sp.has_extension()) continue;
+                auto ext = sp.extension().string();
+                if (ext == ".bin" || ext == ".gguf") {
+                    if (hasWhisperMagic(sp)) return sp.string();
+                }
+            }
+        }
+    }
+    // Priority 3: CWD-relative: scan directory
+    if (std::filesystem::exists("whisper_models")) {
+        for (auto& entry : std::filesystem::directory_iterator("whisper_models")) {
+            auto sp = entry.path();
+            if (!sp.has_extension()) continue;
+            auto ext = sp.extension().string();
+            if (ext == ".bin" || ext == ".gguf") {
+                if (hasWhisperMagic(sp)) return sp.string();
+            }
+        }
+    }
+    // Priority 4: repo path
+    if (std::filesystem::exists("libraries/whisper_models")) {
+        for (auto& entry : std::filesystem::directory_iterator("libraries/whisper_models")) {
+            auto sp = entry.path();
+            if (!sp.has_extension()) continue;
+            auto ext = sp.extension().string();
+            if (ext == ".bin" || ext == ".gguf") {
+                if (hasWhisperMagic(sp)) return sp.string();
+            }
+        }
+    }
+    return {};
+}
+}
 
 CubeWhisper::CubeWhisper()
 {
@@ -56,11 +127,19 @@ CubeWhisper::CubeWhisper()
             .dtw_aheads = {0},
             .dtw_mem_size = 0,
         };
-        ctx = whisper_init_from_file_with_params("whisper_models/large.bin", params);
+        auto modelPath = resolveWhisperModelPath();
+        if (modelPath.empty()) {
+            CubeLog::error("CubeWhisper: Whisper model not found in expected locations");
+        } else {
+            CubeLog::info("CubeWhisper: loading model from " + modelPath);
+            ctx = whisper_init_from_file_with_params(modelPath.c_str(), params);
+        }
         if (!ctx)
-            CubeLog::error("Failed to load Whisper model");
+            CubeLog::error("CubeWhisper: failed to load Whisper model (bad magic or incompatible format). "
+                            "Ensure you have a ggml/gguf model like ggml-large-v3.bin in whisper_models.");
+        else
+            CubeLog::info("CubeWhisper: model loaded successfully");
     }
-    CubeLog::info("CubeWhisper initialized");
 }
 
 /*
