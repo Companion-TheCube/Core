@@ -37,6 +37,7 @@ SOFTWARE.
 // text either by calling whisper.cpp locally or by streaming to the server.
 #include "transcriber.h"
 #include "audio/constants.h"
+#include "transcriptionEvents.h"
 
 
 namespace DecisionEngine {
@@ -80,39 +81,79 @@ std::shared_ptr<ThreadSafeQueue<std::string>> LocalTranscriber::transcribeQueue(
 {
     auto textQueue = std::make_shared<ThreadSafeQueue<std::string>>(10);
     workerThread = std::jthread([this, audioQueue, textQueue](std::stop_token st) {
-        // Aggregate short blocks into a minimum utterance length to avoid
-        // whisper "input too short" errors. Simple time-based chunking.
-        double minSec = GlobalSettings::getSettingOfType<double>(GlobalSettings::SettingType::TRANSCRIBER_MIN_SECONDS);
-        double maxSec = GlobalSettings::getSettingOfType<double>(GlobalSettings::SettingType::TRANSCRIBER_MAX_SECONDS);
+        // Streaming: maintain a rolling window and transcribe at a fixed step
+        double minSec  = GlobalSettings::getSettingOfType<double>(GlobalSettings::SettingType::TRANSCRIBER_MIN_SECONDS);
+        double maxSec  = GlobalSettings::getSettingOfType<double>(GlobalSettings::SettingType::TRANSCRIBER_MAX_SECONDS);
+        double stepSec = GlobalSettings::getSettingOfType<double>(GlobalSettings::SettingType::TRANSCRIBER_STEP_SECONDS);
+        if (stepSec <= 0.05) stepSec = std::max(0.25, minSec/2.0);
         if (minSec <= 0.1) minSec = 0.5; // clamp to sane default
         if (maxSec < minSec) maxSec = std::max(minSec, 10.0);
-        const size_t kMinSamples = static_cast<size_t>(minSec * audio::SAMPLE_RATE);
-        const size_t kMaxSamples = static_cast<size_t>(maxSec * audio::SAMPLE_RATE);
+        const size_t kMinSamples  = static_cast<size_t>(minSec  * audio::SAMPLE_RATE);
+        const size_t kMaxSamples  = static_cast<size_t>(maxSec  * audio::SAMPLE_RATE);
+        const size_t kStepSamples = static_cast<size_t>(stepSec * audio::SAMPLE_RATE);
 
-        std::vector<int16_t> buffer;
-        buffer.reserve(kMinSamples);
+        // VAD + hangover
+        double vadTh   = GlobalSettings::getSettingOfType<double>(GlobalSettings::SettingType::TRANSCRIBER_VAD_THRESHOLD); // normalized
+        double hangSec = GlobalSettings::getSettingOfType<double>(GlobalSettings::SettingType::TRANSCRIBER_VAD_HANGOVER_SECONDS);
+        if (vadTh <= 0.0) vadTh = 0.015; // default
+        if (hangSec < 0.1) hangSec = 0.25;
+
+        std::vector<int16_t> window;
+        window.reserve(kMaxSamples);
+        size_t lastProcessed = 0; // number of samples processed so far
+        std::string lastText;
+        bool inSpeech = false;
+        auto lastSpeech = std::chrono::steady_clock::now();
+        auto lastStep   = std::chrono::steady_clock::now();
 
         while (!st.stop_requested()) {
-            buffer.clear();
-            // Collect until minimum duration or stop
-            while (!st.stop_requested() && buffer.size() < kMinSamples) {
-                auto audioOpt = audioQueue->pop();
-                if (!audioOpt) continue; // defensive; pop blocks anyway
-                const auto& blk = *audioOpt;
-                if (!blk.empty()) {
-                    buffer.insert(buffer.end(), blk.begin(), blk.end());
-                    if (buffer.size() >= kMaxSamples) break;
+            auto audioOpt = audioQueue->pop();
+            if (!audioOpt) continue;
+            const auto& blk = *audioOpt;
+            if (blk.empty()) continue;
+            // append and clip to max window
+            if (window.size() + blk.size() > kMaxSamples) {
+                size_t overflow = window.size() + blk.size() - kMaxSamples;
+                if (overflow < window.size())
+                    window.erase(window.begin(), window.begin() + overflow);
+                else
+                    window.clear();
+                // reset processed baseline when we drop old data
+                if (lastProcessed > window.size()) lastProcessed = 0;
+            }
+            window.insert(window.end(), blk.begin(), blk.end());
+
+            // VAD on current block
+            double sumsq = 0.0; for (int16_t s : blk) { double x = s/32768.0; sumsq += x*x; }
+            double rms = blk.empty() ? 0.0 : std::sqrt(sumsq / blk.size());
+            if (rms >= vadTh) { inSpeech = true; lastSpeech = std::chrono::steady_clock::now(); }
+
+            auto now = std::chrono::steady_clock::now();
+            if (inSpeech && window.size() >= kMinSamples &&
+                ((window.size() - lastProcessed) >= kStepSamples || (now - lastStep) >= std::chrono::duration<double>(stepSec))) {
+                CubeLog::debug("LocalTranscriber: streaming transcribe win= " +
+                               std::to_string(window.size() / static_cast<double>(audio::SAMPLE_RATE)) + "s");
+                std::string text = CubeWhisper::transcribeSync(window);
+                lastProcessed = window.size();
+                lastStep = now;
+                if (!text.empty() && text != lastText) {
+                    lastText = text;
+                    textQueue->push(text);
+                    TranscriptionEvents::publish(text, false);
                 }
             }
-            if (buffer.size() < kMinSamples) {
-                // interrupted or shutdown
-                continue;
+
+            // end of speech detection via hangover
+            if (inSpeech && (now - lastSpeech) >= std::chrono::duration<double>(hangSec)) {
+                inSpeech = false;
+                if (!lastText.empty()) {
+                    TranscriptionEvents::publish(lastText, true);
+                }
+                // reset state for next utterance
+                window.clear();
+                lastText.clear();
+                lastProcessed = 0;
             }
-            // Transcribe the aggregated buffer as one utterance
-            CubeLog::info("LocalTranscriber: transcribing ~" + std::to_string(buffer.size() / static_cast<double>(audio::SAMPLE_RATE)) + "s of audio");
-            std::string transcription = transcribeBuffer(buffer.data(), buffer.size());
-            if (!transcription.empty())
-                textQueue->push(transcription);
         }
     });
     return textQueue;

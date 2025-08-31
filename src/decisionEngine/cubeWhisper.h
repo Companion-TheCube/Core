@@ -64,6 +64,10 @@ public:
     CubeWhisper();
     static std::future<std::string> transcribe(std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue);
     static std::string getPartialTranscription();
+    // Synchronous transcription of a single PCM16 buffer.
+    // Returns full text for the provided samples. Non-streaming convenience for
+    // sliding-window style processing.
+    static std::string transcribeSync(const std::vector<int16_t>& pcm16);
 
 private:
     static std::mutex partialMutex;

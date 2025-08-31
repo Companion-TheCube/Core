@@ -100,6 +100,9 @@ struct GlobalSettings {
         // Local transcriber aggregation window (seconds, fractional allowed)
         TRANSCRIBER_MIN_SECONDS,
         TRANSCRIBER_MAX_SECONDS,
+        TRANSCRIBER_STEP_SECONDS,
+        TRANSCRIBER_VAD_THRESHOLD,
+        TRANSCRIBER_VAD_HANGOVER_SECONDS,
 
         SETTING_TYPE_COUNT
     };
@@ -190,6 +193,9 @@ struct GlobalSettings {
         // default local transcriber aggregation window (seconds)
         GlobalSettings::setSetting(SettingType::TRANSCRIBER_MIN_SECONDS, 2.0);
         GlobalSettings::setSetting(SettingType::TRANSCRIBER_MAX_SECONDS, 10.0);
+        GlobalSettings::setSetting(SettingType::TRANSCRIBER_STEP_SECONDS, 0.5);
+        GlobalSettings::setSetting(SettingType::TRANSCRIBER_VAD_THRESHOLD, 0.015);
+        GlobalSettings::setSetting(SettingType::TRANSCRIBER_VAD_HANGOVER_SECONDS, 0.25);
     }
 
     static void setSettingCB(SettingType key, std::function<void()> callback)
