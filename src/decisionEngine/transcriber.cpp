@@ -38,6 +38,7 @@ SOFTWARE.
 #include "transcriber.h"
 #include "audio/constants.h"
 #include "transcriptionEvents.h"
+#include <cmath>
 
 
 namespace DecisionEngine {
@@ -131,7 +132,7 @@ std::shared_ptr<ThreadSafeQueue<std::string>> LocalTranscriber::transcribeQueue(
             auto now = std::chrono::steady_clock::now();
             if (inSpeech && window.size() >= kMinSamples &&
                 ((window.size() - lastProcessed) >= kStepSamples || (now - lastStep) >= std::chrono::duration<double>(stepSec))) {
-                CubeLog::debug("LocalTranscriber: streaming transcribe win= " +
+                CubeLog::info("LocalTranscriber: streaming transcribe win= " +
                                std::to_string(window.size() / static_cast<double>(audio::SAMPLE_RATE)) + "s");
                 std::string text = CubeWhisper::transcribeSync(window);
                 lastProcessed = window.size();
@@ -146,6 +147,7 @@ std::shared_ptr<ThreadSafeQueue<std::string>> LocalTranscriber::transcribeQueue(
             // end of speech detection via hangover
             if (inSpeech && (now - lastSpeech) >= std::chrono::duration<double>(hangSec)) {
                 inSpeech = false;
+                CubeLog::info("LocalTranscriber: end-of-speech detected (hangover=" + std::to_string(hangSec) + "s)");
                 if (!lastText.empty()) {
                     TranscriptionEvents::publish(lastText, true);
                 }

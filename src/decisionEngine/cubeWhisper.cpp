@@ -236,9 +236,15 @@ std::string CubeWhisper::transcribeSync(const std::vector<int16_t>& pcm16)
         return {};
     }
     whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
-    params.print_progress = false;
-    params.print_realtime = false;
+    params.print_progress   = false;
+    params.print_realtime   = false;
     params.print_timestamps = false;
+    params.no_context       = true;   // independent window
+    params.single_segment   = true;   // prefer a single segment output
+    params.translate        = false;
+    params.max_len          = 0;      // no limit
+    params.language         = "en";   // assume English for now
+    params.detect_language  = false;
 
     std::vector<float> pcmf32;
     pcmf32.reserve(pcm16.size());
@@ -251,5 +257,9 @@ std::string CubeWhisper::transcribeSync(const std::vector<int16_t>& pcm16)
     std::stringstream ss;
     int n = whisper_full_n_segments(ctx);
     for (int i = 0; i < n; ++i) ss << whisper_full_get_segment_text(ctx, i);
-    return ss.str();
+    auto out = ss.str();
+    // Trim whitespace-only outputs to empty
+    bool nonspace = false; for (char c : out) { if (!std::isspace(static_cast<unsigned char>(c))) { nonspace = true; break; } }
+    if (!nonspace) out.clear();
+    return out;
 }
