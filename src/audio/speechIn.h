@@ -43,6 +43,9 @@ SOFTWARE.
 #include "threadsafeQueue.h"
 // include time library for time point
 #include <chrono>
+#include <unordered_map>
+#include <mutex>
+#include <functional>
 
 #define SAMPLE_RATE 16000
 #define NUM_CHANNELS 2
@@ -79,21 +82,51 @@ public:
     static std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> preTriggerAudioData;
 
     // Subscribe to wake word detection events
-    static void subscribeToWakeWordDetection(std::function<void()> callback)
+    static size_t subscribeToWakeWordDetection(std::function<void()> callback)
     {
-        // TODO: This function should return a handle that can be used to unsubscribe.
-        // TODO: make sure this works
-        // TODO: make sure this is thread safe
-        SpeechIn::wakeWordDetectionCallbacks.push_back(callback);
+        SpeechIn::wakeWordDetectionCallbacks[handle] = callback;
+        return handle++;
     }
     // Unsubscribe from wake word detection events
-    static void unsubscribeFromWakeWordDetection(std::function<void()> callback)
+    static bool unsubscribeFromWakeWordDetection(size_t handle)
     {
-        // TODO: This function should take a handle that was returned from subscribeToWakeWordDetection.
-        // TODO: make sure this works
-        // TODO: make sure this is thread safe
-        // auto it = std::remove(SpeechIn::wakeWordDetectionCallbacks.begin(), SpeechIn::wakeWordDetectionCallbacks.end(), callback);
-        // SpeechIn::wakeWordDetectionCallbacks.erase(it, SpeechIn::wakeWordDetectionCallbacks.end());
+        return SpeechIn::wakeWordDetectionCallbacks.erase(handle) > 0;
+    }
+    // Register/unregister queues to receive audio once the wake word is detected
+    static size_t registerWakeAudioQueue(const std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>>& queue)
+    {
+        std::lock_guard<std::mutex> lock(SpeechIn::registeredQueuesMutex);
+        // Cleanup expired entries first
+        for (auto it = SpeechIn::registeredWakeAudioQueues.begin(); it != SpeechIn::registeredWakeAudioQueues.end(); ) {
+            if (it->second.expired()) it = SpeechIn::registeredWakeAudioQueues.erase(it);
+            else ++it;
+        }
+        const size_t id = handle++;
+        SpeechIn::registeredWakeAudioQueues.emplace(id, std::weak_ptr<ThreadSafeQueue<std::vector<int16_t>>>(queue));
+        return id;
+    }
+    static bool unregisterWakeAudioQueue(size_t handleId)
+    {
+        std::lock_guard<std::mutex> lock(SpeechIn::registeredQueuesMutex);
+        return SpeechIn::registeredWakeAudioQueues.erase(handleId) > 0;
+    }
+    // Register/unregister queues to receive pre-trigger audio (rolling buffer)
+    static size_t registerPreTriggerAudioQueue(const std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>>& queue)
+    {
+        std::lock_guard<std::mutex> lock(SpeechIn::registeredQueuesMutex);
+        // Cleanup expired entries first
+        for (auto it = SpeechIn::registeredPreTriggerAudioQueues.begin(); it != SpeechIn::registeredPreTriggerAudioQueues.end(); ) {
+            if (it->second.expired()) it = SpeechIn::registeredPreTriggerAudioQueues.erase(it);
+            else ++it;
+        }
+        const size_t id = handle++;
+        SpeechIn::registeredPreTriggerAudioQueues.emplace(id, std::weak_ptr<ThreadSafeQueue<std::vector<int16_t>>>(queue));
+        return id;
+    }
+    static bool unregisterPreTriggerAudioQueue(size_t handleId)
+    {
+        std::lock_guard<std::mutex> lock(SpeechIn::registeredQueuesMutex);
+        return SpeechIn::registeredPreTriggerAudioQueues.erase(handleId) > 0;
     }
 
 private:
@@ -118,7 +151,13 @@ private:
     // Audio input thread
     std::jthread audioInputThread;
     // Wake word detection callback vector
-    static std::vector<std::function<void()>> wakeWordDetectionCallbacks;
+    static std::unordered_map<unsigned int,std::function<void()>> wakeWordDetectionCallbacks;
+    static std::atomic<unsigned int> handle;
+    // Queues to receive audio on wake word detection
+    static std::unordered_map<size_t, std::weak_ptr<ThreadSafeQueue<std::vector<int16_t>>>> registeredWakeAudioQueues;
+    static std::mutex registeredQueuesMutex;
+    // Queues to receive rolling pre-trigger audio
+    static std::unordered_map<size_t, std::weak_ptr<ThreadSafeQueue<std::vector<int16_t>>>> registeredPreTriggerAudioQueues;
 
     // Audio input thread
     void audioInputThreadFn(std::stop_token st);

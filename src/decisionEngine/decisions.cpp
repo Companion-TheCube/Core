@@ -106,8 +106,8 @@ DecisionEngineMain::DecisionEngineMain()
     */
 
     // Initialize queues and strategy objects according to settings.
-    this->audioQueue = AudioManager::audioInQueue;
-    remoteServerAPI = std::make_shared<TheCubeServer::TheCubeServerAPI>(audioQueue);
+    // this->audioQueue = AudioManager::audioInQueue;
+    // remoteServerAPI = std::make_shared<TheCubeServer::TheCubeServerAPI>(audioQueue);
     intentRegistry = std::make_shared<IntentRegistry>();
     try {
         intentRegistry->registerInterface();
@@ -134,8 +134,8 @@ DecisionEngineMain::DecisionEngineMain()
         (std::dynamic_pointer_cast<RemoteIntentRecognition>(intentRecognition))->setRemoteServerAPIObject(remoteServerAPI);
     } else
         intentRecognition = std::make_shared<LocalIntentRecognition>(intentRegistry);
-    bool remoteTranscription = GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::REMOTE_TRANSCRIPTION_ENABLED);
-    if (remoteTranscription) {
+
+    if (GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::REMOTE_TRANSCRIPTION_ENABLED)) {
         transcriber = std::make_shared<RemoteTranscriber>();
         (std::dynamic_pointer_cast<RemoteTranscriber>(transcriber))->setRemoteServerAPIObject(remoteServerAPI);
     } else
@@ -159,6 +159,9 @@ DecisionEngineMain::DecisionEngineMain()
 
     personalityManager = std::make_shared<Personality::PersonalityManager>();
     personalityManager->registerInterface();
+
+    // Connect transcriber to audio input queue
+    // TODO: create as a member variable a threadsafequeue for audio that we will register with speechIn and send audio to the transcriber
 }
 
 DecisionEngineMain::~DecisionEngineMain()

@@ -1,20 +1,5 @@
-# TODO's
+# Project TODOs
 
--   Any file that has user-facing strings should have Gettext support using #define \_(string) gettext(string). We also need to add the necessary code to the CMakeLists.txt file to generate the .pot file and the .mo files. Probably should keep track of which files have strings that need to be translated.
--   Need to make a github for the translations so that people can contribute translations.
--   Add API endpoints to Logger for logging from outside apps - Done?
--   Apps that provide characters (for the UI) will have to provide a blob of the character data that we can deserialize into the character object.
--   Add status bar to the GUI
--   Make the popup messageBox more like a dialog box
--   Write tests
--   Migrate from SFML to GLFW
--   Window manager interface: Use XCB and xcb-ewmh to interface with the matchbox window manager so that we can control which window is on top and which window has focus. This will be particularly useful for games or apps with guis, like if a game runs in chromium or an app needs to have the user interact with a web page. Really, any app that needs a GUI outside of the main Core GUI will need this.
--   If remote AI services is enabled, we need to check on a regular that it is available. If it is not, there needs to be an indicator, maybe a little red dot in the corner of the screen, that the service is not available. If the service becomes available, the indicator should disappear. This indicator may be well suited to be in the status bar if we ever get around to adding that.
--   Sentences used for natural language matching need to be translated. Use the same methods as for the UI strings.
--   There needs to be docker containers for postgres and redis that apps can use to store data that does not need to be accessible by TheCube-Core. CORE will start the container, manage database creation, and provide the connection string to the apps. The apps will be responsible for creating the tables and managing the data. This will allow apps to have their own databases without having to worry about the underlying database engine.
--   Need to go through all the http endpoints and make sure they all return valid json or endpoint specific data. probably should all be json.
--   Sometimes, if /tmp/.X11-unix/X0 does not exist when the GUI starts, the GUI will fail to start. Need to add a check for this and create a link if it does not exist. "sudo ln -s /tmp/.X11-unix/X1 /tmp/.X11-unix/X0"
--   API authentication flow with device confirmation does not work. TheCube does not show the widget.
 - [src/api/api.cpp:105] : add checks to make sure these are valid calls.
 - [src/api/api.cpp:54] : Since we need to make sure that the entire API is built before letting any clients connect,
 - [src/api/api.cpp:61] : // TESTING AUTHENTICATION //// remove
@@ -64,14 +49,7 @@
 - [src/audio/audioOutput.cpp:55] : load all the audio blobs from the DB.
 - [src/audio/audioOutput.cpp:56] : load all the audio files from the filesystem.
 - [src/audio/audioOutput.cpp:62] : The RTAudio instance needs to be instantiated in the audioManager and passed to this class and to the speechIn class.
-- [src/audio/speechIn.cpp:204] : this needs to happen in another thread so that we don't block the audio input thread
-- [src/audio/speechIn.cpp:251] : implement silence detection to determine when the user is done speaking.
-- [src/audio/speechIn.h:84] : This function should return a handle that can be used to unsubscribe.
-- [src/audio/speechIn.h:85] : make sure this works
-- [src/audio/speechIn.h:86] : make sure this is thread safe
-- [src/audio/speechIn.h:92] : This function should take a handle that was returned from subscribeToWakeWordDetection.
-- [src/audio/speechIn.h:93] : make sure this works
-- [src/audio/speechIn.h:94] : make sure this is thread safe
+- [src/audio/speechIn.cpp:325] : implement silence detection to determine when the user is done speaking.
 - [src/database/cubeDB.cpp:216] : use this as an example for the mutex lock below.
 - [src/database/cubeDB.cpp:240] : fix this endpoint. It has testing data in it.
 - [src/database/cubeDB.cpp:282] : fix this endpoint. It has testing data in it.
@@ -145,14 +123,13 @@
 - [src/decisionEngine/scheduler.cpp:238] noted below).
 - [src/decisionEngine/scheduler.cpp:251] : check if the task should be repeated and if so, add it back to the scheduledTasks list
 - [src/decisionEngine/scheduler.cpp:59] :
+- [src/decisionEngine/transcriber.cpp:104] : upload buffer and poll for result
+- [src/decisionEngine/transcriber.cpp:109] : streaming upload with progress and partial results
 - [src/decisionEngine/transcriber.cpp:42] :
 - [src/decisionEngine/transcriber.cpp:47] : construct CubeWhisper and prime any resources required for STT
-- [src/decisionEngine/transcriber.cpp:54] : feed PCM buffer into CubeWhisper and return text
-- [src/decisionEngine/transcriber.cpp:59] : consume from queue or stream interface; incremental transcription
-- [src/decisionEngine/transcriber.cpp:67] : inject server API, set up session/state for streaming
-- [src/decisionEngine/transcriber.cpp:74] : upload buffer and poll for result
-- [src/decisionEngine/transcriber.cpp:79] : streaming upload with progress and partial results
-- [src/decisionEngine/transcriber.h:120] : the stream that this is reading from may need to be a more complex
+- [src/decisionEngine/transcriber.cpp:73] : consume from queue or stream interface; incremental transcription
+- [src/decisionEngine/transcriber.cpp:97] : inject server API, set up session/state for streaming
+- [src/decisionEngine/transcriber.h:127] : the stream that this is reading from may need to be a more complex
 - [src/gui/characterManager.cpp:145] : This will need to interface with the list of registered apps and find the ones
 - [src/gui/characterManager.cpp:240] : fill in the endpoints
 - [src/gui/characterManager.cpp:303] : move the actual loading of character data into a separate method so that we can call it

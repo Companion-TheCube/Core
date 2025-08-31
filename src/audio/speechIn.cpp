@@ -67,7 +67,11 @@ std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> SpeechIn::audioQueue = st
 std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> SpeechIn::preTriggerAudioData = std::make_shared<ThreadSafeQueue<std::vector<int16_t>>>();
 int audioInputCallback(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData);
 std::string checkForControl(int conn_fd);
-std::vector<std::function<void()>> SpeechIn::wakeWordDetectionCallbacks;
+std::unordered_map<unsigned int,std::function<void()>>SpeechIn::wakeWordDetectionCallbacks;
+std::atomic<unsigned int> SpeechIn::handle = 0;
+std::unordered_map<size_t, std::weak_ptr<ThreadSafeQueue<std::vector<int16_t>>>> SpeechIn::registeredWakeAudioQueues;
+std::mutex SpeechIn::registeredQueuesMutex;
+std::unordered_map<size_t, std::weak_ptr<ThreadSafeQueue<std::vector<int16_t>>>> SpeechIn::registeredPreTriggerAudioQueues;
 
 int16_t runningAvgSample = 0;
 int64_t runningAvgCount = 0;
@@ -153,6 +157,9 @@ void SpeechIn::writeAudioDataToSocket()
     // using base64 = cppcodec::base64_rfc4648;
     auto dataOpt = this->audioQueue->pop();
     // openwakeword creates a unix socket at /tmp/openww. We send the audio data to this socket.
+    // When a wake word is detected, we "tee" audio into any registered queues.
+    bool streamingToQueues = false;
+    std::vector<std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>>> wakeTargets;
     int sockfd;
     struct sockaddr_un serverAddr;
     std::memset(&serverAddr, 0, sizeof(serverAddr));
@@ -189,6 +196,13 @@ void SpeechIn::writeAudioDataToSocket()
             return;
         }
 
+        // If streaming is active, also fan-out the current buffer to registered queues.
+        if (streamingToQueues && !wakeTargets.empty()) {
+            for (auto &q : wakeTargets) {
+                if (q) q->push(data);
+            }
+        }
+
         dataOpt = this->audioQueue->pop();
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
@@ -200,11 +214,71 @@ void SpeechIn::writeAudioDataToSocket()
             lastDetectedTime = now;
             CubeLog::info("Wake word detected. Duration since last detection: " + std::to_string(duration) + "ms");
             if (duration > WAKEWORD_RETRIGGER_TIME) {
-                // call all the callbacks
-                // TODO: this needs to happen in another thread so that we don't block the audio input thread
-                for (auto& callback : this->wakeWordDetectionCallbacks) {
-                    callback();
+                // Dispatch callbacks asynchronously to avoid blocking audio thread
+                std::vector<std::function<void()>> callbacks;
+                callbacks.reserve(SpeechIn::wakeWordDetectionCallbacks.size());
+                for (const auto &kv : SpeechIn::wakeWordDetectionCallbacks) {
+                    callbacks.push_back(kv.second);
                 }
+                std::thread([cb = std::move(callbacks)]() {
+                    for (const auto &fn : cb) {
+                        try { fn(); }
+                        catch (const std::exception &e) {
+                            CubeLog::error(std::string("Wake word callback error: ") + e.what());
+                        } catch (...) {
+                            CubeLog::error("Wake word callback unknown error");
+                        }
+                    }
+                }).detach();
+            }
+            // Start streaming audio to registered queues
+            if (!streamingToQueues) {
+                // Snapshot currently registered queues
+                {
+                    std::lock_guard<std::mutex> lg(SpeechIn::registeredQueuesMutex);
+                    wakeTargets.clear();
+                    wakeTargets.reserve(SpeechIn::registeredWakeAudioQueues.size());
+                    for (auto it = SpeechIn::registeredWakeAudioQueues.begin(); it != SpeechIn::registeredWakeAudioQueues.end(); ) {
+                        if (auto sp = it->second.lock()) {
+                            wakeTargets.push_back(std::move(sp));
+                            ++it;
+                        } else {
+                            it = SpeechIn::registeredWakeAudioQueues.erase(it);
+                        }
+                    }
+                }
+                // Snapshot queues that requested pre-trigger buffers (context) separately.
+                std::vector<std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>>> preTargets;
+                {
+                    std::lock_guard<std::mutex> lg(SpeechIn::registeredQueuesMutex);
+                    preTargets.reserve(SpeechIn::registeredPreTriggerAudioQueues.size());
+                    for (auto it = SpeechIn::registeredPreTriggerAudioQueues.begin(); it != SpeechIn::registeredPreTriggerAudioQueues.end(); ) {
+                        if (auto sp = it->second.lock()) {
+                            preTargets.push_back(std::move(sp));
+                            ++it;
+                        } else {
+                            it = SpeechIn::registeredPreTriggerAudioQueues.erase(it);
+                        }
+                    }
+                }
+
+                // Fan-out the pre-trigger buffered audio only to queues that registered for it.
+                // Drain up to the current size to avoid blocking.
+                const size_t preCount = SpeechIn::preTriggerAudioData->size();
+                for (size_t i = 0; i < preCount; ++i) {
+                    auto pre = SpeechIn::preTriggerAudioData->pop();
+                    if (!pre) break;
+                    for (auto &q : preTargets) {
+                        if (q) q->push(*pre);
+                    }
+                }
+
+                // All wake-registered queues start receiving audio immediately after detection.
+                for (auto &q : wakeTargets) {
+                    if (q) q->push(data);
+                }
+
+                streamingToQueues = true;
             }
         }
     }

@@ -83,9 +83,9 @@ namespace DecisionEngine{
 
 
 
-class I_AudioQueue {
+class I_HasAudioQueue {
 public:
-    virtual ~I_AudioQueue() = default;
+    virtual ~I_HasAudioQueue() = default;
     void setThreadSafeQueue(std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue)
     {
         this->audioQueue = audioQueue;
@@ -101,11 +101,12 @@ protected:
 
 
 // Abstract transcriber. Implement buffer-based and streaming APIs.
-class I_Transcriber: public I_AudioQueue {
+class I_Transcriber: public I_HasAudioQueue {
 public:
     virtual ~I_Transcriber() = default;
-    virtual std::string transcribeBuffer(const uint16_t* audio, size_t length) = 0;
-    virtual std::string transcribeStream(const uint16_t* audio, size_t bufSize) = 0;
+    virtual std::string transcribeBuffer(const int16_t* audio, size_t length) = 0;
+    virtual std::string transcribeStream(const int16_t* audio, size_t bufSize) = 0;
+    virtual std::shared_ptr<ThreadSafeQueue<std::string>> transcribeQueue(std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue) = 0;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -115,13 +116,20 @@ class LocalTranscriber : public I_Transcriber {
 public:
     LocalTranscriber();
     ~LocalTranscriber();
-    std::string transcribeBuffer(const uint16_t* audio, size_t length) override;
-    std::string transcribeStream(const uint16_t* audio, size_t bufSize) override;
+    std::string transcribeBuffer(const int16_t* audio, size_t length) override;
+    std::string transcribeStream(const int16_t* audio, size_t bufSize) override;
+    std::shared_ptr<ThreadSafeQueue<std::string>> transcribeQueue(std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue) override;
+    void interrupt()
+    {
+        if (workerThread.joinable())
+            workerThread.request_stop();
+    }
     // TODO: the stream that this is reading from may need to be a more complex
     // datatype that has read and write pointers and a mutex to protect them.
 
 private:
     std::shared_ptr<CubeWhisper> cubeWhisper;
+    std::jthread workerThread;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -131,13 +139,20 @@ class RemoteTranscriber : public I_Transcriber, public I_RemoteApi {
 public:
     RemoteTranscriber();
     ~RemoteTranscriber();
-    std::string transcribeBuffer(const uint16_t* audio, size_t length) override;
-    std::string transcribeStream(const uint16_t* audio, size_t bufSize) override;
+    std::string transcribeBuffer(const int16_t* audio, size_t length) override;
+    std::string transcribeStream(const int16_t* audio, size_t bufSize) override;
+    std::shared_ptr<ThreadSafeQueue<std::string>> transcribeQueue(std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue) override;
+    void interrupt()
+    {
+        if (workerThread.joinable())
+            workerThread.request_stop();
+    }
 
 private:
     bool initTranscribing();
     bool streamAudio();
     bool stopTranscribing();
+    std::jthread workerThread;
 };
 
 }

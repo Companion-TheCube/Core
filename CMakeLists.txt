@@ -29,10 +29,10 @@ endif()
 set(TRANSLATE_ENABLED ON)
 
 # Optionally sync build information and artifacts with the build server
-option(ENABLE_BUILD_SERVER "Sync build info/artifacts with server" ON)
+option(ENABLE_BUILD_SERVER "Sync build info/artifacts with server" OFF)
 
 # Optionally run helper scripts from the tooling directory
-option(ENABLE_TOOLING_SCRIPTS "Run helper tooling scripts" ON)
+option(ENABLE_TOOLING_SCRIPTS "Run helper tooling scripts" OFF)
 
 # This is a hack to make intellisense work well with a bunch of lambdas
 add_definitions(-D_ENABLE_LAMBDAS)

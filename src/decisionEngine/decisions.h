@@ -89,7 +89,7 @@ SOFTWARE.
 
 namespace DecisionEngine {
 
-class DecisionEngineMain : public I_AudioQueue {
+class DecisionEngineMain {
 public:
     DecisionEngineMain();
     ~DecisionEngineMain();

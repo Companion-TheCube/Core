@@ -49,15 +49,45 @@ LocalTranscriber::LocalTranscriber()
 LocalTranscriber::~LocalTranscriber()
 {
 }
-std::string LocalTranscriber::transcribeBuffer(const uint16_t* audio, size_t length)
+std::string LocalTranscriber::transcribeBuffer(const int16_t* audio, size_t length)
 {
-    // TODO: feed PCM buffer into CubeWhisper and return text
-    return "";
+    // Ensure CubeWhisper is initialized (lazy init for speed on cold start)
+    if (!cubeWhisper)
+        cubeWhisper = std::make_shared<CubeWhisper>();
+
+    // Wrap the PCM buffer into a queue for CubeWhisper::transcribe
+    auto q = std::make_shared<ThreadSafeQueue<std::vector<int16_t>>>(8);
+    // Reinterpret the incoming buffer as signed 16-bit PCM and push
+    const int16_t* pcm16 = reinterpret_cast<const int16_t*>(audio);
+    std::vector<int16_t> chunk(pcm16, pcm16 + length);
+    q->push(std::move(chunk));
+    // Signal end of stream with an empty vector
+    q->push({});
+
+    // Transcribe synchronously and return the resulting text
+    auto fut = CubeWhisper::transcribe(q);
+    return fut.get();
 }
-std::string LocalTranscriber::transcribeStream(const uint16_t* audio, size_t bufSize)
+std::string LocalTranscriber::transcribeStream(const int16_t* audio, size_t bufSize)
 {
     // TODO: consume from queue or stream interface; incremental transcription
     return "";
+}
+
+std::shared_ptr<ThreadSafeQueue<std::string>> LocalTranscriber::transcribeQueue(std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue)
+{
+    auto textQueue = std::make_shared<ThreadSafeQueue<std::string>>(10);
+    workerThread = std::jthread([this, audioQueue, textQueue](std::stop_token stoken) {
+        while (!stoken.stop_requested()) {
+            auto audioOpt = audioQueue->pop();
+            if (audioOpt) {
+                const auto& audioVec = *audioOpt;
+                std::string transcription = transcribeBuffer(audioVec.data(), audioVec.size());
+                textQueue->push(transcription);
+            }
+        }
+    });
+    return textQueue;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -69,15 +99,30 @@ RemoteTranscriber::RemoteTranscriber()
 RemoteTranscriber::~RemoteTranscriber()
 {
 }
-std::string RemoteTranscriber::transcribeBuffer(const uint16_t* audio, size_t length)
+std::string RemoteTranscriber::transcribeBuffer(const int16_t* audio, size_t length)
 {
     // TODO: upload buffer and poll for result
     return "";
 }
-std::string RemoteTranscriber::transcribeStream(const uint16_t* audio, size_t bufSize)
+std::string RemoteTranscriber::transcribeStream(const int16_t* audio, size_t bufSize)
 {
     // TODO: streaming upload with progress and partial results
     return "";
+}
+
+std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue(std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue)
+{
+    auto textQueue = std::make_shared<ThreadSafeQueue<std::string>>(10);
+    workerThread = std::jthread([this, audioQueue, textQueue](std::stop_token stoken) {
+        while (!stoken.stop_requested()) {
+            auto audioOpt = audioQueue->pop();
+            if (audioOpt) {
+                const auto& audioVec = *audioOpt;
+                std::string transcription = transcribeBuffer(audioVec.data(), audioVec.size());
+            }
+        }
+    });
+    return textQueue;
 }
 
 }
