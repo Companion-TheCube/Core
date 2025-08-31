@@ -75,10 +75,7 @@ public:
     // Stop the audio input thread
     void stop();
 
-    // Audio data FIFO buffer
-    static std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue;
-    // Pre-trigger audio data FIFO buffer. Maintains 5 seconds of audio data.
-    static std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> preTriggerAudioData;
+    // Split implementation – these methods proxy to the internal router
 
     // Subscribe to wake word detection events
     static size_t subscribeToWakeWordDetection(std::function<void()> callback)
@@ -129,26 +126,10 @@ public:
     }
 
 private:
-    // Flag to stop the audio input thread
-    std::atomic<bool> stopFlag;
-    // Sample rate of the audio data
-    unsigned int sampleRate;
-    // Number of channels in the audio data
-    unsigned int numChannels;
-    // Number of bits per sample in the audio data
-    unsigned int bitsPerSample;
-    // Number of bytes per sample in the audio data
-    unsigned int bytesPerSample;
-    // Number of samples in the audio data
-    unsigned int numSamples;
-    // Number of bytes in the audio data
-    unsigned int numBytes;
-    // Number of bytes in the FIFO buffer
-    size_t fifoSize;
-    // Number of bytes in the pre-trigger FIFO buffer
-    size_t preTriggerFifoSize;
-    // Audio input thread
-    std::jthread audioInputThread;
+    // Three-class split components (pimpl-style)
+    std::unique_ptr<class AudioRouter> router;
+    std::unique_ptr<class WakeWordClient> wwClient;
+    std::unique_ptr<class AudioCapture> capture;
     // Wake word detection callback vector
     static std::unordered_map<unsigned int,std::function<void()>> wakeWordDetectionCallbacks;
     static std::atomic<unsigned int> handle;
@@ -158,11 +139,9 @@ private:
     // Queues to receive rolling pre-trigger audio
     static std::unordered_map<size_t, std::weak_ptr<ThreadSafeQueue<std::vector<int16_t>>>> registeredPreTriggerAudioQueues;
 
-    // Audio input thread
-    void audioInputThreadFn(std::stop_token st);
-
-    // Write audio data from the FIFO to the unix socket
-    void writeAudioDataToSocket();
+    // Helpers for the router
+    static std::vector<std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>>> snapshotWakeTargets();
+    static std::vector<std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>>> snapshotPreTriggerTargets();
 };
 
 #endif // SPEECHIN_H
