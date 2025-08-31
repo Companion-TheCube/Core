@@ -42,6 +42,8 @@ SOFTWARE.
 #include <fstream>
 #include <array>
 #include <string_view>
+#include <thread>
+#include <chrono>
 
 // static members
 whisper_context* CubeWhisper::ctx = nullptr;
@@ -245,15 +247,19 @@ std::string CubeWhisper::transcribeSync(const std::vector<int16_t>& pcm16)
     params.max_len          = 0;      // no limit
     params.language         = "en";   // assume English for now
     params.detect_language  = false;
+    unsigned nt = std::max(1u, std::thread::hardware_concurrency());
+    params.n_threads        = static_cast<int>(nt);
 
     std::vector<float> pcmf32;
     pcmf32.reserve(pcm16.size());
     for (int16_t s : pcm16) pcmf32.push_back(static_cast<float>(s) / 32768.0f);
 
+    auto t0 = std::chrono::steady_clock::now();
     if (whisper_full(ctx, params, pcmf32.data(), pcmf32.size()) != 0) {
         CubeLog::error("CubeWhisper::transcribeSync: whisper_full failed");
         return {};
     }
+    auto t1 = std::chrono::steady_clock::now();
     std::stringstream ss;
     int n = whisper_full_n_segments(ctx);
     for (int i = 0; i < n; ++i) ss << whisper_full_get_segment_text(ctx, i);
@@ -261,5 +267,9 @@ std::string CubeWhisper::transcribeSync(const std::vector<int16_t>& pcm16)
     // Trim whitespace-only outputs to empty
     bool nonspace = false; for (char c : out) { if (!std::isspace(static_cast<unsigned char>(c))) { nonspace = true; break; } }
     if (!nonspace) out.clear();
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
+    std::string preview = out.substr(0, 160);
+    CubeLog::info("CubeWhisper::transcribeSync: decode took " + std::to_string(ms) + "ms, segments=" + std::to_string(n) +
+                  ", samples=" + std::to_string(pcmf32.size()) + ", text='" + preview + (out.size()>160?"…":"") + "'");
     return out;
 }

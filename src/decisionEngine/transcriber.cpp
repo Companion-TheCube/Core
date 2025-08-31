@@ -97,13 +97,14 @@ std::shared_ptr<ThreadSafeQueue<std::string>> LocalTranscriber::transcribeQueue(
         double vadTh   = GlobalSettings::getSettingOfType<double>(GlobalSettings::SettingType::TRANSCRIBER_VAD_THRESHOLD); // normalized
         double hangSec = GlobalSettings::getSettingOfType<double>(GlobalSettings::SettingType::TRANSCRIBER_VAD_HANGOVER_SECONDS);
         if (vadTh <= 0.0) vadTh = 0.015; // default
-        if (hangSec < 0.1) hangSec = 0.25;
+        if (hangSec < 0.1) hangSec = 1.0; // default
 
         std::vector<int16_t> window;
         window.reserve(kMaxSamples);
         size_t lastProcessed = 0; // number of samples processed so far
         std::string lastText;
         bool inSpeech = false;
+        auto utterStart = std::chrono::steady_clock::time_point{};
         auto lastSpeech = std::chrono::steady_clock::now();
         auto lastStep   = std::chrono::steady_clock::now();
 
@@ -127,7 +128,12 @@ std::shared_ptr<ThreadSafeQueue<std::string>> LocalTranscriber::transcribeQueue(
             // VAD on current block
             double sumsq = 0.0; for (int16_t s : blk) { double x = s/32768.0; sumsq += x*x; }
             double rms = blk.empty() ? 0.0 : std::sqrt(sumsq / blk.size());
-            if (rms >= vadTh) { inSpeech = true; lastSpeech = std::chrono::steady_clock::now(); }
+            if (rms >= vadTh) {
+                auto nowR = std::chrono::steady_clock::now();
+                if (!inSpeech) utterStart = nowR;
+                inSpeech = true; 
+                lastSpeech = nowR;
+            }
 
             auto now = std::chrono::steady_clock::now();
             if (inSpeech && window.size() >= kMinSamples &&
@@ -138,9 +144,40 @@ std::shared_ptr<ThreadSafeQueue<std::string>> LocalTranscriber::transcribeQueue(
                 lastProcessed = window.size();
                 lastStep = now;
                 if (!text.empty() && text != lastText) {
+                    // Log and fan-out partial recognition
+                    std::string preview = text.substr(0, 120);
+                    CubeLog::info("LocalTranscriber: recognized (step): '" + preview + (text.size()>120?"…":"") + "'");
                     lastText = text;
                     textQueue->push(text);
                     TranscriptionEvents::publish(text, false);
+                } else {
+                    CubeLog::debug("LocalTranscriber: no new text at step (len=" +
+                                    std::to_string(window.size() / static_cast<double>(audio::SAMPLE_RATE)) + "s)");
+                }
+            }
+
+            // forced timeout: if speech persists too long, finalize anyway
+            if (inSpeech) {
+                auto dur = std::chrono::duration<double>(now - utterStart).count();
+                if (dur >= (maxSec * 2.0)) {
+                    CubeLog::info("LocalTranscriber: forced end-of-speech (timeout) dur=" + std::to_string(dur) + "s");
+                    if (lastText.empty() && !window.empty()) {
+                        std::string finalText = CubeWhisper::transcribeSync(window);
+                        if (!finalText.empty()) lastText = std::move(finalText);
+                        else CubeLog::info("LocalTranscriber: timeout final decode produced empty text");
+                    }
+                    if (!lastText.empty()) {
+                        // Log and fan-out the final result from timeout path
+                        std::string preview = lastText.substr(0, 160);
+                        CubeLog::info("LocalTranscriber: recognized (final-timeout): '" + preview + (lastText.size()>160?"…":"") + "'");
+                        TranscriptionEvents::publish(lastText, true);
+                        textQueue->push(lastText);
+                    }
+                    window.clear();
+                    lastText.clear();
+                    lastProcessed = 0;
+                    inSpeech = false;
+                    continue;
                 }
             }
 
@@ -148,6 +185,19 @@ std::shared_ptr<ThreadSafeQueue<std::string>> LocalTranscriber::transcribeQueue(
             if (inSpeech && (now - lastSpeech) >= std::chrono::duration<double>(hangSec)) {
                 inSpeech = false;
                 CubeLog::info("LocalTranscriber: end-of-speech detected (hangover=" + std::to_string(hangSec) + "s)");
+                // If we never produced a partial, attempt a final decode
+                // on the full window before clearing it.
+                if (lastText.empty() && !window.empty()) {
+                    CubeLog::info("LocalTranscriber: final decode at end-of-speech (win=" +
+                                   std::to_string(window.size() / static_cast<double>(audio::SAMPLE_RATE)) + "s)");
+                    std::string finalText = CubeWhisper::transcribeSync(window);
+                    if (!finalText.empty()) {
+                        CubeLog::info("LocalTranscriber: recognized (final): '" + finalText.substr(0, 160) + (finalText.size()>160?"…":"") + "'");
+                        lastText = std::move(finalText);
+                    } else {
+                        CubeLog::info("LocalTranscriber: final decode produced empty text");
+                    }
+                }
                 // Ensure the final recognized text is delivered to both
                 // the event bus and the downstream consumer queue.
                 if (!lastText.empty()) {

@@ -194,8 +194,8 @@ struct GlobalSettings {
         GlobalSettings::setSetting(SettingType::TRANSCRIBER_MIN_SECONDS, 0.50);
         GlobalSettings::setSetting(SettingType::TRANSCRIBER_MAX_SECONDS, 2.0);
         GlobalSettings::setSetting(SettingType::TRANSCRIBER_STEP_SECONDS, 0.2);
-        GlobalSettings::setSetting(SettingType::TRANSCRIBER_VAD_THRESHOLD, 0.015);
-        GlobalSettings::setSetting(SettingType::TRANSCRIBER_VAD_HANGOVER_SECONDS, 0.125);
+        GlobalSettings::setSetting(SettingType::TRANSCRIBER_VAD_THRESHOLD, 0.05);
+        GlobalSettings::setSetting(SettingType::TRANSCRIBER_VAD_HANGOVER_SECONDS, 1.0);
     }
 
     static void setSettingCB(SettingType key, std::function<void()> callback)
