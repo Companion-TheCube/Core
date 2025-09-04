@@ -162,38 +162,80 @@ DecisionEngineMain::DecisionEngineMain()
 
     // Connect transcriber to audio input queue
     // Allocate a fresh audio queue and register it with SpeechIn so we receive
-    // post-wake audio blocks for transcription.
+    // post-wake and pre-trigger audio blocks for transcription.
     this->audioQueue = std::make_shared<ThreadSafeQueue<std::vector<int16_t>>>();
     auto regId = SpeechIn::registerWakeAudioQueue(this->audioQueue);
     CubeLog::info("DecisionEngine: audio queue created and registered with SpeechIn id=" + std::to_string(regId));
+    // Also register for pre-trigger fan-out so the transcriber immediately
+    // receives the buffered ring (audio leading up to the wake event).
+    // auto preId = SpeechIn::registerPreTriggerAudioQueue(this->audioQueue);
+    // CubeLog::debug("DecisionEngine: audio queue also registered for pre-trigger id=" + std::to_string(preId));
     SpeechIn::subscribeToWakeWordDetection([this]() {
         CubeLog::info("Wake word detected, starting transcription");
+        CubeLog::info("");
         if (transcriber && audioQueue) {
-            auto transcription = transcriber->transcribeQueue(audioQueue);
+            CubeLog::info("");
+            // Guard: ensure any previous transcriber worker is interrupted
+            // before starting a new session so we don't have competing
+            // consumers on the same audio queue or orphan threads.
+            try {
+                if (auto lt = std::dynamic_pointer_cast<LocalTranscriber>(transcriber))
+                    lt->interrupt();
+                else if (auto rt = std::dynamic_pointer_cast<RemoteTranscriber>(transcriber))
+                    rt->interrupt();
+            } catch (...) {
+                CubeLog::error("DecisionEngine: exception while interrupting previous transcriber session");
+            }
+            CubeLog::info("");
+
+            transcription = transcriber->transcribeQueue(audioQueue);
             // Consume the output queue and send to intent recognition
             // Persist the consumer thread on the DecisionEngineMain instance
             if (transcriptionConsumerThread.joinable()) {
+                CubeLog::info("");
                 transcriptionConsumerThread.request_stop();
             }
-            transcriptionConsumerThread = std::jthread([this, transcription](std::stop_token st) {
+            transcriptionConsumerThread = std::jthread([this](std::stop_token st) {
+                CubeLog::info("");
+                using namespace std::chrono_literals;
                 while (!st.stop_requested()) {
+                    if (!transcription) { 
+                        CubeLog::info("");
+                        std::this_thread::sleep_for(50ms); 
+                        continue; 
+                    }
+                    // Avoid indefinite blocking on empty queue so we can stop promptly
+                    if (transcription->size() == 0) { 
+                        CubeLog::info("");
+                        std::this_thread::sleep_for(50ms); 
+                        continue; 
+                    }
+
                     auto result = transcription->pop();
-                    if (result) {
-                        CubeLog::info("Transcription result: " + *result);
-                        if (intentRecognition) {
-                            auto intent = intentRecognition->recognizeIntentAsync(*result, [this](std::shared_ptr<Intent> intent) {
-                                CubeLog::info("Recognized intent: " + (intent ? intent->getIntentName() : "null"));
-                                // TODO: Finish processing the intent
-                            });
-                            if (!intent) {
-                                CubeLog::error("Failed to start async intent recognition");
-                            }
-                        } else {
-                            CubeLog::error("Intent recognition not initialized");
+                    if (!result) {
+                        CubeLog::info(""); 
+                        std::this_thread::sleep_for(50ms); 
+                        continue; 
+                    }
+
+                    CubeLog::info("Transcription result: " + *result);
+                    if (intentRecognition) {
+                        auto intent = intentRecognition->recognizeIntentAsync(*result, [this](std::shared_ptr<Intent> intent) {
+                            CubeLog::info("Recognized intent: " + (intent ? intent->getIntentName() : "null"));
+                            // TODO: Finish processing the intent
+                        });
+                        if (!intent) {
+                            CubeLog::error("Failed to start async intent recognition");
                         }
                     } else {
-                        // No result, wait a bit before trying again
-                        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                        CubeLog::error("Intent recognition not initialized");
+                    }
+                }
+                // best-effort non-blocking drain
+                if (transcription) {
+                    while (transcription->size() > 0) {
+                        auto _ = transcription->pop();
+                        (void)_;
                     }
                 }
             });

@@ -48,11 +48,13 @@ void AudioRouter::stop()
 
 void AudioRouter::onWakeDetected()
 {
+    CubeLog::info("");
     std::lock_guard<std::mutex> lk(mtx_);
     // Snapshot current wake targets
     if (wakeTargetsProvider_) currentWakeTargets_ = wakeTargetsProvider_();
     // Fan-out pre-trigger buffers to queues that requested them
     if (preTargetsProvider_) {
+        CubeLog::info("");
         auto preTargets = preTargetsProvider_();
         CubeLog::info("AudioRouter wake: ringBlocks=" + std::to_string(ring_.size()) + 
                       ", preTargets=" + std::to_string(preTargets.size()) +
@@ -70,13 +72,16 @@ void AudioRouter::run(std::stop_token st)
     using clock = std::chrono::steady_clock;
     auto lastLog = clock::now();
     while (!st.stop_requested() && !stop_.load()) {
+        CubeLog::info("");
         auto opt = ingest_->pop();
         if (!opt) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            CubeLog::info("");
             continue;
         }
         const auto& block = *opt;
         {
+            // CubeLog::info("");
             std::lock_guard<std::mutex> lk(mtx_);
             // update ring
             ring_.push_back(block);

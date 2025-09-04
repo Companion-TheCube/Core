@@ -55,7 +55,8 @@ public:
         if(size_ > 0 && queue_.size() >= size_)
             queue_.pop();
         queue_.push(data);
-        cond_var_.notify_one(); // Notify one waiting thread
+        // cond_var_.notify_one(); // Notify one waiting thread
+        cond_var_.notify_all();
     }
 
     // Retrieve data from the queue (blocks if queue is empty)

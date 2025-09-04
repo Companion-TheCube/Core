@@ -163,6 +163,7 @@ CubeWhisper::CubeWhisper()
  */
 std::future<std::string> CubeWhisper::transcribe(std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue)
 {
+    CubeLog::info("");
     std::promise<std::string> promise;
     auto future = promise.get_future();
 
@@ -174,6 +175,7 @@ std::future<std::string> CubeWhisper::transcribe(std::shared_ptr<ThreadSafeQueue
 
     transcriberThread = std::jthread(
         [audioQueue, p = std::move(promise)](std::stop_token st) mutable {
+            CubeLog::info("");
             whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
             params.print_progress = true;
             params.print_realtime = false;
@@ -188,18 +190,19 @@ std::future<std::string> CubeWhisper::transcribe(std::shared_ptr<ThreadSafeQueue
             while (true) {
                 auto dataOpt = audioQueue->pop();
                 if (!dataOpt || dataOpt->empty()) {
+                    CubeLog::info("");
                     break;
                 }
 
                 pcmf32.reserve(pcmf32.size() + dataOpt->size());
                 for (int16_t s : *dataOpt)
                     pcmf32.push_back(static_cast<float>(s) / 32768.0f);
-
+                CubeLog::info("");
                 if (whisper_full(ctx, params, pcmf32.data(), pcmf32.size()) != 0) {
                     CubeLog::error("whisper_full failed");
                     break;
                 }
-
+                CubeLog::info("");
                 std::stringstream ss;
                 int n = whisper_full_n_segments(ctx);
                 for (int i = 0; i < n; ++i)
@@ -233,6 +236,7 @@ std::string CubeWhisper::getPartialTranscription()
 
 std::string CubeWhisper::transcribeSync(const std::vector<int16_t>& pcm16)
 {
+    CubeLog::info("");
     if (!ctx) {
         CubeLog::error("CubeWhisper::transcribeSync: context not initialized");
         return {};
@@ -253,7 +257,7 @@ std::string CubeWhisper::transcribeSync(const std::vector<int16_t>& pcm16)
     std::vector<float> pcmf32;
     pcmf32.reserve(pcm16.size());
     for (int16_t s : pcm16) pcmf32.push_back(static_cast<float>(s) / 32768.0f);
-
+    CubeLog::info("");
     auto t0 = std::chrono::steady_clock::now();
     if (whisper_full(ctx, params, pcmf32.data(), pcmf32.size()) != 0) {
         CubeLog::error("CubeWhisper::transcribeSync: whisper_full failed");
@@ -262,7 +266,9 @@ std::string CubeWhisper::transcribeSync(const std::vector<int16_t>& pcm16)
     auto t1 = std::chrono::steady_clock::now();
     std::stringstream ss;
     int n = whisper_full_n_segments(ctx);
+    CubeLog::info("");
     for (int i = 0; i < n; ++i) ss << whisper_full_get_segment_text(ctx, i);
+    CubeLog::info("");
     auto out = ss.str();
     // Trim whitespace-only outputs to empty
     bool nonspace = false; for (char c : out) { if (!std::isspace(static_cast<unsigned char>(c))) { nonspace = true; break; } }

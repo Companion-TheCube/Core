@@ -110,6 +110,7 @@ private:
     std::shared_ptr<TheCubeServer::TheCubeServerAPI> remoteServerAPI;
     std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue;
     std::jthread transcriptionConsumerThread;
+    std::shared_ptr<ThreadSafeQueue<std::string>> transcription;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////
