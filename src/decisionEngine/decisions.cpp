@@ -218,7 +218,7 @@ DecisionEngineMain::DecisionEngineMain()
                         continue; 
                     }
 
-                    CubeLog::info("Transcription result: " + *result);
+                    CubeLog::error("Transcription result: " + *result);
                     if (intentRecognition) {
                         auto intent = intentRecognition->recognizeIntentAsync(*result, [this](std::shared_ptr<Intent> intent) {
                             CubeLog::info("Recognized intent: " + (intent ? intent->getIntentName() : "null"));

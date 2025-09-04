@@ -126,7 +126,7 @@ std::shared_ptr<ThreadSafeQueue<std::string>> LocalTranscriber::transcribeQueue(
                 continue;
             }
             const auto& blk = *audioOpt;
-            CubeLog::info(std::string("LocalTranscriber: got block samples=") + std::to_string(blk.size()));
+            // CubeLog::info(std::string("LocalTranscriber: got block samples=") + std::to_string(blk.size()));
             if (blk.empty())
             {
                 CubeLog::info("");
@@ -147,7 +147,7 @@ std::shared_ptr<ThreadSafeQueue<std::string>> LocalTranscriber::transcribeQueue(
             }
             // append and clip to max window
             if (window.size() + blk.size() > kMaxSamples) {
-                CubeLog::info("");
+                // CubeLog::info("");
                 size_t overflow = window.size() + blk.size() - kMaxSamples;
                 if (overflow < window.size()){
                     CubeLog::info("");

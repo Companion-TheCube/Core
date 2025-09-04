@@ -79,11 +79,11 @@ std::string resolveWhisperModelPath()
         auto dir = base / "whisper_models";
         if (std::filesystem::exists(dir)) {
             static constexpr std::array<std::string_view, 5> prefs = {
+                "ggml-tiny.bin",
                 "ggml-large-v3.bin",
                 "ggml-large.bin",
                 "ggml-medium.en.bin",
-                "ggml-base.en.bin",
-                "ggml-large-v3-turbo.bin"
+                "ggml-base.en.bin"
             };
             for (std::string_view name : prefs) {
                 auto cand = dir / std::string(name);
@@ -236,46 +236,62 @@ std::string CubeWhisper::getPartialTranscription()
 
 std::string CubeWhisper::transcribeSync(const std::vector<int16_t>& pcm16)
 {
-    CubeLog::info("");
+    // Ensure the Whisper context (model) has been loaded.
     if (!ctx) {
         CubeLog::error("CubeWhisper::transcribeSync: context not initialized");
         return {};
     }
-    whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
-    params.print_progress   = false;
-    params.print_realtime   = false;
-    params.print_timestamps = false;
-    params.no_context       = true;   // independent window
-    params.single_segment   = true;   // prefer a single segment output
-    params.translate        = false;
-    params.max_len          = 0;      // no limit
-    params.language         = "en";   // assume English for now
-    params.detect_language  = false;
-    unsigned nt = std::max(1u, std::thread::hardware_concurrency());
-    params.n_threads        = static_cast<int>(nt);
 
-    std::vector<float> pcmf32;
-    pcmf32.reserve(pcm16.size());
-    for (int16_t s : pcm16) pcmf32.push_back(static_cast<float>(s) / 32768.0f);
-    CubeLog::info("");
-    auto t0 = std::chrono::steady_clock::now();
-    if (whisper_full(ctx, params, pcmf32.data(), pcmf32.size()) != 0) {
+    // Build decoding parameters similar to whisper.cpp examples (testing/stream.cpp),
+    // but tailored for a single synchronous window (no rolling context).
+    whisper_full_params decodeParams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
+    decodeParams.print_progress   = false;   // suppress progress prints
+    decodeParams.print_realtime   = false;   // no realtime printing
+    decodeParams.print_timestamps = false;   // plain text output
+    decodeParams.no_context       = true;    // independent call, no prior context
+    decodeParams.single_segment   = true;    // prefer a single segment result
+    decodeParams.translate        = false;   // transcribe, do not translate
+    decodeParams.max_len          = 0;       // no token limit
+    decodeParams.language         = "en";    // assume English
+    decodeParams.detect_language  = false;   // skip language detection
+    unsigned numThreads           = std::max(1u, std::thread::hardware_concurrency());
+    decodeParams.n_threads        = static_cast<int>(numThreads);
+
+    // Convert PCM16 mono to float32 in [-1, 1] as required by Whisper.
+    std::vector<float> audioF32;
+    audioF32.reserve(pcm16.size());
+    for (int16_t s : pcm16) audioF32.push_back(static_cast<float>(s) / 32768.0f);
+
+    // Pre-call diagnostic to help trace long-running decodes.
+    CubeLog::info(
+        "CubeWhisper::transcribeSync: invoking whisper_full | samples=" + std::to_string(audioF32.size()) +
+        ", threads=" + std::to_string(decodeParams.n_threads) +
+        ", single_segment=true, no_context=true, lang='" + std::string(decodeParams.language ? decodeParams.language : "") + "'"
+    );
+
+    // Execute the decode. This is the heavyweight step and will block
+    // until the model finishes processing the provided samples.
+    auto tStart = std::chrono::steady_clock::now();
+    if (whisper_full(ctx, decodeParams, audioF32.data(), audioF32.size()) != 0) {
         CubeLog::error("CubeWhisper::transcribeSync: whisper_full failed");
         return {};
     }
-    auto t1 = std::chrono::steady_clock::now();
-    std::stringstream ss;
-    int n = whisper_full_n_segments(ctx);
-    CubeLog::info("");
-    for (int i = 0; i < n; ++i) ss << whisper_full_get_segment_text(ctx, i);
-    CubeLog::info("");
-    auto out = ss.str();
-    // Trim whitespace-only outputs to empty
-    bool nonspace = false; for (char c : out) { if (!std::isspace(static_cast<unsigned char>(c))) { nonspace = true; break; } }
-    if (!nonspace) out.clear();
-    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
-    std::string preview = out.substr(0, 160);
-    CubeLog::info("CubeWhisper::transcribeSync: decode took " + std::to_string(ms) + "ms, segments=" + std::to_string(n) +
-                  ", samples=" + std::to_string(pcmf32.size()) + ", text='" + preview + (out.size()>160?"…":"") + "'");
-    return out;
+    auto tEnd = std::chrono::steady_clock::now();
+
+    // Collect all decoded segments into a single string.
+    std::stringstream textStream;
+    int numSegments = whisper_full_n_segments(ctx);
+    for (int i = 0; i < numSegments; ++i) textStream << whisper_full_get_segment_text(ctx, i);
+    std::string fullText = textStream.str();
+
+    // Normalize whitespace-only strings to empty to avoid spurious results.
+    bool hasNonSpace = false; for (char c : fullText) { if (!std::isspace(static_cast<unsigned char>(c))) { hasNonSpace = true; break; } }
+    if (!hasNonSpace) fullText.clear();
+
+    // Telemetry log for timing and a short preview of the output.
+    auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(tEnd - tStart).count();
+    std::string preview = fullText.substr(0, 160);
+    CubeLog::info("CubeWhisper::transcribeSync: decode took " + std::to_string(elapsedMs) + "ms, segments=" + std::to_string(numSegments) +
+                  ", samples=" + std::to_string(audioF32.size()) + ", text='" + preview + (fullText.size()>160?"…":"") + "'");
+    return fullText;
 }
