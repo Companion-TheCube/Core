@@ -65,12 +65,14 @@ bool hasWhisperMagic(const std::filesystem::path& p)
 
 std::string resolveWhisperModelPath()
 {
+    // TODO: use the method in utils.h to get the env variable
     // Priority 1: environment variable
     if (const char* env = std::getenv("WHISPER_MODEL_PATH")) {
         if (std::filesystem::exists(env)) return std::string(env);
         CubeLog::warning(std::string("WHISPER_MODEL_PATH set but not found: ") + env);
     }
     // Priority 2: alongside binary: <bin>/whisper_models/*.{bin,gguf}
+    // TODO: add a method to utils.h to get the executable path that stores it in a std::string for future use
     char exePath[4096] = {0};
     ssize_t len = ::readlink("/proc/self/exe", exePath, sizeof(exePath) - 1);
     if (len > 0) {
@@ -79,7 +81,7 @@ std::string resolveWhisperModelPath()
         auto dir = base / "whisper_models";
         if (std::filesystem::exists(dir)) {
             static constexpr std::array<std::string_view, 5> prefs = {
-                "ggml-tiny.bin",
+                "ggml-tiny.en-q8_0.bin",
                 "ggml-large-v3.bin",
                 "ggml-large.bin",
                 "ggml-medium.en.bin",
