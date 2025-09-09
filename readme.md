@@ -8,6 +8,9 @@ These instructions will get you a copy of the project up and running on your loc
 ### Dependencies
 This project targets Debian/Ubuntu. Use the script `./install-deps.sh` to install dependencies.
 
+### Actions
+- [![SAST](https://github.com/OpenSource-For-Freedom/Core/actions/workflows/sast.yml/badge.svg)](https://github.com/OpenSource-For-Freedom/Core/actions/workflows/sast.yml)
+
 Build (development) dependencies:
 ```bash
 sudo apt-get update
