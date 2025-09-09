@@ -3,13 +3,13 @@ Welcome to the repository for the core application running on "Companion, TheCub
 
 [![tests](https://github.com/Companion-TheCube/Core/actions/workflows/c-cpp.yml/badge.svg?branch=master)](https://github.com/Companion-TheCube/Core/actions/workflows/c-cpp.yml)
 
+[![SAST](https://github.com/OpenSource-For-Freedom/Core/actions/workflows/sast.yml/badge.svg)](https://github.com/OpenSource-For-Freedom/Core/actions/workflows/sast.yml)
+
+
 ## Getting Started
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
 ### Dependencies
 This project targets Debian/Ubuntu. Use the script `./install-deps.sh` to install dependencies.
-
-### Actions
-- [![SAST](https://github.com/OpenSource-For-Freedom/Core/actions/workflows/sast.yml/badge.svg)](https://github.com/OpenSource-For-Freedom/Core/actions/workflows/sast.yml)
 
 Build (development) dependencies:
 ```bash
