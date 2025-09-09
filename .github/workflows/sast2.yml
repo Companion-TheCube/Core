@@ -155,8 +155,16 @@ jobs:
             --config p/ci \
             "${INCLUDE_ARGS[@]}" \
             "${EXCLUDE_ARGS[@]}" \
-            --json --output semgrep.json \
             --sarif --sarif-output semgrep.sarif \
+            --timeout 600 || true  # don't fail here; we gate explicitly below
+        
+          semgrep scan \
+            --config .semgrep \
+            --config p/cwe-top-25 \
+            --config p/ci \
+            "${INCLUDE_ARGS[@]}" \
+            "${EXCLUDE_ARGS[@]}" \
+            --json --output semgrep.json \
             --timeout 600 || true  # don't fail here; we gate explicitly below
 
       - name: Gate on HIGH severity (fail build if any)
