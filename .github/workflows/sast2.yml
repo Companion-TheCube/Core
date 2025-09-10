@@ -1,203 +1,285 @@
-name: SAST (Semgrep for C/C++)
+name: SAST (Semgrep for C/C++ + Core-specific rules)
 
 on:
-  pull_request:
-  push:
-    branches: [ main, master, develop, dev, feature/** ]
-  workflow_dispatch:
+    pull_request:
+    push:
+        branches: [main, master, develop, dev, feature/**]
+    workflow_dispatch:
 
 permissions:
-  contents: read
-  security-events: write   # needed for SARIF upload
-  actions: read
-  pull-requests: write     # for PR annotations on SARIF
+    contents: read
+    security-events: write
+    actions: read
+    pull-requests: write
 
 jobs:
-  semgrep:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    semgrep:
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+            - name: Install Semgrep + jq
+              run: |
+                  python3 -m pip install --upgrade pip
+                  python3 -m pip install "semgrep>=1.66.0"
+                  sudo apt-get update -y
+                  sudo apt-get install -y jq
 
-      - name: Install Semgrep + jq
-        run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install "semgrep>=1.66.0"  # pin reasonably recent
-          sudo apt-get update -y
-          sudo apt-get install -y jq
+            # Write (or update) the local rule pack
+            - name: Write Core-specific Semgrep rules
+              shell: bash
+              run: |
+                  mkdir -p .semgrep
 
-      # --- Local rules (C/C++) ------------------------------------------------
-      # We create a small ruleset under .semgrep/ so the workflow is self-contained.
-      - name: Write local Semgrep rules
-        shell: bash
-        run: |
-          mkdir -p .semgrep
+                  # 1) Unsafe C APIs
+                  tee .semgrep/c-unsafe-apis.yaml > /dev/null <<'EOF'
+                  rules:
+                    - id: c-unsafe-apis-banned
+                      message: >
+                        Avoid unsafe C string/IO functions (buffer overflow/truncation risk). Prefer safer alt:
+                        snprintf/strlcpy/strnlen/fgets, std::string, fmtlib, etc.
+                      severity: HIGH
+                      languages: [c, cpp]
+                      pattern-either:
+                        - pattern: strcpy($DST, $SRC)
+                        - pattern: strcat($DST, $SRC)
+                        - pattern: gets($BUF)
+                        - pattern: sprintf($BUF, ...)
+                        - pattern: vsprintf($BUF, ...)
+                        - pattern: scanf($FMT, ...)
+                        - pattern: sscanf($BUF, $FMT, ...)
+                      metadata:
+                        cwe: ["CWE-120","CWE-242"]
+                  EOF
 
-          tee .semgrep/cpp-unsafe-apis.yaml > /dev/null <<'EOF'
-          rules:
-            - id: c-unsafe-apis-banned
-              message: >
-                Use of unsafe C string/IO functions can cause buffer overflows or truncation.
-                Prefer safer alternatives (snprintf, strnlen/strlcpy, fgets, etc.) or C++ std::string.
-              severity: HIGH
-              languages: [c, cpp]
-              pattern-either:
-                - pattern: strcpy($DST, $SRC)
-                - pattern: strcat($DST, $SRC)
-                - pattern: gets($BUF)
-                - pattern: sprintf($BUF, ...)
-                - pattern: vsprintf($BUF, ...)
-                - pattern: scanf($FMT, ...)
-                - pattern: sscanf($BUF, $FMT, ...)
-              metadata:
-                category: security
-                cwe: ["CWE-120", "CWE-242"]
-                owasp: ["A03:2021-Injection"]
-              fix: |
-                // Consider: snprintf($BUF, SIZE, ...), strncat, fgets, std::string operations, fmtlib, etc.
-          EOF
+                  # 2) Raw new/delete (nudge RAII)
+                  tee .semgrep/cpp-raw-new-delete.yaml > /dev/null <<'EOF'
+                  rules:
+                    - id: cpp-raw-delete-banned
+                      message: Use RAII/smart pointers instead of raw 'delete'.
+                      severity: MEDIUM
+                      languages: [cpp]
+                      pattern: delete $X;
 
-          tee .semgrep/cpp-raw-new-delete.yaml > /dev/null <<'EOF'
-          rules:
-            - id: cpp-raw-delete-banned
-              message: >
-                Avoid raw 'delete' in C++. Prefer RAII and smart pointers (unique_ptr/shared_ptr)
-                and resource-wrapper classes to manage lifetime safely.
-              severity: MEDIUM
-              languages: [cpp]
-              pattern: delete $X;
+                    - id: cpp-raw-new-discouraged
+                      message: Prefer std::make_unique/make_shared or containers over raw 'new'.
+                      severity: MEDIUM
+                      languages: [cpp]
+                      pattern-either:
+                        - pattern: new $T($...ARGS)
+                        - pattern: new $T[$N]
+                      pattern-not: std::make_$X(...)
+                  EOF
 
-            - id: cpp-raw-new-discouraged
-              message: >
-                Raw 'new' suggests manual memory management. Prefer std::make_unique/make_shared,
-                containers (std::vector/std::string), or RAII wrappers.
-              severity: MEDIUM
-              languages: [cpp]
-              # Flag 'new' unless clearly part of make_unique/make_shared or placement-new.
-              pattern-either:
-                - pattern: new $T($...ARGS)
-                - pattern: new $T[$N]
-              # Allow common safe cases via 'pattern-not'.
-              # (Semgrep can't perfectly model all safe patterns; tune exceptions as needed.)
-              pattern-not: std::make_$X(...)
-              metadata:
-                category: safety
-                ref: https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines
-          EOF
+                  # 3) Command execution primitives
+                  tee .semgrep/c-commands-exec-banned.yaml > /dev/null <<'EOF'
+                  rules:
+                    - id: c-commands-exec-banned
+                      message: Avoid system/popen/exec*. Use execv/posix_spawn with validated argv (no shell) if needed.
+                      severity: HIGH
+                      languages: [c, cpp]
+                      pattern-either:
+                        - pattern: system($CMD)
+                        - pattern: popen($CMD, $MODE)
+                        - pattern: execl($P, ...)
+                        - pattern: execlp($P, ...)
+                        - pattern: execle($P, ...)
+                        - pattern: execv($P, $ARG)
+                        - pattern: execvp($P, $ARG)
+                        - pattern: execve($P, $ARG, $ENV)
+                      metadata:
+                        cwe: ["CWE-78"]
+                  EOF
 
-          tee .semgrep/c-commands-exec-banned.yaml > /dev/null <<'EOF'
-          rules:
-            - id: c-commands-exec-banned
-              message: >
-                Spawning shell commands can lead to command injection. Avoid system/popen/exec*.
-                If absolutely necessary, use execv/posix_spawn with validated argv (no shell),
-                or a dedicated, audited helper.
-              severity: HIGH
-              languages: [c, cpp]
-              pattern-either:
-                - pattern: system($CMD)
-                - pattern: popen($CMD, $MODE)
-                - pattern: execl($P, ...)
-                - pattern: execlp($P, ...)
-                - pattern: execle($P, ...)
-                - pattern: execv($P, $ARG)
-                - pattern: execvp($P, $ARG)
-                - pattern: execve($P, $ARG, $ENV)
-              metadata:
-                category: security
-                cwe: ["CWE-78"]
-                owasp: ["A03:2021-Injection"]
-          EOF
+                  # 4) Insecure temporary files
+                  tee .semgrep/c-insecure-tempfile.yaml > /dev/null <<'EOF'
+                  rules:
+                    - id: c-insecure-tmpnam
+                      message: 'tmpnam' is insecure. Use mkstemp/tmpfile with restrictive perms.
+                      severity: MEDIUM
+                      languages: [c, cpp]
+                      pattern: tmpnam(...)
+                      metadata:
+                        cwe: ["CWE-377"]
+                  EOF
 
-          tee .semgrep/c-insecure-tempfile.yaml > /dev/null <<'EOF'
-          rules:
-            - id: c-insecure-tmpnam
-              message: >
-                'tmpnam' creates predictable temp filenames and is insecure. Use mkstemp or tmpfile.
-              severity: MEDIUM
-              languages: [c, cpp]
-              pattern: tmpnam(...)
-              metadata:
-                category: security
-                cwe: ["CWE-377"]
-          EOF
+                  # 5) SQLite/SQLiteCpp concatenated SQL (prefer prepared statements)
+                  tee .semgrep/sqlite-sql-concat.yaml > /dev/null <<'EOF'
+                  rules:
+                    - id: sqlite-sql-concat
+                      message: >
+                        Possible SQL injection via string-concatenated SQL. Prefer prepared statements
+                        (SQLite/SQLiteCpp: SQLite::Statement with bind).
+                      severity: HIGH
+                      languages: [cpp, c]
+                      patterns:
+                        - pattern-either:
+                            - pattern: $DB.exec($SQL + $X)
+                            - pattern: $DB.exec($A + $B)
+                            - pattern: $DB.exec($A + ... + $B)
+                            - pattern: $DB.exec(QString::fromStdString($A) + $B)
+                            - pattern: $DB.exec($A.append($B))
+                            - pattern: $DB.exec($A += $B)
+                            - pattern: $DB.exec($A << $B)
+                        - pattern-inside: |
+                            namespace SQLiteCpp { class Database; }
+                      metadata:
+                        cwe: ["CWE-89"]
+                        references:
+                          - https://github.com/SRombauts/SQLiteCpp
+                  EOF
 
-          tee .semgrep/ruleset.yaml > /dev/null <<'EOF'
-          # Aggregate your local rules and any registry packs here.
-          # You can add or remove packs based on your codebase.
-          # For non-web C++ cores, the CWE Top 25 is a good default baseline.
-          rules:
-          EOF
+                  # 6) nlohmann::json: unchecked operator[] on untrusted input
+                  tee .semgrep/nlohmann-json-unchecked.yaml > /dev/null <<'EOF'
+                  rules:
+                    - id: nlohmann-json-unchecked-index
+                      message: >
+                        Unchecked json["key"] access on possibly untrusted input. Prefer j.contains("key")
+                        and then j.at("key").get<T>() with type checking.
+                      severity: MEDIUM
+                      languages: [cpp]
+                      patterns:
+                        - pattern: $J[$K]
+                      metavariables:
+                        J:
+                          metavariable-pattern: |
+                            # Match typical nlohmann::json objects; heuristic (tune as needed).
+                            pattern-either:
+                              - pattern: $Json
+                      metadata:
+                        cwe: ["CWE-20","CWE-704"]
+                  EOF
 
-      # --- Run Semgrep (only first-party code) --------------------------------
-      - name: Semgrep scan (JSON + SARIF)
-        shell: bash
-        run: |
-          # Paths: scan only first-party source; tune as needed
-          INCLUDE_PATHS=("src/**" "include/**" "app/**")
-          EXCLUDES=("build/**" "cmake-build-*/**" "vendor/**" "third_party/**" "external/**" "node_modules/**" "dist/**")
+                  # 7) spdlog/fmt: non-literal format strings
+                  tee .semgrep/spdlog-nonliteral-format.yaml > /dev/null <<'EOF'
+                  rules:
+                    - id: spdlog-nonliteral-format
+                      message: First arg to spdlog must be a string literal. Avoid user-controlled format strings.
+                      severity: MEDIUM
+                      languages: [cpp]
+                      pattern-either:
+                        - pattern: spdlog::trace($X, ...)
+                        - pattern: spdlog::debug($X, ...)
+                        - pattern: spdlog::info($X, ...)
+                        - pattern: spdlog::warn($X, ...)
+                        - pattern: spdlog::error($X, ...)
+                        - pattern: spdlog::critical($X, ...)
+                      metavariables:
+                        X:
+                          # Reject string literals; flag non-literals.
+                          metavariable-regex: '^(?!\".*\"$).+'
+                      metadata:
+                        cwe: ["CWE-134"]
+                  EOF
 
-          INCLUDE_ARGS=()
-          for p in "${INCLUDE_PATHS[@]}"; do INCLUDE_ARGS+=( --include "$p" ); done
+                  # 8) cpp-httplib: request data flowing to risky sinks (simple heuristic)
+                  tee .semgrep/httplib-taint.yaml > /dev/null <<'EOF'
+                  rules:
+                    - id: httplib-request-to-sink
+                      message: >
+                        Untrusted HTTP request data appears to flow into a risky sink (file/command).
+                        Validate/normalize input and avoid shell invocation.
+                      severity: HIGH
+                      languages: [cpp]
+                      patterns:
+                        - pattern-either:
+                            - pattern: $SERVER.Get($ROUTE, $HANDLER)
+                            - pattern: $SERVER.Post($ROUTE, $HANDLER)
+                      pattern-inside: |
+                        using namespace httplib;
+                        ...
+                      # This is a heuristic: flag if handler uses req.body/params directly in file or system sinks.
+                      # Tune with allowlists for your helpers.
+                      taint-mode: taint
+                      pattern-sources:
+                        - pattern: $REQ.body
+                        - pattern: $REQ.get_param_value(...)
+                        - pattern: $REQ.matches[...]
+                      pattern-sinks:
+                        - pattern: fopen($X, "w")
+                        - pattern: std::ofstream $F ( $P )
+                        - pattern: system($CMD)
+                        - pattern: popen($CMD, ...)
+                        - pattern: exec*($...)
+                  EOF
 
-          EXCLUDE_ARGS=()
-          for p in "${EXCLUDES[@]}"; do EXCLUDE_ARGS+=( --exclude "$p" ); done
+                  # 9) Aggregate local pack marker (optional; we use folder config)
+                  tee .semgrep/ruleset.yaml > /dev/null <<'EOF'
+                  rules: []
+                  EOF
 
-          # Combine local rules with curated registry packs.
-          # Feel free to add/remove packs; p/cwe-top-25 gives a solid baseline.
-          semgrep scan \
-            --config .semgrep \
-            --config p/cwe-top-25 \
-            --config p/ci \
-            "${INCLUDE_ARGS[@]}" \
-            "${EXCLUDE_ARGS[@]}" \
-            --sarif --sarif-output semgrep.sarif \
-            --timeout 600 || true  # don't fail here; we gate explicitly below
-        
-          semgrep scan \
-            --config .semgrep \
-            --config p/cwe-top-25 \
-            --config p/ci \
-            "${INCLUDE_ARGS[@]}" \
-            "${EXCLUDE_ARGS[@]}" \
-            --json --output semgrep.json \
-            --timeout 600 || true  # don't fail here; we gate explicitly below
+            - name: Semgrep scan (SARIF)
+              shell: bash
+              run: |
+                  INCLUDE_PATHS=("src/**" "include/**" "app/**")
+                  EXCLUDES=("build/**" "cmake-build-*/**" "vendor/**" "third_party/**" "external/**" "node_modules/**" "dist/**" "tests/**")
 
-      - name: Gate on HIGH severity (fail build if any)
-        shell: bash
-        run: |
-          HIGH_COUNT=$(jq '[.results[] | select(.extra.severity == "HIGH")] | length' semgrep.json 2>/dev/null || echo 0)
-          echo "High-severity findings: ${HIGH_COUNT}"
-          if [ "${HIGH_COUNT}" -gt 0 ]; then
-            echo "::error::Semgrep found ${HIGH_COUNT} HIGH-severity issue(s)."
-            exit 1
-          fi
+                  INCLUDE_ARGS=(); for p in "${INCLUDE_PATHS[@]}"; do INCLUDE_ARGS+=( --include "$p" ); done
+                  EXCLUDE_ARGS=(); for p in "${EXCLUDES[@]}";    do EXCLUDE_ARGS+=( --exclude "$p" ); done
 
-      - name: Upload SARIF to GitHub code scanning
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: semgrep.sarif
-          category: semgrep
+                  # Local rules + baseline packs
+                  semgrep scan \
+                    --config .semgrep \
+                    --config p/cwe-top-25 \
+                    --config p/secrets \
+                    --config p/ci \
+                    "${INCLUDE_ARGS[@]}" \
+                    "${EXCLUDE_ARGS[@]}" \
+                    --sarif --sarif-output semgrep.sarif \
+                    --timeout 600 || true
 
-      - name: Summarize findings in job summary
-        if: always()
-        shell: bash
-        run: |
-          echo "## Semgrep Findings Summary" >> $GITHUB_STEP_SUMMARY
-          if [ -s semgrep.json ]; then
-            TOTAL=$(jq '.results | length' semgrep.json)
-            H=$(jq '[.results[] | select(.extra.severity == "HIGH")] | length' semgrep.json)
-            M=$(jq '[.results[] | select(.extra.severity == "MEDIUM")] | length' semgrep.json)
-            L=$(jq '[.results[] | select(.extra.severity == "LOW")] | length' semgrep.json)
-            I=$(jq '[.results[] | select(.extra.severity == "INFO")] | length' semgrep.json)
-            echo "- Total: **$TOTAL**" >> $GITHUB_STEP_SUMMARY
-            echo "- High: **$H** &nbsp;&nbsp; Medium: **$M** &nbsp;&nbsp; Low: **$L** &nbsp;&nbsp; Info: **$I**" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "<sub>Scope: \`src/**\`, \`include/**\`, \`app/**\` (excluded: build, vendor, third_party, external)</sub>" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "No semgrep.json produced." >> $GITHUB_STEP_SUMMARY
-          fi
+            - name: Semgrep scan (JSON)
+              shell: bash
+              run: |
+                  INCLUDE_PATHS=("src/**" "include/**" "app/**")
+                  EXCLUDES=("build/**" "cmake-build-*/**" "vendor/**" "third_party/**" "external/**" "node_modules/**" "dist/**" "tests/**")
+
+                  INCLUDE_ARGS=(); for p in "${INCLUDE_PATHS[@]}"; do INCLUDE_ARGS+=( --include "$p" ); done
+                  EXCLUDE_ARGS=(); for p in "${EXCLUDES[@]}";    do EXCLUDE_ARGS+=( --exclude "$p" ); done
+
+                  # Local rules + baseline packs
+                  semgrep scan \
+                    --config .semgrep \
+                    --config p/cwe-top-25 \
+                    --config p/secrets \
+                    --config p/ci \
+                    "${INCLUDE_ARGS[@]}" \
+                    "${EXCLUDE_ARGS[@]}" \
+                    --json --output semgrep.json \
+                    --timeout 600 || true
+
+            - name: Gate on HIGH severity (fail build if any)
+              shell: bash
+              run: |
+                  HIGH_COUNT=$(jq '[.results[] | select(.extra.severity == "HIGH")] | length' semgrep.json 2>/dev/null || echo 0)
+                  echo "High-severity findings: ${HIGH_COUNT}"
+                  if [ "${HIGH_COUNT}" -gt 0 ]; then
+                    echo "::error::Semgrep found ${HIGH_COUNT} HIGH-severity issue(s)."
+                    exit 1
+                  fi
+
+            - name: Upload SARIF to GitHub code scanning
+              uses: github/codeql-action/upload-sarif@v3
+              with:
+                  sarif_file: semgrep.sarif
+                  category: semgrep
+
+            - name: Summarize findings
+              if: always()
+              run: |
+                  echo "## Semgrep Findings Summary" >> $GITHUB_STEP_SUMMARY
+                  if [ -s semgrep.json ]; then
+                    TOTAL=$(jq '.results | length' semgrep.json)
+                    H=$(jq '[.results[] | select(.extra.severity == "HIGH")] | length' semgrep.json)
+                    M=$(jq '[.results[] | select(.extra.severity == "MEDIUM")] | length' semgrep.json)
+                    L=$(jq '[.results[] | select(.extra.severity == "LOW")] | length' semgrep.json)
+                    I=$(jq '[.results[] | select(.extra.severity == "INFO")] | length' semgrep.json)
+                    echo "- Total: **$TOTAL**" >> $GITHUB_STEP_SUMMARY
+                    echo "- High: **$H** • Medium: **$M** • Low: **$L** • Info: **$I**" >> $GITHUB_STEP_SUMMARY
+                    echo "<sub>Scope: \`src/**, include/**, app/**\` (excluded: build, vendor, third_party, external, tests)</sub>" >> $GITHUB_STEP_SUMMARY
+                  else
+                    echo "No semgrep.json produced." >> $GITHUB_STEP_SUMMARY
+                  fi
