@@ -60,7 +60,6 @@ SOFTWARE.
 #ifndef API_I_H
 #include "../api/api.h"
 #endif
-#include "cubeWhisper.h"
 #include "nlohmann/json.hpp"
 #include "remoteServer.h"
 #include <chrono>

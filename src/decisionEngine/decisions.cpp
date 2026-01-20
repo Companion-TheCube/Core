@@ -55,17 +55,11 @@ The decision engine will be responsible for making decisions based on user comma
 triggers, and the personality of TheCube.
 It will provide API endpoints for other apps on the system to interact with it.
 When the speech in class detects a wake word, it will route audio into the decision engine
-which will then pass the audio to the TheCube Server service for translation to text. If the user
-has not configured the system to use the remote server, we may use the whisper.cpp library
-to do the translation locally.
+which will then pass the audio to the TheCube Server service for translation to text.
 
 Once the decision engine gets the text of the audio, it will then pass the text to the intent
 detection service which will determine the intent of the user. The decision engine will then
 use the response from the intent detection service to make a decision on what to do next.
-
-To be evaluated: Using Whisper locally for users that don't want to pay for the service.
-Whisper.cpp (https://github.com/ggerganov/whisper.cpp) will be the best option for this,
-however it is not as accurate as the remote service and we'll have to implement our own intent detection.
 
 */
 
@@ -93,21 +87,17 @@ DecisionEngineMain::DecisionEngineMain()
 
     The Process:
     - Once the wakeword is triggered, start moving audio from the speechIn class to the transcriber
-    - If the user has remote transcription enabled:
-        - The CubeServerAPI will then send the audio to the remote server for transcription
-    - If the user does not have remote transcription enabled
-        - The transcriber will use the whisper class to transcribe the audio
+    - The CubeServerAPI will then send the audio to the remote server for transcription
     - then we send the transcription to the intentRecognition class.
-    - The intentRecognition class will then determine the intent of the user
-        - if remote intent detection is enabled, intentRecognition will send the transcription
+    - The intentRecognition class will then determine the intent of the user by sending the transcription
         to the remote server for intent detection
-        - if remote intent detection is not enabled, intentRecognition will use the local intent detection
     - The intentRecognition class will then return the intent to the DecisionEngineMain class
     */
 
     // Initialize queues and strategy objects according to settings.
     // this->audioQueue = AudioManager::audioInQueue;
-    // remoteServerAPI = std::make_shared<TheCubeServer::TheCubeServerAPI>(audioQueue);
+    this->audioQueue = std::make_shared<ThreadSafeQueue<std::vector<int16_t>>>();
+    remoteServerAPI = std::make_shared<TheCubeServer::TheCubeServerAPI>(audioQueue);
     intentRegistry = std::make_shared<IntentRegistry>();
     try {
         intentRegistry->registerInterface();
@@ -129,17 +119,12 @@ DecisionEngineMain::DecisionEngineMain()
     if (intentRegistry)
         intentRegistry->setFunctionRegistry(functionRegistry);
 
-    if (GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::REMOTE_INTENT_RECOGNITION_ENABLED)) {
-        intentRecognition = std::make_shared<RemoteIntentRecognition>(intentRegistry);
-        (std::dynamic_pointer_cast<RemoteIntentRecognition>(intentRecognition))->setRemoteServerAPIObject(remoteServerAPI);
-    } else
-        intentRecognition = std::make_shared<LocalIntentRecognition>(intentRegistry);
+    auto remoteIntentRecognition = std::make_shared<RemoteIntentRecognition>(intentRegistry);
+    remoteIntentRecognition->setRemoteServerAPIObject(remoteServerAPI);
+    intentRecognition = remoteIntentRecognition;
 
-    if (GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::REMOTE_TRANSCRIPTION_ENABLED)) {
-        transcriber = std::make_shared<RemoteTranscriber>();
-        (std::dynamic_pointer_cast<RemoteTranscriber>(transcriber))->setRemoteServerAPIObject(remoteServerAPI);
-    } else
-        transcriber = std::make_shared<LocalTranscriber>();
+    transcriber = std::make_shared<RemoteTranscriber>();
+    (std::dynamic_pointer_cast<RemoteTranscriber>(transcriber))->setRemoteServerAPIObject(remoteServerAPI);
 
     // Core components
     scheduler = std::make_shared<Scheduler>();
@@ -161,9 +146,8 @@ DecisionEngineMain::DecisionEngineMain()
     personalityManager->registerInterface();
 
     // Connect transcriber to audio input queue
-    // Allocate a fresh audio queue and register it with SpeechIn so we receive
+    // Register the audio queue with SpeechIn so we receive
     // post-wake and pre-trigger audio blocks for transcription.
-    this->audioQueue = std::make_shared<ThreadSafeQueue<std::vector<int16_t>>>();
     auto regId = SpeechIn::registerWakeAudioQueue(this->audioQueue);
     CubeLog::info("DecisionEngine: audio queue created and registered with SpeechIn id=" + std::to_string(regId));
     // Also register for pre-trigger fan-out so the transcriber immediately
@@ -179,9 +163,7 @@ DecisionEngineMain::DecisionEngineMain()
             // before starting a new session so we don't have competing
             // consumers on the same audio queue or orphan threads.
             try {
-                if (auto lt = std::dynamic_pointer_cast<LocalTranscriber>(transcriber))
-                    lt->interrupt();
-                else if (auto rt = std::dynamic_pointer_cast<RemoteTranscriber>(transcriber))
+                if (auto rt = std::dynamic_pointer_cast<RemoteTranscriber>(transcriber))
                     rt->interrupt();
             } catch (...) {
                 CubeLog::error("DecisionEngine: exception while interrupting previous transcriber session");

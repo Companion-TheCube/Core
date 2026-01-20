@@ -68,7 +68,12 @@ bool SettingsLoader::loadSettings()
     // iterate through all the settings and set them
     for (auto it = this->settings.begin(); it != this->settings.end(); ++it) {
         CubeLog::info("Setting " + it.key() + " to " + it.value().dump());
-        this->globalSettings->setSetting(GlobalSettings::stringSettingTypeMap[it.key()], it.value());
+        auto mapIt = GlobalSettings::stringSettingTypeMap.find(it.key());
+        if (mapIt == GlobalSettings::stringSettingTypeMap.end()) {
+            CubeLog::warning("Unknown setting key: " + it.key());
+            continue;
+        }
+        this->globalSettings->setSetting(mapIt->second, it.value());
     }
     CubeLog::debug("Settings loaded. Closing file...");
     file.close();

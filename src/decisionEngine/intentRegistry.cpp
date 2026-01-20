@@ -32,12 +32,147 @@ SOFTWARE.
 */
 
 
-// Intent, registry, and recognition strategies implementation. Local recognition
-// uses a simple token/parameter-name overlap heuristic; remote is a stub for
-// TheCubeServer-backed recognition.
+// Intent, registry, and recognition strategies implementation. Remote recognition
+// routes utterances to TheCubeServer for LLM-backed intent selection.
 #include "intentRegistry.h"
+#include <cctype>
+#include <utility>
 
 namespace DecisionEngine {
+namespace {
+std::string trimWhitespace(const std::string& input)
+{
+    size_t start = 0;
+    while (start < input.size() && std::isspace(static_cast<unsigned char>(input[start]))) ++start;
+    size_t end = input.size();
+    while (end > start && std::isspace(static_cast<unsigned char>(input[end - 1]))) --end;
+    return input.substr(start, end - start);
+}
+
+std::string stripQuotes(const std::string& input)
+{
+    if (input.size() >= 2) {
+        char first = input.front();
+        char last = input.back();
+        if ((first == '"' && last == '"') || (first == '\'' && last == '\'')) {
+            return input.substr(1, input.size() - 2);
+        }
+    }
+    return input;
+}
+
+std::string toLowerAscii(const std::string& input)
+{
+    std::string out;
+    out.reserve(input.size());
+    for (unsigned char ch : input) out.push_back(static_cast<char>(std::tolower(ch)));
+    return out;
+}
+
+std::string extractIntentName(const std::string& response)
+{
+    std::string trimmed = trimWhitespace(response);
+    if (trimmed.empty()) return "";
+
+    std::string maybeJson = trimmed;
+    if (maybeJson.rfind("```", 0) == 0) {
+        auto first = maybeJson.find('\n');
+        auto last = maybeJson.rfind("```");
+        if (first != std::string::npos && last != std::string::npos && last > first) {
+            maybeJson = maybeJson.substr(first + 1, last - first - 1);
+        }
+    }
+    maybeJson = trimWhitespace(maybeJson);
+
+    try {
+        auto j = nlohmann::json::parse(maybeJson);
+        if (j.is_object() && j.contains("intentName") && j["intentName"].is_string()) {
+            return j["intentName"].get<std::string>();
+        }
+        if (j.is_string()) {
+            return j.get<std::string>();
+        }
+    } catch (...) {
+    }
+
+    return trimmed;
+}
+
+std::shared_ptr<Intent> matchIntentByName(const std::shared_ptr<IntentRegistry>& registry, const std::string& name)
+{
+    if (!registry) return nullptr;
+    std::string cleaned = trimWhitespace(stripQuotes(name));
+    if (cleaned.empty()) return nullptr;
+    std::string lower = toLowerAscii(cleaned);
+    if (lower == "null" || lower == "none" || lower == "no_intent" || lower == "no intent") return nullptr;
+
+    auto direct = registry->getIntent(cleaned);
+    if (direct) return direct;
+    for (const auto& candidate : registry->getIntentNames()) {
+        if (toLowerAscii(candidate) == lower) {
+            return registry->getIntent(candidate);
+        }
+    }
+    return nullptr;
+}
+
+std::shared_ptr<Intent> matchIntentFromResponseText(const std::shared_ptr<IntentRegistry>& registry, const std::string& response)
+{
+    if (!registry) return nullptr;
+    std::string responseLower = toLowerAscii(response);
+    for (const auto& candidate : registry->getIntentNames()) {
+        if (candidate.empty()) continue;
+        if (responseLower.find(toLowerAscii(candidate)) != std::string::npos) {
+            return registry->getIntent(candidate);
+        }
+    }
+    return nullptr;
+}
+
+std::string buildIntentPrompt(const std::string& utterance, const std::vector<std::shared_ptr<Intent>>& intents)
+{
+    nlohmann::json payload;
+    payload["utterance"] = utterance;
+    payload["intents"] = nlohmann::json::array();
+    for (const auto& intent : intents) {
+        if (!intent) continue;
+        nlohmann::json item;
+        item["name"] = intent->getIntentName();
+        item["briefDesc"] = intent->getBriefDesc();
+        payload["intents"].push_back(item);
+    }
+
+    std::string prompt =
+        "You are an intent classifier for a robot assistant. "
+        "Choose the single best intent name from the provided list. "
+        "If no intent matches, return an empty string.\n"
+        "Return ONLY a JSON object: {\"intentName\": \"...\"}.\n"
+        "Data:\n";
+    prompt += payload.dump(2);
+    return prompt;
+}
+
+std::shared_ptr<Intent> runRemoteIntentRecognition(
+    const std::shared_ptr<IntentRegistry>& registry,
+    const std::shared_ptr<TheCubeServer::TheCubeServerAPI>& remoteServerAPI,
+    const std::string& utterance)
+{
+    if (!registry || !remoteServerAPI) return nullptr;
+    auto intents = registry->getRegisteredIntents();
+    if (intents.empty()) return nullptr;
+
+    std::string prompt = buildIntentPrompt(utterance, intents);
+    auto fut = remoteServerAPI->getChatResponseAsync(prompt);
+    std::string response = fut.get();
+    if (response.empty()) return nullptr;
+
+    std::string intentName = extractIntentName(response);
+    auto intent = matchIntentByName(registry, intentName);
+    if (!intent) intent = matchIntentFromResponseText(registry, response);
+    return intent;
+}
+} // namespace
+
 // Intent - class that contains the intent data including the action to take
 
 /**
@@ -370,118 +505,6 @@ std::vector<IntentCTorParams> getSystemIntents()
     return intents;
 }
 
-// Interface: IntentRecognition - class that determines the intent of the user
-// LocalIntentRecognition - class that determines the intent of the user without the need of an LLM. Use a score based pattern matching system.
-LocalIntentRecognition::LocalIntentRecognition(std::shared_ptr<IntentRegistry> intentRegistry)
-{
-    this->intentRegistry = intentRegistry;
-    // create the recognition threads
-    for (size_t i = 0; i < LOCAL_INTENT_RECOGNITION_THREAD_COUNT; i++) {
-        taskQueues.push_back(std::shared_ptr<TaskQueueWithData<std::function<void()>, std::string>>(new TaskQueueWithData<std::function<void()>, std::string>()));
-        recognitionThreads.push_back(new std::jthread([this, i](std::stop_token st) {
-            while (!st.stop_requested()) {
-                genericSleep(LOCAL_INTENT_RECOGNITION_THREAD_SLEEP_MS);
-                while (taskQueues[i]->size() != 0) {
-                    auto task = taskQueues[i]->pop();
-                    if (task) {
-                        task();
-                    }
-                }
-            }
-        }));
-    }
-    threadsReady = true;
-}
-
-// Very lightweight recognizer: tokenizes the input string and counts matches
-// against the parameter names of an existing intent. Returns null if no tokens
-// match any parameter name. This is a stopgap until a better matcher exists.
-std::shared_ptr<Intent> LocalIntentRecognition::recognizeIntent(const std::string& name, const std::string& intentString)
-{
-    // TODO: although this code works, we need to implement a more advanced pattern matching system and we need to
-    // have pattern matches that are weighted. For example, if the user says "What time is it?" we need to have a pattern
-    // match for "What time is it?" and "What is the time?" and "What time is it now?" and "What is the time now?" and so on.
-    // TODO: This function should somehow return a score for the match so that when multiple intents match, we can
-    // choose the one with the highest score.
-
-    auto l_intent = intentRegistry->getIntent(name);
-    // first we make a vector of all the intents param names
-    std::vector<std::vector<std::string>> intentParamNames;
-    std::vector<std::string> paramNames;
-    for (auto& param : l_intent->getParameters()) {
-        paramNames.push_back(param.first);
-    }
-    intentParamNames.push_back(paramNames);
-    // now we need to tokenize the intentString
-    std::vector<std::string> tokens;
-    std::regex splitOnRegex("[\\s,.]+");
-    std::sregex_token_iterator iter(intentString.begin(), intentString.end(), splitOnRegex, -1);
-    std::sregex_token_iterator end;
-    while (iter != end) {
-        tokens.push_back(iter->str());
-        ++iter;
-    }
-    // now we need to find the intent that matches the most tokens
-    size_t maxMatchIndex = 0;
-    size_t maxMatchCount = 0;
-    for (size_t i = 0; i < intentParamNames.size(); i++) {
-        size_t matchCount = 0;
-        for (auto& token : tokens) {
-            for (auto& paramName : intentParamNames[i]) {
-                if (token == paramName) {
-                    matchCount++;
-                    break;
-                }
-            }
-        }
-        if (matchCount > maxMatchCount) {
-            maxMatchCount = matchCount;
-            maxMatchIndex = i;
-        }
-    }
-    if (maxMatchCount == 0)
-        return nullptr;
-    return l_intent;
-}
-
-bool LocalIntentRecognition::recognizeIntentAsync(const std::string& intentString)
-{
-    return this->recognizeIntentAsync(intentString, [](std::shared_ptr<Intent> intent) {});
-}
-
-// TODO: convert this to std::future and make callback the progress callback or remove it
-bool LocalIntentRecognition::recognizeIntentAsync(const std::string& intentString, std::function<void(std::shared_ptr<Intent>)> callback)
-{
-    if (!threadsReady)
-        return false;
-    for (auto name : intentRegistry->getIntentNames()) {
-        size_t minIndex = 0;
-        size_t minSize = taskQueues[0]->size();
-        for (size_t i = 1; i < taskQueues.size(); i++) {
-            if (taskQueues[i]->size() < minSize) {
-                minSize = taskQueues[i]->size();
-                minIndex = i;
-            }
-        }
-        taskQueues[minIndex]->push([this, intentString, callback, name]() {
-            auto intent = recognizeIntent(name, intentString);
-            if (intent)
-                callback(intent);
-        },
-            intentString);
-    }
-    return true;
-}
-
-LocalIntentRecognition::~LocalIntentRecognition()
-{
-    for (auto& thread : recognitionThreads) {
-        delete thread;
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 // RemoteIntentRecognition - class that converts intent to action using the TheCube Server API
 RemoteIntentRecognition::RemoteIntentRecognition(std::shared_ptr<IntentRegistry> intentRegistry)
 {
@@ -501,16 +524,27 @@ bool RemoteIntentRecognition::recognizeIntentAsync(const std::string& intentStri
 // TODO: convert this to std::future and make callback the progress callback or remove it
 bool RemoteIntentRecognition::recognizeIntentAsync(const std::string& intentString, std::function<void(std::shared_ptr<Intent>)> callback)
 {
-    if (!remoteServerAPI)
+    auto registry = intentRegistry;
+    auto api = remoteServerAPI;
+    if (!registry || !api)
         return false;
-    return false; // TODO:
+    std::thread([registry, api, intentString, callback = std::move(callback)]() mutable {
+        auto intent = runRemoteIntentRecognition(registry, api, intentString);
+        if (callback) {
+            try {
+                callback(intent);
+            } catch (...) {
+                CubeLog::error("RemoteIntentRecognition: callback exception");
+            }
+        }
+    }).detach();
+    return true;
 }
 
 std::shared_ptr<Intent> RemoteIntentRecognition::recognizeIntent(const std::string& name, const std::string& intentString)
 {
-    if (!remoteServerAPI)
-        return nullptr;
-    return nullptr; // TODO:
+    (void)name;
+    return runRemoteIntentRecognition(intentRegistry, remoteServerAPI, intentString);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

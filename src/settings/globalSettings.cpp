@@ -71,14 +71,7 @@ std::unordered_map <GlobalSettings::SettingType, std::string> GlobalSettings::se
         {SettingType::EMOTION_ASSERTIVENESS, "emotionAssertiveness"},
         {SettingType::EMOTION_ATTENTIVENESS, "emotionAttentiveness"},
         {SettingType::EMOTION_CAUTION, "emotionCaution"},
-        {SettingType::EMOTION_ANNOYANCE, "emotionAnnoyance"},
-        {SettingType::REMOTE_INTENT_RECOGNITION_ENABLED, "remoteIntentRecognitionEnabled"},
-        {SettingType::REMOTE_TRANSCRIPTION_ENABLED, "remoteTranscriptionEnabled"},
-        {SettingType::TRANSCRIBER_MIN_SECONDS, "transcriberMinSeconds"},
-        {SettingType::TRANSCRIBER_MAX_SECONDS, "transcriberMaxSeconds"},
-        {SettingType::TRANSCRIBER_STEP_SECONDS, "transcriberStepSeconds"},
-        {SettingType::TRANSCRIBER_VAD_THRESHOLD, "transcriberVadThreshold"},
-        {SettingType::TRANSCRIBER_VAD_HANGOVER_SECONDS, "transcriberVadHangoverSeconds"}
+        {SettingType::EMOTION_ANNOYANCE, "emotionAnnoyance"}
     };
 std::unordered_map <std::string, GlobalSettings::SettingType> GlobalSettings::stringSettingTypeMap = {
         {"logVerbosity", SettingType::LOG_VERBOSITY},
@@ -115,12 +108,5 @@ std::unordered_map <std::string, GlobalSettings::SettingType> GlobalSettings::st
         {"emotionAssertiveness", SettingType::EMOTION_ASSERTIVENESS},
         {"emotionAttentiveness", SettingType::EMOTION_ATTENTIVENESS},
         {"emotionCaution", SettingType::EMOTION_CAUTION},
-        {"emotionAnnoyance", SettingType::EMOTION_ANNOYANCE},
-        {"remoteIntentRecognitionEnabled", SettingType::REMOTE_INTENT_RECOGNITION_ENABLED},
-        {"remoteTranscriptionEnabled", SettingType::REMOTE_TRANSCRIPTION_ENABLED},
-        {"transcriberMinSeconds", SettingType::TRANSCRIBER_MIN_SECONDS},
-        {"transcriberMaxSeconds", SettingType::TRANSCRIBER_MAX_SECONDS},
-        {"transcriberStepSeconds", SettingType::TRANSCRIBER_STEP_SECONDS},
-        {"transcriberVadThreshold", SettingType::TRANSCRIBER_VAD_THRESHOLD},
-        {"transcriberVadHangoverSeconds", SettingType::TRANSCRIBER_VAD_HANGOVER_SECONDS}
+        {"emotionAnnoyance", SettingType::EMOTION_ANNOYANCE}
     };

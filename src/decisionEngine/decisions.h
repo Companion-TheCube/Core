@@ -37,8 +37,8 @@ SOFTWARE.
 //
 // Responsibilities
 // - Orchestrate wakeword → transcription → intent recognition → execution
-// - Route audio into transcribers (LocalTranscriber or RemoteTranscriber)
-// - Choose recognition strategy (LocalIntentRecognition or RemoteIntentRecognition)
+// - Route audio into transcribers (RemoteTranscriber)
+// - Choose recognition strategy (RemoteIntentRecognition)
 // - Own a Scheduler and TriggerManager for time/event-driven behaviors
 // - Provide helper utilities (e.g., LLM-based response rewording)
 #pragma once
@@ -53,7 +53,6 @@ SOFTWARE.
 #ifndef API_I_H
 #include "../api/api.h"
 #endif
-#include "cubeWhisper.h"
 #include "nlohmann/json.hpp"
 #include "remoteServer.h"
 #include <chrono>

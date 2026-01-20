@@ -95,14 +95,6 @@ struct GlobalSettings {
         EMOTION_ATTENTIVENESS,
         EMOTION_CAUTION,
         EMOTION_ANNOYANCE,
-        REMOTE_INTENT_RECOGNITION_ENABLED,
-        REMOTE_TRANSCRIPTION_ENABLED,
-        // Local transcriber aggregation window (seconds, fractional allowed)
-        TRANSCRIBER_MIN_SECONDS,
-        TRANSCRIBER_MAX_SECONDS,
-        TRANSCRIBER_STEP_SECONDS,
-        TRANSCRIBER_VAD_THRESHOLD,
-        TRANSCRIBER_VAD_HANGOVER_SECONDS,
 
         SETTING_TYPE_COUNT
     };
@@ -186,16 +178,6 @@ struct GlobalSettings {
         GlobalSettings::setSetting(SettingType::EMOTION_CAUTION, 50);
         // set the default emotion annoyance to 0
         GlobalSettings::setSetting(SettingType::EMOTION_ANNOYANCE, 0);
-        // set the default remote intent recognition to false
-        GlobalSettings::setSetting(SettingType::REMOTE_INTENT_RECOGNITION_ENABLED, false);
-        // set the default remote transcription to false
-        GlobalSettings::setSetting(SettingType::REMOTE_TRANSCRIPTION_ENABLED, false);
-        // default local transcriber aggregation window (seconds)
-        GlobalSettings::setSetting(SettingType::TRANSCRIBER_MIN_SECONDS, 0.50);
-        GlobalSettings::setSetting(SettingType::TRANSCRIBER_MAX_SECONDS, 2.0);
-        GlobalSettings::setSetting(SettingType::TRANSCRIBER_STEP_SECONDS, 0.2);
-        GlobalSettings::setSetting(SettingType::TRANSCRIBER_VAD_THRESHOLD, 0.05);
-        GlobalSettings::setSetting(SettingType::TRANSCRIBER_VAD_HANGOVER_SECONDS, 1.0);
     }
 
     static void setSettingCB(SettingType key, std::function<void()> callback)

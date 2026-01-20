@@ -32,244 +32,14 @@ SOFTWARE.
 */
 
 
-// Transcriber implementations: local (CubeWhisper) and remote (TheCubeServer).
-// These are currently stubs. Buffer/stream methods should convert audio into
-// text either by calling whisper.cpp locally or by streaming to the server.
+// Transcriber implementation: remote (TheCubeServer).
+// Buffer/stream methods should convert audio into text by streaming to the server.
 #include "transcriber.h"
-#include "audio/constants.h"
-#include "transcriptionEvents.h"
-#include <cmath>
 
 
 namespace DecisionEngine {
 // TODO:
 // Interface: Transcriber - class that converts audio to text
-// LocalTranscriber - class that interacts with the whisper class. Whisper class should be initialized and a reference to it saved for future use.
-LocalTranscriber::LocalTranscriber()
-{
-    if (!cubeWhisper)
-        cubeWhisper = std::make_shared<CubeWhisper>();
-}
-LocalTranscriber::~LocalTranscriber()
-{
-}
-std::string LocalTranscriber::transcribeBuffer(const int16_t* audio, size_t length)
-{
-    // Ensure CubeWhisper is initialized (lazy init for speed on cold start)
-    if (!cubeWhisper)
-        cubeWhisper = std::make_shared<CubeWhisper>();
-
-    // Wrap the PCM buffer into a queue for CubeWhisper::transcribe
-    auto q = std::make_shared<ThreadSafeQueue<std::vector<int16_t>>>(8);
-    // Reinterpret the incoming buffer as signed 16-bit PCM and push
-    const int16_t* pcm16 = reinterpret_cast<const int16_t*>(audio);
-    std::vector<int16_t> chunk(pcm16, pcm16 + length);
-    q->push(std::move(chunk));
-    // Signal end of stream with an empty vector
-    q->push({});
-
-    // Transcribe synchronously and return the resulting text
-    auto fut = CubeWhisper::transcribe(q);
-    return fut.get();
-}
-std::string LocalTranscriber::transcribeStream(const int16_t* audio, size_t bufSize)
-{
-    // TODO: consume from queue or stream interface; incremental transcription
-    return "";
-}
-
-std::shared_ptr<ThreadSafeQueue<std::string>> LocalTranscriber::transcribeQueue(std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue)
-{
-    CubeLog::info("");
-    auto textQueue = std::make_shared<ThreadSafeQueue<std::string>>(10);
-    workerThread = std::jthread([this, audioQueue, textQueue](std::stop_token st) {
-        CubeLog::info("");
-        // Streaming: maintain a rolling window and transcribe at a fixed step
-        double minSec  = GlobalSettings::getSettingOfType<double>(GlobalSettings::SettingType::TRANSCRIBER_MIN_SECONDS);
-        double maxSec  = GlobalSettings::getSettingOfType<double>(GlobalSettings::SettingType::TRANSCRIBER_MAX_SECONDS);
-        double stepSec = GlobalSettings::getSettingOfType<double>(GlobalSettings::SettingType::TRANSCRIBER_STEP_SECONDS);
-        if (stepSec <= 0.05) stepSec = std::max(0.25, minSec/2.0);
-        if (minSec <= 0.1) minSec = 0.5; // clamp to sane default
-        if (maxSec < minSec) maxSec = std::max(minSec, 10.0);
-        const size_t kMinSamples  = static_cast<size_t>(minSec  * audio::SAMPLE_RATE);
-        const size_t kMaxSamples  = static_cast<size_t>(maxSec  * audio::SAMPLE_RATE);
-        const size_t kStepSamples = static_cast<size_t>(stepSec * audio::SAMPLE_RATE);
-
-        // VAD + hangover
-        double vadTh   = GlobalSettings::getSettingOfType<double>(GlobalSettings::SettingType::TRANSCRIBER_VAD_THRESHOLD); // normalized
-        double hangSec = GlobalSettings::getSettingOfType<double>(GlobalSettings::SettingType::TRANSCRIBER_VAD_HANGOVER_SECONDS);
-        if (vadTh <= 0.0) vadTh = 0.015; // default
-        if (hangSec < 0.1) hangSec = 1.0; // default
-
-        CubeLog::info("LocalTranscriber: streaming with min=" + std::to_string(minSec) + "s max=" + std::to_string(maxSec) +
-                       "s step=" + std::to_string(stepSec) + "s VADth=" + std::to_string(vadTh) +
-                       " hang=" + std::to_string(hangSec) + "s");
-
-        std::vector<int16_t> window;
-        window.reserve(kMaxSamples);
-        size_t lastProcessed = 0; // number of samples processed so far
-        std::string lastText;
-        bool inSpeech = false;
-        bool prevInSpeech = false;
-        auto utterStart = std::chrono::steady_clock::time_point{};
-        auto lastSpeech = std::chrono::steady_clock::now();
-        auto lastStep   = std::chrono::steady_clock::now();
-        auto lastRmsLog = std::chrono::steady_clock::now();
-
-        while (!st.stop_requested()) {
-            CubeLog::info("");
-            auto audioOpt = audioQueue->pop();
-            if (!audioOpt){
-                CubeLog::info("");
-                // sleep briefly to avoid busy loop if queue is empty
-                std::this_thread::sleep_for(std::chrono::milliseconds(50));
-                continue;
-            }
-            const auto& blk = *audioOpt;
-            // CubeLog::info(std::string("LocalTranscriber: got block samples=") + std::to_string(blk.size()));
-            if (blk.empty())
-            {
-                CubeLog::info("");
-                // end-of-stream signal: reset state
-                if (inSpeech && !lastText.empty()) {
-                    // Publish final to subscribers
-                    TranscriptionEvents::publish(lastText, true);
-                    // Also push to decision engine consumer queue so
-                    // it receives a result even if no partials were enqueued.
-                    textQueue->push(lastText);
-                }
-                window.clear();
-                lastText.clear();
-                lastProcessed = 0;
-                inSpeech = false;
-                CubeLog::info("");
-                continue;
-            }
-            // append and clip to max window
-            if (window.size() + blk.size() > kMaxSamples) {
-                // CubeLog::info("");
-                size_t overflow = window.size() + blk.size() - kMaxSamples;
-                if (overflow < window.size()){
-                    CubeLog::info("");
-                    window.erase(window.begin(), window.begin() + overflow);
-                }
-                else
-                    window.clear();
-                // reset processed baseline when we drop old data
-                if (lastProcessed > window.size()) lastProcessed = 0;
-            }
-            CubeLog::info("");
-            window.insert(window.end(), blk.begin(), blk.end());
-
-            // VAD on current block
-            double sumsq = 0.0; for (int16_t s : blk) { double x = s/32768.0; sumsq += x*x; }
-            double rms = blk.empty() ? 0.0 : std::sqrt(sumsq / blk.size());
-            auto nowRms = std::chrono::steady_clock::now();
-            if (nowRms - lastRmsLog > std::chrono::milliseconds(500)) {
-                lastRmsLog = nowRms;
-                double winSec = window.size() / static_cast<double>(audio::SAMPLE_RATE);
-                CubeLog::info(std::string("LocalTranscriber: rms=") + std::to_string(rms) +
-                              ", th=" + std::to_string(vadTh) +
-                              ", winSec=" + std::to_string(winSec));
-            }
-            if (rms >= vadTh) {
-                auto nowR = std::chrono::steady_clock::now();
-                if (!inSpeech) utterStart = nowR;
-                inSpeech = true; 
-                lastSpeech = nowR;
-            }
-            if (inSpeech != prevInSpeech) {
-                prevInSpeech = inSpeech;
-                CubeLog::info(std::string("LocalTranscriber: inSpeech=") + (inSpeech ? "ON" : "OFF"));
-            }
-
-            auto now = std::chrono::steady_clock::now();
-            if (inSpeech && window.size() >= kMinSamples &&
-                ((window.size() - lastProcessed) >= kStepSamples || (now - lastStep) >= std::chrono::duration<double>(stepSec))) {
-                CubeLog::info("LocalTranscriber: streaming transcribe win= " +
-                               std::to_string(window.size() / static_cast<double>(audio::SAMPLE_RATE)) + "s");
-                std::string text = CubeWhisper::transcribeSync(window);
-                lastProcessed = window.size();
-                lastStep = now;
-                if (!text.empty() && text != lastText) {
-                    // Log and fan-out partial recognition
-                    std::string preview = text.substr(0, 120);
-                    CubeLog::info("LocalTranscriber: recognized (step): '" + preview + (text.size()>120?"…":"") + "'");
-                    lastText = text;
-                    textQueue->push(text);
-                    TranscriptionEvents::publish(text, false);
-                } else {
-                    double winSec = window.size() / static_cast<double>(audio::SAMPLE_RATE);
-                    CubeLog::debug(std::string("LocalTranscriber: gating active (no decode): inSpeech=") + (inSpeech?"true":"false") +
-                                   ", winSec=" + std::to_string(winSec) + 
-                                   ", minSec=" + std::to_string(minSec));
-                }
-            }
-
-            // forced timeout: if speech persists too long, finalize anyway
-            if (inSpeech) {
-                CubeLog::info("");
-                auto dur = std::chrono::duration<double>(now - utterStart).count();
-                if (dur >= (maxSec * 2.0)) {
-                    CubeLog::info("LocalTranscriber: forced end-of-speech (timeout) dur=" + std::to_string(dur) + "s");
-                    if (lastText.empty() && !window.empty()) {
-                        std::string finalText = CubeWhisper::transcribeSync(window);
-                        if (!finalText.empty()) lastText = std::move(finalText);
-                        else CubeLog::info("LocalTranscriber: timeout final decode produced empty text");
-                    }
-                    if (!lastText.empty()) {
-                        // Log and fan-out the final result from timeout path
-                        std::string preview = lastText.substr(0, 160);
-                        CubeLog::info("LocalTranscriber: recognized (final-timeout): '" + preview + (lastText.size()>160?"…":"") + "'");
-                        TranscriptionEvents::publish(lastText, true);
-                        textQueue->push(lastText);
-                    }
-                    window.clear();
-                    lastText.clear();
-                    lastProcessed = 0;
-                    inSpeech = false;
-                    continue;
-                }
-            }
-
-            // end of speech detection via hangover
-            if (inSpeech && (now - lastSpeech) >= std::chrono::duration<double>(hangSec)) {
-                CubeLog::info("");
-                inSpeech = false;
-                CubeLog::info("LocalTranscriber: end-of-speech detected (hangover=" + std::to_string(hangSec) + "s)");
-                // If we never produced a partial, attempt a final decode
-                // on the full window before clearing it.
-                if (lastText.empty() && !window.empty()) {
-                    CubeLog::info("LocalTranscriber: final decode at end-of-speech (win=" +
-                                   std::to_string(window.size() / static_cast<double>(audio::SAMPLE_RATE)) + "s)");
-                    std::string finalText = CubeWhisper::transcribeSync(window);
-                    if (!finalText.empty()) {
-                        CubeLog::info("LocalTranscriber: recognized (final): '" + finalText.substr(0, 160) + (finalText.size()>160?"…":"") + "'");
-                        lastText = std::move(finalText);
-                    } else {
-                        CubeLog::info("LocalTranscriber: final decode produced empty text");
-                    }
-                }
-                // Ensure the final recognized text is delivered to both
-                // the event bus and the downstream consumer queue.
-                if (!lastText.empty()) {
-                    // Publish final to subscribers
-                    TranscriptionEvents::publish(lastText, true);
-                    // Also push to decision engine consumer queue so
-                    // it receives a result even if no partials were enqueued.
-                    textQueue->push(lastText);
-                }
-                // reset state for next utterance
-                window.clear();
-                lastText.clear();
-                lastProcessed = 0;
-            }
-        }
-    });
-    return textQueue;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
 // RemoteTranscriber - class that interacts with the TheCube Server API.
 RemoteTranscriber::RemoteTranscriber()
 {
@@ -301,6 +71,11 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
                 CubeLog::info("");
                 const auto& audioVec = *audioOpt;
                 std::string transcription = transcribeBuffer(audioVec.data(), audioVec.size());
+                if (!transcription.empty()) {
+                    textQueue->push(transcription);
+                } else {
+                    CubeLog::debug("RemoteTranscriber: empty transcription");
+                }
             }else{
                 CubeLog::info("");
                 // sleep briefly to avoid busy loop if queue is empty
