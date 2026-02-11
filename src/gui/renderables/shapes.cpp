@@ -1254,7 +1254,6 @@ void M_SliderTexture::draw()
     if(!this->visible) {
         return;
     }
-    CubeLog::critical("Drawing slider texture");
     this->shader->use();
     shader->setVec3("textColor", this->color.x, this->color.y, this->color.z);
     shader->setMat4("projection", projectionMatrix);
