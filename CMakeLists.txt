@@ -212,6 +212,13 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(asio)
 include_directories(${asio_SOURCE_DIR}/asio/include)
 
+FetchContent_Declare(
+    websocketpp
+    GIT_REPOSITORY https://github.com/zaphoyd/websocketpp.git
+    GIT_TAG 0.8.2
+)
+FetchContent_MakeAvailable(websocketpp)
+
 
 file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/libraries)
 file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/libraries/whisper_models)
@@ -553,6 +560,7 @@ if(WIN32)
         ${SFML_INCLUDE_DIR}
         "C:/Users/Andrew/Documents/glm-1.0.1-light"
         ${whispercpp_SOURCE_DIR}
+        ${websocketpp_SOURCE_DIR}
    )
 else()
     target_include_directories(CubeCoreLib PUBLIC
@@ -563,6 +571,7 @@ else()
         ${SFML_INCLUDE_DIR}
         ${whispercpp_SOURCE_DIR}
         ${PQXX_INCLUDE_DIRS}
+        ${websocketpp_SOURCE_DIR}
     )
 endif()
 

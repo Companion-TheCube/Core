@@ -54,12 +54,16 @@ SOFTWARE.
 #include "globalSettings.h"
 #include "nlohmann/json.hpp"
 #include "utils.h"
+#include <chrono>
 #include <bitset>
 #include <functional>
 #include <future>
 #include <httplib.h>
 #include <iostream>
 #include <memory>
+#include <mutex>
+#include <optional>
+#include <span>
 #include <string>
 #include <thread>
 #include <vector>
@@ -107,12 +111,35 @@ public:
         AVAILABLE_SERVICE_AMAZON = 4,
         AVAILABLE_SERVICE_THECUBESERVER = 8
     };
+    struct TranscriptionSessionMeta {
+        std::string sessionId;
+        std::string wsUrl;
+        std::string wsToken;
+        std::string expiresAt;
+        std::string audioEncoding;
+        int sampleRateHz = 16000;
+        int channels = 1;
+    };
     FourBit services = 0;
     TheCubeServerAPI(std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioBuffer);
     ~TheCubeServerAPI();
+
+    // v1 transcription contract methods (HTTP control + WS audio transport)
+    bool createTranscriptionSession();
+    bool sendAudioChunk(std::span<const int16_t> audio);
+    bool sendAudioChunk(const int16_t* audio, size_t samples);
+    bool sendAudioChunk(const std::vector<int16_t>& audio);
+    bool finishTranscriptionSession();
+    std::string waitForFinalTranscript(std::chrono::milliseconds timeout = std::chrono::milliseconds(15000));
+    bool cancelTranscriptionSession();
+    bool hasActiveTranscriptionSession() const;
+    std::optional<TranscriptionSessionMeta> getActiveTranscriptionSession() const;
+
+    // Backward-compatible wrappers
     bool initTranscribing();
     bool streamAudio();
     bool stopTranscribing();
+
     bool initServerConnection();
     bool resetServerConnection();
     std::future<std::string> getChatResponseAsync(const std::string& message, const std::function<void(std::string)>& progressCB = [](std::string){});
@@ -121,13 +148,24 @@ public:
     ServerState getServerState();
 
 private:
+    struct WsBridge;
+
     std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioBuffer;
     httplib::Client* cli;
     std::string apiKey;
     std::string authKey;
     std::string serialNumber;
+    std::string baseUrl;
+    std::unique_ptr<WsBridge> wsBridge;
+    mutable std::mutex transcriptionMutex;
+    std::optional<TranscriptionSessionMeta> activeSession;
+    size_t sentChunkCount = 0;
+    size_t sentByteCount = 0;
+
     bool ableToCommunicateWithRemoteServer();
     FourBit getAvailableServices();
+    bool openSessionWebSocketLocked();
+    std::optional<std::string> parseFinalFromStatusResponse(const std::string& body) const;
 };
 
 std::string serialNumberToPassword(const std::string& serialNumber);

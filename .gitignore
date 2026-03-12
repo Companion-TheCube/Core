@@ -13,5 +13,10 @@ testing/
 ssl/*.key
 ssl/*.crt
 ssl/*.pem
-docs/
+docs/*
+!docs/contracts/
+docs/contracts/*
+!docs/contracts/transcription-v1/
+!docs/contracts/transcription-v1/openapi.yaml
+!docs/contracts/transcription-v1/ws-events.schema.json
 Doxyfile

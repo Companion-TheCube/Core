@@ -57,8 +57,10 @@ SOFTWARE.
 #include <thread>
 #include <unordered_map>
 #include <vector>
+#include <atomic>
 #include "../api/autoRegister.h"
 #include "../audio/audioManager.h"
+#include "../audio/constants.h"
 #include "../threadsafeQueue.h"
 #include "globalSettings.h"
 #include "httplib.h"
@@ -121,12 +123,17 @@ public:
     {
         if (workerThread.joinable())
             workerThread.request_stop();
+        cancelActiveSession();
     }
 
 private:
     bool initTranscribing();
     bool streamAudio();
     bool stopTranscribing();
+    bool isSpeechChunk(const std::vector<int16_t>& audioChunk) const;
+    void drainAudioQueue(const std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>>& queue) const;
+    void cancelActiveSession() const;
+    std::atomic<bool> sessionActive { false };
     std::jthread workerThread;
 };
 
