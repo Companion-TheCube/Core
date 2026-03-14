@@ -1,0 +1,76 @@
+{
+  "schema_version": "1.0",
+  "app": {
+    "id": "com.example.weather-clock",
+    "name": "Weather Clock",
+    "version": "0.2.1",
+    "vendor": "Example Vendor",
+    "description": "Displays the time and weather on TheCube.",
+    "category": "utility",
+    "args": [
+      "--theme=mono"
+    ],
+    "working_directory": ".",
+    "type": "interactive",
+    "autostart": false,
+    "system_app": false
+  },
+  "runtime": {
+    "type": "python",
+    "distribution": "venv",
+    "compatibility": "3.11",
+    "python": {
+      "entry_script": "main.py"
+    },
+    "restart_policy": "on-failure",
+    "max_restart_burst": 5,
+    "restart_window_seconds": 60,
+    "stop_timeout_seconds": 10,
+    "start_timeout_seconds": 15,
+    "healthcheck": {
+      "mode": "ipc-ping",
+      "interval_seconds": 30,
+      "timeout_seconds": 5
+    }
+  },
+  "permissions": {
+    "platform": [
+      "display.basic",
+      "display.foreground",
+      "network.http_client",
+      "storage.app.private"
+    ],
+    "filesystem": {
+      "read_only": [
+        "app://install",
+        "app://assets"
+      ],
+      "read_write": [
+        "app://data",
+        "app://cache",
+        "app://runtime"
+      ]
+    },
+    "network": {
+      "allow": true,
+      "inbound": false,
+      "domains": [
+        "api.weather.gov",
+        "time.google.com"
+      ],
+      "local_network": false
+    }
+  },
+  "environment": {
+    "allow_inherit": [],
+    "set": {
+      "THECUBE_LOCALE": "en-US",
+      "TZ": "UTC"
+    }
+  },
+  "ui": {
+    "display_name": "Weather Clock",
+    "icon": "assets/icon.png",
+    "foreground": true
+  }
+}

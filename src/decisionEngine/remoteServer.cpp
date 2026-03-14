@@ -35,11 +35,6 @@ SOFTWARE.
 // WebSocket PCM stream) and legacy chat endpoint support.
 #include "remoteServer.h"
 
-#ifndef ASIO_STANDALONE
-#define ASIO_STANDALONE
-#endif
-
-#include <asio/ssl/context.hpp>
 #include <chrono>
 #include <condition_variable>
 #include <random>
@@ -47,7 +42,6 @@ SOFTWARE.
 #include <utility>
 #include <websocketpp/client.hpp>
 #include <websocketpp/config/asio_client.hpp>
-#include <websocketpp/config/asio_tls_client.hpp>
 
 using namespace TheCubeServer;
 
@@ -226,11 +220,11 @@ struct TheCubeServerAPI::WsBridge {
             mode = Mode::TLS;
             wireHandlers(tlsClient);
             tlsClient.set_tls_init_handler([](websocketpp::connection_hdl) {
-                auto ctx = websocketpp::lib::make_shared<asio::ssl::context>(asio::ssl::context::tlsv12_client);
+                auto ctx = websocketpp::lib::make_shared<websocketpp::lib::asio::ssl::context>(websocketpp::lib::asio::ssl::context::tlsv12_client);
                 try {
                     ctx->set_default_verify_paths();
                     // Allow private/dev certs by default. Tighten in production deployment.
-                    ctx->set_verify_mode(asio::ssl::verify_none);
+                    ctx->set_verify_mode(websocketpp::lib::asio::ssl::verify_none);
                 } catch (...) {
                     // keep default context even if verification config fails
                 }

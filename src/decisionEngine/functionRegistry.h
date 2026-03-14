@@ -62,7 +62,6 @@ SOFTWARE.
 #endif
 #include "../threadsafeQueue.h"
 #include "jsonrpccxx/client.hpp"
-#include "asio.hpp"
 // TODO: consider adding `AppsManager::isAppReady(appId)` to allow checking
 // whether an app has finished startup and created its unix socket. That can
 // be used instead of probing filesystem sockets directly.

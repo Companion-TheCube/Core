@@ -34,6 +34,103 @@ SOFTWARE.
 // TODO: this file needs a line by line evaluation
 
 #include "db.h"
+#include <chrono>
+
+namespace {
+std::string escapeSqlLiteral(const std::string& value)
+{
+    std::string escaped;
+    escaped.reserve(value.size());
+    for (char ch : value) {
+        escaped.push_back(ch);
+        if (ch == '\'') {
+            escaped.push_back('\'');
+        }
+    }
+    return escaped;
+}
+
+bool verifyAppsDbSchemaMatchesDefinition(const DB_NS::Database_T& dbDef)
+{
+    const auto appsTableIt = std::find_if(
+        dbDef.tables.begin(),
+        dbDef.tables.end(),
+        [](const DB_NS::Table_T& table) {
+            return table.name == DB_NS::TableNames::APPS;
+        });
+    if (appsTableIt == dbDef.tables.end()) {
+        return true;
+    }
+
+    if (!std::filesystem::exists(dbDef.path)) {
+        return true;
+    }
+
+    try {
+        SQLite::Database db(dbDef.path, SQLite::OPEN_READONLY);
+        SQLite::Statement tableStmt(
+            db,
+            "SELECT name FROM sqlite_master WHERE type='table' AND name=?;");
+        tableStmt.bind(1, DB_NS::TableNames::APPS);
+        if (!tableStmt.executeStep()) {
+            return true;
+        }
+
+        SQLite::Statement pragmaStmt(
+            db,
+            "PRAGMA table_info(" + DB_NS::TableNames::APPS + ");");
+        std::vector<std::string> existingColumns;
+        while (pragmaStmt.executeStep()) {
+            existingColumns.push_back(pragmaStmt.getColumn("name").getText());
+        }
+
+        if (existingColumns.size() != appsTableIt->columnNames.size()) {
+            return false;
+        }
+
+        for (size_t i = 0; i < appsTableIt->columnNames.size(); ++i) {
+            if (existingColumns[i] != appsTableIt->columnNames[i]) {
+                return false;
+            }
+        }
+
+        return true;
+    } catch (const std::exception& e) {
+        CubeLog::warning("Apps DB schema verification failed, forcing rebuild: " + std::string(e.what()));
+        return false;
+    }
+}
+
+void backupLegacyAppsDbIfNeeded()
+{
+    const auto appsDbIt = std::find_if(
+        DB_NS::dbDefs.begin(),
+        DB_NS::dbDefs.end(),
+        [](const DB_NS::Database_T& def) {
+            return def.name == "apps";
+        });
+    if (appsDbIt == DB_NS::dbDefs.end()) {
+        return;
+    }
+
+    if (verifyAppsDbSchemaMatchesDefinition(*appsDbIt)) {
+        return;
+    }
+
+    try {
+        const auto legacySuffix = std::chrono::duration_cast<std::chrono::seconds>(
+            std::chrono::system_clock::now().time_since_epoch())
+                                      .count();
+        const auto backupPath = appsDbIt->path + ".legacy." + std::to_string(legacySuffix);
+        std::filesystem::create_directories(std::filesystem::path(appsDbIt->path).parent_path());
+        std::filesystem::rename(appsDbIt->path, backupPath);
+        CubeLog::warning("Backed up legacy apps DB to: " + backupPath);
+    } catch (const std::exception& e) {
+        CubeLog::error("Failed to back up legacy apps DB: " + std::string(e.what()));
+        throw;
+    }
+}
+} // namespace
 
 /**
  * @brief Determine if the table name is one of the blobs table names
@@ -248,7 +345,7 @@ bool Database::updateData(const std::string& tableName, std::vector<std::string>
     }
     std::string query = "UPDATE " + tableName + " SET ";
     for (size_t i = 0; i < columnNames.size(); i++) {
-        query += columnNames[i] + " = '" + columnValues[i] + "'";
+        query += columnNames[i] + " = ?";
         if (i < columnNames.size() - 1) {
             query += ", ";
         }
@@ -256,7 +353,10 @@ bool Database::updateData(const std::string& tableName, std::vector<std::string>
     query += " WHERE " + whereClause + ";";
     try {
         SQLite::Statement stmt(*this->db, query);
-        stmt.executeStep();
+        for (size_t i = 0; i < columnValues.size(); ++i) {
+            stmt.bind(static_cast<int>(i + 1), columnValues[i]);
+        }
+        stmt.exec();
         return true;
     } catch (std::exception& e) {
         this->lastError = e.what();
@@ -679,6 +779,7 @@ std::string Database::selectBlobString(const std::string& tableName, const std::
  */
 CubeDatabaseManager::CubeDatabaseManager()
 {
+    backupLegacyAppsDbIfNeeded();
     for (size_t i = 0; i < DB_NS::dbDefs.size(); i++) {
         if (!Database(DB_NS::dbDefs[i].path).createDB(DB_NS::dbDefs[i].path)) {
             CubeLog::error("Failed to create database: " + DB_NS::dbDefs[i].path);

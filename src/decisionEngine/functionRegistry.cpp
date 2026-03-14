@@ -79,12 +79,14 @@ initialization respectively.
 
 #include "functionRegistry.h"
 // Asio and json-rpc-cxx
-#include <asio.hpp>
+#include <boost/asio.hpp>
 #include <atomic>
 #include <filesystem>
 #include <jsonrpccxx/client.hpp>
 #include <jsonrpccxx/iclientconnector.hpp>
 #include <memory>
+
+namespace asio = boost::asio;
 
 namespace DecisionEngine {
 
@@ -211,7 +213,7 @@ namespace {
 
         // Timer
         asio::steady_timer timer(*rpc_io, std::chrono::milliseconds(timeoutMs));
-        timer.async_wait([prom, done](const asio::error_code& ec) {
+        timer.async_wait([prom, done](const boost::system::error_code& ec) {
             if (ec)
                 return; // cancelled
             if (!done->exchange(true)) {
@@ -236,7 +238,7 @@ namespace {
 
         // cancel timer
         asio::post(*rpc_io, [&timer]() {
-            asio::error_code ec;
+            boost::system::error_code ec;
             timer.cancel();
         });
 

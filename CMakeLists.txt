@@ -8,7 +8,7 @@
 # Release builds enable optimizations, strip debug symbols, and define PRODUCTION_BUILD.
 
 # Minimum version of CMake required
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.11)
 
 # Project name and the language used
 project(CubeCore VERSION 0.1.0 LANGUAGES CXX)
@@ -205,19 +205,26 @@ include_directories(${msgpack_c_SOURCE_DIR}/include)
 
 
 FetchContent_Declare(
-    asio
-    GIT_REPOSITORY https://github.com/chriskohlhoff/asio.git
-    GIT_TAG        master
-)
-FetchContent_MakeAvailable(asio)
-include_directories(${asio_SOURCE_DIR}/asio/include)
-
-FetchContent_Declare(
     websocketpp
     GIT_REPOSITORY https://github.com/zaphoyd/websocketpp.git
     GIT_TAG 0.8.2
 )
 FetchContent_MakeAvailable(websocketpp)
+configure_file(
+    ${CMAKE_SOURCE_DIR}/cmake/patch_websocketpp_boost188.cmake
+    ${CMAKE_BINARY_DIR}/generated/patch_websocketpp_boost188.cmake
+    COPYONLY
+)
+execute_process(
+    COMMAND
+        ${CMAKE_COMMAND}
+        -DWEBSOCKETPP_SOURCE_DIR=${websocketpp_SOURCE_DIR}
+        -P ${CMAKE_BINARY_DIR}/generated/patch_websocketpp_boost188.cmake
+    RESULT_VARIABLE WEBSOCKETPP_PATCH_RESULT
+)
+if(NOT WEBSOCKETPP_PATCH_RESULT EQUAL 0)
+    message(FATAL_ERROR "Failed to patch websocketpp for Boost.Asio 1.88 compatibility")
+endif()
 
 
 file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/libraries)
@@ -277,6 +284,7 @@ if(NOT EXISTS ${HTTPLIB_HEADER})
 endif()
 
 find_package(OpenSSL REQUIRED)
+find_package(Boost REQUIRED COMPONENTS system)
 if (OpenSSL_FOUND)
     # Ensure OpenSSL libraries are linked for targets that use httplib/OpenSSL functions
     # Some FetchContent subprojects (vendor cpp-httplib) expect SSL symbols; adding
@@ -444,14 +452,16 @@ set(MACRO_REGEX "public AutoRegisterAPI<([a-zA-Z_][a-zA-Z0-9_:]*)>")
 file(GLOB_RECURSE ALL_SOURCES "src/*.cpp" "src/**/*.cpp" "src/**/**/*.cpp")
 # Split main from library sources
 set(MAIN_SOURCE "${CMAKE_SOURCE_DIR}/src/main.cpp")
+set(LAUNCHER_SOURCE "${CMAKE_SOURCE_DIR}/src/apps/appLauncher.cpp")
 set(LIB_SOURCES ${ALL_SOURCES})
-list(REMOVE_ITEM LIB_SOURCES ${MAIN_SOURCE})
+list(REMOVE_ITEM LIB_SOURCES ${MAIN_SOURCE} ${LAUNCHER_SOURCE})
 
 # Core library with most of the code
 add_library(CubeCoreLib STATIC ${LIB_SOURCES})
 
 # Application executable contains only main and links the core library
 add_executable(CubeCore ${MAIN_SOURCE})
+add_executable(CubeAppLauncher ${LAUNCHER_SOURCE})
 
 
 set(InterfaceCount_OUTPUTFILE "${CMAKE_SOURCE_DIR}/src/api/InterfaceCount.h")
@@ -513,7 +523,6 @@ else()
     set(WIRINGPI_LIB "")
 endif()
 
-target_compile_definitions(CubeCoreLib PRIVATE ASIO_NO_DEPRECATED ASIO_STANDALONE)
 # Link libraries to the core library so consumers inherit them
 target_link_libraries(CubeCoreLib PUBLIC
     sfml-graphics
@@ -534,6 +543,7 @@ target_link_libraries(CubeCoreLib PUBLIC
     whisper
     OpenSSL::SSL
     OpenSSL::Crypto
+    Boost::system
     infoware
     pqxx
     pq
@@ -546,8 +556,10 @@ target_link_libraries(CubeCoreLib PUBLIC
 
 # Executable links the core library
 target_link_libraries(CubeCore PRIVATE CubeCoreLib)
+target_link_libraries(CubeAppLauncher PRIVATE nlohmann_json::nlohmann_json)
 
 target_compile_features(CubeCoreLib PUBLIC cxx_std_17)
+target_compile_features(CubeAppLauncher PRIVATE cxx_std_17)
 
 # Include directories
 if(WIN32)
@@ -754,6 +766,13 @@ add_custom_command(
     ${APPS_DEST_DIR}/openwakeword/
     COMMAND ${CMAKE_COMMAND} -E echo "Copying openwakeword to apps directory"
 )
+add_custom_command(
+    TARGET CubeCore POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_HOME_DIRECTORY}/postgresql/
+    ${APPS_DEST_DIR}/postgresql/
+    COMMAND ${CMAKE_COMMAND} -E echo "Copying postgresql to apps directory"
+)
 
 # Ensure Python is found when needed
 if(ENABLE_BUILD_SERVER OR ENABLE_TOOLING_SCRIPTS)
@@ -783,7 +802,7 @@ if(ENABLE_BUILD_SERVER AND ENABLE_TOOLING_SCRIPTS)
     )
 endif()
 
-install(TARGETS CubeCore)
+install(TARGETS CubeCore CubeAppLauncher)
 
 # ###############################
 # Tests

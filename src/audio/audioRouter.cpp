@@ -72,11 +72,9 @@ void AudioRouter::run(std::stop_token st)
     using clock = std::chrono::steady_clock;
     auto lastLog = clock::now();
     while (!st.stop_requested() && !stop_.load()) {
-        CubeLog::info("");
         auto opt = ingest_->pop();
         if (!opt) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            CubeLog::info("");
             continue;
         }
         const auto& block = *opt;
