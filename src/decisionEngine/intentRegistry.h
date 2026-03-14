@@ -207,6 +207,7 @@ private:
      * @brief Map of intent names to intents
      */
     std::unordered_map<std::string, std::shared_ptr<Intent>> intentMap;
+    std::shared_ptr<FunctionRegistry> functionRegistry;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////

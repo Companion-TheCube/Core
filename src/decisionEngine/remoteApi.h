@@ -71,19 +71,30 @@ namespace DecisionEngine {
 class I_RemoteApi {
 public:
     using Server = TheCubeServer::TheCubeServerAPI;
+    using AudioClient = TheCubeServer::IRemoteAudioClient;
+    using ConversationClient = TheCubeServer::IRemoteConversationClient;
     virtual ~I_RemoteApi() = default;
-    bool resetServerConnection(){return remoteServerAPI->resetServerConnection();}
-    Server::ServerStatus getServerStatus(){return remoteServerAPI->getServerStatus();}
-    Server::ServerError getServerError(){return remoteServerAPI->getServerError();}
-    Server::ServerState getServerState(){return remoteServerAPI->getServerState();}
-    Server::FourBit getAvailableServices(){return remoteServerAPI->services;}
+    bool resetServerConnection(){ return remoteServerAPI ? remoteServerAPI->resetServerConnection() : false; }
+    Server::ServerStatus getServerStatus(){ return remoteServerAPI ? remoteServerAPI->getServerStatus() : Server::ServerStatus::SERVER_STATUS_ERROR; }
+    Server::ServerError getServerError(){ return remoteServerAPI ? remoteServerAPI->getServerError() : Server::ServerError::SERVER_ERROR_INTERNAL_ERROR; }
+    Server::ServerState getServerState(){ return remoteServerAPI ? remoteServerAPI->getServerState() : Server::ServerState::SERVER_STATE_IDLE; }
+    Server::FourBit getAvailableServices(){ return remoteServerAPI ? remoteServerAPI->services : Server::FourBit{}; }
+    void setRemoteClients(std::shared_ptr<AudioClient> audioClient, std::shared_ptr<ConversationClient> conversationClient)
+    {
+        remoteAudioClient = std::move(audioClient);
+        remoteConversationClient = std::move(conversationClient);
+    }
     void setRemoteServerAPIObject(std::shared_ptr<Server> remoteServerAPI){
         this->remoteServerAPI = std::move(remoteServerAPI);
+        remoteAudioClient = this->remoteServerAPI;
+        remoteConversationClient = this->remoteServerAPI;
         CubeLog::info("RemoteApi: remoteServerAPI object set");
     }
 
 protected:
     std::shared_ptr<Server> remoteServerAPI;
+    std::shared_ptr<AudioClient> remoteAudioClient;
+    std::shared_ptr<ConversationClient> remoteConversationClient;
 };
 
 }

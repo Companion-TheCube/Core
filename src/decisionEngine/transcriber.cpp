@@ -35,6 +35,7 @@ SOFTWARE.
 // Transcriber implementation: remote (TheCubeServer).
 // Buffer/stream methods should convert audio into text by streaming to the server.
 #include "transcriber.h"
+#include "transcriptionEvents.h"
 #include <algorithm>
 #include <cmath>
 #include <type_traits>
@@ -71,23 +72,26 @@ RemoteTranscriber::~RemoteTranscriber()
 }
 std::string RemoteTranscriber::transcribeBuffer(const int16_t* audio, size_t length)
 {
-    if (!audio || length == 0 || !remoteServerAPI) return std::string();
+    if (!audio || length == 0 || !remoteAudioClient) return std::string();
     if (!initTranscribing()) return std::string();
 
-    if (!remoteServerAPI->sendAudioChunk(audio, length)) {
+    if (!remoteAudioClient->sendAudioChunk(std::span<const int16_t>(audio, length))) {
         CubeLog::error("RemoteTranscriber: failed to stream buffer payload");
         cancelActiveSession();
         return std::string();
     }
 
-    if (!remoteServerAPI->finishTranscriptionSession()) {
+    if (!remoteAudioClient->finishStreamingTranscription()) {
         CubeLog::error("RemoteTranscriber: failed to finish transcription session");
         cancelActiveSession();
         return std::string();
     }
 
     const auto finalWaitMs = parseNumericConfig<int>("REMOTE_TRANSCRIPTION_WAIT_FINAL_MS", 15000);
-    std::string transcript = remoteServerAPI->waitForFinalTranscript(std::chrono::milliseconds(finalWaitMs));
+    std::string transcript = remoteAudioClient->waitForFinalTranscript(std::chrono::milliseconds(finalWaitMs));
+    if (!transcript.empty()) {
+        TranscriptionEvents::publish(transcript, true);
+    }
     cancelActiveSession();
     return transcript;
 }
@@ -99,8 +103,8 @@ std::string RemoteTranscriber::transcribeStream(const int16_t* audio, size_t buf
 std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue(std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue)
 {
     auto textQueue = std::make_shared<ThreadSafeQueue<std::string>>(10);
-    if (!remoteServerAPI) {
-        CubeLog::error("RemoteTranscriber: remoteServerAPI is not set");
+    if (!remoteAudioClient) {
+        CubeLog::error("RemoteTranscriber: remote audio client is not set");
         return textQueue;
     }
     if (!audioQueue) {
@@ -157,7 +161,7 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
             auto audioOpt = audioQueue->pop();
             if (!audioOpt || audioOpt->empty()) continue;
 
-            if (!remoteServerAPI->sendAudioChunk(*audioOpt)) {
+            if (!remoteAudioClient->sendAudioChunk(std::span<const int16_t>(audioOpt->data(), audioOpt->size()))) {
                 CubeLog::error("RemoteTranscriber: failed while streaming audio; cancelling session");
                 cancelActiveSession();
                 sessionActive = false;
@@ -186,7 +190,7 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
             return;
         }
 
-        if (!sessionActive || !remoteServerAPI->hasActiveTranscriptionSession()) {
+        if (!sessionActive) {
             CubeLog::warning("RemoteTranscriber: no active session found at finalize step");
             sessionActive = false;
             return;
@@ -200,18 +204,19 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
         }
 
         CubeLog::info("RemoteTranscriber: finish requested after chunks=" + std::to_string(chunksSent));
-        if (!remoteServerAPI->finishTranscriptionSession()) {
+        if (!remoteAudioClient->finishStreamingTranscription()) {
             CubeLog::error("RemoteTranscriber: finish failed; cancelling session");
             cancelActiveSession();
             sessionActive = false;
             return;
         }
 
-        std::string transcription = remoteServerAPI->waitForFinalTranscript(finalWait);
+        std::string transcription = remoteAudioClient->waitForFinalTranscript(finalWait);
         sessionActive = false;
 
         if (!transcription.empty()) {
             CubeLog::info("RemoteTranscriber: final transcript received");
+            TranscriptionEvents::publish(transcription, true);
             textQueue->push(transcription);
         } else {
             CubeLog::warning("RemoteTranscriber: final transcript missing or empty");
@@ -227,16 +232,14 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
 
 bool RemoteTranscriber::initTranscribing()
 {
-    if (!remoteServerAPI) {
-        CubeLog::error("RemoteTranscriber: initTranscribing called without remote API object");
+    if (!remoteAudioClient) {
+        CubeLog::error("RemoteTranscriber: initTranscribing called without remote audio client");
         return false;
     }
-    bool created = remoteServerAPI->createTranscriptionSession();
-    if (created) {
+    const bool created = remoteAudioClient->startStreamingTranscription();
+    if (created && remoteServerAPI) {
         if (auto session = remoteServerAPI->getActiveTranscriptionSession(); session.has_value()) {
             CubeLog::info("RemoteTranscriber: remote session created id=" + session->sessionId);
-        } else {
-            CubeLog::warning("RemoteTranscriber: session created but metadata unavailable");
         }
     }
     return created;
@@ -244,20 +247,23 @@ bool RemoteTranscriber::initTranscribing()
 
 bool RemoteTranscriber::streamAudio()
 {
-    if (!remoteServerAPI || !audioQueue) return false;
+    if (!remoteAudioClient || !audioQueue) return false;
     if (audioQueue->size() == 0) return true;
     auto audioOpt = audioQueue->pop();
     if (!audioOpt || audioOpt->empty()) return true;
-    return remoteServerAPI->sendAudioChunk(*audioOpt);
+    return remoteAudioClient->sendAudioChunk(std::span<const int16_t>(audioOpt->data(), audioOpt->size()));
 }
 
 bool RemoteTranscriber::stopTranscribing()
 {
-    if (!remoteServerAPI) return false;
-    if (!remoteServerAPI->finishTranscriptionSession()) {
+    if (!remoteAudioClient) return false;
+    if (!remoteAudioClient->finishStreamingTranscription()) {
         return false;
     }
-    std::string finalText = remoteServerAPI->waitForFinalTranscript(std::chrono::milliseconds(15000));
+    std::string finalText = remoteAudioClient->waitForFinalTranscript(std::chrono::milliseconds(15000));
+    if (!finalText.empty()) {
+        TranscriptionEvents::publish(finalText, true);
+    }
     return !finalText.empty();
 }
 
@@ -296,10 +302,9 @@ void RemoteTranscriber::drainAudioQueue(const std::shared_ptr<ThreadSafeQueue<st
 
 void RemoteTranscriber::cancelActiveSession() const
 {
-    if (!remoteServerAPI) return;
-    if (!remoteServerAPI->hasActiveTranscriptionSession()) return;
-    if (!remoteServerAPI->cancelTranscriptionSession()) {
-        CubeLog::warning("RemoteTranscriber: cancelTranscriptionSession failed");
+    if (!remoteAudioClient) return;
+    if (!remoteAudioClient->cancelStreamingTranscription()) {
+        CubeLog::warning("RemoteTranscriber: cancelStreamingTranscription failed");
     }
 }
 

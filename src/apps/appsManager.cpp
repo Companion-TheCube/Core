@@ -97,6 +97,12 @@ struct RegistryRow {
     std::string socketLocation;
 };
 
+struct PythonInstallState {
+    std::string appVersion;
+    std::string packageName;
+    std::string venvRoot;
+};
+
 std::string escapeSqlLiteral(const std::string& value)
 {
     std::string escaped;
@@ -312,8 +318,10 @@ std::vector<fs::path> discoverManifestPaths()
     std::set<std::string> seen;
 
     for (const auto& root : getConfiguredInstallRoots()) {
+        CubeLog::info("AppsManager: scanning install root " + root.string());
         std::error_code ec;
         if (!fs::exists(root, ec) || ec) {
+            CubeLog::warning("AppsManager: install root is unavailable: " + root.string());
             continue;
         }
 
@@ -322,25 +330,40 @@ std::vector<fs::path> discoverManifestPaths()
             const auto normalized = fs::absolute(rootManifest).lexically_normal().string();
             if (seen.insert(normalized).second) {
                 manifests.push_back(fs::absolute(rootManifest).lexically_normal());
+                CubeLog::info("AppsManager: discovered root manifest " + normalized);
             }
         }
 
-        for (const auto& entry : fs::directory_iterator(root, fs::directory_options::skip_permission_denied, ec)) {
-            if (ec) {
+        std::error_code iterEc;
+        const auto options = fs::directory_options::skip_permission_denied;
+        for (fs::directory_iterator it(root, options, iterEc), end; it != end; it.increment(iterEc)) {
+            if (iterEc) {
+                CubeLog::error("AppsManager: error while iterating install root " + root.string() + ": " + iterEc.message());
                 break;
             }
-            if (!entry.is_directory()) {
+
+            const auto& entry = *it;
+            std::error_code entryEc;
+            if (!entry.is_directory(entryEc)) {
+                if (entryEc) {
+                    CubeLog::warning("AppsManager: skipping unreadable entry " + entry.path().string() + ": " + entryEc.message());
+                }
                 continue;
             }
 
             const auto manifestPath = entry.path() / "manifest.json";
-            if (!fs::is_regular_file(manifestPath, ec) || ec) {
+            std::error_code manifestEc;
+            if (!fs::is_regular_file(manifestPath, manifestEc)) {
+                if (manifestEc) {
+                    CubeLog::warning("AppsManager: failed to inspect manifest candidate " + manifestPath.string() + ": " + manifestEc.message());
+                }
                 continue;
             }
 
             const auto normalized = fs::absolute(manifestPath).lexically_normal().string();
             if (seen.insert(normalized).second) {
                 manifests.push_back(fs::absolute(manifestPath).lexically_normal());
+                CubeLog::info("AppsManager: discovered manifest " + normalized);
             }
         }
     }
@@ -664,6 +687,8 @@ ManifestParseResult loadManifestSummary(const fs::path& manifestPath)
             validationError = "Missing runtime.python object";
         } else if (!summary.raw["runtime"]["python"].contains("entry_script") || !summary.raw["runtime"]["python"]["entry_script"].is_string()) {
             validationError = "Missing runtime.python.entry_script";
+        } else if (summary.raw["runtime"]["python"].contains("package_name") && !summary.raw["runtime"]["python"]["package_name"].is_string()) {
+            validationError = "runtime.python.package_name must be a string";
         }
     } else if (summary.runtimeType == "node") {
         if (!summary.raw["runtime"].contains("node") || !summary.raw["runtime"]["node"].is_object()) {
@@ -823,6 +848,179 @@ std::string runtimeRunDir(const std::string& appId)
     return (configuredBasePath("THECUBE_RUNTIME_ROOT", kDefaultRuntimeRoot, kDefaultLocalRuntimeRoot) / appId).string();
 }
 
+fs::path managedPythonVenvRoot(const std::string& appId)
+{
+    return fs::path(runtimeDataDir(appId)) / "venv";
+}
+
+std::vector<fs::path> pythonExecutableCandidates(const ManifestSummary& summary)
+{
+    return {
+        managedPythonVenvRoot(summary.appId) / "bin/python",
+        managedPythonVenvRoot(summary.appId) / "bin/python3",
+        summary.installRoot / ".venv/bin/python",
+        summary.installRoot / ".venv/bin/python3",
+        summary.installRoot / "bin/python",
+        summary.installRoot / "bin/python3"
+    };
+}
+
+std::optional<fs::path> resolveHostPythonExecutable()
+{
+    const auto configured = Config::get("THECUBE_HOST_PYTHON_BIN", "");
+    if (!configured.empty()) {
+        return findExecutableOnPath(configured);
+    }
+    return findExecutableOnPath("python3");
+}
+
+std::string pythonPackageName(const ManifestSummary& summary)
+{
+    const auto& runtime = summary.raw["runtime"];
+    if (runtime.contains("python") && runtime["python"].is_object()) {
+        const auto& python = runtime["python"];
+        if (python.contains("package_name") && python["package_name"].is_string()) {
+            return python["package_name"].get<std::string>();
+        }
+    }
+    return summary.installRoot.filename().string();
+}
+
+fs::path pythonInstallStatePath(const std::string& appId)
+{
+    return fs::path(runtimeDataDir(appId)) / "python-install-state.json";
+}
+
+std::optional<PythonInstallState> readPythonInstallState(const std::string& appId)
+{
+    const auto path = pythonInstallStatePath(appId);
+    std::ifstream input(path);
+    if (!input.is_open()) {
+        return std::nullopt;
+    }
+
+    try {
+        nlohmann::json json;
+        input >> json;
+        if (!json.is_object()) {
+            return std::nullopt;
+        }
+
+        PythonInstallState state;
+        state.appVersion = json.value("app_version", "");
+        state.packageName = json.value("package_name", "");
+        state.venvRoot = json.value("venv_root", "");
+        if (state.appVersion.empty() || state.packageName.empty() || state.venvRoot.empty()) {
+            return std::nullopt;
+        }
+        return state;
+    } catch (...) {
+        return std::nullopt;
+    }
+}
+
+bool writePythonInstallState(const ManifestSummary& summary, const fs::path& venvRoot, const std::string& packageName, std::string& error)
+{
+    const auto path = pythonInstallStatePath(summary.appId);
+    std::ofstream output(path);
+    if (!output.is_open()) {
+        error = "Failed to write Python install state file: " + path.string();
+        return false;
+    }
+
+    output << nlohmann::json {
+        { "app_version", summary.appVersion },
+        { "package_name", packageName },
+        { "venv_root", venvRoot.string() }
+    }.dump(2);
+    return true;
+}
+
+bool runShellCommand(const std::string& command, const std::string& description, std::string& error)
+{
+    CubeLog::info("AppsManager: " + description);
+    const int rc = extractCommandExitCode(std::system(command.c_str()));
+    if (rc == 0) {
+        return true;
+    }
+
+    error = description + " failed (rc=" + std::to_string(rc) + ")";
+    return false;
+}
+
+bool ensurePythonRuntimeInstalled(const ManifestSummary& summary, std::string& error)
+{
+    if (summary.runtimeType != "python") {
+        return true;
+    }
+    if (summary.runtimeDistribution != "venv") {
+        error = "Python apps must use runtime.distribution=venv";
+        return false;
+    }
+
+    const auto packageName = pythonPackageName(summary);
+    if (packageName.empty()) {
+        error = "Python package name could not be determined";
+        return false;
+    }
+
+    const auto venvRoot = managedPythonVenvRoot(summary.appId);
+    const auto pythonBinary = venvRoot / "bin/python3";
+    const auto pipBinary = venvRoot / "bin/pip";
+    const auto existingState = readPythonInstallState(summary.appId);
+    if (existingState.has_value()
+        && existingState->appVersion == summary.appVersion
+        && existingState->packageName == packageName
+        && existingState->venvRoot == venvRoot.string()
+        && fs::exists(pythonBinary)
+        && fs::exists(pipBinary)) {
+        CubeLog::info("AppsManager: Python runtime already installed for " + summary.appId);
+        return true;
+    }
+
+    const auto hostPython = resolveHostPythonExecutable();
+    if (!hostPython.has_value()) {
+        error = "Host python3 executable was not found. Set THECUBE_HOST_PYTHON_BIN if it is installed in a non-standard location.";
+        return false;
+    }
+
+    std::error_code ec;
+    fs::create_directories(venvRoot.parent_path(), ec);
+    if (ec) {
+        error = "Failed to create Python venv parent directory: " + ec.message();
+        return false;
+    }
+
+    if (!fs::exists(pythonBinary)) {
+        const auto createVenvCommand = shellQuote(hostPython->string()) + " -m venv " + shellQuote(venvRoot.string());
+        if (!runShellCommand(createVenvCommand, "creating Python venv for " + summary.appId, error)) {
+            return false;
+        }
+    }
+
+    if (!fs::exists(pipBinary)) {
+        error = "Python venv pip executable does not exist after bootstrap: " + pipBinary.string();
+        return false;
+    }
+
+    const auto upgradeCommand = shellQuote(pipBinary.string()) + " install --upgrade pip setuptools wheel";
+    if (!runShellCommand(upgradeCommand, "upgrading pip/setuptools/wheel for " + summary.appId, error)) {
+        return false;
+    }
+
+    const auto installCommand = shellQuote(pipBinary.string()) + " install " + shellQuote(packageName);
+    if (!runShellCommand(installCommand, "installing Python package " + packageName + " for " + summary.appId, error)) {
+        return false;
+    }
+
+    if (!writePythonInstallState(summary, venvRoot, packageName, error)) {
+        return false;
+    }
+
+    CubeLog::info("AppsManager: Python runtime is ready for " + summary.appId + " using package " + packageName);
+    return true;
+}
+
 std::optional<fs::path> findExistingPath(const std::vector<fs::path>& candidates)
 {
     std::error_code ec;
@@ -911,14 +1109,9 @@ bool compileLaunchPolicy(const ManifestSummary& summary, nlohmann::json& policyO
         }
 
         if (summary.runtimeDistribution == "venv") {
-            const auto pythonPath = findExistingPath({
-                summary.installRoot / ".venv/bin/python",
-                summary.installRoot / ".venv/bin/python3",
-                summary.installRoot / "bin/python",
-                summary.installRoot / "bin/python3"
-            });
+            const auto pythonPath = findExistingPath(pythonExecutableCandidates(summary));
             if (!pythonPath.has_value()) {
-                error = "Python venv executable does not exist under install root";
+                error = "Python venv executable does not exist for app " + summary.appId;
                 return false;
             }
             resolvedExecutable = pythonPath->lexically_normal().string();
@@ -1327,12 +1520,14 @@ bool AppsManager::syncRegistry()
     }
 
     const auto manifestPaths = discoverManifestPaths();
+    CubeLog::info("AppsManager: manifest discovery found " + std::to_string(manifestPaths.size()) + " manifest(s)");
     std::unordered_set<std::string> seenManifestPaths;
     bool allSucceeded = true;
 
     for (const auto& manifestPath : manifestPaths) {
         const auto normalizedManifest = fs::absolute(manifestPath).lexically_normal().string();
         seenManifestPaths.insert(normalizedManifest);
+        CubeLog::info("AppsManager: syncing manifest " + normalizedManifest);
 
         auto parsed = loadManifestSummary(manifestPath);
         if (!parsed.manifest.has_value()) {
@@ -1350,6 +1545,8 @@ bool AppsManager::syncRegistry()
             continue;
         }
 
+        CubeLog::info("AppsManager: synced app " + summary.appId + " from " + summary.manifestPath.string());
+
         if (!parsed.error.empty()) {
             CubeLog::warning("AppsManager: manifest validation error for " + summary.appId + ": " + parsed.error);
             allSucceeded = false;
@@ -1362,6 +1559,7 @@ bool AppsManager::syncRegistry()
             continue;
         }
         if (seenManifestPaths.find(row[1]) == seenManifestPaths.end()) {
+            CubeLog::warning("AppsManager: removing stale app registry row for " + row[0] + " because manifest is gone");
             db->deleteData(kAppsTableName, "app_id = " + quotedSqlLiteral(row[0]));
         }
     }
@@ -1391,6 +1589,12 @@ bool AppsManager::launchStartupApps()
         const bool systemApp = dbToBool(row[2]);
         const bool autostart = dbToBool(row[3]);
         const bool manifestErrored = row[4] == "error";
+        CubeLog::info(
+            "AppsManager: startup evaluation for " + row[0]
+            + " enabled=" + row[1]
+            + " system_app=" + row[2]
+            + " autostart=" + row[3]
+            + " policy_status=" + row[4]);
         if (!enabled || manifestErrored || (!systemApp && !autostart)) {
             continue;
         }
@@ -1460,20 +1664,28 @@ bool AppsManager::startApp(const std::string& appID)
         return false;
     }
 
+    std::string runtimeDirectoryError;
+    if (!ensureAppRuntimeDirectoriesExist(appID, runtimeDirectoryError)) {
+        updateAppStatus(appID, "error", runtimeDirectoryError);
+        updateStartFailure(appID, runtimeDirectoryError);
+        CubeLog::error("AppsManager: failed to prepare runtime directories for " + appID + ": " + runtimeDirectoryError);
+        return false;
+    }
+
+    std::string pythonInstallError;
+    if (!ensurePythonRuntimeInstalled(*parsed.manifest, pythonInstallError)) {
+        updateAppStatus(appID, "error", pythonInstallError);
+        updateStartFailure(appID, pythonInstallError);
+        CubeLog::error("AppsManager: failed to prepare Python runtime for " + appID + ": " + pythonInstallError);
+        return false;
+    }
+
     nlohmann::json launchPolicy;
     std::string compileError;
     if (!compileLaunchPolicy(*parsed.manifest, launchPolicy, compileError)) {
         updateAppStatus(appID, "error", compileError);
         updateStartFailure(appID, compileError);
         CubeLog::error("AppsManager: launch policy compilation failed for " + appID + ": " + compileError);
-        return false;
-    }
-
-    std::string runtimeDirectoryError;
-    if (!ensureAppRuntimeDirectoriesExist(appID, runtimeDirectoryError)) {
-        updateAppStatus(appID, "error", runtimeDirectoryError);
-        updateStartFailure(appID, runtimeDirectoryError);
-        CubeLog::error("AppsManager: failed to prepare runtime directories for " + appID + ": " + runtimeDirectoryError);
         return false;
     }
 

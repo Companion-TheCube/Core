@@ -266,8 +266,10 @@ int main(int argc, char* argv[])
             logger->registerInterface();
             audioManager->registerInterface();
             auth->registerInterface();
+            decisions->registerInterface();
             // btManager->registerInterface();
             api_builder.start();
+            decisions->start();
         
         CubeLog::info("Entering main loop...");
         std::chrono::milliseconds aSecond(1000);

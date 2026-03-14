@@ -89,6 +89,7 @@ void TimeTrigger::trigger()
         triggerState = true;
         if (triggerFunction)
             triggerFunction();
+        setEnabled(false);
     }
 }
 
@@ -142,23 +143,40 @@ void EventTrigger::setScheduler(std::shared_ptr<Scheduler> s)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // TriggerManager
 
-TriggerManager::TriggerManager() { }
+TriggerManager::TriggerManager()
+{
+    ensurePollThreadStarted();
+}
 
 TriggerManager::TriggerManager(const std::shared_ptr<Scheduler>& s)
 {
     setScheduler(s);
-    pollThread = new std::jthread([this](std::stop_token st) {
+    ensurePollThreadStarted();
+}
+
+TriggerManager::~TriggerManager()
+{
+    stop();
+    if (pollThread.joinable()) {
+        pollThread.request_stop();
+        pollThread.join();
+    }
+}
+
+void TriggerManager::ensurePollThreadStarted()
+{
+    if (pollThread.joinable()) {
+        return;
+    }
+    pollThread = std::jthread([this](std::stop_token st) {
         while (!st.stop_requested()) {
             {
                 std::scoped_lock lk(mtx);
-                for (auto& kv : triggers) {
-                    auto& trig = kv.second;
-                    if (trig && trig->isEnabled()) {
-                        bool ok = trig->evaluateCheck();
-                        if (ok && trig->hasCheck()) {
+                if (pollingEnabled) {
+                    for (auto& kv : triggers) {
+                        auto& trig = kv.second;
+                        if (trig && trig->isEnabled() && trig->hasCheck() && trig->evaluateCheck()) {
                             trig->trigger();
-                            if (dynamic_cast<TimeTrigger*>(trig.get()))
-                                trig->setEnabled(false);
                         }
                     }
                 }
@@ -168,12 +186,16 @@ TriggerManager::TriggerManager(const std::shared_ptr<Scheduler>& s)
     });
 }
 
-TriggerManager::~TriggerManager()
+void TriggerManager::start()
 {
-    if (pollThread) {
-        delete pollThread;
-        pollThread = nullptr;
-    }
+    std::scoped_lock lk(mtx);
+    pollingEnabled = true;
+}
+
+void TriggerManager::stop()
+{
+    std::scoped_lock lk(mtx);
+    pollingEnabled = false;
 }
 
 void TriggerManager::setScheduler(std::shared_ptr<Scheduler> s)

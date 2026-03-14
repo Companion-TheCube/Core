@@ -155,6 +155,8 @@ public:
     TriggerManager();
     TriggerManager(const std::shared_ptr<Scheduler>& scheduler);
     ~TriggerManager();
+    void start();
+    void stop();
     void setScheduler(std::shared_ptr<Scheduler> scheduler);
     void setIntentRegistry(std::shared_ptr<IntentRegistry> intentRegistry);
     void setFunctionRegistry(std::shared_ptr<FunctionRegistry> registry);
@@ -176,9 +178,11 @@ private:
     std::shared_ptr<FunctionRegistry> functionRegistry;
     using TriggerHandle = uint32_t;
     std::unordered_map<TriggerHandle, std::shared_ptr<I_Trigger>> triggers;
-    std::jthread* pollThread{ nullptr };
+    std::jthread pollThread;
     std::mutex mtx;
     static TriggerHandle nextHandle;
+    bool pollingEnabled = true;
+    void ensurePollThreadStarted();
 };
 
 }

@@ -9,6 +9,7 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <set>
+#include <sstream>
 
 namespace fs = std::filesystem;
 
@@ -65,6 +66,9 @@ protected:
     fs::path tempRoot;
     fs::path installRootsDir;
     fs::path launchRoot;
+    fs::path dataRoot;
+    fs::path cacheRoot;
+    fs::path runtimeRoot;
     std::shared_ptr<CubeDatabaseManager> dbManager;
     std::shared_ptr<BlobsManager> blobsManager;
     std::shared_ptr<CubeDB> cubeDb;
@@ -75,14 +79,24 @@ protected:
         tempRoot = fs::temp_directory_path() / ("apps_manager_test_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
         installRootsDir = tempRoot / "install-roots";
         launchRoot = tempRoot / "launch";
+        dataRoot = tempRoot / "managed-data";
+        cacheRoot = tempRoot / "managed-cache";
+        runtimeRoot = tempRoot / "managed-runtime";
 
         fs::create_directories(tempRoot / "data");
         fs::create_directories(installRootsDir);
+        fs::create_directories(dataRoot);
+        fs::create_directories(cacheRoot);
+        fs::create_directories(runtimeRoot);
         fs::current_path(tempRoot);
 
         Config::set("APP_INSTALL_ROOTS", installRootsDir.string());
         Config::set("THECUBE_LAUNCH_ROOT", launchRoot.string());
+        Config::set("THECUBE_DATA_ROOT", dataRoot.string());
+        Config::set("THECUBE_CACHE_ROOT", cacheRoot.string());
+        Config::set("THECUBE_RUNTIME_ROOT", runtimeRoot.string());
         Config::set("THECUBE_DOCKER_BIN", "");
+        Config::set("THECUBE_HOST_PYTHON_BIN", "");
     }
 
     void TearDown() override
@@ -108,13 +122,25 @@ protected:
         const std::string& appId,
         bool systemApp,
         bool autostart,
-        bool validManifest = true)
+        bool validManifest = true,
+        bool createVenv = true,
+        const std::string& packageName = "")
     {
         const fs::path appRoot = installRootsDir / appId;
-        fs::create_directories(appRoot / ".venv/bin");
+        fs::create_directories(appRoot);
 
-        std::ofstream(appRoot / ".venv/bin/python") << "#!/usr/bin/env python3\n";
+        if (createVenv) {
+            fs::create_directories(appRoot / ".venv/bin");
+            std::ofstream(appRoot / ".venv/bin/python") << "#!/usr/bin/env python3\n";
+        }
         std::ofstream(appRoot / "main.py") << "print('hello')\n";
+
+        nlohmann::json pythonRuntime = {
+            { "entry_script", "main.py" }
+        };
+        if (!packageName.empty()) {
+            pythonRuntime["package_name"] = packageName;
+        }
 
         nlohmann::json manifest = {
             { "schema_version", "1.0" },
@@ -131,9 +157,7 @@ protected:
                   { "type", "python" },
                   { "distribution", "venv" },
                   { "compatibility", "3.11" },
-                  { "python", {
-                        { "entry_script", "main.py" }
-                    } }
+                  { "python", pythonRuntime }
               } },
             { "permissions", {
                   { "filesystem", {
@@ -216,6 +240,45 @@ protected:
 
         std::ofstream(appRoot / "manifest.json") << manifest.dump(2);
         return appRoot;
+    }
+
+    fs::path createFakeHostPython()
+    {
+        const fs::path fakePython = tempRoot / "bin/fake-python3";
+        fs::create_directories(fakePython.parent_path());
+
+        std::ofstream script(fakePython);
+        script
+            << "#!/bin/sh\n"
+            << "set -e\n"
+            << "if [ \"$1\" = \"-m\" ] && [ \"$2\" = \"venv\" ]; then\n"
+            << "  target=\"$3\"\n"
+            << "  mkdir -p \"$target/bin\"\n"
+            << "  cat > \"$target/bin/python3\" <<'EOF_PY'\n"
+            << "#!/bin/sh\n"
+            << "exit 0\n"
+            << "EOF_PY\n"
+            << "  chmod +x \"$target/bin/python3\"\n"
+            << "  cat > \"$target/bin/pip\" <<'EOF_PIP'\n"
+            << "#!/bin/sh\n"
+            << "echo \"$@\" >> \"$(dirname \"$0\")/pip.log\"\n"
+            << "exit 0\n"
+            << "EOF_PIP\n"
+            << "  chmod +x \"$target/bin/pip\"\n"
+            << "  exit 0\n"
+            << "fi\n"
+            << "exit 1\n";
+        script.close();
+
+        fs::permissions(
+            fakePython,
+            fs::perms::owner_exec | fs::perms::owner_read | fs::perms::owner_write
+                | fs::perms::group_exec | fs::perms::group_read
+                | fs::perms::others_exec | fs::perms::others_read,
+            fs::perm_options::replace);
+
+        Config::set("THECUBE_HOST_PYTHON_BIN", fakePython.string());
+        return fakePython;
     }
 
     std::vector<std::vector<std::string>> selectAppRow(const std::string& appId, const std::vector<std::string>& columns)
@@ -359,6 +422,72 @@ TEST_F(AppsManagerTest, StartStopAndRunningDelegateToRuntimeController)
     ASSERT_EQ(runtime->stoppedUnits.size(), 1u);
     EXPECT_EQ(runtime->startedUnits[0], "thecube-app@com.example.manual.service");
     EXPECT_EQ(runtime->stoppedUnits[0], "thecube-app@com.example.manual.service");
+}
+
+TEST_F(AppsManagerTest, StartAppBootstrapsManagedPythonVenvWhenMissing)
+{
+    createPythonApp("com.example.bootstrap", false, false, true, false, "example-bootstrap");
+    createFakeHostPython();
+    initializeDatabaseContext();
+
+    auto runtime = std::make_shared<FakeRuntimeController>();
+    AppsManager manager(runtime);
+
+    EXPECT_TRUE(manager.initialize());
+    EXPECT_TRUE(manager.startApp("com.example.bootstrap"));
+
+    const fs::path venvRoot = dataRoot / "com.example.bootstrap/venv";
+    const fs::path pipLog = venvRoot / "bin/pip.log";
+    const fs::path statePath = dataRoot / "com.example.bootstrap/python-install-state.json";
+    const fs::path policyPath = launchRoot / "com.example.bootstrap/launch-policy.json";
+
+    EXPECT_TRUE(fs::exists(venvRoot / "bin/python3"));
+    EXPECT_TRUE(fs::exists(pipLog));
+    EXPECT_TRUE(fs::exists(statePath));
+    EXPECT_TRUE(fs::exists(policyPath));
+
+    const std::string pipLogText = [] (const fs::path& path) {
+        std::ifstream input(path);
+        std::stringstream buffer;
+        buffer << input.rdbuf();
+        return buffer.str();
+    }(pipLog);
+    EXPECT_NE(pipLogText.find("install --upgrade pip setuptools wheel"), std::string::npos);
+    EXPECT_NE(pipLogText.find("install example-bootstrap"), std::string::npos);
+
+    std::ifstream input(policyPath);
+    nlohmann::json policy;
+    input >> policy;
+    EXPECT_EQ(policy["app"]["argv"][0], (venvRoot / "bin/python3").string());
+}
+
+TEST_F(AppsManagerTest, StartAppSkipsPythonBootstrapWhenInstallStateMatches)
+{
+    createPythonApp("com.example.reuse", false, false, true, false, "example-reuse");
+    createFakeHostPython();
+    initializeDatabaseContext();
+
+    auto runtime = std::make_shared<FakeRuntimeController>();
+    AppsManager manager(runtime);
+
+    EXPECT_TRUE(manager.initialize());
+    EXPECT_TRUE(manager.startApp("com.example.reuse"));
+
+    const fs::path pipLog = dataRoot / "com.example.reuse/venv/bin/pip.log";
+    ASSERT_TRUE(fs::exists(pipLog));
+
+    const auto readText = [](const fs::path& path) {
+        std::ifstream input(path);
+        std::stringstream buffer;
+        buffer << input.rdbuf();
+        return buffer.str();
+    };
+
+    const auto firstLog = readText(pipLog);
+    EXPECT_TRUE(manager.startApp("com.example.reuse"));
+    const auto secondLog = readText(pipLog);
+
+    EXPECT_EQ(firstLog, secondLog);
 }
 
 TEST_F(AppsManagerTest, InitializeCompilesDockerSystemAppPolicy)
