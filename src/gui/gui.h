@@ -139,6 +139,8 @@ public:
     static void showTextBox(const std::string& title, const std::string& message);
     static void showTextBox(const std::string& title, const std::string& message, glm::vec2 size, glm::vec2 position);
     static void showTextBox(const std::string& title, const std::string& message, glm::vec2 size, glm::vec2 position, std::function<void()> callback);
+    static void showSliderBox(const std::string& title, int currentValue, int minValue, int maxValue, int step, std::function<void(int)> onConfirm, std::function<void()> onCancel = []() {});
+    static void hideSliderBox();
     static void showNotification(const std::string& title, const std::string& message, NotificationsManager::NotificationType type);
     static void showNotificationWithCallback(const std::string& title, const std::string& message, NotificationsManager::NotificationType type, std::function<void()> callback);
     static void showNotificationWithCallback(const std::string& title, const std::string& message, NotificationsManager::NotificationType type, std::function<void()> callbackYes, std::function<void()> callbackNo);
@@ -151,15 +153,27 @@ public:
 private:
     // GUI_Error addMenu(const std::string& menuName, const std::string& thisUniqueID, const std::string& parentName, std::vector<std::string> entryTexts, std::vector<std::string> endpoints, std::vector<std::string> uniqueIDs, CountingLatch &latch);
     GUI_Error addMenu(const std::string& menuName, const std::string& thisUniqueID, const std::string& parentID, AddMenu_Data_t data);
+    static GUI* activeGuiInstance;
+    static void setVisibleMenuClickablesEnabled(bool enabled);
     Renderer* renderer;
     std::jthread eventLoopThread;
     EventManager* eventManager;
     static CubeMessageBox* messageBox;
     static CubeTextBox* fullScreenTextBox;
     static CubeNotificaionBox* notificationBox;
+    static CubeSliderBox* sliderBox;
     std::vector<MENUS::Menu*> menus;
     std::vector<std::pair<std::function<bool()>, std::function<void(int)>>> drag_y_actions; // bool is visibility. if the item is not visible, do not call the action.
     std::mutex addMenuMutex;
+    unsigned int addPopupSliderMenuEntry(
+        MENUS::Menu* menu,
+        const std::string& text,
+        const std::string& uniqueID,
+        int minValue,
+        int maxValue,
+        int step,
+        std::function<int()> getter,
+        std::function<void(int)> setter);
 };
 
 #endif // GUI_H

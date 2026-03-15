@@ -706,17 +706,6 @@ MenuEntry::MenuEntry(Shader* t_shader, Shader* m_shader, const std::string& text
         break;
     }
     case EntryType::MENUENTRY_TYPE_SLIDER: {
-        CubeLog::moreInfo("Creating slider");
-        float posX = (720 / 2) - (720 * 0.4);
-        float posY = 50;
-        auto tempS = new M_SliderTexture(textShader, 720.f * 0.8, 20.f, 10, { 1.f, 1.f, 1.f }, { posX, posY });
-        tempS->setSliderPosition(0.5);
-        tempS->capturePosition();
-        tempS->setVisibility(true);
-        CubeLog::moreInfo("Slider getWidth(): " + std::to_string(tempS->getWidth()));
-        // this->setVisibleWidth(this->visibleWidth - tempS->getWidth());
-        this->fixedObjects.push_back(tempS);
-        this->allObjects.push_back(tempS);
         break;
     }
         // TODO: add the rest of the MENU_ENTRY_TYPEs
@@ -847,6 +836,32 @@ void MenuEntry::setStatusAction(std::function<unsigned int(void*)> action)
         this->actions.at(1) = action;
 }
 
+void MenuEntry::setSliderRange(unsigned int minValue, unsigned int maxValue, unsigned int stepValue)
+{
+    if (minValue >= maxValue) {
+        CubeLog::warning("MenuEntry: invalid slider range, keeping defaults");
+        return;
+    }
+
+    this->sliderMinValue = minValue;
+    this->sliderMaxValue = maxValue;
+    this->sliderStepValue = stepValue == 0 ? 1 : stepValue;
+}
+
+float MenuEntry::getNormalizedSliderPosition() const
+{
+    if (this->sliderMaxValue <= this->sliderMinValue) {
+        return 0.0f;
+    }
+
+    const float minValue = static_cast<float>(this->sliderMinValue);
+    const float maxValue = static_cast<float>(this->sliderMaxValue);
+    float value = static_cast<float>(this->statusReturnData);
+    if (value < minValue) value = minValue;
+    if (value > maxValue) value = maxValue;
+    return (value - minValue) / (maxValue - minValue);
+}
+
 std::vector<MeshObject*> MenuEntry::getObjects()
 {
     return this->allObjects;
@@ -872,11 +887,8 @@ void MenuEntry::draw()
         }
         break;
     }
-    case EntryType::MENUENTRY_TYPE_SLIDER: {
-        // TODO: add slider drawing
-        ((M_SliderTexture*)this->fixedObjects.at(0))->setSliderPosition(this->statusReturnData);
+    case EntryType::MENUENTRY_TYPE_SLIDER:
         break;
-    }
     }
 
     if (this->size.x != this->scrollObjects.at(0)->getWidth()) {

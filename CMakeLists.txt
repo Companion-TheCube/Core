@@ -158,6 +158,15 @@ set(WHISPER_BUILD_SERVER   OFF CACHE BOOL "" FORCE)
 set(WHISPER_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
 set(WHISPER_SDL2           OFF CACHE BOOL "" FORCE)
 set(WHISPER_CURL           OFF CACHE BOOL "" FORCE)
+set(WHISPERCPP_FETCH_ROOT "${CMAKE_BINARY_DIR}/_deps")
+set(WHISPERCPP_SOURCE_DIR "${WHISPERCPP_FETCH_ROOT}/whispercpp-src")
+if(EXISTS "${WHISPERCPP_SOURCE_DIR}" AND NOT EXISTS "${WHISPERCPP_SOURCE_DIR}/.git")
+    message(WARNING "Removing stale whisper.cpp FetchContent source directory: ${WHISPERCPP_SOURCE_DIR}")
+    file(REMOVE_RECURSE
+        "${WHISPERCPP_SOURCE_DIR}"
+        "${WHISPERCPP_FETCH_ROOT}/whispercpp-build"
+        "${WHISPERCPP_FETCH_ROOT}/whispercpp-subbuild")
+endif()
 FetchContent_Declare(
     WhisperCPP
     GIT_REPOSITORY https://github.com/ggerganov/whisper.cpp.git

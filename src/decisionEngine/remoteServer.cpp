@@ -808,8 +808,5 @@ TheCubeServerAPI::FourBit TheCubeServerAPI::getAvailableServices()
 std::string TheCubeServer::serialNumberToPassword(const std::string& serialNumber)
 {
     std::string output = base64_encode_cube(serialNumber);
-    SHA256 sha256;
-    sha256.update(reinterpret_cast<const uint8_t*>(output.data()), output.size());
-    auto digest = sha256.final();
-    return crc32b(reinterpret_cast<const char*>(digest.data()), digest.size());
+    return crc32(sha256(output));
 }
