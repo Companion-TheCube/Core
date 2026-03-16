@@ -1170,6 +1170,68 @@ unsigned char* createCircleTexture(unsigned int size, unsigned int padding, floa
     return data;
 }
 
+unsigned char* createCapsuleTexture(unsigned int width, unsigned int height, unsigned int padding, float thicknessMultiplier)
+{
+    const unsigned int totalWidth = width + padding * 2;
+    const unsigned int totalHeight = height + padding * 2;
+    unsigned char* data = new unsigned char[static_cast<size_t>(totalWidth) * static_cast<size_t>(totalHeight)];
+    std::fill(data, data + (static_cast<size_t>(totalWidth) * static_cast<size_t>(totalHeight)), 0);
+
+    const float yCenter = static_cast<float>(totalHeight) / 2.0f;
+    const float capsuleHeight = std::max(2.0f, static_cast<float>(height) * thicknessMultiplier);
+    const float radius = std::min(capsuleHeight / 2.0f, static_cast<float>(width) / 2.0f);
+    const float leftCenterX = static_cast<float>(padding) + radius;
+    const float rightCenterX = static_cast<float>(padding) + static_cast<float>(width) - radius;
+    const float top = yCenter - radius;
+    const float bottom = yCenter + radius;
+
+    for (unsigned int y = 0; y < totalHeight; ++y) {
+        for (unsigned int x = 0; x < totalWidth; ++x) {
+            const float xf = static_cast<float>(x);
+            const float yf = static_cast<float>(y);
+            bool inside = false;
+
+            if (xf >= leftCenterX && xf <= rightCenterX && yf >= top && yf <= bottom) {
+                inside = true;
+            } else {
+                const float leftDx = xf - leftCenterX;
+                const float rightDx = xf - rightCenterX;
+                const float dy = yf - yCenter;
+                if ((leftDx * leftDx + dy * dy) <= (radius * radius)) {
+                    inside = true;
+                }
+                if ((rightDx * rightDx + dy * dy) <= (radius * radius)) {
+                    inside = true;
+                }
+            }
+
+            data[static_cast<size_t>(y) * totalWidth + x] = inside ? 255 : 0;
+        }
+    }
+
+    return data;
+}
+
+unsigned char* createSliderThumbRingTexture(unsigned int size)
+{
+    const float overallSize = static_cast<float>(size);
+    unsigned char* data = new unsigned char[static_cast<size_t>(size) * static_cast<size_t>(size)];
+    const float center = overallSize / 2.0f;
+    const float outerRadius = (overallSize / 2.0f) - 1.0f;
+    const float innerRadius = outerRadius * 0.70f;
+
+    for (unsigned int y = 0; y < size; ++y) {
+        for (unsigned int x = 0; x < size; ++x) {
+            const float dx = static_cast<float>(x) - center;
+            const float dy = static_cast<float>(y) - center;
+            const float dist = std::sqrt(dx * dx + dy * dy);
+            data[static_cast<size_t>(y) * size + x] = (dist >= innerRadius && dist <= outerRadius) ? 255 : 0;
+        }
+    }
+
+    return data;
+}
+
 M_SliderTexture::M_SliderTexture(Shader* sh, float sliderWidth, float sliderHeight, unsigned int padding, glm::vec3 color, glm::vec2 position)
 {
     this->shader = sh;
@@ -1180,10 +1242,8 @@ M_SliderTexture::M_SliderTexture(Shader* sh, float sliderWidth, float sliderHeig
     this->color = color;
     this->scale_ = 1.0f;
     const auto thumbTextureSize = static_cast<unsigned int>(std::lround(sliderHeight));
-    // Keep the thumb textures tight to the quad. Padding made the ring render
-    // much smaller than the on-screen thumb area and effectively disappear.
-    this->thumbBorderTextureBitmap = createRadioButtonTexture(thumbTextureSize, 0, false);
-    this->thumbFillTextureBitmap = createCircleTexture(thumbTextureSize, 0, 0.62f);
+    this->thumbBorderTextureBitmap = createSliderThumbRingTexture(thumbTextureSize);
+    this->thumbFillTextureBitmap = createCircleTexture(thumbTextureSize, 0, 0.66f);
     this->lineTextureBitmap = new unsigned char[(unsigned int)(sliderWidth + padding * 2) * (unsigned int)(sliderHeight + padding * 2)];
     for (unsigned int y = 0; y < sliderHeight + padding * 2; ++y) {
         for (unsigned int x = 0; x < sliderWidth + padding * 2; ++x) {
@@ -1194,16 +1254,11 @@ M_SliderTexture::M_SliderTexture(Shader* sh, float sliderWidth, float sliderHeig
             this->lineTextureBitmap[(unsigned int)((float)y * (sliderWidth + padding * 2) + x)] = pixel_color;
         }
     }
-    this->backgroundTextureBitmap = new unsigned char[(unsigned int)(sliderWidth + padding * 2) * (unsigned int)(sliderHeight + padding * 2)];
-    for (unsigned int y = 0; y < sliderHeight + padding * 2; ++y) {
-        for (unsigned int x = 0; x < sliderWidth + padding * 2; ++x) {
-            unsigned char pixel_color = 0;
-            if (y >= padding && y <= sliderHeight + padding) {
-                pixel_color = 255;
-            }
-            this->backgroundTextureBitmap[(unsigned int)((float)y * (sliderWidth + padding * 2) + x)] = pixel_color;
-        }
-    }
+    this->backgroundTextureBitmap = createCapsuleTexture(
+        static_cast<unsigned int>(std::lround(sliderWidth)),
+        static_cast<unsigned int>(std::lround(sliderHeight)),
+        padding,
+        0.34f);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glGenTextures(1, &this->thumbBorderTexture);
     glBindTexture(GL_TEXTURE_2D, this->thumbBorderTexture);
@@ -1323,37 +1378,17 @@ void M_SliderTexture::draw()
         { xPos + this->sliderWidth, yPos, 1.0f, 1.0f } // Bottom-right
     };
     shader->setFloat("zindex", 0.20f);
+    shader->setVec3("textColor", 0.78f, 0.78f, 0.78f);
     glBindTexture(GL_TEXTURE_2D, this->backgroundTexture);
     glBindVertexArray(this->VAO);
     glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glDrawArrays(GL_TRIANGLES, 0, 6);
-    
-    const float usableSliderTravel = this->sliderWidth > this->sliderHeight ? this->sliderWidth - this->sliderHeight : 0.0f;
-    const float lineWidth = (this->sliderHeight * 0.5f) + (usableSliderTravel * this->sliderPosition);
-    float lineX = this->position.x;
-    float lineY = this->position.y - this->sliderHeight;
-    float verticesLine[6][4] = {
-        // Positions            // Texture Coords
-        { lineX, lineY + this->sliderHeight, 0.0f, 0.0f }, // Top-left
-        { lineX + lineWidth, lineY, 1.0f, 1.0f }, // Bottom-right
-        { lineX, lineY, 0.0f, 1.0f }, // Bottom-left
-
-        { lineX, lineY + this->sliderHeight, 0.0f, 0.0f }, // Top-left
-        { lineX + lineWidth, lineY + this->sliderHeight, 1.0f, 0.0f }, // Top-right
-        { lineX + lineWidth, lineY, 1.0f, 1.0f } // Bottom-right
-    };
-    shader->setFloat("zindex", 0.21f);
-    glBindTexture(GL_TEXTURE_2D, this->lineTexture);
-    glBindVertexArray(this->VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(verticesLine), verticesLine);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
 
     // Keep the thumb fully inside the slider width and render it above the
     // track quads so depth testing does not discard it.
+    const float usableSliderTravel = this->sliderWidth > this->sliderHeight ? this->sliderWidth - this->sliderHeight : 0.0f;
     float dotXPos = this->position.x + usableSliderTravel * this->sliderPosition;
     float dotYPos = this->position.y - this->sliderHeight;
     float verticesDot[6][4] = {

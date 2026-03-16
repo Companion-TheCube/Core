@@ -850,7 +850,7 @@ void CubeSliderBox::setup()
     const float overlayZ = Z_DISTANCE + 0.02f;
     const float panelZ = Z_DISTANCE + 0.03f;
     const float outlineZ = Z_DISTANCE + 0.031f;
-    const float panelFill = 0.12f;
+    const float panelFill = 0.0f;
 
     this->objects.push_back(new M_Rect(shader, { -1.f, -1.f, overlayZ }, { 2.f, 2.f }, 0.0, 0.0));
     this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart + radius, panelZ }, { size_.x - diameter, size_.y - diameter }, panelFill, panelFill));
