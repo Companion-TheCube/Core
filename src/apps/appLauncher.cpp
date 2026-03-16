@@ -15,6 +15,8 @@
 extern char** environ;
 #endif
 
+// TODO: make sure we are using landlock to sandbox the launched applications, and that the launch policies are configured to only allow the necessary permissions for each application.
+
 namespace {
 namespace fs = std::filesystem;
 

@@ -6,39 +6,6 @@
 - [src/api/api.h:200] : We need to make the API server is able to handle new interfaces being added at runtime.
 - [src/api/authentication.cpp:156] : add checkAuth function that only takes the app_id and returns bool if the app_id has been allowed by the user
 - [src/api/builder.cpp:162] : refactor to get rid of staticFiles vector. update: maybe not? update2: perhaps there should be a hardcoded list of static files so that we don't have to search the filesystem every time?
-- [src/apps/appsDBManager.cpp:110] : add the interfaces for HTTP server
-- [src/apps/appsManager.cpp:1158] : Implement checking if app update is available
-- [src/apps/appsManager.cpp:1171] : Implement checking if app update is required
-- [src/apps/appsManager.cpp:1184] : Implement checking if app update failed
-- [src/apps/appsManager.cpp:1197] : Implement checking if app update check is overdue
-- [src/apps/appsManager.cpp:1245] : Implement getting app memory usage
-- [src/apps/appsManager.cpp:1252] : Implement getting app version
-- [src/apps/appsManager.cpp:1273] : Implement checking if native apps are running
-- [src/apps/appsManager.cpp:1305] : determine if any processes are running
-- [src/apps/appsManager.cpp:1340] : Implement app installation
-- [src/apps/appsManager.cpp:1347] : Implement app uninstallation
-- [src/apps/appsManager.cpp:1354] : Implement app update
-- [src/apps/appsManager.cpp:1361] : Implement app installation check
-- [src/apps/appsManager.cpp:146] : these methods not be needed here since nothing should be running yet
-- [src/apps/appsManager.cpp:174] : check is app is enabled before starting. each app has an "enabled" flag in the database.
-- [src/apps/appsManager.cpp:296] : check that app is enabled before starting
-- [src/apps/appsManager.cpp:36] : Go through this method by method and make sure everything makes sense. Most of this file
-- [src/apps/appsManager.cpp:38] : Finish adding method descriptions and comments
-- [src/apps/appsManager.cpp:39] : The apps manager should start all the app executables that are registered in the database
-- [src/apps/appsManager.cpp:40] : The apps manager should also stop all the app executables when the program is stopped
-- [src/apps/appsManager.cpp:41] : The apps manager should handle updates to the app executables
-- [src/apps/appsManager.cpp:42] : The apps manager will use the docker/dockerApi.cpp class(es) to manage the docker containers
-- [src/apps/appsManager.cpp:43] : The apps manager should expose an API to start, stop, and update apps
-- [src/apps/appsManager.cpp:446] : Implement updating docker apps
-- [src/apps/appsManager.cpp:44] : Any app that is not found at the location specified in the database should be marked as "not installed" or removed from the database
-- [src/apps/appsManager.cpp:450] : Implement updating native apps
-- [src/apps/appsManager.cpp:45] : isAppInstalled() should check once and then keep track of the installed status so that repeated calls to this method are faster and don't require filesystem accesses. Any changes to apps installed status will need to noted.
-- [src/apps/appsManager.cpp:47] : App installation needs to be handled somehow. Apps that come from trusted sources may have scripts that need to
-- [src/apps/appsManager.cpp:51] : When an app is installed, record its IPC socket location in the apps DB
-- [src/apps/appsManager.cpp:59] : When an app is installed, set the user and group ownership of the app
-- [src/apps/dockerApi.cpp:34] : Go through this method by method and make sure everything makes sense. Most of this file
-- [src/apps/dockerApi.cpp:36] : Add comments and documentation to this file.
-- [src/apps/dockerApi.cpp:41] : remove this function. It is only used for debugging.
 - [src/audio/audioManager.cpp:43] : NOTE: Audio input needs to be configured for RTAUDIO_INT16 or all the threadsafeQueue
 - [src/audio/audioManager.cpp:47] : this whole thing, basically
 - [src/audio/audioManager.cpp:87] : Additional endpoints will be defined in the audioOutput.cpp file and speechIn.cpp file so we
@@ -49,87 +16,58 @@
 - [src/audio/audioOutput.cpp:55] : load all the audio blobs from the DB.
 - [src/audio/audioOutput.cpp:56] : load all the audio files from the filesystem.
 - [src/audio/audioOutput.cpp:62] : The RTAudio instance needs to be instantiated in the audioManager and passed to this class and to the speechIn class.
-- [src/audio/speechIn.cpp:325] : implement silence detection to determine when the user is done speaking.
 - [src/database/cubeDB.cpp:216] : use this as an example for the mutex lock below.
 - [src/database/cubeDB.cpp:240] : fix this endpoint. It has testing data in it.
 - [src/database/cubeDB.cpp:282] : fix this endpoint. It has testing data in it.
 - [src/database/cubeDB.cpp:432] : endpoints to write:
 - [src/database/cubeDB.cpp:55] : Ensure app installation paths and metadata include the app IPC socket
 - [src/database/db.cpp:34] : this file needs a line by line evaluation
-- [src/database/db.h:145] : Add a "socket_location" TEXT column to the "apps" table so we can store
-- [src/database/db.h:253] : make sure all the data is sanitized before being inserted into the database.
-- [src/decisionEngine/decisions.cpp:84] :
-- [src/decisionEngine/functionRegistry.cpp:1041] : Suggested additional endpoints to consider implementing:
-- [src/decisionEngine/functionRegistry.cpp:295] : Treating `spec.appName` as a direct socket path is a
-- [src/decisionEngine/functionRegistry.cpp:417] : Register built-in CORE capability implementations here. These are
-- [src/decisionEngine/functionRegistry.cpp:431] : Add other built-in core capabilities here (audio playback,
-- [src/decisionEngine/functionRegistry.cpp:435] : NFC-Write
-- [src/decisionEngine/functionRegistry.cpp:437] : NFC-Read
-- [src/decisionEngine/functionRegistry.cpp:439] : NFC-Scan
-- [src/decisionEngine/functionRegistry.cpp:441] : Sound - Play a sound file
-- [src/decisionEngine/functionRegistry.cpp:443] : Sound - Stop playback
-- [src/decisionEngine/functionRegistry.cpp:445] : Sound - Set volume
-- [src/decisionEngine/functionRegistry.cpp:447] : Sound - Get current volume
-- [src/decisionEngine/functionRegistry.cpp:449] : Sound - Mute/unmute
-- [src/decisionEngine/functionRegistry.cpp:451] : Sound - Is muted
-- [src/decisionEngine/functionRegistry.cpp:453] : Sound - Get list of available sound files
-- [src/decisionEngine/functionRegistry.cpp:455] : Sound - Get current sound file
-- [src/decisionEngine/functionRegistry.cpp:457] : UI - Show a notification
-- [src/decisionEngine/functionRegistry.cpp:459] : UI - Show a dialog
-- [src/decisionEngine/functionRegistry.cpp:461] : UI - Show a toast message
-- [src/decisionEngine/functionRegistry.cpp:463] : UI - Show a progress bar
-- [src/decisionEngine/functionRegistry.cpp:465] : UI - Update a progress bar
-- [src/decisionEngine/functionRegistry.cpp:467] : UI - Show a spinner
-- [src/decisionEngine/functionRegistry.cpp:469] : UI - Hide a spinner
-- [src/decisionEngine/functionRegistry.cpp:471] : UI - Show a modal dialog
-- [src/decisionEngine/functionRegistry.cpp:473] : UI - Hide a modal dialog
-- [src/decisionEngine/functionRegistry.cpp:475] : UI - Show a popup menu
-- [src/decisionEngine/functionRegistry.cpp:477] : UI - Hide a popup menu
-- [src/decisionEngine/functionRegistry.cpp:479] : mmWave - Get distance
-- [src/decisionEngine/functionRegistry.cpp:481] : mmWave - Get speed
-- [src/decisionEngine/functionRegistry.cpp:677] : If FunctionSpec supports a local `action` (local/provider-side
+- [src/database/db.h:247] : make sure all the data is sanitized before being inserted into the database.
+- [src/decisionEngine/functionRegistry.cpp:1158] : Suggested additional endpoints to consider implementing:
+- [src/decisionEngine/functionRegistry.cpp:304] : Treating `spec.appName` as a direct socket path is a
+- [src/decisionEngine/functionRegistry.cpp:470] : Register built-in CORE capability implementations here. These are
+- [src/decisionEngine/functionRegistry.cpp:552] : Add other built-in core capabilities here (audio playback,
+- [src/decisionEngine/functionRegistry.cpp:556] : NFC-Write
+- [src/decisionEngine/functionRegistry.cpp:558] : NFC-Read
+- [src/decisionEngine/functionRegistry.cpp:560] : NFC-Scan
+- [src/decisionEngine/functionRegistry.cpp:562] : Sound - Play a sound file
+- [src/decisionEngine/functionRegistry.cpp:564] : Sound - Stop playback
+- [src/decisionEngine/functionRegistry.cpp:566] : Sound - Set volume
+- [src/decisionEngine/functionRegistry.cpp:568] : Sound - Get current volume
+- [src/decisionEngine/functionRegistry.cpp:570] : Sound - Mute/unmute
+- [src/decisionEngine/functionRegistry.cpp:572] : Sound - Is muted
+- [src/decisionEngine/functionRegistry.cpp:574] : Sound - Get list of available sound files
+- [src/decisionEngine/functionRegistry.cpp:576] : Sound - Get current sound file
+- [src/decisionEngine/functionRegistry.cpp:578] : UI - Show a notification
+- [src/decisionEngine/functionRegistry.cpp:580] : UI - Show a dialog
+- [src/decisionEngine/functionRegistry.cpp:582] : UI - Show a toast message
+- [src/decisionEngine/functionRegistry.cpp:584] : UI - Show a progress bar
+- [src/decisionEngine/functionRegistry.cpp:586] : UI - Update a progress bar
+- [src/decisionEngine/functionRegistry.cpp:588] : UI - Show a spinner
+- [src/decisionEngine/functionRegistry.cpp:590] : UI - Hide a spinner
+- [src/decisionEngine/functionRegistry.cpp:592] : UI - Show a modal dialog
+- [src/decisionEngine/functionRegistry.cpp:594] : UI - Hide a modal dialog
+- [src/decisionEngine/functionRegistry.cpp:596] : UI - Show a popup menu
+- [src/decisionEngine/functionRegistry.cpp:598] : UI - Hide a popup menu
+- [src/decisionEngine/functionRegistry.cpp:600] : mmWave - Get distance
+- [src/decisionEngine/functionRegistry.cpp:602] : mmWave - Get speed
 - [src/decisionEngine/functionRegistry.cpp:69] .
-- [src/decisionEngine/functionRegistry.cpp:775] : Consider merging with setCapabilitySocketUnavailable
-- [src/decisionEngine/functionRegistry.cpp:776] : Consider renaming to setFunctionSocketAvailability and inverting bool param
-- [src/decisionEngine/functionRegistry.cpp:786] : Consider merging with setFunctionSocketUnavailable
-- [src/decisionEngine/functionRegistry.cpp:787] : Consider renaming to setCapabilitySocketAvailability and inverting bool param
-- [src/decisionEngine/functionRegistry.cpp:879] : implement actual JSON-RPC via asio here. For now, return an error
-- [src/decisionEngine/functionRegistry.h:66] : consider adding `AppsManager::isAppReady(appId)` to allow checking
-- [src/decisionEngine/intentRegistry.cpp:203] : add TTS support
-- [src/decisionEngine/intentRegistry.cpp:230] : Implement this
-- [src/decisionEngine/intentRegistry.cpp:236] : This needs checks to ensure properly formatted JSON
-- [src/decisionEngine/intentRegistry.cpp:368] : define all the system intents. this should include things like "What time is it?" and "What apps are installed?"
-- [src/decisionEngine/intentRegistry.cpp:401] : although this code works, we need to implement a more advanced pattern matching system and we need to
-- [src/decisionEngine/intentRegistry.cpp:404] : This function should somehow return a score for the match so that when multiple intents match, we can
-- [src/decisionEngine/intentRegistry.cpp:452] : convert this to std::future and make callback the progress callback or remove it
-- [src/decisionEngine/intentRegistry.cpp:495] : convert this to std::future
-- [src/decisionEngine/intentRegistry.cpp:501] : convert this to std::future and make callback the progress callback or remove it
-- [src/decisionEngine/intentRegistry.cpp:506] :
-- [src/decisionEngine/intentRegistry.cpp:513] :
-- [src/decisionEngine/intentRegistry.cpp:521] : remove).
-- [src/decisionEngine/intentRegistry.cpp:530] : remove this. Testing only.
-- [src/decisionEngine/intentRegistry.cpp:594] :
-- [src/decisionEngine/intentRegistry.h:100] : add a mutex so that the calling of execute can be thread safe
+- [src/decisionEngine/functionRegistry.cpp:795] : If FunctionSpec supports a local `action` (local/provider-side
+- [src/decisionEngine/functionRegistry.cpp:892] : Consider merging with setCapabilitySocketUnavailable
+- [src/decisionEngine/functionRegistry.cpp:893] : Consider renaming to setFunctionSocketAvailability and inverting bool param
+- [src/decisionEngine/functionRegistry.cpp:903] : Consider merging with setFunctionSocketUnavailable
+- [src/decisionEngine/functionRegistry.cpp:904] : Consider renaming to setCapabilitySocketAvailability and inverting bool param
+- [src/decisionEngine/functionRegistry.cpp:996] : implement actual JSON-RPC via asio here. For now, return an error
+- [src/decisionEngine/functionRegistry.h:65] : consider adding `AppsManager::isAppReady(appId)` to allow checking
+- [src/decisionEngine/intentRegistry.cpp:343] : add TTS support
+- [src/decisionEngine/intentRegistry.cpp:370] : Implement this
+- [src/decisionEngine/intentRegistry.cpp:376] : This needs checks to ensure properly formatted JSON
+- [src/decisionEngine/intentRegistry.cpp:577] : convert this to std::future
+- [src/decisionEngine/intentRegistry.cpp:583] : convert this to std::future and make callback the progress callback or remove it
+- [src/decisionEngine/intentRegistry.h:95] : add a mutex so that the calling of execute can be thread safe
 - [src/decisionEngine/personalityManager.h:147] : add methods that allow for ramp type of expiration
-- [src/decisionEngine/remoteServer.cpp:106] :
-- [src/decisionEngine/remoteServer.cpp:203] :
-- [src/decisionEngine/remoteServer.cpp:35] while the wire format
-- [src/decisionEngine/remoteServer.cpp:41] : Implement this class
-- [src/decisionEngine/remoteServer.cpp:47] :
-- [src/decisionEngine/remoteServer.cpp:65] : Read the setting for which AI service the user wants to use.
-- [src/decisionEngine/remoteServer.cpp:92] :
-- [src/decisionEngine/remoteServer.cpp:99] :
-- [src/decisionEngine/remoteServer.h:67] : This URL should be configurable via settings or environment variable so that we
-- [src/decisionEngine/scheduler.cpp:238] noted below).
-- [src/decisionEngine/scheduler.cpp:251] : check if the task should be repeated and if so, add it back to the scheduledTasks list
+- [src/decisionEngine/scheduler.cpp:274] noted below).
 - [src/decisionEngine/scheduler.cpp:59] :
-- [src/decisionEngine/transcriber.cpp:104] : upload buffer and poll for result
-- [src/decisionEngine/transcriber.cpp:109] : streaming upload with progress and partial results
-- [src/decisionEngine/transcriber.cpp:42] :
-- [src/decisionEngine/transcriber.cpp:47] : construct CubeWhisper and prime any resources required for STT
-- [src/decisionEngine/transcriber.cpp:73] : consume from queue or stream interface; incremental transcription
-- [src/decisionEngine/transcriber.cpp:97] : inject server API, set up session/state for streaming
-- [src/decisionEngine/transcriber.h:127] : the stream that this is reading from may need to be a more complex
 - [src/gui/characterManager.cpp:145] : This will need to interface with the list of registered apps and find the ones
 - [src/gui/characterManager.cpp:240] : fill in the endpoints
 - [src/gui/characterManager.cpp:303] : move the actual loading of character data into a separate method so that we can call it
@@ -145,132 +83,115 @@
 - [src/gui/characterManager.cpp:727] : by default, this method will not interrupt the current animation. Need to implement interrupting.
 - [src/gui/characterManager.cpp:740] : by default, this method will not interrupt the current expression. Need to implement interrupting.
 - [src/gui/eventHandler/eventHandler.cpp:36] : Need to refactor so that the functions that take in "void* data" also take
-- [src/gui/gui.cpp:1002] : make this actually enable/disable remote animations. the settings should have a callback registered with the GlobalSettings class that will enable/disable remote animations when the setting is changed.
-- [src/gui/gui.cpp:1019] : list all the idle animations
-- [src/gui/gui.cpp:1035] : set the brightness
-- [src/gui/gui.cpp:1041] : save the brightness to the settings
-- [src/gui/gui.cpp:1060] : make this actually enable/disable auto off. the settings should have a callback registered with the GlobalSettings class that will enable/disable auto off when the setting is changed.
-- [src/gui/gui.cpp:1076] : set the auto off time
-- [src/gui/gui.cpp:1086] : save the auto off time to the settings
-- [src/gui/gui.cpp:1103] : list all the available fonts
-- [src/gui/gui.cpp:1106] :) with the GlobalSettings class that will set the font when the setting is changed.
-- [src/gui/gui.cpp:1122] : figure out what to put here: list apps that use microphone, presence detection, etc. and allow the user to disable them
-- [src/gui/gui.cpp:1135] : list all the accounts that have been added to the system. These are stored in the database.
-- [src/gui/gui.cpp:1138] :
-- [src/gui/gui.cpp:1141] :
-- [src/gui/gui.cpp:1144] : add a button to add an account
-- [src/gui/gui.cpp:1159] :
-- [src/gui/gui.cpp:1162] : for each installed app do the following
-- [src/gui/gui.cpp:1167] : each app will fill in the details here
-- [src/gui/gui.cpp:1170] :
-- [src/gui/gui.cpp:1173] : List all the available apps here. each app gets an install button and a details button
-- [src/gui/gui.cpp:118] : remove this or move to utils
-- [src/gui/gui.cpp:1208] :
-- [src/gui/gui.cpp:1209] :
-- [src/gui/gui.cpp:1210] :
-- [src/gui/gui.cpp:1211] :
-- [src/gui/gui.cpp:1218] :
-- [src/gui/gui.cpp:1220] : All the strings in the system should be in a language file that can be changed at runtime.
-- [src/gui/gui.cpp:1232] : figure out what should go here
-- [src/gui/gui.cpp:1239] :
-- [src/gui/gui.cpp:1241] :
-- [src/gui/gui.cpp:1245] :
-- [src/gui/gui.cpp:1262] : get the serial number from the hardware class
-- [src/gui/gui.cpp:1304] : Show the version, build number, and build date of TheCube-CORE
-- [src/gui/gui.cpp:1306] : Show the Raspbian version, kernel version, etc
-- [src/gui/gui.cpp:1308] : Show the versions of all the libraries used in the system
-- [src/gui/gui.cpp:1315] :
-- [src/gui/gui.cpp:1318] :
-- [src/gui/gui.cpp:1321] :
-- [src/gui/gui.cpp:1324] :
+- [src/gui/gui.cpp:1010] : list all the notification sounds
+- [src/gui/gui.cpp:1042] : list all the alarm sounds
+- [src/gui/gui.cpp:1074] : list all the voice command sounds
+- [src/gui/gui.cpp:1091] : make this actually enable/disable notifications from network sources. the settings should have a callback registered with the GlobalSettings class that will enable/disable notifications from network sources when the setting is changed.
+- [src/gui/gui.cpp:1106] : list all the recent notifications. we'll need to determine the max number of notifications to show,
+- [src/gui/gui.cpp:1135] : make this actually enable/disable remote animations. the settings should have a callback registered with the GlobalSettings class that will enable/disable remote animations when the setting is changed.
+- [src/gui/gui.cpp:1152] : list all the idle animations
+- [src/gui/gui.cpp:1193] : make this actually enable/disable auto off. the settings should have a callback registered with the GlobalSettings class that will enable/disable auto off when the setting is changed.
+- [src/gui/gui.cpp:1222] : list all the available fonts
+- [src/gui/gui.cpp:1225] :) with the GlobalSettings class that will set the font when the setting is changed.
+- [src/gui/gui.cpp:1241] : figure out what to put here: list apps that use microphone, presence detection, etc. and allow the user to disable them
+- [src/gui/gui.cpp:1254] : list all the accounts that have been added to the system. These are stored in the database.
+- [src/gui/gui.cpp:1257] :
+- [src/gui/gui.cpp:1260] :
+- [src/gui/gui.cpp:1263] : add a button to add an account
+- [src/gui/gui.cpp:1278] :
+- [src/gui/gui.cpp:1281] : for each installed app do the following
+- [src/gui/gui.cpp:1286] : each app will fill in the details here
+- [src/gui/gui.cpp:1289] :
+- [src/gui/gui.cpp:1292] : List all the available apps here. each app gets an install button and a details button
 - [src/gui/gui.cpp:1327] :
-- [src/gui/gui.cpp:132] : make this dynamic
+- [src/gui/gui.cpp:1328] :
+- [src/gui/gui.cpp:1329] :
 - [src/gui/gui.cpp:1330] :
-- [src/gui/gui.cpp:1333] :
-- [src/gui/gui.cpp:1336] :
-- [src/gui/gui.cpp:1339] :
-- [src/gui/gui.cpp:1342] :
-- [src/gui/gui.cpp:1345] : list all the open source licenses used in the system
-- [src/gui/gui.cpp:1348] : list all the legal notices
-- [src/gui/gui.cpp:1351] : list all the trademarks used in the system
-- [src/gui/gui.cpp:1354] : Read in the EULA from a file and display it
-- [src/gui/gui.cpp:1357] : Read in the privacy policy from a file and display it
-- [src/gui/gui.cpp:1395] : call some method that checks the SSD integrity
-- [src/gui/gui.cpp:1415] : call some method that resets the system to factory settings
-- [src/gui/gui.cpp:1432] : trigger a reboot
-- [src/gui/gui.cpp:1449] : trigger a shutdown
+- [src/gui/gui.cpp:1337] :
+- [src/gui/gui.cpp:1339] : All the strings in the system should be in a language file that can be changed at runtime.
+- [src/gui/gui.cpp:1351] : figure out what should go here
+- [src/gui/gui.cpp:1358] :
+- [src/gui/gui.cpp:1360] :
+- [src/gui/gui.cpp:1364] :
+- [src/gui/gui.cpp:1381] : get the serial number from the hardware class
+- [src/gui/gui.cpp:1423] : Show the version, build number, and build date of TheCube-CORE
+- [src/gui/gui.cpp:1425] : Show the Raspbian version, kernel version, etc
+- [src/gui/gui.cpp:1427] : Show the versions of all the libraries used in the system
+- [src/gui/gui.cpp:1434] :
+- [src/gui/gui.cpp:1437] :
+- [src/gui/gui.cpp:1440] :
+- [src/gui/gui.cpp:1443] :
+- [src/gui/gui.cpp:1446] :
+- [src/gui/gui.cpp:1449] :
+- [src/gui/gui.cpp:1452] :
+- [src/gui/gui.cpp:1455] :
+- [src/gui/gui.cpp:1458] :
 - [src/gui/gui.cpp:1461] :
-- [src/gui/gui.cpp:1464] :
-- [src/gui/gui.cpp:1473] :
-- [src/gui/gui.cpp:1476] :
-- [src/gui/gui.cpp:1479] :
-- [src/gui/gui.cpp:1482] :
-- [src/gui/gui.cpp:1485] :
-- [src/gui/gui.cpp:1488] :
-- [src/gui/gui.cpp:1491] :
-- [src/gui/gui.cpp:1591] : change this to be a reference
-- [src/gui/gui.cpp:1888] : show a text input box
-- [src/gui/gui.cpp:1905] : Add the following endpoints:
-- [src/gui/gui.cpp:1915] : anything that gets displayed needs to be logged in the DB->notifications
-- [src/gui/gui.cpp:1939] : anything that gets displayed needs to be logged in the DB->notifications
-- [src/gui/gui.cpp:263] : make this actually enable/disable wifi. the settings should have a callback registered with the GlobalSettings class that will enable/disable wifi when the setting is changed.
-- [src/gui/gui.cpp:268] : return GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::WIFI_ENABLED);
-- [src/gui/gui.cpp:2810] : Implement
-- [src/gui/gui.cpp:301] : add a text box to enter the SSID
-- [src/gui/gui.cpp:311] : add a dropdown to select the security type
-- [src/gui/gui.cpp:321] : add a text box to enter the password
-- [src/gui/gui.cpp:335] : connect to the network
-- [src/gui/gui.cpp:356] : Trigger the wif manager to scan for networks and provide a way for it to return the list of networks.
-- [src/gui/gui.cpp:378] : list all the known networks
-- [src/gui/gui.cpp:397] : get the MAC address of the wifi adapter
+- [src/gui/gui.cpp:1464] : list all the open source licenses used in the system
+- [src/gui/gui.cpp:1467] : list all the legal notices
+- [src/gui/gui.cpp:1470] : list all the trademarks used in the system
+- [src/gui/gui.cpp:1473] : Read in the EULA from a file and display it
+- [src/gui/gui.cpp:1476] : Read in the privacy policy from a file and display it
+- [src/gui/gui.cpp:1514] : call some method that checks the SSD integrity
+- [src/gui/gui.cpp:1534] : call some method that resets the system to factory settings
+- [src/gui/gui.cpp:1551] : trigger a reboot
+- [src/gui/gui.cpp:1568] : trigger a shutdown
+- [src/gui/gui.cpp:1580] :
+- [src/gui/gui.cpp:1583] :
+- [src/gui/gui.cpp:1592] :
+- [src/gui/gui.cpp:1595] :
+- [src/gui/gui.cpp:1598] :
+- [src/gui/gui.cpp:1601] :
+- [src/gui/gui.cpp:1604] :
+- [src/gui/gui.cpp:1607] :
+- [src/gui/gui.cpp:1610] :
+- [src/gui/gui.cpp:1730] : change this to be a reference
+- [src/gui/gui.cpp:2086] : show a text input box
+- [src/gui/gui.cpp:2116] : Add the following endpoints:
+- [src/gui/gui.cpp:2126] : anything that gets displayed needs to be logged in the DB->notifications
+- [src/gui/gui.cpp:2150] : anything that gets displayed needs to be logged in the DB->notifications
+- [src/gui/gui.cpp:230] : remove this
+- [src/gui/gui.cpp:257] : remove this or move to utils
+- [src/gui/gui.cpp:271] : make this dynamic
+- [src/gui/gui.cpp:2988] : Implement
+- [src/gui/gui.cpp:408] : make this actually enable/disable wifi. the settings should have a callback registered with the GlobalSettings class that will enable/disable wifi when the setting is changed.
 - [src/gui/gui.cpp:40] : Need to add a sort of status bar to the top of the screen. It should show the time and whether or not a person is detected. probably more.
-- [src/gui/gui.cpp:413] : get the IP address of the wifi adapter
+- [src/gui/gui.cpp:413] : return GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::WIFI_ENABLED);
 - [src/gui/gui.cpp:41] : we should monitor the CubeLog for errors and display them in the status bar. This will require a way to get the last error message from the CubeLog. <- this is done in CubeLog
-- [src/gui/gui.cpp:429] : get the subnet mask of the wifi adapter
 - [src/gui/gui.cpp:42] : setup notifications that pop up with a CubeMessageBox. this will need to have notifications.cpp fleshed out.
 - [src/gui/gui.cpp:43] : Instead of having the menu become visible with a single tap/click, it should only pop up when teh user holds
-- [src/gui/gui.cpp:445] : get the signal strength of the wifi adapter
-- [src/gui/gui.cpp:465] : get the name of the current network
-- [src/gui/gui.cpp:481] : get the type of the current network
-- [src/gui/gui.cpp:497] : get the security type of the current network
-- [src/gui/gui.cpp:513] : get the frequency of the current network
-- [src/gui/gui.cpp:529] : get the channel of the current network
-- [src/gui/gui.cpp:545] : get the BSSID of the current network
-- [src/gui/gui.cpp:561] : get the gateway of the current network
-- [src/gui/gui.cpp:577] : get the DNS servers of the current network
-- [src/gui/gui.cpp:593] : get the DHCP server of the current network
-- [src/gui/gui.cpp:609] : get the lease time of the current network
-- [src/gui/gui.cpp:625] : get the connection time of the current network
-- [src/gui/gui.cpp:641] : get the data rate of the current network
-- [src/gui/gui.cpp:661] : when pairing mode is clicked, bluetooth should go into pairing mode and show a list of devices that can be paired with.
-- [src/gui/gui.cpp:664] : list all the bluetooth devices that have been paired with the cube
-- [src/gui/gui.cpp:683] : make this actually enable/disable NFC. the settings should have a callback registered with the GlobalSettings class that will enable/disable NFC when the setting is changed.
-- [src/gui/gui.cpp:688] : return GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::NFC_ENABLED);
-- [src/gui/gui.cpp:700] : show a fullscreen message box with information about NFC
-- [src/gui/gui.cpp:721] : make this actually enable/disable personality. the settings should have a callback registered with the GlobalSettings class that will enable/disable personality when the setting is changed.
-- [src/gui/gui.cpp:734] : reset the personality to default
-- [src/gui/gui.cpp:759] : set the curiosity level
-- [src/gui/gui.cpp:764] : before adding the rest of these, we need to figure out the slider rendering and how to get/set the values
-- [src/gui/gui.cpp:788] : make this actually enable/disable the microphone. the settings should have a callback registered with the GlobalSettings class that will enable/disable the microphone when the setting is changed.
-- [src/gui/gui.cpp:801] : make this actually enable/disable the presence detection. the settings should have a callback registered with the GlobalSettings class that will enable/disable the presence detection when the setting is changed.
-- [src/gui/gui.cpp:823] : set the volume
-- [src/gui/gui.cpp:829] : save the volume to the settings
-- [src/gui/gui.cpp:832] : we need to get the value from the settings and pass it in here.
-- [src/gui/gui.cpp:850] : set the volume
-- [src/gui/gui.cpp:856] : save the notification volume to the settings
-- [src/gui/gui.cpp:859] : we need to get the value from the settings and pass it in here.
-- [src/gui/gui.cpp:869] : list all the notification sounds
-- [src/gui/gui.cpp:886] : set the volume
-- [src/gui/gui.cpp:892] : save the alarm volume to the settings
-- [src/gui/gui.cpp:895] : we need to get the value from the settings and pass it in here.
-- [src/gui/gui.cpp:905] : list all the alarm sounds
-- [src/gui/gui.cpp:91] : remove this
-- [src/gui/gui.cpp:922] : set the volume
-- [src/gui/gui.cpp:928] : save the voice command volume to the settings
-- [src/gui/gui.cpp:931] : we need to get the value from the settings and pass it in here.
-- [src/gui/gui.cpp:941] : list all the voice command sounds
-- [src/gui/gui.cpp:958] : make this actually enable/disable notifications from network sources. the settings should have a callback registered with the GlobalSettings class that will enable/disable notifications from network sources when the setting is changed.
-- [src/gui/gui.cpp:973] : list all the recent notifications. we'll need to determine the max number of notifications to show,
+- [src/gui/gui.cpp:446] : add a text box to enter the SSID
+- [src/gui/gui.cpp:456] : add a dropdown to select the security type
+- [src/gui/gui.cpp:466] : add a text box to enter the password
+- [src/gui/gui.cpp:480] : connect to the network
+- [src/gui/gui.cpp:501] : Trigger the wif manager to scan for networks and provide a way for it to return the list of networks.
+- [src/gui/gui.cpp:523] : list all the known networks
+- [src/gui/gui.cpp:542] : get the MAC address of the wifi adapter
+- [src/gui/gui.cpp:558] : get the IP address of the wifi adapter
+- [src/gui/gui.cpp:574] : get the subnet mask of the wifi adapter
+- [src/gui/gui.cpp:590] : get the signal strength of the wifi adapter
+- [src/gui/gui.cpp:610] : get the name of the current network
+- [src/gui/gui.cpp:626] : get the type of the current network
+- [src/gui/gui.cpp:642] : get the security type of the current network
+- [src/gui/gui.cpp:658] : get the frequency of the current network
+- [src/gui/gui.cpp:674] : get the channel of the current network
+- [src/gui/gui.cpp:690] : get the BSSID of the current network
+- [src/gui/gui.cpp:706] : get the gateway of the current network
+- [src/gui/gui.cpp:722] : get the DNS servers of the current network
+- [src/gui/gui.cpp:738] : get the DHCP server of the current network
+- [src/gui/gui.cpp:754] : get the lease time of the current network
+- [src/gui/gui.cpp:770] : get the connection time of the current network
+- [src/gui/gui.cpp:786] : get the data rate of the current network
+- [src/gui/gui.cpp:806] : when pairing mode is clicked, bluetooth should go into pairing mode and show a list of devices that can be paired with.
+- [src/gui/gui.cpp:809] : list all the bluetooth devices that have been paired with the cube
+- [src/gui/gui.cpp:828] : make this actually enable/disable NFC. the settings should have a callback registered with the GlobalSettings class that will enable/disable NFC when the setting is changed.
+- [src/gui/gui.cpp:833] : return GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::NFC_ENABLED);
+- [src/gui/gui.cpp:845] : show a fullscreen message box with information about NFC
+- [src/gui/gui.cpp:866] : make this actually enable/disable personality. the settings should have a callback registered with the GlobalSettings class that will enable/disable personality when the setting is changed.
+- [src/gui/gui.cpp:879] : reset the personality to default
+- [src/gui/gui.cpp:913] : before adding the rest of these, we need to figure out the slider rendering and how to get/set the values
+- [src/gui/gui.cpp:937] : make this actually enable/disable the microphone. the settings should have a callback registered with the GlobalSettings class that will enable/disable the microphone when the setting is changed.
+- [src/gui/gui.cpp:950] : make this actually enable/disable the presence detection. the settings should have a callback registered with the GlobalSettings class that will enable/disable the presence detection when the setting is changed.
 - [src/gui/menu/menu.cpp:124] : add the ability to have an entry be fixed to the top of the menu. This will need a stencil so that other entries can be scrolled under it.
 - [src/gui/menu/menu.cpp:125] : add icon support
 - [src/gui/menu/menu.cpp:126] : add checkbox support
@@ -278,23 +199,22 @@
 - [src/gui/menu/menu.cpp:368] : create a timeout that will hide the menu after a certain amount of time. will need to adjust clickable area so that it catches clicks
 - [src/gui/menu/menu.cpp:585] : update the position of all the objects
 - [src/gui/menu/menu.cpp:596] : update the size and positions of all the objects
-- [src/gui/menu/menu.cpp:722] : add the rest of the MENU_ENTRY_TYPEs
-- [src/gui/menu/menu.cpp:876] : add slider drawing
-- [src/gui/menu/menu.h:275] : add bool: border to constructor
+- [src/gui/menu/menu.cpp:711] : add the rest of the MENU_ENTRY_TYPEs
+- [src/gui/menu/menu.h:280] : add bool: border to constructor
 - [src/gui/messageBox/messageBox.cpp:100] : the character to needs to be aligned with the box in a way that makes it look like a speech bubble
 - [src/gui/messageBox/messageBox.cpp:34] : make a "Do you want to authorize this app? Yes/No" message box
 - [src/gui/messageBox/messageBox.cpp:35] : add auto wrapping of text in message box
 - [src/gui/messageBox/messageBox.cpp:36] : close message bos when clicked / touched
 - [src/gui/messageBox/messageBox.cpp:37] : disable menu click listener when message box is visible
 - [src/gui/messageBox/messageBox.cpp:99] : make the outline more like a speech bubble
-- [src/gui/messageBox/messageBox.h:149] : This class is not rendering correctly. fix.
-- [src/gui/messageBox/messageBox.h:65] : make a generic message box class that can be inherited from to make different types of message boxes
+- [src/gui/messageBox/messageBox.h:151] : This class is not rendering correctly. fix.
+- [src/gui/messageBox/messageBox.h:67] : make a generic message box class that can be inherited from to make different types of message boxes
 - [src/gui/renderables/meshLoader.cpp:240] : change this to use RRGGBB data for shape type
 - [src/gui/renderables/meshLoader.cpp:476] : Move this function to bottom of file.
 - [src/gui/renderables/meshLoader.cpp:485] : rework this method so that we only parse for the values we need for each type of keyframe
 - [src/gui/renderables/shapes.cpp:251] : Implement rotation of text
 - [src/gui/renderables/shapes.cpp:34] : the font is being loaded for each instance of an M_Text object and should be made static so that it only gets loaded once and is shared between all instances of M_Text
-- [src/gui/renderables/shapes.h:559] : create a generic object class that can utilize vertex and face data loaded from a file
+- [src/gui/renderables/shapes.h:568] : create a generic object class that can utilize vertex and face data loaded from a file
 - [src/gui/renderer.cpp:129] : this call should return a nullptr if the character is not found. Then we should throw an error.
 - [src/gui/renderer.cpp:153] : replace this with a CountingLatch. This will be cleaner.
 - [src/gui/renderer.cpp:34] : migrate from SFML to GLFW since we aren't using any SFML specific features
@@ -339,10 +259,9 @@
 - [src/logger/logger.cpp:496] : this may not be needed since the log is just going to grow again
 - [src/logger/logger.cpp:783] : add endpoint(s) to get logs. perhaps have the ability to get logs by level, by date, etc. and/or logs from memory or from file
 - [src/logger/logger.cpp:830] : source string should be prepended with the name of the source app or it's IP or something. That way, we know
-- [src/main.cpp:260] : All the base apps should be inserted into the database and/or verified in the database here.
-- [src/main.cpp:303] : add the insert for the openwakeword python script here. This will be a native app and will use the python executable in the openwakeword/venv/bin(Linux) or openwakeword/Scripts(Windows) directory.
-- [src/main.cpp:347] : any other place where main() might return, change the return value to something meaningful. this way, when
-- [src/main.cpp:352] : this probably needs a mutex for breakMain
+- [src/main.cpp:237] : App install/upgrade flows should materialize manifests under
+- [src/main.cpp:295] : any other place where main() might return, change the return value to something meaningful. this way, when
+- [src/main.cpp:300] : this probably needs a mutex for breakMain
 - [src/main.cpp:81] : rather than set this environment variable in this application, set it in the manager application. The manager app
 - [src/telemetry/telemetry.cpp:34] : Implement telemetry.cpp
 - [src/telemetry/telemetry.cpp:38] : Implement telemetry.cpp
