@@ -82,6 +82,9 @@ struct GlobalSettings {
         SCREEN_AUTO_OFF_TIME,
         NOTIFICATIONS_FROM_NETWORK_ENABLED,
         SYSTEM_VOLUME,
+        NOTIFICATION_SOUND_VOLUME,
+        ALARM_SOUND_VOLUME,
+        VOICE_COMMAND_SOUND_VOLUME,
         NOTIFICATION_SOUND,
         ALARM_SOUND,
         VOICE_COMMAND_SOUND,
@@ -152,6 +155,12 @@ struct GlobalSettings {
         GlobalSettings::setSetting(SettingType::NOTIFICATIONS_FROM_NETWORK_ENABLED, true);
         // set the default system volume to 100
         GlobalSettings::setSetting(SettingType::SYSTEM_VOLUME, 100);
+        // set the default notification sound volume to 100
+        GlobalSettings::setSetting(SettingType::NOTIFICATION_SOUND_VOLUME, 100);
+        // set the default alarm sound volume to 100
+        GlobalSettings::setSetting(SettingType::ALARM_SOUND_VOLUME, 100);
+        // set the default voice command sound volume to 100
+        GlobalSettings::setSetting(SettingType::VOICE_COMMAND_SOUND_VOLUME, 100);
         // set the default notification sound to default
         GlobalSettings::setSetting(SettingType::NOTIFICATION_SOUND, "default");
         // set the default alarm sound to default
@@ -197,8 +206,10 @@ struct GlobalSettings {
 
     static bool setSetting(SettingType key, nlohmann::json::value_type value)
     {
-        std::unique_lock<std::mutex> lock(settingChangeMutex);
-        settings[settingTypeStringMap[key]] = value;
+        {
+            std::unique_lock<std::mutex> lock(settingChangeMutex);
+            settings[settingTypeStringMap[key]] = value;
+        }
         callSettingCB(key);
         return true;
     }

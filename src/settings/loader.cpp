@@ -39,6 +39,7 @@ SettingsLoader::SettingsLoader(GlobalSettings* settings)
     this->settings = nlohmann::json();
     this->settingsFile = "settings.json";
     this->globalSettings = settings;
+    registerAutoSaveCallbacks();
     CubeLog::debug("SettingsLoader created");
 }
 
@@ -66,6 +67,7 @@ bool SettingsLoader::loadSettings()
     CubeLog::debug("Settings file opened. Loading...");
     file >> this->settings;
     // iterate through all the settings and set them
+    this->suppressAutoSave = true;
     for (auto it = this->settings.begin(); it != this->settings.end(); ++it) {
         CubeLog::info("Setting " + it.key() + " to " + it.value().dump());
         auto mapIt = GlobalSettings::stringSettingTypeMap.find(it.key());
@@ -75,6 +77,7 @@ bool SettingsLoader::loadSettings()
         }
         this->globalSettings->setSetting(mapIt->second, it.value());
     }
+    this->suppressAutoSave = false;
     CubeLog::debug("Settings loaded. Closing file...");
     file.close();
     CubeLog::info("Settings loaded");
@@ -83,6 +86,7 @@ bool SettingsLoader::loadSettings()
 
 bool SettingsLoader::saveSettings()
 {
+    std::lock_guard<std::mutex> guard(this->saveMutex);
     CubeLog::info("Attempting to save settings");
     // convert the GlobalSettings object to a json object
     this->settings = this->globalSettings->getSettings();
@@ -108,4 +112,23 @@ std::string SettingsLoader::getSetting(const std::string& key)
 {
     CubeLog::debug("Getting setting " + key);
     return this->settings[key];
+}
+
+void SettingsLoader::registerAutoSaveCallbacks()
+{
+    for (int settingIndex = 0; settingIndex < static_cast<int>(GlobalSettings::SettingType::SETTING_TYPE_COUNT); ++settingIndex) {
+        GlobalSettings::setSettingCB(
+            static_cast<GlobalSettings::SettingType>(settingIndex),
+            [this]() {
+                this->onSettingChanged();
+            });
+    }
+}
+
+void SettingsLoader::onSettingChanged()
+{
+    if (this->suppressAutoSave) {
+        return;
+    }
+    this->saveSettings();
 }

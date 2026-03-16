@@ -74,6 +74,22 @@ int clampAndSnapSliderValue(int value, int minValue, int maxValue, int step)
     return snapped;
 }
 
+int getClampedGlobalVolumeSetting(GlobalSettings::SettingType key)
+{
+    return clampAndSnapSliderValue(
+        GlobalSettings::getSettingOfType<int>(key),
+        0,
+        100,
+        1);
+}
+
+void setGlobalVolumeSetting(GlobalSettings::SettingType key, int value, const std::string& label)
+{
+    const int clampedValue = clampAndSnapSliderValue(value, 0, 100, 1);
+    GlobalSettings::setSetting(key, clampedValue);
+    CubeLog::info(label + " set to " + std::to_string(clampedValue));
+}
+
 bool configureHttpClientAuth(
     httplib::Client& client,
     const std::string& user,
@@ -944,8 +960,7 @@ void GUI::eventLoop()
 
     ///////// Sound Menu /////////
     auto soundMenu = createANewSubMenu(_("Sound"), "Sound", mainMenu);
-    auto generalVolumeValue = std::make_shared<int>(50);
-    this->renderer->addSetupTask([&, soundMenu, generalVolumeValue, addBackButton, addToParent]() {
+    this->renderer->addSetupTask([&, soundMenu, addBackButton, addToParent]() {
         addBackButton(soundMenu);
         ///////// Sound Menu - Volume /////////
         this->addPopupSliderMenuEntry(
@@ -955,12 +970,11 @@ void GUI::eventLoop()
             0,
             100,
             1,
-            [generalVolumeValue]() {
-                return *generalVolumeValue;
+            []() {
+                return getClampedGlobalVolumeSetting(GlobalSettings::SettingType::SYSTEM_VOLUME);
             },
-            [generalVolumeValue](int value) {
-                *generalVolumeValue = value;
-                CubeLog::info("Volume set to " + std::to_string(value));
+            [](int value) {
+                setGlobalVolumeSetting(GlobalSettings::SettingType::SYSTEM_VOLUME, value, "Volume");
             });
         soundMenu->setup();
         addToParent(soundMenu);
@@ -969,8 +983,7 @@ void GUI::eventLoop()
 
     ///////// Sound Menu - Notification Sound /////////
     auto soundMenu_NotificationSound = createANewSubMenu(_("Notification Sound"), "Notification Sound", soundMenu);
-    auto notificationSoundVolumeValue = std::make_shared<int>(50);
-    this->renderer->addSetupTask([&, soundMenu_NotificationSound, notificationSoundVolumeValue, addBackButton, addToParent]() {
+    this->renderer->addSetupTask([&, soundMenu_NotificationSound, addBackButton, addToParent]() {
         addBackButton(soundMenu_NotificationSound);
         ///////// Sound Menu - Notification Sound - Volume /////////
         this->addPopupSliderMenuEntry(
@@ -980,12 +993,11 @@ void GUI::eventLoop()
             0,
             100,
             1,
-            [notificationSoundVolumeValue]() {
-                return *notificationSoundVolumeValue;
+            []() {
+                return getClampedGlobalVolumeSetting(GlobalSettings::SettingType::NOTIFICATION_SOUND_VOLUME);
             },
-            [notificationSoundVolumeValue](int value) {
-                *notificationSoundVolumeValue = value;
-                CubeLog::info("Notification Sound - Volume set to " + std::to_string(value));
+            [](int value) {
+                setGlobalVolumeSetting(GlobalSettings::SettingType::NOTIFICATION_SOUND_VOLUME, value, "Notification Sound - Volume");
             });
         soundMenu_NotificationSound->setup();
         addToParent(soundMenu_NotificationSound);
@@ -1003,8 +1015,7 @@ void GUI::eventLoop()
 
     ///////// Sound Menu - Alarm Sound /////////
     auto soundMenu_AlarmSound = createANewSubMenu(_("Alarm Sound"), "Alarm Sound", soundMenu);
-    auto alarmSoundVolumeValue = std::make_shared<int>(50);
-    this->renderer->addSetupTask([&, soundMenu_AlarmSound, alarmSoundVolumeValue, addBackButton, addToParent]() {
+    this->renderer->addSetupTask([&, soundMenu_AlarmSound, addBackButton, addToParent]() {
         addBackButton(soundMenu_AlarmSound);
         ///////// Sound Menu - Alarm Sound - Volume /////////
         this->addPopupSliderMenuEntry(
@@ -1014,12 +1025,11 @@ void GUI::eventLoop()
             0,
             100,
             1,
-            [alarmSoundVolumeValue]() {
-                return *alarmSoundVolumeValue;
+            []() {
+                return getClampedGlobalVolumeSetting(GlobalSettings::SettingType::ALARM_SOUND_VOLUME);
             },
-            [alarmSoundVolumeValue](int value) {
-                *alarmSoundVolumeValue = value;
-                CubeLog::info("Alarm Sound - Volume set to " + std::to_string(value));
+            [](int value) {
+                setGlobalVolumeSetting(GlobalSettings::SettingType::ALARM_SOUND_VOLUME, value, "Alarm Sound - Volume");
             });
         soundMenu_AlarmSound->setup();
         addToParent(soundMenu_AlarmSound);
@@ -1037,8 +1047,7 @@ void GUI::eventLoop()
 
     ///////// Sound Menu - Voice Command Sound /////////
     auto soundMenu_VoiceCommandSound = createANewSubMenu(_("Voice Command Sound"), "Voice Command Sound", soundMenu);
-    auto voiceCommandSoundVolumeValue = std::make_shared<int>(50);
-    this->renderer->addSetupTask([&, soundMenu_VoiceCommandSound, voiceCommandSoundVolumeValue, addBackButton, addToParent]() {
+    this->renderer->addSetupTask([&, soundMenu_VoiceCommandSound, addBackButton, addToParent]() {
         addBackButton(soundMenu_VoiceCommandSound);
         ///////// Sound Menu - Voice Command Sound - Volume /////////
         this->addPopupSliderMenuEntry(
@@ -1048,12 +1057,11 @@ void GUI::eventLoop()
             0,
             100,
             1,
-            [voiceCommandSoundVolumeValue]() {
-                return *voiceCommandSoundVolumeValue;
+            []() {
+                return getClampedGlobalVolumeSetting(GlobalSettings::SettingType::VOICE_COMMAND_SOUND_VOLUME);
             },
-            [voiceCommandSoundVolumeValue](int value) {
-                *voiceCommandSoundVolumeValue = value;
-                CubeLog::info("Voice Command Sound - Volume set to " + std::to_string(value));
+            [](int value) {
+                setGlobalVolumeSetting(GlobalSettings::SettingType::VOICE_COMMAND_SOUND_VOLUME, value, "Voice Command Sound - Volume");
             });
         soundMenu_VoiceCommandSound->setup();
         addToParent(soundMenu_VoiceCommandSound);
