@@ -51,8 +51,23 @@ std::vector<MenuEntry*> Menu::allMenuEntries_vec = std::vector<MenuEntry*>();
  * @note This constructor will create a Menu object without a CountingLatch. "this->latch" will be set to nullptr.
  */
 Menu::Menu(Renderer* renderer)
-    : Menu(renderer, *this->latch)
 {
+    CubeLog::info("Creating Menu class object without latch");
+    this->renderer = renderer;
+    this->visible = false;
+    this->hasLatch = false;
+    this->latch = nullptr;
+    this->clickArea = ClickableArea();
+    this->clickArea.clickableObject = this;
+    this->clickArea.xMin = 0;
+    this->clickArea.xMax = 720;
+    this->clickArea.yMin = 0;
+    this->clickArea.yMax = 720;
+    this->setOnClick([&](void* data) {
+        this->setIsClickable(!this->getIsClickable());
+        this->setVisible(!this->getVisible());
+        return 0;
+    });
     this->hasLatch = false;
 }
 
@@ -69,6 +84,7 @@ Menu::Menu(Renderer* renderer, CountingLatch& latch)
 {
     CubeLog::info("Creating Menu class object");
     this->latch = &latch;
+    this->hasLatch = true;
 }
 
 /**
