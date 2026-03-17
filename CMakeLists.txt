@@ -461,16 +461,14 @@ set(MACRO_REGEX "public AutoRegisterAPI<([a-zA-Z_][a-zA-Z0-9_:]*)>")
 file(GLOB_RECURSE ALL_SOURCES "src/*.cpp" "src/**/*.cpp" "src/**/**/*.cpp")
 # Split main from library sources
 set(MAIN_SOURCE "${CMAKE_SOURCE_DIR}/src/main.cpp")
-set(LAUNCHER_SOURCE "${CMAKE_SOURCE_DIR}/src/apps/appLauncher.cpp")
 set(LIB_SOURCES ${ALL_SOURCES})
-list(REMOVE_ITEM LIB_SOURCES ${MAIN_SOURCE} ${LAUNCHER_SOURCE})
+list(REMOVE_ITEM LIB_SOURCES ${MAIN_SOURCE})
 
 # Core library with most of the code
 add_library(CubeCoreLib STATIC ${LIB_SOURCES})
 
 # Application executable contains only main and links the core library
 add_executable(CubeCore ${MAIN_SOURCE})
-add_executable(CubeAppLauncher ${LAUNCHER_SOURCE})
 
 
 set(InterfaceCount_OUTPUTFILE "${CMAKE_SOURCE_DIR}/src/api/InterfaceCount.h")
@@ -565,10 +563,8 @@ target_link_libraries(CubeCoreLib PUBLIC
 
 # Executable links the core library
 target_link_libraries(CubeCore PRIVATE CubeCoreLib)
-target_link_libraries(CubeAppLauncher PRIVATE nlohmann_json::nlohmann_json)
 
 target_compile_features(CubeCoreLib PUBLIC cxx_std_17)
-target_compile_features(CubeAppLauncher PRIVATE cxx_std_17)
 
 # Include directories
 if(WIN32)
@@ -811,7 +807,7 @@ if(ENABLE_BUILD_SERVER AND ENABLE_TOOLING_SCRIPTS)
     )
 endif()
 
-install(TARGETS CubeCore CubeAppLauncher)
+install(TARGETS CubeCore)
 
 # ###############################
 # Tests

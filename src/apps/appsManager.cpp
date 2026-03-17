@@ -24,7 +24,9 @@ SOFTWARE.
 
 #include "appsManager.h"
 
+#include <array>
 #include <chrono>
+#include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -418,7 +420,23 @@ std::string defaultSocketLocation(const std::string& appId)
     return runtimeRunDir(appId) + "/app.sock";
 }
 
-std::optional<fs::path> resolveManifestTokenPath(const std::string& appId, const fs::path& installRoot, const std::string& token)
+bool isSafeSystemTokenRelativePath(const fs::path& relativePath)
+{
+    if (relativePath.empty() || relativePath.is_absolute()) {
+        return false;
+    }
+
+    for (const auto& component : relativePath) {
+        const auto value = component.string();
+        if (value.empty() || value == "." || value == "..") {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+std::optional<fs::path> resolveManifestTokenPath(const std::string& appId, const fs::path& installRoot, const std::string& token, std::string& error)
 {
     if (token == "app://install") {
         return installRoot.lexically_normal();
@@ -438,13 +456,26 @@ std::optional<fs::path> resolveManifestTokenPath(const std::string& appId, const
     if (token.rfind("shared://readonly/", 0) == 0) {
         return fs::path("/usr/share/thecube") / token.substr(std::string("shared://readonly/").size());
     }
+    if (token.rfind("system://", 0) == 0) {
+        const auto relative = token.substr(std::string("system://").size());
+        const fs::path relativePath(relative);
+        if (!isSafeSystemTokenRelativePath(relativePath)) {
+            error = "system:// paths must be normalized host-relative paths: " + token;
+            return std::nullopt;
+        }
+
+        return (fs::path("/") / relativePath).lexically_normal();
+    }
     return std::nullopt;
 }
 
 fs::path resolveTokenOrRelativePath(const std::string& appId, const fs::path& installRoot, const std::string& value, std::string& error)
 {
-    if (const auto tokenPath = resolveManifestTokenPath(appId, installRoot, value); tokenPath.has_value()) {
+    if (const auto tokenPath = resolveManifestTokenPath(appId, installRoot, value, error); tokenPath.has_value()) {
         return *tokenPath;
+    }
+    if (!error.empty()) {
+        return {};
     }
 
     if (value.find("://") != std::string::npos) {
@@ -1407,17 +1438,154 @@ int runCommand(const std::string& command)
 {
     return std::system(command.c_str());
 }
+
+std::string captureCommandOutput(const std::string& command)
+{
+#ifdef _WIN32
+    (void)command;
+    return {};
+#else
+    std::array<char, 256> buffer {};
+    std::string output;
+    FILE* pipe = popen(command.c_str(), "r");
+    if (!pipe) {
+        return {};
+    }
+
+    while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe) != nullptr) {
+        output += buffer.data();
+    }
+
+    pclose(pipe);
+    return output;
+#endif
+}
+
+struct UnitInspection {
+    bool loaded = false;
+    bool transient = false;
+    bool failed = false;
+    std::string execStart;
+    std::string environment;
+};
+
+std::string systemctlShowValue(const std::string& output, const std::string& key)
+{
+    std::istringstream stream(output);
+    std::string line;
+    const std::string prefix = key + "=";
+    while (std::getline(stream, line)) {
+        if (line.rfind(prefix, 0) == 0) {
+            return line.substr(prefix.size());
+        }
+    }
+    return {};
+}
+
+UnitInspection inspectUnit(const std::string& unitName)
+{
+    UnitInspection inspection;
+    const auto command = systemctlCommandPrefix() + " show "
+        + shellQuote(unitName)
+        + " -p FragmentPath -p UnitFileState -p LoadState -p ActiveState -p SubState -p ExecStart -p Environment 2>/dev/null";
+    const auto output = captureCommandOutput(command);
+    if (output.empty()) {
+        return inspection;
+    }
+
+    const auto fragmentPath = systemctlShowValue(output, "FragmentPath");
+    const auto unitFileState = systemctlShowValue(output, "UnitFileState");
+    const auto loadState = systemctlShowValue(output, "LoadState");
+    const auto activeState = systemctlShowValue(output, "ActiveState");
+    const auto subState = systemctlShowValue(output, "SubState");
+    inspection.execStart = systemctlShowValue(output, "ExecStart");
+    inspection.environment = systemctlShowValue(output, "Environment");
+    inspection.loaded = loadState == "loaded";
+    inspection.transient = unitFileState == "transient" || fragmentPath.find("/transient/") != std::string::npos;
+    inspection.failed = activeState == "failed" || subState == "failed";
+    return inspection;
+}
+
+bool transientUnitNeedsReplacement(
+    const UnitInspection& inspection,
+    const std::string& launcherExecutable,
+    const std::string& appId,
+    const fs::path& launchRoot)
+{
+    if (!inspection.loaded || !inspection.transient) {
+        return false;
+    }
+
+    if (inspection.failed) {
+        return true;
+    }
+
+    if (inspection.execStart.find(launcherExecutable) == std::string::npos) {
+        return true;
+    }
+
+    if (inspection.execStart.find(appId) == std::string::npos) {
+        return true;
+    }
+
+    const auto launchRootSetting = "THECUBE_LAUNCH_ROOT=" + launchRoot.string();
+    if (inspection.environment.find(launchRootSetting) == std::string::npos) {
+        return true;
+    }
+
+    return false;
+}
+
+std::string buildLauncherRunCommand(
+    const std::string& unitName,
+    const std::string& appId,
+    const fs::path& launcherExecutable,
+    const fs::path& launchRoot,
+    bool replaceExisting)
+{
+    std::string command = systemdRunCommandPrefix()
+        + " --quiet";
+    if (replaceExisting) {
+        command += " --replace";
+    }
+    command += " --unit " + shellQuote(unitName)
+        + " --service-type=exec"
+        + " --property=" + shellQuote("Restart=on-failure")
+        + " --property=" + shellQuote("RestartSec=1")
+        + " --setenv=" + shellQuote("THECUBE_LAUNCH_ROOT=" + launchRoot.string())
+        + " " + shellQuote(launcherExecutable.string())
+        + " " + shellQuote(appId)
+        + " >/dev/null 2>&1";
+    return command;
+}
 } // namespace
 
 bool SystemdAppRuntimeController::startUnit(const std::string& unitName, std::string* errorOut)
 {
+    const auto appId = appIdFromUnitName(unitName);
+    const auto launcherExecutable = resolveLauncherExecutablePath();
+    const auto launchRoot = configuredBasePath("THECUBE_LAUNCH_ROOT", kDefaultLaunchRoot, kDefaultLocalLaunchRoot);
+
+    if (appId.has_value() && launcherExecutable.has_value()) {
+        const auto inspection = inspectUnit(unitName);
+        if (transientUnitNeedsReplacement(inspection, launcherExecutable->string(), *appId, launchRoot)) {
+            const auto replaceCommand = buildLauncherRunCommand(unitName, *appId, *launcherExecutable, launchRoot, true);
+            const int replaceRc = extractCommandExitCode(runCommand(replaceCommand));
+            if (replaceRc == 0) {
+                return true;
+            }
+            if (errorOut != nullptr) {
+                *errorOut = "transient replacement failed for " + unitName + " (rc=" + std::to_string(replaceRc) + ")";
+            }
+        }
+    }
+
     const auto command = systemctlCommandPrefix() + " start " + shellQuote(unitName) + " >/dev/null 2>&1";
     const int rc = extractCommandExitCode(runCommand(command));
     if (rc == 0) {
         return true;
     }
 
-    const auto appId = appIdFromUnitName(unitName);
     if (!appId.has_value()) {
         if (errorOut != nullptr) {
             *errorOut = "systemctl start failed and unit name could not be mapped to an app id: " + unitName;
@@ -1425,7 +1593,6 @@ bool SystemdAppRuntimeController::startUnit(const std::string& unitName, std::st
         return false;
     }
 
-    const auto launcherExecutable = resolveLauncherExecutablePath();
     if (!launcherExecutable.has_value()) {
         if (errorOut != nullptr) {
             *errorOut = "systemctl start failed for " + unitName + " and CubeAppLauncher was not found";
@@ -1433,17 +1600,7 @@ bool SystemdAppRuntimeController::startUnit(const std::string& unitName, std::st
         return false;
     }
 
-    const auto launchRoot = configuredBasePath("THECUBE_LAUNCH_ROOT", kDefaultLaunchRoot, kDefaultLocalLaunchRoot);
-    const auto fallbackCommand = systemdRunCommandPrefix()
-        + " --quiet"
-        + " --unit " + shellQuote(unitName)
-        + " --service-type=exec"
-        + " --property=" + shellQuote("Restart=on-failure")
-        + " --property=" + shellQuote("RestartSec=1")
-        + " --setenv=" + shellQuote("THECUBE_LAUNCH_ROOT=" + launchRoot.string())
-        + " " + shellQuote(launcherExecutable->string())
-        + " " + shellQuote(*appId)
-        + " >/dev/null 2>&1";
+    const auto fallbackCommand = buildLauncherRunCommand(unitName, *appId, *launcherExecutable, launchRoot, true);
     const int fallbackRc = extractCommandExitCode(runCommand(fallbackCommand));
     if (fallbackRc == 0) {
         return true;
