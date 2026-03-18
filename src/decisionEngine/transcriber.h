@@ -41,7 +41,6 @@ SOFTWARE.
 #ifndef API_I_H
 #include "../api/api.h"
 #endif
-#include "cubeWhisper.h"
 #include "nlohmann/json.hpp"
 #include "remoteServer.h"
 #include <chrono>
@@ -58,8 +57,10 @@ SOFTWARE.
 #include <thread>
 #include <unordered_map>
 #include <vector>
+#include <atomic>
 #include "../api/autoRegister.h"
 #include "../audio/audioManager.h"
+#include "../audio/constants.h"
 #include "../threadsafeQueue.h"
 #include "globalSettings.h"
 #include "httplib.h"
@@ -73,7 +74,6 @@ SOFTWARE.
 // Layers
 // - I_AudioQueue: helper base providing a shared audio queue handle
 // - I_Transcriber: abstract interface for buffer/stream transcription
-// - LocalTranscriber: uses CubeWhisper (whisper.cpp) on-device
 // - RemoteTranscriber: streams audio to TheCubeServer for transcription
 //
 // Threading
@@ -83,9 +83,9 @@ namespace DecisionEngine{
 
 
 
-class I_AudioQueue {
+class I_HasAudioQueue {
 public:
-    virtual ~I_AudioQueue() = default;
+    virtual ~I_HasAudioQueue() = default;
     void setThreadSafeQueue(std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue)
     {
         this->audioQueue = audioQueue;
@@ -101,27 +101,12 @@ protected:
 
 
 // Abstract transcriber. Implement buffer-based and streaming APIs.
-class I_Transcriber: public I_AudioQueue {
+class I_Transcriber: public I_HasAudioQueue {
 public:
     virtual ~I_Transcriber() = default;
-    virtual std::string transcribeBuffer(const uint16_t* audio, size_t length) = 0;
-    virtual std::string transcribeStream(const uint16_t* audio, size_t bufSize) = 0;
-};
-
-/////////////////////////////////////////////////////////////////////////////////////
-
-// On-device STT using CubeWhisper
-class LocalTranscriber : public I_Transcriber {
-public:
-    LocalTranscriber();
-    ~LocalTranscriber();
-    std::string transcribeBuffer(const uint16_t* audio, size_t length) override;
-    std::string transcribeStream(const uint16_t* audio, size_t bufSize) override;
-    // TODO: the stream that this is reading from may need to be a more complex
-    // datatype that has read and write pointers and a mutex to protect them.
-
-private:
-    std::shared_ptr<CubeWhisper> cubeWhisper;
+    virtual std::string transcribeBuffer(const int16_t* audio, size_t length) = 0;
+    virtual std::string transcribeStream(const int16_t* audio, size_t bufSize) = 0;
+    virtual std::shared_ptr<ThreadSafeQueue<std::string>> transcribeQueue(std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue) = 0;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -131,13 +116,25 @@ class RemoteTranscriber : public I_Transcriber, public I_RemoteApi {
 public:
     RemoteTranscriber();
     ~RemoteTranscriber();
-    std::string transcribeBuffer(const uint16_t* audio, size_t length) override;
-    std::string transcribeStream(const uint16_t* audio, size_t bufSize) override;
+    std::string transcribeBuffer(const int16_t* audio, size_t length) override;
+    std::string transcribeStream(const int16_t* audio, size_t bufSize) override;
+    std::shared_ptr<ThreadSafeQueue<std::string>> transcribeQueue(std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue) override;
+    void interrupt()
+    {
+        if (workerThread.joinable())
+            workerThread.request_stop();
+        cancelActiveSession();
+    }
 
 private:
     bool initTranscribing();
     bool streamAudio();
     bool stopTranscribing();
+    bool isSpeechChunk(const std::vector<int16_t>& audioChunk) const;
+    void drainAudioQueue(const std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>>& queue) const;
+    void cancelActiveSession() const;
+    std::atomic<bool> sessionActive { false };
+    std::jthread workerThread;
 };
 
 }

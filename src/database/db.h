@@ -136,18 +136,12 @@ const std::vector<DB_NS::Database_T> dbDefs = {
         { 
             { 
                 DB_NS::TableNames::APPS, 
-                { "id", "app_id", "app_name", "enabled", "role", "exec_path", "exec_args", "app_source", "update_path", "update_last_check", "update_last_update", "update_last_fail", "update_last_fail_reason", "socket_location" }, 
-                { "INTEGER PRIMARY KEY", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT" }, 
-                { true, true, true, false, false, false, false, false, false, false, false, false, false, true } 
+                { "id", "app_id", "app_name", "manifest_path", "install_root", "schema_version", "app_version", "app_type", "runtime_type", "runtime_distribution", "runtime_compatibility", "enabled", "is_system_app", "autostart", "policy_compile_status", "policy_compile_error", "socket_location", "last_started_at", "last_stopped_at", "last_exit_code", "last_failure_reason" },
+                { "INTEGER PRIMARY KEY", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "INTEGER NOT NULL DEFAULT 1", "INTEGER NOT NULL DEFAULT 0", "INTEGER NOT NULL DEFAULT 0", "TEXT NOT NULL DEFAULT 'pending'", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT" },
+                { true, true, false, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false }
             } 
         } 
     },
-    // TODO: Add a "socket_location" TEXT column to the "apps" table so we can store
-    // the location of each app's IPC socket for JSON-RPC communication. Example
-    // socket path (relative to CubeCore executable):
-    //     ./apps/[APP NAME]/socket/[APP NAME].sock
-    // The apps manager or installation process should populate this column when
-    // an app is installed or launched.
     { 
         "data/accounts.db", "accounts", 
         { 

@@ -88,7 +88,7 @@ public:
 
     // API Interface
     constexpr std::string getInterfaceName() const override;
-    HttpEndPointData_t getHttpEndpointData();
+    HttpEndPointData_t getHttpEndpointData() override;
 };
 
 #endif // AUTHENTICATION_H

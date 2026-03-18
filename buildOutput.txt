@@ -1,0 +1,3 @@
+[0/2] Re-checking globbed directories...
+[1/1] cd "/home/andrew/Documents/projects/Companion, TheCube/Companion-TheCube---Core/build" && /usr/bin/cmake -P /home/andrew/Documents/projects/Companion,\ TheCube/Companion-TheCube---Core/build/count_interfaces.cmake
+-- Number of interfaces: 14

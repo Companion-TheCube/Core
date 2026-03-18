@@ -1,0 +1,440 @@
+openapi: 3.1.0
+info:
+  title: TheCube Remote Transcription API
+  version: 1.0.0
+  summary: v1 remote transcription control plane for TheCube
+  description: |
+    v1 contract for remote-only transcription.
+
+    Transport split:
+    - HTTP: session lifecycle control
+    - WebSocket: binary audio upload + server events
+
+    Audio stream contract (WebSocket client->server):
+    - Binary frames only
+    - PCM16LE, mono, 16kHz
+
+    Event schema for WebSocket server->client messages is defined in:
+    `docs/contracts/transcription-v1/ws-events.schema.json`
+
+    Timeout and retry semantics:
+    - `POST /v1/transcription/sessions`: client SHOULD retry up to 2 times on network failure or HTTP 5xx with exponential backoff (250ms, 1s).
+    - `POST /v1/transcription/sessions/{id}/finish`: idempotent by `Idempotency-Key`; client MAY retry safely on timeout/network error.
+    - `GET /v1/transcription/sessions/{id}`: polling fallback if WebSocket final event is missed.
+    - Session expiry: if `expires_at` has elapsed, server returns `SESSION_EXPIRED` and client MUST create a new session.
+servers:
+  - url: https://api.4thecube.com
+    description: Production
+security:
+  - ApiKeyAuth: []
+
+tags:
+  - name: TranscriptionSessions
+    description: Manage one utterance transcription session.
+
+paths:
+  /v1/transcription/sessions:
+    post:
+      tags: [TranscriptionSessions]
+      operationId: createTranscriptionSession
+      summary: Create a transcription session
+      description: |
+        Creates one short-lived transcription session and returns websocket connection metadata.
+
+        The `ws_token` is single-session and short-lived. TheCube must not reuse it across sessions.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                request_id:
+                  type: string
+                  description: Optional client request correlation ID.
+                audio_format:
+                  $ref: '#/components/schemas/AudioFormat'
+      responses:
+        '201':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateSessionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/transcription/sessions/{session_id}:
+    get:
+      tags: [TranscriptionSessions]
+      operationId: getTranscriptionSession
+      summary: Get session status and final fallback
+      description: |
+        Returns session state, and includes `result` when complete.
+        Use as fallback if WebSocket final event is missed.
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Session status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetSessionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [TranscriptionSessions]
+      operationId: cancelTranscriptionSession
+      summary: Cancel an active session
+      description: |
+        Cancels session processing and invalidates the websocket token.
+
+        Client should call this on interruption or shutdown to avoid orphan sessions.
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '204':
+          description: Session cancelled or already finalized
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /v1/transcription/sessions/{session_id}/finish:
+    post:
+      tags: [TranscriptionSessions]
+      operationId: finishTranscriptionSession
+      summary: Mark audio upload complete
+      description: |
+        Signals that TheCube has finished sending audio for this session.
+
+        Idempotency:
+        - Client MUST send `Idempotency-Key`.
+        - Reusing the same key for the same `session_id` returns the original result semantics.
+        - Different key for an already-finished session returns HTTP 409 with `FINISH_ALREADY_RECEIVED`.
+
+        Retry guidance:
+        - Safe to retry on network timeout or 5xx with same `Idempotency-Key`.
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 128
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                chunks_sent:
+                  type: integer
+                  minimum: 0
+                bytes_sent:
+                  type: integer
+                  minimum: 0
+      responses:
+        '202':
+          description: Finish accepted; processing in progress
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [processing]
+        '204':
+          description: Finish accepted; no body
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Conflicting finish state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                finishAlreadyReceived:
+                  value:
+                    error:
+                      code: FINISH_ALREADY_RECEIVED
+                      message: Finish already received for this session.
+                      retryable: false
+        '410':
+          $ref: '#/components/responses/Gone'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  parameters:
+    SessionId:
+      name: session_id
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+
+  schemas:
+    AudioFormat:
+      type: object
+      additionalProperties: false
+      properties:
+        encoding:
+          type: string
+          enum: [pcm16le]
+          default: pcm16le
+        sample_rate_hz:
+          type: integer
+          enum: [16000]
+          default: 16000
+        channels:
+          type: integer
+          enum: [1]
+          default: 1
+      required: [encoding, sample_rate_hz, channels]
+
+    CreateSessionResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - session_id
+        - ws_url
+        - ws_token
+        - expires_at
+        - audio_format
+      properties:
+        request_id:
+          type: string
+        session_id:
+          type: string
+        ws_url:
+          type: string
+          format: uri
+        ws_token:
+          type: string
+          minLength: 1
+          description: Short-lived WebSocket token. Send via `Authorization: Bearer <token>`.
+        expires_at:
+          type: string
+          format: date-time
+        audio_format:
+          $ref: '#/components/schemas/AudioFormat'
+
+    GetSessionResponse:
+      type: object
+      additionalProperties: false
+      required: [session_id, status]
+      properties:
+        request_id:
+          type: string
+        session_id:
+          type: string
+        status:
+          type: string
+          enum: [created, streaming, processing, complete, cancelled, error, expired]
+        expires_at:
+          type: string
+          format: date-time
+        result:
+          $ref: '#/components/schemas/TranscriptionResult'
+        error:
+          $ref: '#/components/schemas/Error'
+
+    TranscriptionResult:
+      type: object
+      additionalProperties: false
+      required: [transcript, is_final]
+      properties:
+        transcript:
+          type: string
+        is_final:
+          type: boolean
+          const: true
+        language:
+          type: string
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        duration_ms:
+          type: integer
+          minimum: 0
+
+    Error:
+      type: object
+      additionalProperties: false
+      required: [code, message, retryable]
+      properties:
+        code:
+          type: string
+          description: |
+            Canonical error codes:
+            - INVALID_REQUEST
+            - INVALID_AUDIO_FORMAT
+            - UNAUTHORIZED
+            - FORBIDDEN
+            - SESSION_NOT_FOUND
+            - SESSION_EXPIRED
+            - WS_TOKEN_INVALID
+            - FINISH_ALREADY_RECEIVED
+            - RATE_LIMITED
+            - INTERNAL_ERROR
+        message:
+          type: string
+        retryable:
+          type: boolean
+
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+
+  responses:
+    BadRequest:
+      description: Invalid request payload or unsupported parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            invalidAudio:
+              value:
+                error:
+                  code: INVALID_AUDIO_FORMAT
+                  message: Audio format must be pcm16le/16kHz/mono.
+                  retryable: false
+
+    Unauthorized:
+      description: Missing or invalid API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            unauthorized:
+              value:
+                error:
+                  code: UNAUTHORIZED
+                  message: Missing or invalid X-API-Key.
+                  retryable: false
+
+    Forbidden:
+      description: Authenticated but not allowed for this resource
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            forbidden:
+              value:
+                error:
+                  code: FORBIDDEN
+                  message: API key is not permitted for transcription.
+                  retryable: false
+
+    NotFound:
+      description: Session not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            missing:
+              value:
+                error:
+                  code: SESSION_NOT_FOUND
+                  message: Session does not exist.
+                  retryable: false
+
+    Gone:
+      description: Session expired
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            expired:
+              value:
+                error:
+                  code: SESSION_EXPIRED
+                  message: Session has expired; create a new session.
+                  retryable: true
+
+    RateLimited:
+      description: Too many requests
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+            minimum: 1
+          description: Seconds to wait before retrying.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            rateLimited:
+              value:
+                error:
+                  code: RATE_LIMITED
+                  message: Too many active transcription sessions.
+                  retryable: true
+
+    InternalError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            internal:
+              value:
+                error:
+                  code: INTERNAL_ERROR
+                  message: Internal server error.
+                  retryable: true

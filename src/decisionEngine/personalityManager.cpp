@@ -275,14 +275,17 @@ PersonalityManager::PersonalityManager()
     emotions.insert({ Emotion::EmotionType::CAUTION, caution });
     emotions.insert({ Emotion::EmotionType::ANNOYANCE, annoyance });
     // Start the manager thread
-    managerThread = new std::jthread([this](std::stop_token st) {
+    managerThread = std::jthread([this](std::stop_token st) {
         managerThreadFunction(st);
     });
 }
 
 PersonalityManager::~PersonalityManager()
 {
-    delete managerThread;
+    if (managerThread.joinable()) {
+        managerThread.request_stop();
+        managerThread.join();
+    }
 }
 
 const Emotion PersonalityManager::getEmotion(Emotion::EmotionType emotion)

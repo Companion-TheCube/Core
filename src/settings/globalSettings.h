@@ -82,6 +82,9 @@ struct GlobalSettings {
         SCREEN_AUTO_OFF_TIME,
         NOTIFICATIONS_FROM_NETWORK_ENABLED,
         SYSTEM_VOLUME,
+        NOTIFICATION_SOUND_VOLUME,
+        ALARM_SOUND_VOLUME,
+        VOICE_COMMAND_SOUND_VOLUME,
         NOTIFICATION_SOUND,
         ALARM_SOUND,
         VOICE_COMMAND_SOUND,
@@ -95,8 +98,6 @@ struct GlobalSettings {
         EMOTION_ATTENTIVENESS,
         EMOTION_CAUTION,
         EMOTION_ANNOYANCE,
-        REMOTE_INTENT_RECOGNITION_ENABLED,
-        REMOTE_TRANSCRIPTION_ENABLED,
 
         SETTING_TYPE_COUNT
     };
@@ -154,6 +155,12 @@ struct GlobalSettings {
         GlobalSettings::setSetting(SettingType::NOTIFICATIONS_FROM_NETWORK_ENABLED, true);
         // set the default system volume to 100
         GlobalSettings::setSetting(SettingType::SYSTEM_VOLUME, 100);
+        // set the default notification sound volume to 100
+        GlobalSettings::setSetting(SettingType::NOTIFICATION_SOUND_VOLUME, 100);
+        // set the default alarm sound volume to 100
+        GlobalSettings::setSetting(SettingType::ALARM_SOUND_VOLUME, 100);
+        // set the default voice command sound volume to 100
+        GlobalSettings::setSetting(SettingType::VOICE_COMMAND_SOUND_VOLUME, 100);
         // set the default notification sound to default
         GlobalSettings::setSetting(SettingType::NOTIFICATION_SOUND, "default");
         // set the default alarm sound to default
@@ -180,10 +187,6 @@ struct GlobalSettings {
         GlobalSettings::setSetting(SettingType::EMOTION_CAUTION, 50);
         // set the default emotion annoyance to 0
         GlobalSettings::setSetting(SettingType::EMOTION_ANNOYANCE, 0);
-        // set the default remote intent recognition to false
-        GlobalSettings::setSetting(SettingType::REMOTE_INTENT_RECOGNITION_ENABLED, false);
-        // set the default remote transcription to false
-        GlobalSettings::setSetting(SettingType::REMOTE_TRANSCRIPTION_ENABLED, false);
     }
 
     static void setSettingCB(SettingType key, std::function<void()> callback)
@@ -203,8 +206,10 @@ struct GlobalSettings {
 
     static bool setSetting(SettingType key, nlohmann::json::value_type value)
     {
-        std::unique_lock<std::mutex> lock(settingChangeMutex);
-        settings[settingTypeStringMap[key]] = value;
+        {
+            std::unique_lock<std::mutex> lock(settingChangeMutex);
+            settings[settingTypeStringMap[key]] = value;
+        }
         callSettingCB(key);
         return true;
     }

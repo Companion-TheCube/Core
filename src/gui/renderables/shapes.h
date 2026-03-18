@@ -402,7 +402,7 @@ private:
     Shader* shader;
     std::vector<Vertex> vertexData;
     GLuint VAO, VBO;
-    GLuint dotTexture, lineTexture, backgroundTexture;
+    GLuint thumbBorderTexture, thumbFillTexture, lineTexture, backgroundTexture;
     glm::mat4 projectionMatrix;
     glm::mat4 viewMatrix;
     glm::mat4 modelMatrix;
@@ -418,7 +418,7 @@ private:
     glm::vec2 capturedPosition;
     bool visible = true;
     std::mutex mutex;
-    unsigned char *dotTextureBitmap, *lineTextureBitmap, *backgroundTextureBitmap;
+    unsigned char *thumbBorderTextureBitmap, *thumbFillTextureBitmap, *lineTextureBitmap, *backgroundTextureBitmap;
     float sliderPosition = 0.f;
 
 public:
@@ -446,7 +446,16 @@ public:
     void restorePosition();
     void getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatrix, glm::mat4* projectionMatrix);
     float getWidth();
-    void setSliderPosition(float position){ this->sliderPosition = position; };
+    void setSliderPosition(float position)
+    {
+        if (position < 0.f) {
+            this->sliderPosition = 0.f;
+        } else if (position > 1.f) {
+            this->sliderPosition = 1.f;
+        } else {
+            this->sliderPosition = position;
+        }
+    };
 };
 
 /*

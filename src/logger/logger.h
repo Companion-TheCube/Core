@@ -201,7 +201,7 @@ public:
     static std::string getSizeOfCubeLog();
     // API Interface
     constexpr std::string getInterfaceName() const override;
-    HttpEndPointData_t getHttpEndpointData();
+    HttpEndPointData_t getHttpEndpointData() override;
 };
 
 std::string convertTimestampToString(std::chrono::time_point<std::chrono::system_clock> timestamp);

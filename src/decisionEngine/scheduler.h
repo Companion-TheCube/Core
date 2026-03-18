@@ -57,7 +57,6 @@ SOFTWARE.
 #ifndef API_I_H
 #include "../api/api.h"
 #endif
-#include "cubeWhisper.h"
 #include "nlohmann/json.hpp"
 #include "remoteServer.h"
 #include <chrono>
@@ -158,6 +157,7 @@ public:
     void setEnabled(bool enabled);                   // Enable/disable without removing from list
     ScheduledTaskHandle getHandle() const;           // Stable identifier for CRUD operations
     void executeIntent();                            // Invoke the bound intent (increments repeatCount)
+    bool rescheduleAfterExecution();                 // Update next due time for repeating tasks
 
 private:
     ScheduleType schedule = { TimePoint(), { RepeatInterval::Interval::REPEAT_NONE_ONE_SHOT, 0 }, TimePoint() };
@@ -201,7 +201,7 @@ private:
     std::weak_ptr<IntentRegistry> intentRegistry;
     std::shared_ptr<FunctionRegistry> functionRegistry;
     ScheduledTaskList scheduledTasks;
-    std::jthread* schedulerThread;
+    std::jthread schedulerThread;
     std::mutex schedulerMutex;
     std::condition_variable schedulerCV;
     bool schedulerRunning = false;

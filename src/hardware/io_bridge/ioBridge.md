@@ -23,17 +23,18 @@ Below is a complete, implementation‑ready protocol for moving commands, data, 
 ## **1\) Physical/link layer**
 
 **Primary transport:** SPI mode 0, CORE \= master, BRIDGE \= slave.  
- **Recommended pins:** CS, SCK, MOSI, MISO, plus two sideband GPIOs:
+ **Pins:** CS, SCK, MOSI, MISO only.
 
-* `BRIDGE_IRQ` (bridge→core): asserted when bridge has events or RX credits available.
+Current board constraint:
 
-* `BRIDGE_RDY` (bridge→core): bridge ready after reset/boot; also drops low during deep sleep.
+* No dedicated `BRIDGE_IRQ`, `BRIDGE_RDY`, or `BRIDGE_RST` lines are available.
 
 **Clocking:** CORE may change SCK at runtime; min/max advertised by bridge during handshake.
 
 **Move events from slave?** SPI is master‑clocked, so CORE must clock data out. Strategy:
 
-* When `BRIDGE_IRQ=1`, CORE performs a **drain cycle** (send NOP frame; receive event frames).
+* CORE performs regular software **poll/drain cycles** by sending NOP or `ACK_ONLY`
+  frames at a configured cadence whenever normal traffic is idle.
 
 * During normal traffic, events can piggyback in the RX direction of any transaction.
 
@@ -92,9 +93,10 @@ All integers little‑endian.
 
 ## **3\) Session bring‑up**
 
-1. **RESET** (hardware or soft).
+1. Power-on or **soft reset**.
 
-2. `HELLO` (EPID=MGMT, MsgType=REQ): CORE→BRIDGE with desired features:
+2. `HELLO` (EPID=MGMT, MsgType=REQ): CORE→BRIDGE with desired features. CORE retries
+   this request at a conservative SPI rate until the BRIDGE responds:
 
    * max SPI Hz, desired MTU, window size, supported endpoints.
 
@@ -318,7 +320,9 @@ All unsolicited notifications (aside from per‑EP push messages) also funnel he
 
 `[ type(u8) | len(u8) | ts_us(u48 or u32) | payload... ]`
 
-`BRIDGE_IRQ` is asserted until at least one EVT frame is drained (bridge may coalesce multiple TLVs into a single EVT payload).
+Pending events remain queued until CORE drains them through normal traffic or
+explicit poll/drain cycles. The bridge may coalesce multiple TLVs into a single
+EVT payload.
 
 ---
 
@@ -446,7 +450,7 @@ enum FW_OP  { FW_QUERY=0x01, FW_ERASE=0x02, FW_WRITE=0x03, FW_VERIFY=0x04, FW_SE
 
 * Bridge runs its own WDT; CORE must **pet** via `CTRL.WDT_PET` at negotiated interval (e.g., 1 s).
 
-* On bridge reboot, it asserts `BRIDGE_RDY=0→1`, then sends `EVT:BOOT_REASON`. CORE should re‑`HELLO`.
+* On bridge reboot, the link goes silent until firmware is ready again. CORE should retry `HELLO` until the bridge responds, then continue polling to receive `EVT:BOOT_REASON`.
 
 * **Safe‑mode:** If repeated CRC or framing errors \> N in T ms, bridge enters degraded mode (lower SPI freq, drop to single outstanding frame) and signals `EVT:FAULT{FRAMING_STORM}`.
 

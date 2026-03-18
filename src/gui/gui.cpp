@@ -46,6 +46,9 @@ SOFTWARE.
 // #define _ENABLE_LAMBDAS
 
 #include "./gui.h"
+#include <algorithm>
+#include <memory>
+#include <optional>
 
 bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry);
 bool breakJsonApart(nlohmann::json j, AddMenu_Data_t& data, std::string* menuName, std::string* thisUniqueID, std::string* parentID);
@@ -53,6 +56,138 @@ bool breakJsonApart(nlohmann::json j, AddMenu_Data_t& data, std::string* menuNam
 CubeMessageBox* GUI::messageBox = nullptr;
 CubeTextBox* GUI::fullScreenTextBox = nullptr;
 CubeNotificaionBox* GUI::notificationBox = nullptr;
+CubeSliderBox* GUI::sliderBox = nullptr;
+GUI* GUI::activeGuiInstance = nullptr;
+
+namespace {
+
+int clampAndSnapSliderValue(int value, int minValue, int maxValue, int step)
+{
+    if (minValue >= maxValue) {
+        return minValue;
+    }
+    step = std::max(step, 1);
+    value = std::clamp(value, minValue, maxValue);
+    const float stepIndex = static_cast<float>(value - minValue) / static_cast<float>(step);
+    int snapped = minValue + static_cast<int>(std::lround(stepIndex)) * step;
+    snapped = std::clamp(snapped, minValue, maxValue);
+    return snapped;
+}
+
+int getClampedGlobalVolumeSetting(GlobalSettings::SettingType key)
+{
+    return clampAndSnapSliderValue(
+        GlobalSettings::getSettingOfType<int>(key),
+        0,
+        100,
+        1);
+}
+
+void setGlobalVolumeSetting(GlobalSettings::SettingType key, int value, const std::string& label)
+{
+    const int clampedValue = clampAndSnapSliderValue(value, 0, 100, 1);
+    GlobalSettings::setSetting(key, clampedValue);
+    CubeLog::info(label + " set to " + std::to_string(clampedValue));
+}
+
+bool configureHttpClientAuth(
+    httplib::Client& client,
+    const std::string& user,
+    const std::string& password,
+    const std::string& token,
+    const std::string& endpointLabel)
+{
+    if ((user.length() > 0 || password.length() > 0) && token.length() > 0) {
+        CubeLog::error("Cannot have both basic auth and bearer token auth: " + endpointLabel);
+        return false;
+    }
+    if (user.length() > 0 && password.length() > 0) {
+        client.set_basic_auth(user.c_str(), password.c_str());
+    }
+    if (token.length() > 0) {
+        client.set_bearer_token_auth(token.c_str());
+    }
+    return true;
+}
+
+httplib::Result sendRequestWithOptionalValue(
+    httplib::Client& client,
+    const std::string& method,
+    const std::string& path,
+    std::optional<int> value)
+{
+    if (method == "GET") {
+        std::string effectivePath = path;
+        if (value.has_value()) {
+            effectivePath += (path.find('?') == std::string::npos ? "?" : "&");
+            effectivePath += "value=" + std::to_string(*value);
+        }
+        return client.Get(effectivePath.c_str());
+    }
+    if (method == "POST") {
+        if (value.has_value()) {
+            nlohmann::json j;
+            j["value"] = *value;
+            return client.Post(path.c_str(), j.dump(), "application/json");
+        }
+        return client.Post(path.c_str());
+    }
+    if (method == "PUT") {
+        if (value.has_value()) {
+            nlohmann::json j;
+            j["value"] = *value;
+            return client.Put(path.c_str(), j.dump(), "application/json");
+        }
+        return client.Put(path.c_str());
+    }
+    if (method == "DELETE") {
+        return client.Delete(path.c_str());
+    }
+    return httplib::Result();
+}
+
+unsigned int addPopupSliderMenuEntryImpl(
+    MENUS::Menu* menu,
+    const std::string& text,
+    const std::string& uniqueID,
+    int minValue,
+    int maxValue,
+    int step,
+    std::function<int()> getter,
+    std::function<void(int)> setter)
+{
+    const auto safeGetter = [getter, minValue, maxValue, step](void*) -> unsigned int {
+        if (!getter) {
+            return static_cast<unsigned int>(clampAndSnapSliderValue(minValue, minValue, maxValue, step));
+        }
+        return static_cast<unsigned int>(clampAndSnapSliderValue(getter(), minValue, maxValue, step));
+    };
+    const auto clickAction = [text, minValue, maxValue, step, getter, setter](void*) -> unsigned int {
+        const int currentValue = getter
+            ? clampAndSnapSliderValue(getter(), minValue, maxValue, step)
+            : clampAndSnapSliderValue(minValue, minValue, maxValue, step);
+        GUI::showSliderBox(text, currentValue, minValue, maxValue, step, setter);
+        return 0;
+    };
+
+    const auto entryIndex = menu->addMenuEntry(
+        text,
+        uniqueID,
+        MENUS::EntryType::MENUENTRY_TYPE_SLIDER,
+        clickAction,
+        safeGetter,
+        nullptr);
+
+    if (auto* sliderEntry = MENUS::Menu::getMenuEntryByIndex(entryIndex)) {
+        sliderEntry->setSliderRange(
+            static_cast<unsigned int>(minValue),
+            static_cast<unsigned int>(maxValue),
+            static_cast<unsigned int>(step));
+    }
+    return entryIndex;
+}
+
+} // namespace
 
 /**
  * @brief Construct a new GUI::GUI object
@@ -65,6 +200,7 @@ GUI::GUI()
     this->renderer = new Renderer(latch);
     latch.wait();
     this->eventManager = new EventManager();
+    GUI::activeGuiInstance = this;
     this->eventLoopThread = std::jthread(&GUI::eventLoop, this);
     CubeLog::info("GUI initialized");
 }
@@ -75,6 +211,9 @@ GUI::GUI()
  */
 GUI::~GUI()
 {
+    if (GUI::activeGuiInstance == this) {
+        GUI::activeGuiInstance = nullptr;
+    }
     delete this->renderer;
     this->eventLoopThread.request_stop();
     this->eventLoopThread.join();
@@ -128,9 +267,9 @@ void GUI::eventLoop()
     /// Here we build the menus
     ////////////////////////////////////////
 
-    // this value must be equal to count of "new MENUS::Menu()" calls in this method + 2 (for the message box and text box)
+    // this value must be equal to count of "new MENUS::Menu()" calls in this method plus the popup boxes created below.
     // TODO: make this dynamic
-    CountingLatch countingLatch(43);
+    CountingLatch countingLatch(44);
 
 // This ifdef is part of a hack to make intellisense play well with the lambda functions. This is defined in cmakelists.txt so that when we compile, the lambdas are enabled.
 // Intellisense struggles with lots of lambdas, so this is a workaround. Uncomment the define at the top of this file to enable intellisense to see the lambdas.
@@ -191,6 +330,9 @@ void GUI::eventLoop()
         m->setParentMenu(parent);
         drag_y_actions.push_back({ [m]() { return m->getVisible(); }, [m](int y) { m->scrollVert(y); } });
         this->renderer->addLoopTask([m]() {
+            if (GUI::sliderBox != nullptr && GUI::sliderBox->getVisible()) {
+                return;
+            }
             m->draw();
         });
         menus.push_back(m);
@@ -219,6 +361,9 @@ void GUI::eventLoop()
     mainMenu->setIsClickable(true);
     mainMenu->setVisible(false);
     this->renderer->addLoopTask([mainMenu]() {
+        if (GUI::sliderBox != nullptr && GUI::sliderBox->getVisible()) {
+            return;
+        }
         mainMenu->draw();
     });
 
@@ -746,21 +891,25 @@ void GUI::eventLoop()
         _("Personality Settings"),
         "Personality Settings",
         personalityMenu);
-    this->renderer->addSetupTask([&personalityMenu_PersonalitySettings, addBackButton, addToParent]() {
+    auto curiosityValue = std::make_shared<int>(50);
+    this->renderer->addSetupTask([&, personalityMenu_PersonalitySettings, curiosityValue, addBackButton, addToParent]() {
         addBackButton(personalityMenu_PersonalitySettings);
         // list each attribute of the personality and provide a slider to adjust.
         // 1. Curiosity
-        personalityMenu_PersonalitySettings->addMenuEntry(
+        this->addPopupSliderMenuEntry(
+            personalityMenu_PersonalitySettings,
             _("Curiosity"),
             "Curiosity",
-            MENUS::EntryType::MENUENTRY_TYPE_SLIDER,
-            [](void* data) {
-                CubeLog::info("Personality Settings - Curiosity clicked");
-                // TODO: set the curiosity level
-                return 0;
+            0,
+            100,
+            1,
+            [curiosityValue]() {
+                return *curiosityValue;
             },
-            [](void*) { return 50; },
-            nullptr);
+            [curiosityValue](int value) {
+                *curiosityValue = value;
+                CubeLog::info("Personality Settings - Curiosity set to " + std::to_string(value));
+            });
         // TODO: before adding the rest of these, we need to figure out the slider rendering and how to get/set the values
         // 2. Playfulness
         // 3. Empathy
@@ -811,26 +960,22 @@ void GUI::eventLoop()
 
     ///////// Sound Menu /////////
     auto soundMenu = createANewSubMenu(_("Sound"), "Sound", mainMenu);
-    this->renderer->addSetupTask([&soundMenu, addBackButton, addToParent]() {
+    this->renderer->addSetupTask([&, soundMenu, addBackButton, addToParent]() {
         addBackButton(soundMenu);
         ///////// Sound Menu - Volume /////////
-        soundMenu->addMenuEntry(
+        this->addPopupSliderMenuEntry(
+            soundMenu,
             _("Volume"),
             "General Volume",
-            MENUS::EntryType::MENUENTRY_TYPE_SLIDER,
-            [](void* data) {
-                CubeLog::info("Volume clicked");
-                // TODO: set the volume
-                return 0;
+            0,
+            100,
+            1,
+            []() {
+                return getClampedGlobalVolumeSetting(GlobalSettings::SettingType::SYSTEM_VOLUME);
             },
-            [](void* val) {
-                // cast val to int
-                // int volume = *(int*)val;
-                // TODO: save the volume to the settings
-                return 50;
-            },
-            (void*)(int)(50) // TODO: we need to get the value from the settings and pass it in here.
-        );
+            [](int value) {
+                setGlobalVolumeSetting(GlobalSettings::SettingType::SYSTEM_VOLUME, value, "Volume");
+            });
         soundMenu->setup();
         addToParent(soundMenu);
         soundMenu->setChildrenClickables_isClickable(false);
@@ -838,26 +983,22 @@ void GUI::eventLoop()
 
     ///////// Sound Menu - Notification Sound /////////
     auto soundMenu_NotificationSound = createANewSubMenu(_("Notification Sound"), "Notification Sound", soundMenu);
-    this->renderer->addSetupTask([&soundMenu_NotificationSound, addBackButton, addToParent]() {
+    this->renderer->addSetupTask([&, soundMenu_NotificationSound, addBackButton, addToParent]() {
         addBackButton(soundMenu_NotificationSound);
         ///////// Sound Menu - Notification Sound - Volume /////////
-        soundMenu_NotificationSound->addMenuEntry(
+        this->addPopupSliderMenuEntry(
+            soundMenu_NotificationSound,
             _("Volume"),
             "Notification Sound Volume",
-            MENUS::EntryType::MENUENTRY_TYPE_SLIDER,
-            [](void* data) {
-                CubeLog::info("Notification Sound - Volume clicked");
-                // TODO: set the volume
-                return 0;
+            0,
+            100,
+            1,
+            []() {
+                return getClampedGlobalVolumeSetting(GlobalSettings::SettingType::NOTIFICATION_SOUND_VOLUME);
             },
-            [](void* val) {
-                // cast val to int
-                // int volume = *(int*)val;
-                // TODO: save the notification volume to the settings
-                return 50;
-            },
-            (void*)(int)(50) // TODO: we need to get the value from the settings and pass it in here.
-        );
+            [](int value) {
+                setGlobalVolumeSetting(GlobalSettings::SettingType::NOTIFICATION_SOUND_VOLUME, value, "Notification Sound - Volume");
+            });
         soundMenu_NotificationSound->setup();
         addToParent(soundMenu_NotificationSound);
         soundMenu_NotificationSound->setChildrenClickables_isClickable(false);
@@ -874,26 +1015,22 @@ void GUI::eventLoop()
 
     ///////// Sound Menu - Alarm Sound /////////
     auto soundMenu_AlarmSound = createANewSubMenu(_("Alarm Sound"), "Alarm Sound", soundMenu);
-    this->renderer->addSetupTask([&soundMenu_AlarmSound, addBackButton, addToParent]() {
+    this->renderer->addSetupTask([&, soundMenu_AlarmSound, addBackButton, addToParent]() {
         addBackButton(soundMenu_AlarmSound);
         ///////// Sound Menu - Alarm Sound - Volume /////////
-        soundMenu_AlarmSound->addMenuEntry(
+        this->addPopupSliderMenuEntry(
+            soundMenu_AlarmSound,
             _("Volume"),
             "Alarm Sound Volume",
-            MENUS::EntryType::MENUENTRY_TYPE_SLIDER,
-            [](void* data) {
-                CubeLog::info("Alarm Sound - Volume clicked");
-                // TODO: set the volume
-                return 0;
+            0,
+            100,
+            1,
+            []() {
+                return getClampedGlobalVolumeSetting(GlobalSettings::SettingType::ALARM_SOUND_VOLUME);
             },
-            [](void* val) {
-                // cast val to int
-                // int volume = *(int*)val;
-                // TODO: save the alarm volume to the settings
-                return 50;
-            },
-            (void*)(int)(50) // TODO: we need to get the value from the settings and pass it in here.
-        );
+            [](int value) {
+                setGlobalVolumeSetting(GlobalSettings::SettingType::ALARM_SOUND_VOLUME, value, "Alarm Sound - Volume");
+            });
         soundMenu_AlarmSound->setup();
         addToParent(soundMenu_AlarmSound);
         soundMenu_AlarmSound->setChildrenClickables_isClickable(false);
@@ -910,26 +1047,22 @@ void GUI::eventLoop()
 
     ///////// Sound Menu - Voice Command Sound /////////
     auto soundMenu_VoiceCommandSound = createANewSubMenu(_("Voice Command Sound"), "Voice Command Sound", soundMenu);
-    this->renderer->addSetupTask([&soundMenu_VoiceCommandSound, addBackButton, addToParent]() {
+    this->renderer->addSetupTask([&, soundMenu_VoiceCommandSound, addBackButton, addToParent]() {
         addBackButton(soundMenu_VoiceCommandSound);
         ///////// Sound Menu - Voice Command Sound - Volume /////////
-        soundMenu_VoiceCommandSound->addMenuEntry(
+        this->addPopupSliderMenuEntry(
+            soundMenu_VoiceCommandSound,
             _("Volume"),
             "Voice Command Sound Volume",
-            MENUS::EntryType::MENUENTRY_TYPE_SLIDER,
-            [](void* data) {
-                CubeLog::info("Voice Command Sound - Volume clicked");
-                // TODO: set the volume
-                return 0;
+            0,
+            100,
+            1,
+            []() {
+                return getClampedGlobalVolumeSetting(GlobalSettings::SettingType::VOICE_COMMAND_SOUND_VOLUME);
             },
-            [](void* val) {
-                // cast val to int
-                // int volume = *(int*)val;
-                // TODO: save the voice command volume to the settings
-                return 50;
-            },
-            (void*)(int)(50) // TODO: we need to get the value from the settings and pass it in here.
-        );
+            [](int value) {
+                setGlobalVolumeSetting(GlobalSettings::SettingType::VOICE_COMMAND_SOUND_VOLUME, value, "Voice Command Sound - Volume");
+            });
         soundMenu_VoiceCommandSound->setup();
         addToParent(soundMenu_VoiceCommandSound);
         soundMenu_VoiceCommandSound->setChildrenClickables_isClickable(false);
@@ -1023,32 +1156,32 @@ void GUI::eventLoop()
     });
     ///////// Display Menu - Brightness /////////
     auto displayMenu_Brightness = createANewSubMenu(_("Brightness"), "Brightness", displayMenu);
-    this->renderer->addSetupTask([&displayMenu_Brightness, addBackButton, addToParent]() {
+    auto brightnessValue = std::make_shared<int>(50);
+    this->renderer->addSetupTask([&, displayMenu_Brightness, brightnessValue, addBackButton, addToParent]() {
         addBackButton(displayMenu_Brightness);
         ///////// Display Menu - Brightness - Set Brightness /////////
-        displayMenu_Brightness->addMenuEntry(
+        this->addPopupSliderMenuEntry(
+            displayMenu_Brightness,
             _("Set Brightness"),
             "Brightness_Set",
-            MENUS::EntryType::MENUENTRY_TYPE_SLIDER,
-            [](void* data) {
-                CubeLog::info("Brightness - Set Brightness clicked");
-                // TODO: set the brightness
-                return 0;
+            0,
+            100,
+            1,
+            [brightnessValue]() {
+                return *brightnessValue;
             },
-            [](void* val) {
-                // cast val to int
-                // int brightness = *(int*)val;
-                // TODO: save the brightness to the settings
-                return 50;
-            },
-            nullptr);
+            [brightnessValue](int value) {
+                *brightnessValue = value;
+                CubeLog::info("Brightness set to " + std::to_string(value));
+            });
         displayMenu_Brightness->setup();
         addToParent(displayMenu_Brightness);
         displayMenu_Brightness->setChildrenClickables_isClickable(false);
     });
     ///////// Display Menu - Auto Off En/Disable /////////
     auto displayMenu_AutoOff = createANewSubMenu(_("Auto Off"), "Auto Off", displayMenu);
-    this->renderer->addSetupTask([&displayMenu_AutoOff, addBackButton, addToParent]() {
+    auto autoOffTimeValue = std::make_shared<int>(50);
+    this->renderer->addSetupTask([&, displayMenu_AutoOff, autoOffTimeValue, addBackButton, addToParent]() {
         addBackButton(displayMenu_AutoOff);
         ///////// Display Menu - Auto Off - Enable/Disable Auto Off /////////
         displayMenu_AutoOff->addMenuEntry(
@@ -1064,34 +1197,20 @@ void GUI::eventLoop()
             [](void*) { return 0; },
             nullptr);
         ///////// Display Menu - Auto Off - Set Time /////////
-        auto sliderVisible = std::make_shared<bool>(false);
-        auto entryIndex = std::make_shared<unsigned int>();
-        *entryIndex = UINT_MAX;
-        *entryIndex = displayMenu_AutoOff->addMenuEntry(
+        this->addPopupSliderMenuEntry(
+            displayMenu_AutoOff,
             _("Set Time"),
             "Auto Off_Set_Time",
-            MENUS::EntryType::MENUENTRY_TYPE_SLIDER,
-            [entryIndex, sliderVisible](void* data) {
-                CubeLog::info("Auto Off - Set Time clicked");
-                // TODO: set the auto off time
-                *sliderVisible = !*sliderVisible;
-                if (*entryIndex == UINT_MAX)
-                    return 0;
-                MENUS::Menu::getMenuEntryByIndex(*entryIndex)->getFixedObjects().at(0)->setVisibility(*sliderVisible);
-                return 0;
+            0,
+            120,
+            5,
+            [autoOffTimeValue]() {
+                return *autoOffTimeValue;
             },
-            [sliderVisible, entryIndex](void* val) {
-                // cast val to unsigned int
-                // unsigned int time = *(unsigned int*)val;
-                // TODO: save the auto off time to the settings
-                // CubeLog::info("Auto Off - Set Time: " + std::to_string(time));
-                if (*entryIndex == UINT_MAX)
-                    return 0;
-                if (!*sliderVisible)
-                    MENUS::Menu::getMenuEntryByIndex(*entryIndex)->getFixedObjects().at(0)->setVisibility(false);
-                return 50;
-            },
-            nullptr);
+            [autoOffTimeValue](int value) {
+                *autoOffTimeValue = value;
+                CubeLog::info("Auto Off - Set Time set to " + std::to_string(value));
+            });
         displayMenu_AutoOff->setup();
         addToParent(displayMenu_AutoOff);
         displayMenu_AutoOff->setChildrenClickables_isClickable(false);
@@ -1507,6 +1626,12 @@ void GUI::eventLoop()
             CubeLog::error("Drag Y: nullptr");
             return;
         }
+        if (GUI::sliderBox != nullptr && GUI::sliderBox->getVisible()) {
+            GUI::sliderBox->handlePointerMove(
+                static_cast<unsigned int>(event->mouseMove.x),
+                static_cast<unsigned int>(event->mouseMove.y));
+            return;
+        }
         bool touchChange = false;
         // touch event edge detection
         if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left) && !last_isButtonPressed) {
@@ -1572,6 +1697,20 @@ void GUI::eventLoop()
     this->eventManager->addClickableArea(clickable_notificationBox.getClickableArea());
 
     ////////////////////////////////////////
+    /// Set up the slider popup box
+    ////////////////////////////////////////
+    sliderBox = new CubeSliderBox(this->renderer->getMeshShader(), this->renderer->getTextShader(), this->renderer, countingLatch);
+    this->renderer->addSetupTask([&]() {
+        sliderBox->setup();
+    });
+    this->renderer->addLoopTask([&]() {
+        sliderBox->draw();
+    });
+    sliderBox->setVisible(false);
+    SliderBoxClickable clickable_sliderBox(sliderBox);
+    this->eventManager->addClickableArea(clickable_sliderBox.getClickableArea());
+
+    ////////////////////////////////////////
     /// Wait for the rendered elements to be ready
     ////////////////////////////////////////
     countingLatch.wait();
@@ -1602,6 +1741,8 @@ void GUI::eventLoop()
     }
     delete messageBox;
     delete fullScreenTextBox;
+    delete notificationBox;
+    delete sliderBox;
     // CubeLog::info("GUI stopped");
 }
 
@@ -1718,6 +1859,9 @@ GUI_Error GUI::addMenu(const std::string& menuName, const std::string& thisUniqu
     CubeLog::moreInfo("Added menu: " + menuName + " with parent: " + parentID);
     CubeLog::moreInfo("Adding draw function for menu: " + menuName);
     this->renderer->addLoopTask([aNewMenu]() {
+        if (GUI::sliderBox != nullptr && GUI::sliderBox->getVisible()) {
+            return;
+        }
         aNewMenu->draw();
     });
     CubeLog::moreInfo("Menu setup complete: " + menuName);
@@ -1829,6 +1973,60 @@ void GUI::showTextBox(const std::string& title, const std::string& message, glm:
     showTextBox(title, message, size, position);
 }
 
+void GUI::showSliderBox(
+    const std::string& title,
+    int currentValue,
+    int minValue,
+    int maxValue,
+    int step,
+    std::function<void(int)> onConfirm,
+    std::function<void()> onCancel)
+{
+    if (sliderBox == nullptr) {
+        CubeLog::error("Slider box is null. Cannot show slider.");
+        return;
+    }
+    sliderBox->setTitle(title);
+    sliderBox->setRange(minValue, maxValue, step);
+    sliderBox->setCommittedValue(currentValue);
+    sliderBox->setConfirmCallback([onConfirm](int value) {
+        GUI::setVisibleMenuClickablesEnabled(true);
+        if (onConfirm) {
+            onConfirm(value);
+        }
+    });
+    sliderBox->setCancelCallback([onCancel]() {
+        GUI::setVisibleMenuClickablesEnabled(true);
+        if (onCancel) {
+            onCancel();
+        }
+    });
+    setVisibleMenuClickablesEnabled(false);
+    sliderBox->setVisible(true);
+}
+
+void GUI::hideSliderBox()
+{
+    if (sliderBox == nullptr) {
+        CubeLog::error("Slider box is null. Cannot hide slider.");
+        return;
+    }
+    sliderBox->setVisible(false);
+    setVisibleMenuClickablesEnabled(true);
+}
+
+void GUI::setVisibleMenuClickablesEnabled(bool enabled)
+{
+    if (GUI::activeGuiInstance == nullptr) {
+        return;
+    }
+    for (auto* menu : GUI::activeGuiInstance->menus) {
+        if (menu != nullptr && menu->getVisible()) {
+            menu->setChildrenClickables_isClickable(enabled);
+        }
+    }
+}
+
 void GUI::showNotification(const std::string& title, const std::string& message, NotificationsManager::NotificationType type)
 {
     // For informational notifications, fall back to message box for now
@@ -1892,6 +2090,19 @@ void GUI::showTextInputBox(const std::string& title, std::vector<std::string> fi
         textVector.push_back(fields[i]);
     }
     callback(textVector);
+}
+
+unsigned int GUI::addPopupSliderMenuEntry(
+    MENUS::Menu* menu,
+    const std::string& text,
+    const std::string& uniqueID,
+    int minValue,
+    int maxValue,
+    int step,
+    std::function<int()> getter,
+    std::function<void(int)> setter)
+{
+    return addPopupSliderMenuEntryImpl(menu, text, uniqueID, minValue, maxValue, step, getter, setter);
 }
 
 /**
@@ -2703,107 +2914,74 @@ bool parseJsonAndAddEntriesToMenu(nlohmann::json j, MENUS::Menu* menuEntry)
         break;
     }
     case MENUS::EntryType::MENUENTRY_TYPE_SLIDER: {
-        menuEntryID = menuEntry->addMenuEntry(
-            entryText,
-            uniqueID,
-            type,
-            [actionEP_AddrPort, actionEP_Path, actionEP_Method, actionEP_User, actionEP_Pass, actionEP_Token](void*) {
-                if (actionEP_AddrPort.length() == 0) {
-                    CubeLog::info("No action endpoint provided: " + actionEP_AddrPort + actionEP_Path);
-                    return (unsigned int)2;
-                }
-                if (actionEP_Method != "GET" && actionEP_Method != "POST" && actionEP_Method != "PUT" && actionEP_Method != "DELETE") {
-                    CubeLog::error("Invalid method: " + actionEP_Method + "From: " + actionEP_AddrPort + actionEP_Path);
-                    return (unsigned int)2;
-                }
-                httplib::Client client(actionEP_AddrPort);
-                if ((actionEP_User.length() > 0 || actionEP_Pass.length() > 0) && actionEP_Token.length() != 0) {
-                    CubeLog::error("Cannot have both basic auth and bearer token auth: " + actionEP_AddrPort + actionEP_Path);
-                    return (unsigned int)2;
-                }
-                if (actionEP_User.length() > 0 && actionEP_Pass.length() > 0) {
-                    client.set_basic_auth(actionEP_User.c_str(), actionEP_Pass.c_str());
-                }
-                if (actionEP_Token.length() > 0) {
-                    client.set_bearer_token_auth(actionEP_Token.c_str());
-                }
-                httplib::Result res;
-                if (actionEP_Method == "GET")
-                    res = client.Get(actionEP_Path.c_str());
-                if (actionEP_Method == "POST")
-                    res = client.Post(actionEP_Path.c_str());
-                if (actionEP_Method == "PUT")
-                    res = client.Put(actionEP_Path.c_str());
-                if (actionEP_Method == "DELETE")
-                    res = client.Delete(actionEP_Path.c_str());
-                if (!res) {
-                    CubeLog::error("Error getting response: " + actionEP_AddrPort + actionEP_Path);
-                    return (unsigned int)2;
-                }
-                if (res->status != 200) {
-                    CubeLog::error("Response code: " + std::to_string(res->status));
-                    return (unsigned int)2;
-                }
-                CubeLog::info("Response: " + res->body + "From: " + actionEP_AddrPort + actionEP_Path);
-                return (unsigned int)0;
-            },
-            [statusEP_AddrPort, statusEP_Path, statusEP_Method, statusEP_User, statusEP_Pass, statusEP_Token, enabledVals, sliderMinValue, sliderMaxValue, sliderStep](void* int_value) {
-                int value = *(int*)int_value;
-                if (statusEP_AddrPort.length() == 0) {
-                    CubeLog::info("No action endpoint provided: " + statusEP_AddrPort + statusEP_Path);
-                    return (unsigned int)2;
-                }
-                if (statusEP_Method != "GET" && statusEP_Method != "POST" && statusEP_Method != "PUT" && statusEP_Method != "DELETE") {
-                    CubeLog::error("Invalid method: " + statusEP_Method + "From: " + statusEP_AddrPort + statusEP_Path);
-                    return (unsigned int)2;
-                }
-                httplib::Client client(statusEP_AddrPort);
-                if ((statusEP_User.length() > 0 || statusEP_Pass.length() > 0) && statusEP_Token.length() != 0) {
-                    CubeLog::error("Cannot have both basic auth and bearer token auth");
-                    return (unsigned int)2;
-                }
-                if (statusEP_User.length() > 0 && statusEP_Pass.length() > 0) {
-                    client.set_basic_auth(statusEP_User.c_str(), statusEP_Pass.c_str());
-                }
-                if (statusEP_Token.length() > 0) {
-                    client.set_bearer_token_auth(statusEP_Token.c_str());
-                }
-                httplib::Result res;
-                if (statusEP_Method == "GET")
-                    res = client.Get(statusEP_Path + "?value=" + std::to_string(value));
-                if (statusEP_Method == "POST") {
-                    nlohmann::json j;
-                    j["value"] = value;
-                    res = client.Post(statusEP_Path.c_str(), j.dump(), "application/json");
-                }
-                if (statusEP_Method == "PUT")
-                    res = client.Put(statusEP_Path.c_str());
-                if (statusEP_Method == "DELETE")
-                    res = client.Delete(statusEP_Path.c_str());
-                if (!res) {
-                    CubeLog::error("Error getting response from status endpoint: " + statusEP_AddrPort + statusEP_Path);
-                    return (unsigned int)2;
-                }
-                if (res->status != 200) {
-                    CubeLog::error("Response code: " + std::to_string(res->status) + "From: " + statusEP_AddrPort + statusEP_Path);
-                    return (unsigned int)2;
-                }
-                std::string response = res->body;
-                CubeLog::moreInfo("Response: " + response + "From: " + statusEP_AddrPort + statusEP_Path);
-                nlohmann::json j;
-                try {
-                    j = nlohmann::json::parse(response);
-                } catch (nlohmann::json::exception& e) {
-                    CubeLog::error("Error parsing json: " + std::string(e.what()));
-                    return (unsigned int)2;
-                }
-                unsigned int retValue = 0;
+        const auto getter = [statusEP_AddrPort, statusEP_Path, statusEP_Method, statusEP_User, statusEP_Pass, statusEP_Token, entryText, sliderMinValue, sliderMaxValue, sliderStep]() -> int {
+            if (statusEP_AddrPort.length() == 0) {
+                CubeLog::info("No status endpoint provided: " + entryText);
+                return clampAndSnapSliderValue(sliderMinValue, sliderMinValue, sliderMaxValue, sliderStep);
+            }
+            if (statusEP_Method != "GET" && statusEP_Method != "POST" && statusEP_Method != "PUT" && statusEP_Method != "DELETE") {
+                CubeLog::error("Invalid method: " + statusEP_Method + "From: " + statusEP_AddrPort + statusEP_Path);
+                return clampAndSnapSliderValue(sliderMinValue, sliderMinValue, sliderMaxValue, sliderStep);
+            }
+            httplib::Client client(statusEP_AddrPort);
+            if (!configureHttpClientAuth(client, statusEP_User, statusEP_Pass, statusEP_Token, statusEP_AddrPort + statusEP_Path)) {
+                return clampAndSnapSliderValue(sliderMinValue, sliderMinValue, sliderMaxValue, sliderStep);
+            }
+            httplib::Result res = sendRequestWithOptionalValue(client, statusEP_Method, statusEP_Path, std::nullopt);
+            if (!res) {
+                CubeLog::error("Error getting response from status endpoint: " + statusEP_AddrPort + statusEP_Path);
+                return clampAndSnapSliderValue(sliderMinValue, sliderMinValue, sliderMaxValue, sliderStep);
+            }
+            if (res->status != 200) {
+                CubeLog::error("Response code: " + std::to_string(res->status) + "From: " + statusEP_AddrPort + statusEP_Path);
+                return clampAndSnapSliderValue(sliderMinValue, sliderMinValue, sliderMaxValue, sliderStep);
+            }
+            int retValue = sliderMinValue;
+            try {
+                nlohmann::json j = nlohmann::json::parse(res->body);
                 if (j.contains("value") && j["value"].is_number_integer()) {
                     retValue = j["value"];
                 }
-                return retValue + 100;
-            },
-            (void*)new int(0));
+            } catch (nlohmann::json::exception& e) {
+                CubeLog::error("Error parsing slider status json: " + std::string(e.what()));
+            }
+            return clampAndSnapSliderValue(retValue, sliderMinValue, sliderMaxValue, sliderStep);
+        };
+
+        const auto setter = [actionEP_AddrPort, actionEP_Path, actionEP_Method, actionEP_User, actionEP_Pass, actionEP_Token](int value) {
+            if (actionEP_AddrPort.length() == 0) {
+                CubeLog::info("No action endpoint provided: " + actionEP_AddrPort + actionEP_Path);
+                return;
+            }
+            if (actionEP_Method != "GET" && actionEP_Method != "POST" && actionEP_Method != "PUT" && actionEP_Method != "DELETE") {
+                CubeLog::error("Invalid method: " + actionEP_Method + "From: " + actionEP_AddrPort + actionEP_Path);
+                return;
+            }
+            httplib::Client client(actionEP_AddrPort);
+            if (!configureHttpClientAuth(client, actionEP_User, actionEP_Pass, actionEP_Token, actionEP_AddrPort + actionEP_Path)) {
+                return;
+            }
+            httplib::Result res = sendRequestWithOptionalValue(client, actionEP_Method, actionEP_Path, value);
+            if (!res) {
+                CubeLog::error("Error getting response: " + actionEP_AddrPort + actionEP_Path);
+                return;
+            }
+            if (res->status != 200) {
+                CubeLog::error("Response code: " + std::to_string(res->status) + "From: " + actionEP_AddrPort + actionEP_Path);
+                return;
+            }
+            CubeLog::info("Response: " + res->body + "From: " + actionEP_AddrPort + actionEP_Path);
+        };
+
+        menuEntryID = addPopupSliderMenuEntryImpl(
+            menuEntry,
+            entryText,
+            uniqueID,
+            sliderMinValue,
+            sliderMaxValue,
+            sliderStep,
+            getter,
+            setter);
         break;
     }
     case MENUS::EntryType::MENUENTRY_TYPE_INLINE_TEXT: {

@@ -1,0 +1,66 @@
+{
+  "schema_version": "1.0",
+  "app": {
+    "id": "com.thecube.postgresql",
+    "name": "PostgreSQL",
+    "version": "16.0",
+    "vendor": "A-McD Technology LLC",
+    "description": "Shared PostgreSQL service for TheCube apps.",
+    "category": "system",
+    "args": [
+      "-c",
+      "listen_addresses=*"
+    ],
+    "working_directory": ".",
+    "type": "background",
+    "autostart": false,
+    "system_app": true
+  },
+  "runtime": {
+    "type": "docker",
+    "distribution": "container-image",
+    "compatibility": "16",
+    "docker": {
+      "image": "postgres:16",
+      "container_name": "thecube-postgresql",
+      "published_ports": [
+        "127.0.0.1:5432:5432"
+      ],
+      "environment": {
+        "POSTGRES_HOST_AUTH_METHOD": "trust"
+      },
+      "volumes": [
+        {
+          "host": "app://data",
+          "container": "/var/lib/postgresql/data"
+        }
+      ]
+    },
+    "restart_policy": "on-failure",
+    "max_restart_burst": 5,
+    "restart_window_seconds": 60,
+    "stop_timeout_seconds": 20,
+    "start_timeout_seconds": 30
+  },
+  "permissions": {
+    "platform": [],
+    "filesystem": {
+      "read_only": [
+        "app://install"
+      ],
+      "read_write": [
+        "app://data",
+        "app://runtime"
+      ]
+    },
+    "network": {
+      "allow": false,
+      "inbound": false,
+      "local_network": false
+    }
+  },
+  "environment": {
+    "allow_inherit": [],
+    "set": {}
+  }
+}

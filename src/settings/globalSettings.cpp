@@ -59,6 +59,9 @@ std::unordered_map <GlobalSettings::SettingType, std::string> GlobalSettings::se
         {SettingType::SCREEN_AUTO_OFF_TIME, "screenAutoOffTime"},
         {SettingType::NOTIFICATIONS_FROM_NETWORK_ENABLED, "notificationsFromNetworkEnabled"},
         {SettingType::SYSTEM_VOLUME, "systemVolume"},
+        {SettingType::NOTIFICATION_SOUND_VOLUME, "notificationSoundVolume"},
+        {SettingType::ALARM_SOUND_VOLUME, "alarmSoundVolume"},
+        {SettingType::VOICE_COMMAND_SOUND_VOLUME, "voiceCommandSoundVolume"},
         {SettingType::NOTIFICATION_SOUND, "notificationSound"},
         {SettingType::ALARM_SOUND, "alarmSound"},
         {SettingType::VOICE_COMMAND_SOUND, "voiceCommandSound"},
@@ -71,9 +74,7 @@ std::unordered_map <GlobalSettings::SettingType, std::string> GlobalSettings::se
         {SettingType::EMOTION_ASSERTIVENESS, "emotionAssertiveness"},
         {SettingType::EMOTION_ATTENTIVENESS, "emotionAttentiveness"},
         {SettingType::EMOTION_CAUTION, "emotionCaution"},
-        {SettingType::EMOTION_ANNOYANCE, "emotionAnnoyance"},
-        {SettingType::REMOTE_INTENT_RECOGNITION_ENABLED, "remoteIntentRecognitionEnabled"},
-        {SettingType::REMOTE_TRANSCRIPTION_ENABLED, "remoteTranscriptionEnabled"}
+        {SettingType::EMOTION_ANNOYANCE, "emotionAnnoyance"}
     };
 std::unordered_map <std::string, GlobalSettings::SettingType> GlobalSettings::stringSettingTypeMap = {
         {"logVerbosity", SettingType::LOG_VERBOSITY},
@@ -98,6 +99,9 @@ std::unordered_map <std::string, GlobalSettings::SettingType> GlobalSettings::st
         {"screenAutoOffTime", SettingType::SCREEN_AUTO_OFF_TIME},
         {"notificationsFromNetworkEnabled", SettingType::NOTIFICATIONS_FROM_NETWORK_ENABLED},
         {"systemVolume", SettingType::SYSTEM_VOLUME},
+        {"notificationSoundVolume", SettingType::NOTIFICATION_SOUND_VOLUME},
+        {"alarmSoundVolume", SettingType::ALARM_SOUND_VOLUME},
+        {"voiceCommandSoundVolume", SettingType::VOICE_COMMAND_SOUND_VOLUME},
         {"notificationSound", SettingType::NOTIFICATION_SOUND},
         {"alarmSound", SettingType::ALARM_SOUND},
         {"voiceCommandSound", SettingType::VOICE_COMMAND_SOUND},
@@ -110,7 +114,5 @@ std::unordered_map <std::string, GlobalSettings::SettingType> GlobalSettings::st
         {"emotionAssertiveness", SettingType::EMOTION_ASSERTIVENESS},
         {"emotionAttentiveness", SettingType::EMOTION_ATTENTIVENESS},
         {"emotionCaution", SettingType::EMOTION_CAUTION},
-        {"emotionAnnoyance", SettingType::EMOTION_ANNOYANCE},
-        {"remoteIntentRecognitionEnabled", SettingType::REMOTE_INTENT_RECOGNITION_ENABLED},
-        {"remoteTranscriptionEnabled", SettingType::REMOTE_TRANSCRIPTION_ENABLED}
+        {"emotionAnnoyance", SettingType::EMOTION_ANNOYANCE}
     };

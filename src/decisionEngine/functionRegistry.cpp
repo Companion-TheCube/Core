@@ -78,13 +78,22 @@ initialization respectively.
 */
 
 #include "functionRegistry.h"
+#include "../audio/audioOutput.h"
+#include "utils.h"
 // Asio and json-rpc-cxx
-#include <asio.hpp>
+#include <algorithm>
+#include <boost/asio.hpp>
+#include <cctype>
 #include <atomic>
+#include <ctime>
 #include <filesystem>
+#include <iomanip>
 #include <jsonrpccxx/client.hpp>
 #include <jsonrpccxx/iclientconnector.hpp>
 #include <memory>
+#include <sstream>
+
+namespace asio = boost::asio;
 
 namespace DecisionEngine {
 
@@ -211,7 +220,7 @@ namespace {
 
         // Timer
         asio::steady_timer timer(*rpc_io, std::chrono::milliseconds(timeoutMs));
-        timer.async_wait([prom, done](const asio::error_code& ec) {
+        timer.async_wait([prom, done](const boost::system::error_code& ec) {
             if (ec)
                 return; // cancelled
             if (!done->exchange(true)) {
@@ -236,7 +245,7 @@ namespace {
 
         // cancel timer
         asio::post(*rpc_io, [&timer]() {
-            asio::error_code ec;
+            boost::system::error_code ec;
             timer.cancel();
         });
 
@@ -396,6 +405,50 @@ namespace {
             CubeLog::error(std::string("Failed to load capability manifest: ") + e.what());
         }
     }
+
+    std::vector<std::string> configuredAppRoots()
+    {
+        std::vector<std::string> roots;
+        const auto raw = Config::get("APP_INSTALL_ROOTS", "");
+        if (raw.empty()) {
+            roots.push_back("apps");
+            return roots;
+        }
+
+        std::stringstream stream(raw);
+        std::string part;
+        while (std::getline(stream, part, ':')) {
+            if (!part.empty()) {
+                roots.push_back(part);
+            }
+        }
+        return roots;
+    }
+
+    std::string joinStrings(const std::vector<std::string>& values, const std::string& delimiter)
+    {
+        std::ostringstream oss;
+        for (size_t i = 0; i < values.size(); ++i) {
+            if (i > 0) oss << delimiter;
+            oss << values[i];
+        }
+        return oss.str();
+    }
+
+    bool parseBoolArg(const nlohmann::json& value, bool fallback)
+    {
+        if (value.is_boolean()) return value.get<bool>();
+        if (value.is_number_integer()) return value.get<int>() != 0;
+        if (value.is_string()) {
+            std::string lower = value.get<std::string>();
+            std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char ch) {
+                return static_cast<char>(std::tolower(ch));
+            });
+            if (lower == "true" || lower == "1" || lower == "on") return true;
+            if (lower == "false" || lower == "0" || lower == "off") return false;
+        }
+        return fallback;
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -422,11 +475,79 @@ FunctionRegistry::FunctionRegistry()
         ping.name = "core.ping";
         ping.description = "Simple ping capability";
         ping.action = [](const nlohmann::json& args) {
-            CubeLog::info("core.ping invoked");
-            return nlohmann::json({ { "result", "pong" } });
+            (void)args;
+            return nlohmann::json({ { "message", "pong" }, { "status", "ok" } });
         };
         ping.enabled = true;
         this->registerCapability(ping);
+
+        CapabilitySpec getTime;
+        getTime.name = "core.get_time";
+        getTime.description = "Get the current local device time";
+        getTime.action = [](const nlohmann::json& args) {
+            (void)args;
+            const auto now = std::chrono::system_clock::now();
+            const auto epochMs = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+            const auto tt = std::chrono::system_clock::to_time_t(now);
+            std::tm tm {};
+#ifdef _WIN32
+            localtime_s(&tm, &tt);
+#else
+            localtime_r(&tt, &tm);
+#endif
+            std::ostringstream formatted;
+            formatted << std::put_time(&tm, "%I:%M %p");
+            return nlohmann::json({
+                { "time", formatted.str() },
+                { "epochMs", epochMs },
+                { "status", "ok" }
+            });
+        };
+        this->registerCapability(getTime);
+
+        CapabilitySpec listInstalled;
+        listInstalled.name = "apps.list_installed";
+        listInstalled.description = "List installed apps known to the CORE";
+        listInstalled.action = [](const nlohmann::json& args) {
+            (void)args;
+            const auto appNames = AppsManager::getAppNames_static();
+            return nlohmann::json({
+                { "appNames", appNames },
+                { "appNamesString", joinStrings(appNames, ", ") },
+                { "count", appNames.size() },
+                { "status", "ok" }
+            });
+        };
+        this->registerCapability(listInstalled);
+
+        CapabilitySpec toggleSound;
+        toggleSound.name = "audio.toggle_sound";
+        toggleSound.description = "Toggle CORE audio output";
+        toggleSound.action = [](const nlohmann::json& args) {
+            (void)args;
+            AudioOutput::toggleSound();
+            return nlohmann::json({
+                { "status", "ok" },
+                { "toggled", true }
+            });
+        };
+        this->registerCapability(toggleSound);
+
+        CapabilitySpec setSound;
+        setSound.name = "audio.set_sound";
+        setSound.description = "Set CORE audio output on or off";
+        setSound.action = [](const nlohmann::json& args) {
+            bool soundOn = false;
+            if (args.is_object() && args.contains("soundOn")) {
+                soundOn = parseBoolArg(args["soundOn"], false);
+            }
+            AudioOutput::setSound(soundOn);
+            return nlohmann::json({
+                { "status", "ok" },
+                { "soundOn", soundOn }
+            });
+        };
+        this->registerCapability(setSound);
 
         // TODO: Add other built-in core capabilities here (audio playback,
         // UI drawing, NFC, etc.). Keep implementations in a dedicated
@@ -537,39 +658,36 @@ void FunctionRegistry::loadCapabilityManifests(const std::vector<std::string>& p
     std::vector<std::string> searchPaths = paths;
     if (searchPaths.empty()) {
         searchPaths.push_back("data/capabilities");
-        // apps/*/capabilities
-        searchPaths.push_back("apps");
+        for (const auto& root : configuredAppRoots()) {
+            searchPaths.push_back(root);
+        }
     }
+
     for (const auto& p : searchPaths) {
         std::error_code ec;
-        // Special-case apps directory: iterate each app and load its capabilities
-        if (p == "apps") {
-            if (!std::filesystem::exists(p, ec))
-                continue;
-            for (auto& dir : std::filesystem::directory_iterator(p)) {
-                if (!dir.is_directory())
-                    continue;
-                auto capDir = dir.path() / "capabilities";
-                if (!std::filesystem::exists(capDir))
-                    continue;
-                for (auto& f : std::filesystem::directory_iterator(capDir)) {
-                    if (f.path().extension() != ".json")
-                        continue;
-                    processCapabilityFile(this, f.path(), dir.path());
-                }
-            }
-            continue;
-        }
-
-        // For other directories, skip early if missing or not a directory
         if (!std::filesystem::exists(p, ec))
             continue;
         if (!std::filesystem::is_directory(p))
             continue;
-        for (auto& f : std::filesystem::directory_iterator(p)) {
-            if (f.path().extension() != ".json")
+
+        for (auto& entry : std::filesystem::directory_iterator(p)) {
+            if (entry.is_regular_file() && entry.path().extension() == ".json") {
+                processCapabilityFile(this, entry.path());
                 continue;
-            processCapabilityFile(this, f.path());
+            }
+            if (!entry.is_directory()) {
+                continue;
+            }
+
+            auto capDir = entry.path() / "capabilities";
+            if (!std::filesystem::exists(capDir) || !std::filesystem::is_directory(capDir)) {
+                continue;
+            }
+            for (auto& f : std::filesystem::directory_iterator(capDir)) {
+                if (f.path().extension() != ".json")
+                    continue;
+                processCapabilityFile(this, f.path(), entry.path());
+            }
         }
     }
 }
@@ -745,8 +863,7 @@ void FunctionRegistry::runCapabilityAsync(const std::string& capabilityName,
     t.work = [action, args]() -> nlohmann::json {
         try {
             if (action) {
-                action(args);
-                return nlohmann::json({ { "status", "ok" } });
+                return action(args);
             }
             return nlohmann::json({ { "error", "no_action" } });
         } catch (const std::exception& e) {

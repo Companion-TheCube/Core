@@ -170,12 +170,8 @@ int main(int argc, char* argv[])
     /////////////////////////////////////////////////////////////////
     GlobalSettings settings;
     auto logger = std::make_shared<CubeLog>();
-    // auto settingsLoader = new SettingsLoader(&settings); // This could probably just be a function.
-    {
-        auto settingsLoader = std::make_unique<SettingsLoader>(&settings);
-        settingsLoader->loadSettings();
-        // delete settingsLoader;
-    }
+    auto settingsLoader = std::make_unique<SettingsLoader>(&settings);
+    settingsLoader->loadSettings();
     if (argumentParser["--print"] == true) {
         std::cout << "\n\n" + settings.toString() << std::endl;
         exit(0);
@@ -233,78 +229,28 @@ int main(int argc, char* argv[])
     // Main loop
     /////////////////////////////////////////////////////////////////
     {
-        CubeLog::info("Loading GUI...");
-        auto gui = std::make_shared<GUI>();
-        auto audioManager = std::make_shared<AudioManager>();
         auto db_manager = std::make_shared<CubeDatabaseManager>();
         auto blobs = std::make_shared<BlobsManager>(db_manager, "data/blobs.db");
         auto cubeDB = std::make_shared<CubeDB>(db_manager, blobs);
+        AppsManager appsManager;
+
+        // TODO: App install/upgrade flows should materialize manifests under
+        // APP_INSTALL_ROOTS. AppsManager::initialize() now owns manifest sync
+        // plus best-effort startup of enabled system apps and autostart apps
+        // through launcher/systemd.
+        if (!appsManager.initialize()) {
+            CubeLog::warning("AppsManager initialization completed with one or more manifest sync errors.");
+        }
+
+        CubeLog::info("Loading GUI...");
+        auto gui = std::make_shared<GUI>();
+        auto audioManager = std::make_shared<AudioManager>();
         auto wifiManager = std::make_shared<WifiManager>();
         // auto btManager = std::make_shared<BTManager>();
         // Testing /////////////////////////////////////////////////
         long blobID = CubeDB::getBlobsManager()->addBlob("client_blobs", "test blob", "1");
         CubeLog::info("Blob ID: " + std::to_string(blobID));
-        bool allInsertionsSuccess = true;
-        long dbInsertReturnVal = -1;
-        // create string for apps db delete where clause so that it catches all apps with app_id 0 to 9
-        std::string deleteWhereClause = "app_id IN (";
-        for (int i = 0; i < 10; ++i) {
-            deleteWhereClause += std::to_string(i);
-            if (i < 9)
-                deleteWhereClause += ", ";
-        }
-        deleteWhereClause += ")";
-        // delete all apps with app_id 0 to 9
-        CubeLog::info("Deleting all apps with app_id 0 to 9 from apps database.");
-        CubeDB::getDBManager()->getDatabase("apps")->deleteData(DB_NS::TableNames::APPS, deleteWhereClause);
-        // TODO: All the base apps should be inserted into the database and/or verified in the database here.
-        dbInsertReturnVal = CubeDB::getDBManager()->getDatabase("apps")->insertData(
-            DB_NS::TableNames::APPS,
-            { { "app_id", "2" },
-                { "app_name", "ConsoleApp1" },
-                { "role", DB_NS::Roles::NATIVE_APP },
-                { "exec_path", "apps/consoleApp1/consoleApp1" },
-                { "exec_args", "arg1 arg2 arg3 arg4" },
-                { "app_source", "test source" },
-                { "update_path", "test update path" },
-                { "update_last_check", "test last check" },
-                { "update_last_update", "test last update" },
-                { "update_last_fail", "test last fail" },
-                { "update_last_fail_reason", "test last fail reason" } }); // test insert
-        allInsertionsSuccess &= (-1 < dbInsertReturnVal);
-        dbInsertReturnVal = CubeDB::getDBManager()->getDatabase("apps")->insertData(
-            DB_NS::TableNames::APPS,
-            { { "app_id", "3" },
-                { "app_name", "ConsoleApp2" },
-                { "role", DB_NS::Roles::NATIVE_APP },
-                { "exec_path", "apps/consoleApp1/consoleApp1" },
-                { "exec_args", "arg5 arg6 arg7 arg8" },
-                { "app_source", "test source" },
-                { "update_path", "test update path" },
-                { "update_last_check", "test last check" },
-                { "update_last_update", "test last update" },
-                { "update_last_fail", "test last fail" },
-                { "update_last_fail_reason", "test last fail reason" } }); // test insert
-        allInsertionsSuccess &= (-1 < dbInsertReturnVal);
-        dbInsertReturnVal = CubeDB::getDBManager()->getDatabase("apps")->insertData(
-            DB_NS::TableNames::APPS,
-            { { "app_id", "5" },
-                { "app_name", "openwakeword" },
-                { "role", DB_NS::Roles::NATIVE_APP },
-                { "exec_path", "apps/openwakeword/bin/python3" },
-                { "exec_args", "apps/openwakeword/openww.py --model_path apps/openwakeword/hey_cube.onnx,apps/openwakeword/hey_cuba.onnx,apps/openwakeword/hey_cube2.onnx,apps/openwakeword/hey_cue.onnx --inference_framework onnx" },
-                { "app_source", "test source" },
-                { "update_path", "test update path" },
-                { "update_last_check", "test last check" },
-                { "update_last_update", "test last update" },
-                { "update_last_fail", "test last fail" },
-                { "update_last_fail_reason", "test last fail reason" } }); // test insert
-        allInsertionsSuccess &= (-1 < dbInsertReturnVal);
-        // TODO: add the insert for the openwakeword python script here. This will be a native app and will use the python executable in the openwakeword/venv/bin(Linux) or openwakeword/Scripts(Windows) directory.
-        if (!allInsertionsSuccess)
-            CubeLog::warning("Failed to insert data into database. Last error: " + CubeDB::getDBManager()->getDatabase("apps")->getLastError());
         // end testing //////////////////////////////////////////////
-        AppsManager appsManager;
         auto api = std::make_shared<API>();
         auto auth = std::make_shared<CubeAuth>();
         auto peripherals = std::make_shared<PeripheralManager>();
@@ -316,8 +262,10 @@ int main(int argc, char* argv[])
             logger->registerInterface();
             audioManager->registerInterface();
             auth->registerInterface();
+            decisions->registerInterface();
             // btManager->registerInterface();
             api_builder.start();
+            decisions->start();
         
         CubeLog::info("Entering main loop...");
         std::chrono::milliseconds aSecond(1000);

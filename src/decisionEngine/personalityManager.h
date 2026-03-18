@@ -168,7 +168,7 @@ private:
 
     std::unordered_map<Emotion::EmotionType, Emotion&> emotions;
 
-    std::jthread* managerThread;
+    std::jthread managerThread;
     std::mutex managerMutex;
 };
 

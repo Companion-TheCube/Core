@@ -32,12 +32,14 @@ SOFTWARE.
 */
 
 #pragma once
+#include <atomic>
 #include "globalSettings.h"
 #include <filesystem>
 #include <fstream>
 #ifndef LOGGER_H
 #include <logger.h>
 #endif
+#include <mutex>
 #include <nlohmann/json.hpp>
 
 class SettingsLoader {
@@ -45,6 +47,10 @@ private:
     nlohmann::json settings;
     std::string settingsFile;
     GlobalSettings* globalSettings;
+    std::mutex saveMutex;
+    std::atomic<bool> suppressAutoSave = false;
+    void registerAutoSaveCallbacks();
+    void onSettingChanged();
 
 public:
     SettingsLoader(GlobalSettings* globalSettings);

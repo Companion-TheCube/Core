@@ -121,8 +121,26 @@ void ScheduledTask::setEnabled(bool enabled)
 
 void ScheduledTask::executeIntent()
 {
-    intent->execute();
+    if (intent) {
+        intent->execute();
+    }
     repeatCount++;
+}
+
+bool ScheduledTask::rescheduleAfterExecution()
+{
+    const auto repeatSeconds = schedule.repeat.toSeconds();
+    if (repeatSeconds == 0) {
+        enabled = false;
+        return false;
+    }
+
+    schedule.time = std::chrono::system_clock::now() + std::chrono::seconds(repeatSeconds);
+    if (schedule.endTime != TimePoint() && schedule.time > schedule.endTime) {
+        enabled = false;
+        return false;
+    }
+    return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -130,53 +148,71 @@ void ScheduledTask::executeIntent()
 // Start a background thread immediately; it idles until start() is called.
 Scheduler::Scheduler()
 {
-    schedulerThread = new std::jthread([this](std::stop_token st) {
+    schedulerThread = std::jthread([this](std::stop_token st) {
         schedulerThreadFunction(st);
     });
 }
 
 Scheduler::~Scheduler()
 {
-    if (schedulerThread) {
-        schedulerThread->request_stop();
-        schedulerThread->join();
+    if (schedulerThread.joinable()) {
+        schedulerThread.request_stop();
+        {
+            std::lock_guard<std::mutex> lock(schedulerMutex);
+            schedulerRunning = false;
+            schedulerPaused = false;
+        }
+        schedulerCV.notify_all();
+        schedulerThread.join();
     }
-    delete schedulerThread;
 }
 
 void Scheduler::start()
 {
     std::unique_lock<std::mutex> lock(schedulerMutex);
+    if (schedulerRunning && !schedulerPaused) {
+        return;
+    }
     schedulerRunning = true;
+    schedulerPaused = false;
     schedulerCV.notify_all();
 }
 
 void Scheduler::stop()
 {
     std::unique_lock<std::mutex> lock(schedulerMutex);
+    if (!schedulerRunning && !schedulerPaused) {
+        return;
+    }
     schedulerRunning = false;
+    schedulerPaused = false;
     schedulerCV.notify_all();
 }
 
 void Scheduler::pause()
 {
     std::unique_lock<std::mutex> lock(schedulerMutex);
+    if (!schedulerRunning || schedulerPaused) {
+        return;
+    }
     schedulerPaused = true;
+    schedulerCV.notify_all();
 }
 
 void Scheduler::resume()
 {
     std::unique_lock<std::mutex> lock(schedulerMutex);
+    if (!schedulerRunning || !schedulerPaused) {
+        return;
+    }
     schedulerPaused = false;
     schedulerCV.notify_all();
 }
 
 void Scheduler::restart()
 {
-    std::unique_lock<std::mutex> lock(schedulerMutex);
-    schedulerRunning = false;
-    schedulerPaused = false;
-    schedulerCV.notify_all();
+    stop();
+    start();
 }
 
 void Scheduler::setIntentRecognition(std::shared_ptr<I_IntentRecognition> intentRecognition)
@@ -238,20 +274,42 @@ void Scheduler::removeTask(uint32_t taskHandle)
 // any due tasks. Repeats are not yet re-enqueued (TODO noted below).
 void Scheduler::schedulerThreadFunction(std::stop_token st)
 {
-    
     while (!st.stop_requested()) {
         std::unique_lock<std::mutex> lock(schedulerMutex);
-        while (!schedulerRunning) {
-            schedulerCV.wait(lock);
+        schedulerCV.wait(lock, [this, &st]() {
+            return st.stop_requested() || (schedulerRunning && !schedulerPaused);
+        });
+        if (st.stop_requested()) {
+            break;
         }
-        while (!schedulerPaused) {
-            for (auto& task : scheduledTasks) {
-                if (task.isEnabled() && task.getSchedule().time <= std::chrono::system_clock::now()) {
-                    task.executeIntent();
-                    // TODO: check if the task should be repeated and if so, add it back to the scheduledTasks list
-                }
+
+        const auto now = std::chrono::system_clock::now();
+        for (auto it = scheduledTasks.begin(); it != scheduledTasks.end();) {
+            if (!it->isEnabled() || it->getSchedule().time > now) {
+                ++it;
+                continue;
             }
-            schedulerCV.wait_until(lock, std::chrono::system_clock::now() + std::chrono::milliseconds(SCHEDULER_THREAD_SLEEP_MS));
+
+            auto intent = it->getIntent();
+            const bool repeating = it->rescheduleAfterExecution();
+            if (!repeating) {
+                it = scheduledTasks.erase(it);
+            } else {
+                ++it;
+            }
+
+            lock.unlock();
+            if (intent) {
+                intent->execute();
+            }
+            lock.lock();
+        }
+
+        schedulerCV.wait_for(lock, std::chrono::milliseconds(SCHEDULER_THREAD_SLEEP_MS), [this, &st]() {
+            return st.stop_requested() || !schedulerRunning || schedulerPaused;
+        });
+        if (!schedulerRunning || schedulerPaused) {
+            continue;
         }
     }
 }

@@ -39,6 +39,8 @@ SOFTWARE.
 #include <functional>
 #include <iostream>
 #include <latch>
+#include <algorithm>
+#include <cmath>
 #include <sstream>
 #include <string>
 #include <typeinfo>
@@ -214,6 +216,118 @@ public:
     Rect getNoRect() const { return noBtn_; }
 };
 
+class CubeSliderBox : public M_Box {
+private:
+    struct Rect {
+        unsigned int xMin, xMax, yMin, yMax;
+    };
+
+    bool visible;
+    std::vector<MeshObject*> objects;
+    std::vector<MeshObject*> textObjects;
+    Shader* shader;
+    Shader* textShader;
+    Renderer* renderer;
+    CountingLatch* latch;
+    float messageTextSize = MESSAGEBOX_ITEM_TEXT_SIZE;
+    float index = 0.001f;
+    std::mutex mutex;
+    ClickableArea clickArea;
+    bool needsSetup = true;
+    bool needsRefresh = true;
+    bool hasCountedDown = false;
+    bool dragging = false;
+    int dragStartPointerX = 0;
+    int dragStartValue = 0;
+    glm::vec2 position;
+    glm::vec2 size;
+    std::string title = "Slider";
+    int minValue = 0;
+    int maxValue = 100;
+    int stepValue = 1;
+    int committedValue = 0;
+    int draftValue = 0;
+    std::function<void(int)> confirmCallback = nullptr;
+    std::function<void()> cancelCallback = nullptr;
+    Rect popupRect_{};
+    Rect trackRect_{};
+    Rect okBtn_{};
+    Rect cancelBtn_{};
+    Rect thumbRect_{};
+    M_SliderTexture* sliderObject = nullptr;
+
+    void clearTextObjects();
+    void clearObjects();
+    int clampAndSnapLocked(int value) const;
+    int valueFromScreenXLocked(int x) const;
+    float getNormalizedDraftValueLocked() const;
+    void updateRectsLocked();
+    void refreshVisualStateLocked();
+
+public:
+    CubeSliderBox(Shader* shader, Shader* textShader, Renderer* renderer, CountingLatch& latch);
+    ~CubeSliderBox();
+    void setup();
+    bool setVisible(bool visible);
+    bool getVisible();
+    void draw();
+    void setPosition(glm::vec2 position);
+    void setSize(glm::vec2 size);
+    std::vector<MeshObject*> getObjects();
+
+    void setTitle(const std::string& title);
+    void setRange(int minValue, int maxValue, int stepValue = 1);
+    void setCommittedValue(int value);
+    void setDraftValue(int value);
+    int getDraftValue();
+    void setConfirmCallback(std::function<void(int)> callback);
+    void setCancelCallback(std::function<void()> callback);
+    ClickableArea getClickableArea_() { return this->clickArea; }
+
+    Rect getPopupRect() const { return popupRect_; }
+    Rect getTrackRect() const { return trackRect_; }
+    Rect getOkRect() const { return okBtn_; }
+    Rect getCancelRect() const { return cancelBtn_; }
+    Rect getThumbRect() const { return thumbRect_; }
+    bool isInsidePopup(unsigned int x, unsigned int y) const
+    {
+        const unsigned int yMin = 720u - popupRect_.yMax;
+        const unsigned int yMax = 720u - popupRect_.yMin;
+        return x < popupRect_.xMax && x > popupRect_.xMin && y < yMax && y > yMin;
+    }
+    bool isInsideTrack(unsigned int x, unsigned int y) const
+    {
+        const unsigned int yMin = 720u - trackRect_.yMax;
+        const unsigned int yMax = 720u - trackRect_.yMin;
+        return x < trackRect_.xMax && x > trackRect_.xMin && y < yMax && y > yMin;
+    }
+    bool isInsideThumb(unsigned int x, unsigned int y) const
+    {
+        const unsigned int yMin = 720u - thumbRect_.yMax;
+        const unsigned int yMax = 720u - thumbRect_.yMin;
+        return x < thumbRect_.xMax && x > thumbRect_.xMin && y < yMax && y > yMin;
+    }
+    bool isInsideOk(unsigned int x, unsigned int y) const
+    {
+        const unsigned int yMin = 720u - okBtn_.yMax;
+        const unsigned int yMax = 720u - okBtn_.yMin;
+        return x < okBtn_.xMax && x > okBtn_.xMin && y < yMax && y > yMin;
+    }
+    bool isInsideCancel(unsigned int x, unsigned int y) const
+    {
+        const unsigned int yMin = 720u - cancelBtn_.yMax;
+        const unsigned int yMax = 720u - cancelBtn_.yMin;
+        return x < cancelBtn_.xMax && x > cancelBtn_.xMin && y < yMax && y > yMin;
+    }
+    bool beginDrag(unsigned int x, unsigned int y);
+    void handleTrackInteraction(unsigned int x);
+    void handleDragDelta(int deltaX);
+    void handlePointerMove(unsigned int x, unsigned int y);
+    void endDrag();
+    void confirmSelection();
+    void cancelSelection();
+};
+
 template <class T>
 class MakeCubeBoxClickable : public Clickable {
 public:
@@ -311,6 +425,75 @@ public:
 
 private:
     CubeNotificaionBox* box_;
+    ClickableArea* clickAreaPtr;
+};
+
+class SliderBoxClickable : public Clickable {
+public:
+    explicit SliderBoxClickable(CubeSliderBox* box)
+        : box_(box)
+    {
+        clickAreaPtr = new ClickableArea();
+        clickAreaPtr->clickableObject = this;
+    }
+    ~SliderBoxClickable() override { delete clickAreaPtr; }
+    void onClick(void* data) override
+    {
+        if (!box_->getVisible()) return;
+        auto* ev = static_cast<sf::Event*>(data);
+        unsigned int x = ev ? static_cast<unsigned int>(ev->mouseButton.x) : 0;
+        unsigned int y = ev ? static_cast<unsigned int>(ev->mouseButton.y) : 0;
+        if (box_->isInsideOk(x, y)) {
+            box_->confirmSelection();
+            return;
+        }
+        if (box_->isInsideCancel(x, y)) {
+            box_->cancelSelection();
+            return;
+        }
+        if (box_->isInsideTrack(x, y) || box_->isInsideThumb(x, y)) {
+            box_->handleTrackInteraction(x);
+        }
+    }
+    void onRelease(void* /*data*/) override
+    {
+        box_->endDrag();
+    }
+    void onMouseDown(void* data) override
+    {
+        if (!box_->getVisible()) return;
+        auto* ev = static_cast<sf::Event*>(data);
+        unsigned int x = ev ? static_cast<unsigned int>(ev->mouseButton.x) : 0;
+        unsigned int y = ev ? static_cast<unsigned int>(ev->mouseButton.y) : 0;
+        box_->beginDrag(x, y);
+    }
+    void onRightClick(void* /*data*/) override {}
+    ClickableArea* getClickableArea() override
+    {
+        auto area = box_->getClickableArea_();
+        clickAreaPtr->clickableObject = this;
+        clickAreaPtr->xMin = area.xMin;
+        clickAreaPtr->xMax = area.xMax;
+        clickAreaPtr->yMin = area.yMin;
+        clickAreaPtr->yMax = area.yMax;
+        return clickAreaPtr;
+    }
+    void setOnClick(std::function<unsigned int(void*)> /*action*/) override {}
+    void setOnRightClick(std::function<unsigned int(void*)> /*action*/) override {}
+    bool getIsClickable() override { return box_->getVisible(); }
+    bool setIsClickable(bool /*isClickable*/) override { return box_->getVisible(); }
+    std::vector<MeshObject*> getObjects() override { return box_->getObjects(); }
+    void setVisibleWidth(float /*width*/) override {}
+    void setClickAreaSize(unsigned int /*xMin*/, unsigned int /*xMax*/, unsigned int /*yMin*/, unsigned int /*yMax*/) override {}
+    void capturePosition() override {}
+    void restorePosition() override {}
+    void resetScroll() override {}
+    bool setVisible(bool v) override { return box_->setVisible(v); }
+    bool getVisible() override { return box_->getVisible(); }
+    void draw() override {}
+
+private:
+    CubeSliderBox* box_;
     ClickableArea* clickAreaPtr;
 };
 

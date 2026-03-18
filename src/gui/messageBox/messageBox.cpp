@@ -656,3 +656,432 @@ void CubeNotificaionBox::setText(const std::string& text, const std::string& tit
         CubeLog::info("NotificationBox text set");
     });
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+CubeSliderBox::CubeSliderBox(Shader* shader, Shader* textShader, Renderer* renderer, CountingLatch& latch)
+{
+    this->shader = shader;
+    this->textShader = textShader;
+    this->renderer = renderer;
+    this->latch = &latch;
+    this->visible = false;
+    this->position = { 144, 144 };
+    this->size = { 432, 432 };
+    this->clickArea = ClickableArea();
+    this->clickArea.clickableObject = nullptr;
+    this->clickArea.xMin = 0;
+    this->clickArea.xMax = 720;
+    this->clickArea.yMin = 0;
+    this->clickArea.yMax = 720;
+    CubeLog::info("SliderBox initialized");
+}
+
+CubeSliderBox::~CubeSliderBox()
+{
+    clearTextObjects();
+    clearObjects();
+    CubeLog::info("SliderBox destroyed");
+}
+
+void CubeSliderBox::clearTextObjects()
+{
+    for (auto* object : this->textObjects) {
+        delete object;
+    }
+    this->textObjects.clear();
+}
+
+void CubeSliderBox::clearObjects()
+{
+    for (auto* object : this->objects) {
+        delete object;
+    }
+    this->objects.clear();
+    this->sliderObject = nullptr;
+}
+
+int CubeSliderBox::clampAndSnapLocked(int value) const
+{
+    if (this->minValue >= this->maxValue) {
+        return this->minValue;
+    }
+    const int safeStep = std::max(this->stepValue, 1);
+    value = std::clamp(value, this->minValue, this->maxValue);
+    const float stepIndex = static_cast<float>(value - this->minValue) / static_cast<float>(safeStep);
+    int snapped = this->minValue + static_cast<int>(std::lround(stepIndex)) * safeStep;
+    if (snapped > this->maxValue) {
+        snapped = this->maxValue;
+    }
+    if (snapped < this->minValue) {
+        snapped = this->minValue;
+    }
+    return snapped;
+}
+
+float CubeSliderBox::getNormalizedDraftValueLocked() const
+{
+    if (this->maxValue <= this->minValue) {
+        return 0.0f;
+    }
+    const float numerator = static_cast<float>(this->draftValue - this->minValue);
+    const float denominator = static_cast<float>(this->maxValue - this->minValue);
+    return std::clamp(numerator / denominator, 0.0f, 1.0f);
+}
+
+int CubeSliderBox::valueFromScreenXLocked(int x) const
+{
+    if (this->trackRect_.xMax <= this->trackRect_.xMin || this->maxValue <= this->minValue) {
+        return this->minValue;
+    }
+    const float normalized = std::clamp(
+        static_cast<float>(x - static_cast<int>(this->trackRect_.xMin)) /
+            static_cast<float>(this->trackRect_.xMax - this->trackRect_.xMin),
+        0.0f,
+        1.0f);
+    const int rawValue = this->minValue + static_cast<int>(std::lround(normalized * static_cast<float>(this->maxValue - this->minValue)));
+    return clampAndSnapLocked(rawValue);
+}
+
+void CubeSliderBox::updateRectsLocked()
+{
+    this->popupRect_ = {
+        static_cast<unsigned int>(this->position.x),
+        static_cast<unsigned int>(this->position.x + this->size.x),
+        static_cast<unsigned int>(this->position.y),
+        static_cast<unsigned int>(this->position.y + this->size.y)
+    };
+
+    const unsigned int buttonHeight = static_cast<unsigned int>(this->messageTextSize * 2.2f);
+    const unsigned int buttonWidth = static_cast<unsigned int>((this->size.x - 3 * STENCIL_INSET_PX) / 2.f);
+    const unsigned int buttonsYMin = static_cast<unsigned int>(this->position.y + STENCIL_INSET_PX);
+    const unsigned int buttonsYMax = buttonsYMin + buttonHeight;
+    const unsigned int okXMin = static_cast<unsigned int>(this->position.x + STENCIL_INSET_PX);
+    const unsigned int cancelXMin = static_cast<unsigned int>(this->position.x + this->size.x - STENCIL_INSET_PX - buttonWidth);
+
+    this->okBtn_ = { okXMin, okXMin + buttonWidth, buttonsYMin, buttonsYMax };
+    this->cancelBtn_ = { cancelXMin, cancelXMin + buttonWidth, buttonsYMin, buttonsYMax };
+
+    const unsigned int trackInset = static_cast<unsigned int>(STENCIL_INSET_PX * 2);
+    const unsigned int trackHeight = static_cast<unsigned int>(std::max(this->messageTextSize * 0.9f, 24.0f));
+    const unsigned int trackYMin = static_cast<unsigned int>(this->position.y + (this->size.y * 0.42f));
+    this->trackRect_ = {
+        static_cast<unsigned int>(this->position.x + trackInset),
+        static_cast<unsigned int>(this->position.x + this->size.x - trackInset),
+        trackYMin,
+        trackYMin + trackHeight
+    };
+
+    const unsigned int thumbWidth = this->trackRect_.yMax - this->trackRect_.yMin;
+    const unsigned int usableTravel = (this->trackRect_.xMax - this->trackRect_.xMin) > thumbWidth
+        ? (this->trackRect_.xMax - this->trackRect_.xMin - thumbWidth)
+        : 0;
+    const unsigned int thumbXMin = this->trackRect_.xMin +
+        static_cast<unsigned int>(std::lround(static_cast<float>(usableTravel) * getNormalizedDraftValueLocked()));
+    this->thumbRect_ = { thumbXMin, thumbXMin + thumbWidth, this->trackRect_.yMin, this->trackRect_.yMax };
+}
+
+void CubeSliderBox::refreshVisualStateLocked()
+{
+    updateRectsLocked();
+    clearTextObjects();
+
+    if (this->sliderObject == nullptr) {
+        this->sliderObject = new M_SliderTexture(
+            this->textShader,
+            static_cast<float>(this->trackRect_.xMax - this->trackRect_.xMin),
+            static_cast<float>(this->trackRect_.yMax - this->trackRect_.yMin),
+            10,
+            { 1.f, 1.f, 1.f },
+            { static_cast<float>(this->trackRect_.xMin), static_cast<float>(this->trackRect_.yMax) });
+        this->objects.push_back(this->sliderObject);
+    } else {
+        this->sliderObject->setPosition({ static_cast<float>(this->trackRect_.xMin), static_cast<float>(this->trackRect_.yMax) });
+    }
+    this->sliderObject->setSliderPosition(getNormalizedDraftValueLocked());
+    this->sliderObject->setVisibility(this->visible);
+
+    auto* titleText = new M_Text(this->textShader, this->title, (this->messageTextSize * MESSAGEBOX_TITLE_TEXT_MULT), { 1.f, 1.f, 1.f }, { 0.f, 0.f });
+    const float titleWidth = titleText->getWidth();
+    const float titleX = this->position.x + (this->size.x - titleWidth) / 2.f;
+    const float titleY = (this->position.y + this->size.y) - this->messageTextSize - STENCIL_INSET_PX;
+    titleText->setPosition({ titleX, titleY });
+    this->textObjects.push_back(titleText);
+
+    auto* valueText = new M_Text(this->textShader, std::to_string(this->draftValue), this->messageTextSize * 1.2f, { 1.f, 1.f, 1.f }, { 0.f, 0.f });
+    const float valueWidth = valueText->getWidth();
+    const float valueX = this->position.x + (this->size.x - valueWidth) / 2.f;
+    const float valueY = static_cast<float>(this->trackRect_.yMax + this->messageTextSize * 1.8f);
+    valueText->setPosition({ valueX, valueY });
+    this->textObjects.push_back(valueText);
+
+    auto* okText = new M_Text(this->textShader, "OK", this->messageTextSize, { 0.1f, 1.f, 0.1f }, { 0.f, 0.f });
+    const float okWidth = okText->getWidth();
+    const float okX = this->okBtn_.xMin + (this->okBtn_.xMax - this->okBtn_.xMin - okWidth) / 2.f;
+    const float okY = this->okBtn_.yMin + ((this->okBtn_.yMax - this->okBtn_.yMin) - this->messageTextSize) / 2.f;
+    okText->setPosition({ okX, okY });
+    this->textObjects.push_back(okText);
+
+    auto* cancelText = new M_Text(this->textShader, "Cancel", this->messageTextSize, { 1.f, 0.2f, 0.2f }, { 0.f, 0.f });
+    const float cancelWidth = cancelText->getWidth();
+    const float cancelX = this->cancelBtn_.xMin + (this->cancelBtn_.xMax - this->cancelBtn_.xMin - cancelWidth) / 2.f;
+    const float cancelY = this->cancelBtn_.yMin + ((this->cancelBtn_.yMax - this->cancelBtn_.yMin) - this->messageTextSize) / 2.f;
+    cancelText->setPosition({ cancelX, cancelY });
+    this->textObjects.push_back(cancelText);
+
+    this->needsRefresh = false;
+}
+
+void CubeSliderBox::setup()
+{
+    if (!this->needsSetup) {
+        return;
+    }
+    this->needsSetup = false;
+
+    clearObjects();
+    const float radius = BOX_RADIUS;
+    const float diameter = radius * 2.0f;
+    const float xStart = mapRange(this->position.x, 0.f, 720.f, -1.f, 1.f);
+    const float yStart = mapRange(this->position.y, 0.f, 720.f, -1.f, 1.f);
+    const float xSize = mapRange(this->size.x, 0.f, 720.f, 0.f, 2.f);
+    const float ySize = mapRange(this->size.y, 0.f, 720.f, 0.f, 2.f);
+    glm::vec2 size_ = { xSize, ySize };
+    const float overlayZ = Z_DISTANCE + 0.02f;
+    const float panelZ = Z_DISTANCE + 0.03f;
+    const float outlineZ = Z_DISTANCE + 0.031f;
+    const float panelFill = 0.0f;
+
+    this->objects.push_back(new M_Rect(shader, { -1.f, -1.f, overlayZ }, { 2.f, 2.f }, 0.0, 0.0));
+    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart + radius, panelZ }, { size_.x - diameter, size_.y - diameter }, panelFill, panelFill));
+    this->objects.push_back(new M_Rect(shader, { xStart, yStart + radius, panelZ }, { radius, size_.y - diameter }, panelFill, panelFill));
+    this->objects.push_back(new M_Rect(shader, { xStart + size_.x - radius, yStart + radius, panelZ }, { radius, size_.y - diameter }, panelFill, panelFill));
+    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart, panelZ }, { size_.x - diameter, radius }, panelFill, panelFill));
+    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart + size_.y - radius, panelZ }, { size_.x - diameter, radius }, panelFill, panelFill));
+    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + size_.x - radius, yStart + size_.y - radius, panelZ }, 0, 90, { panelFill, panelFill, panelFill }));
+    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + radius, yStart + size_.y - radius, panelZ }, 90, 180, { panelFill, panelFill, panelFill }));
+    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + radius, yStart + radius, panelZ }, 180, 270, { panelFill, panelFill, panelFill }));
+    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + size_.x - radius, yStart + radius, panelZ }, 270, 360, { panelFill, panelFill, panelFill }));
+    this->objects.push_back(new M_Line(shader, { xStart + radius, yStart + size_.y, outlineZ }, { xStart + size_.x - radius, yStart + size_.y, outlineZ }));
+    this->objects.push_back(new M_Line(shader, { xStart + size_.x, yStart + radius, outlineZ }, { xStart + size_.x, yStart + size_.y - radius, outlineZ }));
+    this->objects.push_back(new M_Line(shader, { xStart + radius, yStart, outlineZ }, { xStart + size_.x - radius, yStart, outlineZ }));
+    this->objects.push_back(new M_Line(shader, { xStart, yStart + radius, outlineZ }, { xStart, yStart + size_.y - radius, outlineZ }));
+    this->objects.push_back(new M_Arc(shader, 50, radius, 0, 90, { xStart + size_.x - radius, yStart + size_.y - radius, outlineZ }));
+    this->objects.push_back(new M_Arc(shader, 50, radius, 360, 270, { xStart + size_.x - radius, yStart + radius, outlineZ }));
+    this->objects.push_back(new M_Arc(shader, 50, radius, 180, 270, { xStart + radius, yStart + radius, outlineZ }));
+    this->objects.push_back(new M_Arc(shader, 50, radius, 180, 90, { xStart + radius, yStart + size_.y - radius, outlineZ }));
+
+    if (!this->hasCountedDown) {
+        this->hasCountedDown = true;
+        this->latch->count_down();
+    }
+    this->needsRefresh = true;
+    CubeLog::info("SliderBox setup");
+}
+
+bool CubeSliderBox::setVisible(bool visible)
+{
+    std::lock_guard<std::mutex> lock(this->mutex);
+    bool previous = this->visible;
+    this->visible = visible;
+    this->dragging = false;
+    this->needsRefresh = true;
+    if (this->sliderObject != nullptr) {
+        this->sliderObject->setVisibility(visible);
+    }
+    return previous;
+}
+
+bool CubeSliderBox::getVisible()
+{
+    std::lock_guard<std::mutex> lock(this->mutex);
+    return this->visible;
+}
+
+void CubeSliderBox::draw()
+{
+    std::lock_guard<std::mutex> lock(this->mutex);
+    if (this->needsSetup) {
+        setup();
+    }
+    if (this->needsRefresh) {
+        refreshVisualStateLocked();
+    }
+    if (!this->visible) {
+        return;
+    }
+    for (auto* object : this->objects) {
+        object->draw();
+    }
+    for (auto* object : this->textObjects) {
+        object->draw();
+    }
+}
+
+void CubeSliderBox::setPosition(glm::vec2 position)
+{
+    std::lock_guard<std::mutex> lock(this->mutex);
+    this->position = position;
+    this->needsSetup = true;
+    this->needsRefresh = true;
+}
+
+void CubeSliderBox::setSize(glm::vec2 size)
+{
+    std::lock_guard<std::mutex> lock(this->mutex);
+    this->size = size;
+    this->needsSetup = true;
+    this->needsRefresh = true;
+}
+
+std::vector<MeshObject*> CubeSliderBox::getObjects()
+{
+    std::lock_guard<std::mutex> lock(this->mutex);
+    std::vector<MeshObject*> allObjects;
+    allObjects.insert(allObjects.end(), this->objects.begin(), this->objects.end());
+    allObjects.insert(allObjects.end(), this->textObjects.begin(), this->textObjects.end());
+    return allObjects;
+}
+
+void CubeSliderBox::setTitle(const std::string& title)
+{
+    std::lock_guard<std::mutex> lock(this->mutex);
+    this->title = title;
+    this->needsRefresh = true;
+}
+
+void CubeSliderBox::setRange(int minValue, int maxValue, int stepValue)
+{
+    std::lock_guard<std::mutex> lock(this->mutex);
+    if (minValue >= maxValue) {
+        CubeLog::warning("SliderBox: invalid range requested");
+        return;
+    }
+    this->minValue = minValue;
+    this->maxValue = maxValue;
+    this->stepValue = std::max(stepValue, 1);
+    this->committedValue = clampAndSnapLocked(this->committedValue);
+    this->draftValue = clampAndSnapLocked(this->draftValue);
+    this->needsRefresh = true;
+}
+
+void CubeSliderBox::setCommittedValue(int value)
+{
+    std::lock_guard<std::mutex> lock(this->mutex);
+    this->committedValue = clampAndSnapLocked(value);
+    this->draftValue = this->committedValue;
+    this->needsRefresh = true;
+}
+
+void CubeSliderBox::setDraftValue(int value)
+{
+    std::lock_guard<std::mutex> lock(this->mutex);
+    this->draftValue = clampAndSnapLocked(value);
+    this->needsRefresh = true;
+}
+
+int CubeSliderBox::getDraftValue()
+{
+    std::lock_guard<std::mutex> lock(this->mutex);
+    return this->draftValue;
+}
+
+void CubeSliderBox::setConfirmCallback(std::function<void(int)> callback)
+{
+    std::lock_guard<std::mutex> lock(this->mutex);
+    this->confirmCallback = callback;
+}
+
+void CubeSliderBox::setCancelCallback(std::function<void()> callback)
+{
+    std::lock_guard<std::mutex> lock(this->mutex);
+    this->cancelCallback = callback;
+}
+
+bool CubeSliderBox::beginDrag(unsigned int x, unsigned int y)
+{
+    std::lock_guard<std::mutex> lock(this->mutex);
+    if (!this->visible) {
+        return false;
+    }
+    if (!(isInsideTrack(x, y) || isInsideThumb(x, y))) {
+        this->dragging = false;
+        return false;
+    }
+    this->dragging = true;
+    this->dragStartPointerX = static_cast<int>(x);
+    this->dragStartValue = this->draftValue;
+    this->draftValue = valueFromScreenXLocked(static_cast<int>(x));
+    this->needsRefresh = true;
+    return true;
+}
+
+void CubeSliderBox::handleTrackInteraction(unsigned int x)
+{
+    std::lock_guard<std::mutex> lock(this->mutex);
+    this->draftValue = valueFromScreenXLocked(static_cast<int>(x));
+    this->needsRefresh = true;
+}
+
+void CubeSliderBox::handleDragDelta(int deltaX)
+{
+    std::lock_guard<std::mutex> lock(this->mutex);
+    if (!this->visible || !this->dragging) {
+        return;
+    }
+    this->draftValue = valueFromScreenXLocked(this->dragStartPointerX + deltaX);
+    this->needsRefresh = true;
+}
+
+void CubeSliderBox::handlePointerMove(unsigned int x, unsigned int y)
+{
+    std::lock_guard<std::mutex> lock(this->mutex);
+    if (!this->visible || !this->dragging) {
+        return;
+    }
+    if (!(isInsideTrack(x, y) || isInsideThumb(x, y) || isInsidePopup(x, y))) {
+        return;
+    }
+    this->draftValue = valueFromScreenXLocked(static_cast<int>(x));
+    this->needsRefresh = true;
+}
+
+void CubeSliderBox::endDrag()
+{
+    std::lock_guard<std::mutex> lock(this->mutex);
+    this->dragging = false;
+}
+
+void CubeSliderBox::confirmSelection()
+{
+    std::function<void(int)> callback;
+    int value = 0;
+    {
+        std::lock_guard<std::mutex> lock(this->mutex);
+        this->committedValue = this->draftValue;
+        this->visible = false;
+        this->dragging = false;
+        this->needsRefresh = true;
+        callback = this->confirmCallback;
+        value = this->committedValue;
+    }
+    if (callback) {
+        callback(value);
+    }
+}
+
+void CubeSliderBox::cancelSelection()
+{
+    std::function<void()> callback;
+    {
+        std::lock_guard<std::mutex> lock(this->mutex);
+        this->draftValue = this->committedValue;
+        this->visible = false;
+        this->dragging = false;
+        this->needsRefresh = true;
+        callback = this->cancelCallback;
+    }
+    if (callback) {
+        callback();
+    }
+}

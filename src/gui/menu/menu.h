@@ -148,7 +148,11 @@ private:
     float scrollWait = 0;
     glm::vec4 originalPosition;
     EntryType type = EntryType::MENUENTRY_TYPE_ACTION;
+    unsigned int sliderMinValue = 0;
+    unsigned int sliderMaxValue = 100;
+    unsigned int sliderStepValue = 1;
     void setVisibleWidth(float width);
+    float getNormalizedSliderPosition() const;
     static unsigned int menuEntryCount;
     unsigned int menuEntryIndex;
     int groupID;
@@ -184,6 +188,7 @@ public:
     void setGroupID(int groupID) { this->groupID = groupID; }
     int getGroupID() { return this->groupID; }
     void setStatusReturnData(unsigned int statusReturnData) { this->statusReturnData = statusReturnData; }
+    void setSliderRange(unsigned int minValue, unsigned int maxValue, unsigned int stepValue = 1);
     void setEntryTextTouched(bool touched);
     std::string getEntryText() { return this->text; }
     void setEntryText(const std::string& text);

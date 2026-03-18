@@ -8,7 +8,7 @@
 # Release builds enable optimizations, strip debug symbols, and define PRODUCTION_BUILD.
 
 # Minimum version of CMake required
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.11)
 
 # Project name and the language used
 project(CubeCore VERSION 0.1.0 LANGUAGES CXX)
@@ -29,10 +29,10 @@ endif()
 set(TRANSLATE_ENABLED ON)
 
 # Optionally sync build information and artifacts with the build server
-option(ENABLE_BUILD_SERVER "Sync build info/artifacts with server" ON)
+option(ENABLE_BUILD_SERVER "Sync build info/artifacts with server" OFF)
 
 # Optionally run helper scripts from the tooling directory
-option(ENABLE_TOOLING_SCRIPTS "Run helper tooling scripts" ON)
+option(ENABLE_TOOLING_SCRIPTS "Run helper tooling scripts" OFF)
 
 # This is a hack to make intellisense work well with a bunch of lambdas
 add_definitions(-D_ENABLE_LAMBDAS)
@@ -158,6 +158,15 @@ set(WHISPER_BUILD_SERVER   OFF CACHE BOOL "" FORCE)
 set(WHISPER_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
 set(WHISPER_SDL2           OFF CACHE BOOL "" FORCE)
 set(WHISPER_CURL           OFF CACHE BOOL "" FORCE)
+set(WHISPERCPP_FETCH_ROOT "${CMAKE_BINARY_DIR}/_deps")
+set(WHISPERCPP_SOURCE_DIR "${WHISPERCPP_FETCH_ROOT}/whispercpp-src")
+if(EXISTS "${WHISPERCPP_SOURCE_DIR}" AND NOT EXISTS "${WHISPERCPP_SOURCE_DIR}/.git")
+    message(WARNING "Removing stale whisper.cpp FetchContent source directory: ${WHISPERCPP_SOURCE_DIR}")
+    file(REMOVE_RECURSE
+        "${WHISPERCPP_SOURCE_DIR}"
+        "${WHISPERCPP_FETCH_ROOT}/whispercpp-build"
+        "${WHISPERCPP_FETCH_ROOT}/whispercpp-subbuild")
+endif()
 FetchContent_Declare(
     WhisperCPP
     GIT_REPOSITORY https://github.com/ggerganov/whisper.cpp.git
@@ -205,12 +214,26 @@ include_directories(${msgpack_c_SOURCE_DIR}/include)
 
 
 FetchContent_Declare(
-    asio
-    GIT_REPOSITORY https://github.com/chriskohlhoff/asio.git
-    GIT_TAG        master
+    websocketpp
+    GIT_REPOSITORY https://github.com/zaphoyd/websocketpp.git
+    GIT_TAG 0.8.2
 )
-FetchContent_MakeAvailable(asio)
-include_directories(${asio_SOURCE_DIR}/asio/include)
+FetchContent_MakeAvailable(websocketpp)
+configure_file(
+    ${CMAKE_SOURCE_DIR}/cmake/patch_websocketpp_boost188.cmake
+    ${CMAKE_BINARY_DIR}/generated/patch_websocketpp_boost188.cmake
+    COPYONLY
+)
+execute_process(
+    COMMAND
+        ${CMAKE_COMMAND}
+        -DWEBSOCKETPP_SOURCE_DIR=${websocketpp_SOURCE_DIR}
+        -P ${CMAKE_BINARY_DIR}/generated/patch_websocketpp_boost188.cmake
+    RESULT_VARIABLE WEBSOCKETPP_PATCH_RESULT
+)
+if(NOT WEBSOCKETPP_PATCH_RESULT EQUAL 0)
+    message(FATAL_ERROR "Failed to patch websocketpp for Boost.Asio 1.88 compatibility")
+endif()
 
 
 file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/libraries)
@@ -270,6 +293,7 @@ if(NOT EXISTS ${HTTPLIB_HEADER})
 endif()
 
 find_package(OpenSSL REQUIRED)
+find_package(Boost REQUIRED COMPONENTS system)
 if (OpenSSL_FOUND)
     # Ensure OpenSSL libraries are linked for targets that use httplib/OpenSSL functions
     # Some FetchContent subprojects (vendor cpp-httplib) expect SSL symbols; adding
@@ -506,7 +530,6 @@ else()
     set(WIRINGPI_LIB "")
 endif()
 
-target_compile_definitions(CubeCoreLib PRIVATE ASIO_NO_DEPRECATED ASIO_STANDALONE)
 # Link libraries to the core library so consumers inherit them
 target_link_libraries(CubeCoreLib PUBLIC
     sfml-graphics
@@ -527,6 +550,7 @@ target_link_libraries(CubeCoreLib PUBLIC
     whisper
     OpenSSL::SSL
     OpenSSL::Crypto
+    Boost::system
     infoware
     pqxx
     pq
@@ -553,6 +577,7 @@ if(WIN32)
         ${SFML_INCLUDE_DIR}
         "C:/Users/Andrew/Documents/glm-1.0.1-light"
         ${whispercpp_SOURCE_DIR}
+        ${websocketpp_SOURCE_DIR}
    )
 else()
     target_include_directories(CubeCoreLib PUBLIC
@@ -563,6 +588,7 @@ else()
         ${SFML_INCLUDE_DIR}
         ${whispercpp_SOURCE_DIR}
         ${PQXX_INCLUDE_DIRS}
+        ${websocketpp_SOURCE_DIR}
     )
 endif()
 
@@ -716,6 +742,20 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E echo "Copying data to output directory"
 )
 
+# Copy Whisper models directory to runtime output directory
+set(WHISPER_MODELS_SRC_DIR "${CMAKE_SOURCE_DIR}/libraries/whisper_models")
+if(EXISTS ${WHISPER_MODELS_SRC_DIR})
+    set(WHISPER_DEST_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/whisper_models")
+    add_custom_command(
+        TARGET CubeCore POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${WHISPER_DEST_DIR}
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${WHISPER_MODELS_SRC_DIR} ${WHISPER_DEST_DIR}
+        COMMENT "Copying Whisper models to output directory"
+    )
+else()
+    message(WARNING "Whisper models directory not found at ${WHISPER_MODELS_SRC_DIR}. Skipping copy.")
+endif()
+
 # copy base apps to the apps directory
 add_custom_command(
     TARGET CubeCore POST_BUILD
@@ -730,6 +770,13 @@ add_custom_command(
     ${CMAKE_HOME_DIRECTORY}/openwakeword/
     ${APPS_DEST_DIR}/openwakeword/
     COMMAND ${CMAKE_COMMAND} -E echo "Copying openwakeword to apps directory"
+)
+add_custom_command(
+    TARGET CubeCore POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_HOME_DIRECTORY}/postgresql/
+    ${APPS_DEST_DIR}/postgresql/
+    COMMAND ${CMAKE_COMMAND} -E echo "Copying postgresql to apps directory"
 )
 
 # Ensure Python is found when needed

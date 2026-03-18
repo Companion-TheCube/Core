@@ -1126,7 +1126,7 @@ float M_ToggleTexture::getWidth() { return this->toggleWidth; }
 
 //////////////////////////////////////////////////////////////////////////////////////////
 
-unsigned char* createDotTexture(unsigned int size, unsigned int padding)
+unsigned char* createRingTexture(unsigned int size, unsigned int padding)
 {
     float overallWidthHeight = size + padding * 2.f;
     unsigned char* data = new unsigned char[(unsigned int)(overallWidthHeight * overallWidthHeight)];
@@ -1148,6 +1148,90 @@ unsigned char* createDotTexture(unsigned int size, unsigned int padding)
     return data;
 }
 
+unsigned char* createCircleTexture(unsigned int size, unsigned int padding, float radiusMultiplier)
+{
+    float overallWidthHeight = size + padding * 2.f;
+    unsigned char* data = new unsigned char[(unsigned int)(overallWidthHeight * overallWidthHeight)];
+    float center_x = overallWidthHeight / 2.0f;
+    float center_y = overallWidthHeight / 2.0f;
+    float circle_outer_radius = (size / 2.0f) * radiusMultiplier;
+    for (unsigned int y = 0; y < overallWidthHeight; ++y) {
+        for (unsigned int x = 0; x < overallWidthHeight; ++x) {
+            float dx = x - center_x;
+            float dy = y - center_y;
+            float dist = std::sqrt(dx * dx + dy * dy);
+            unsigned char pixel_color = 0;
+            if (dist <= circle_outer_radius) {
+                pixel_color = 255;
+            }
+            data[(unsigned int)((float)y * overallWidthHeight + x)] = pixel_color;
+        }
+    }
+    return data;
+}
+
+unsigned char* createCapsuleTexture(unsigned int width, unsigned int height, unsigned int padding, float thicknessMultiplier)
+{
+    const unsigned int totalWidth = width + padding * 2;
+    const unsigned int totalHeight = height + padding * 2;
+    unsigned char* data = new unsigned char[static_cast<size_t>(totalWidth) * static_cast<size_t>(totalHeight)];
+    std::fill(data, data + (static_cast<size_t>(totalWidth) * static_cast<size_t>(totalHeight)), 0);
+
+    const float yCenter = static_cast<float>(totalHeight) / 2.0f;
+    const float capsuleHeight = std::max(2.0f, static_cast<float>(height) * thicknessMultiplier);
+    const float radius = std::min(capsuleHeight / 2.0f, static_cast<float>(width) / 2.0f);
+    const float leftCenterX = static_cast<float>(padding) + radius;
+    const float rightCenterX = static_cast<float>(padding) + static_cast<float>(width) - radius;
+    const float top = yCenter - radius;
+    const float bottom = yCenter + radius;
+
+    for (unsigned int y = 0; y < totalHeight; ++y) {
+        for (unsigned int x = 0; x < totalWidth; ++x) {
+            const float xf = static_cast<float>(x);
+            const float yf = static_cast<float>(y);
+            bool inside = false;
+
+            if (xf >= leftCenterX && xf <= rightCenterX && yf >= top && yf <= bottom) {
+                inside = true;
+            } else {
+                const float leftDx = xf - leftCenterX;
+                const float rightDx = xf - rightCenterX;
+                const float dy = yf - yCenter;
+                if ((leftDx * leftDx + dy * dy) <= (radius * radius)) {
+                    inside = true;
+                }
+                if ((rightDx * rightDx + dy * dy) <= (radius * radius)) {
+                    inside = true;
+                }
+            }
+
+            data[static_cast<size_t>(y) * totalWidth + x] = inside ? 255 : 0;
+        }
+    }
+
+    return data;
+}
+
+unsigned char* createSliderThumbRingTexture(unsigned int size)
+{
+    const float overallSize = static_cast<float>(size);
+    unsigned char* data = new unsigned char[static_cast<size_t>(size) * static_cast<size_t>(size)];
+    const float center = overallSize / 2.0f;
+    const float outerRadius = (overallSize / 2.0f) - 1.0f;
+    const float innerRadius = outerRadius * 0.70f;
+
+    for (unsigned int y = 0; y < size; ++y) {
+        for (unsigned int x = 0; x < size; ++x) {
+            const float dx = static_cast<float>(x) - center;
+            const float dy = static_cast<float>(y) - center;
+            const float dist = std::sqrt(dx * dx + dy * dy);
+            data[static_cast<size_t>(y) * size + x] = (dist >= innerRadius && dist <= outerRadius) ? 255 : 0;
+        }
+    }
+
+    return data;
+}
+
 M_SliderTexture::M_SliderTexture(Shader* sh, float sliderWidth, float sliderHeight, unsigned int padding, glm::vec3 color, glm::vec2 position)
 {
     this->shader = sh;
@@ -1157,7 +1241,9 @@ M_SliderTexture::M_SliderTexture(Shader* sh, float sliderWidth, float sliderHeig
     this->padding = padding;
     this->color = color;
     this->scale_ = 1.0f;
-    this->dotTextureBitmap = createDotTexture(sliderHeight, padding);
+    const auto thumbTextureSize = static_cast<unsigned int>(std::lround(sliderHeight));
+    this->thumbBorderTextureBitmap = createSliderThumbRingTexture(thumbTextureSize);
+    this->thumbFillTextureBitmap = createCircleTexture(thumbTextureSize, 0, 0.66f);
     this->lineTextureBitmap = new unsigned char[(unsigned int)(sliderWidth + padding * 2) * (unsigned int)(sliderHeight + padding * 2)];
     for (unsigned int y = 0; y < sliderHeight + padding * 2; ++y) {
         for (unsigned int x = 0; x < sliderWidth + padding * 2; ++x) {
@@ -1168,29 +1254,43 @@ M_SliderTexture::M_SliderTexture(Shader* sh, float sliderWidth, float sliderHeig
             this->lineTextureBitmap[(unsigned int)((float)y * (sliderWidth + padding * 2) + x)] = pixel_color;
         }
     }
-    this->backgroundTextureBitmap = new unsigned char[(unsigned int)(sliderWidth + padding * 2) * (unsigned int)(sliderHeight + padding * 2)];
-    for (unsigned int y = 0; y < sliderHeight + padding * 2; ++y) {
-        for (unsigned int x = 0; x < sliderWidth + padding * 2; ++x) {
-            unsigned char pixel_color = 0;
-            if (y >= padding && y <= sliderHeight + padding) {
-                pixel_color = 255;
-            }
-            this->backgroundTextureBitmap[(unsigned int)((float)y * (sliderWidth + padding * 2) + x)] = pixel_color;
-        }
-    }
+    this->backgroundTextureBitmap = createCapsuleTexture(
+        static_cast<unsigned int>(std::lround(sliderWidth)),
+        static_cast<unsigned int>(std::lround(sliderHeight)),
+        padding,
+        0.34f);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glGenTextures(1, &this->dotTexture);
-    glBindTexture(GL_TEXTURE_2D, this->dotTexture);
+    glGenTextures(1, &this->thumbBorderTexture);
+    glBindTexture(GL_TEXTURE_2D, this->thumbBorderTexture);
+    const auto thumbTextureSizeGL = static_cast<GLsizei>(thumbTextureSize);
+    const auto sliderTextureWidth = static_cast<GLsizei>(sliderWidth + padding * 2);
+    const auto sliderTextureHeight = static_cast<GLsizei>(sliderHeight + padding * 2);
     glTexImage2D(
         GL_TEXTURE_2D,
         0,
         GL_RED,
-        sliderWidth + padding * 2,
-        sliderHeight + padding * 2,
+        thumbTextureSizeGL,
+        thumbTextureSizeGL,
         0,
         GL_RED,
         GL_UNSIGNED_BYTE,
-        this->dotTextureBitmap);
+        this->thumbBorderTextureBitmap);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glGenTextures(1, &this->thumbFillTexture);
+    glBindTexture(GL_TEXTURE_2D, this->thumbFillTexture);
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RED,
+        thumbTextureSizeGL,
+        thumbTextureSizeGL,
+        0,
+        GL_RED,
+        GL_UNSIGNED_BYTE,
+        this->thumbFillTextureBitmap);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -1201,8 +1301,8 @@ M_SliderTexture::M_SliderTexture(Shader* sh, float sliderWidth, float sliderHeig
         GL_TEXTURE_2D,
         0,
         GL_RED,
-        sliderWidth + padding * 2,
-        sliderHeight + padding * 2,
+        sliderTextureWidth,
+        sliderTextureHeight,
         0,
         GL_RED,
         GL_UNSIGNED_BYTE,
@@ -1217,8 +1317,8 @@ M_SliderTexture::M_SliderTexture(Shader* sh, float sliderWidth, float sliderHeig
         GL_TEXTURE_2D,
         0,
         GL_RED,
-        sliderWidth + padding * 2,
-        sliderHeight + padding * 2,
+        sliderTextureWidth,
+        sliderTextureHeight,
         0,
         GL_RED,
         GL_UNSIGNED_BYTE,
@@ -1244,9 +1344,14 @@ M_SliderTexture::M_SliderTexture(Shader* sh, float sliderWidth, float sliderHeig
 M_SliderTexture::~M_SliderTexture()
 {
     // CubeLog::info("Destroyed SliderTexture");
-    glDeleteTextures(1, &this->dotTexture);
+    glDeleteTextures(1, &this->thumbBorderTexture);
+    glDeleteTextures(1, &this->thumbFillTexture);
     glDeleteTextures(1, &this->lineTexture);
     glDeleteTextures(1, &this->backgroundTexture);
+    delete[] this->thumbBorderTextureBitmap;
+    delete[] this->thumbFillTextureBitmap;
+    delete[] this->lineTextureBitmap;
+    delete[] this->backgroundTextureBitmap;
 }
 
 void M_SliderTexture::draw()
@@ -1254,11 +1359,9 @@ void M_SliderTexture::draw()
     if(!this->visible) {
         return;
     }
-    CubeLog::critical("Drawing slider texture");
     this->shader->use();
     shader->setVec3("textColor", this->color.x, this->color.y, this->color.z);
     shader->setMat4("projection", projectionMatrix);
-    shader->setFloat("zindex", 0.2f);
     shader->setFloat("alpha", 1.0f);
     shader->setFloat("bg_alpha", 1.0f);
     glActiveTexture(GL_TEXTURE0);
@@ -1274,34 +1377,19 @@ void M_SliderTexture::draw()
         { xPos + this->sliderWidth, yPos + this->sliderHeight, 1.0f, 0.0f }, // Top-right
         { xPos + this->sliderWidth, yPos, 1.0f, 1.0f } // Bottom-right
     };
+    shader->setFloat("zindex", 0.20f);
+    shader->setVec3("textColor", 0.78f, 0.78f, 0.78f);
     glBindTexture(GL_TEXTURE_2D, this->backgroundTexture);
     glBindVertexArray(this->VAO);
     glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glDrawArrays(GL_TRIANGLES, 0, 6);
-    
-    float lineX = this->position.x + this->sliderWidth - this->sliderHeight;
-    float lineY = this->position.y - this->sliderHeight;
-    float verticesLine[6][4] = {
-        // Positions            // Texture Coords
-        { lineX, lineY + this->sliderHeight, 0.0f, 0.0f }, // Top-left
-        { lineX + this->sliderHeight, lineY, 1.0f, 1.0f }, // Bottom-right
-        { lineX, lineY, 0.0f, 1.0f }, // Bottom-left
 
-        { lineX, lineY + this->sliderHeight, 0.0f, 0.0f }, // Top-left
-        { lineX + this->sliderHeight, lineY + this->sliderHeight, 1.0f, 0.0f }, // Top-right
-        { lineX + this->sliderHeight, lineY, 1.0f, 1.0f } // Bottom-right
-    };
-    glBindTexture(GL_TEXTURE_2D, this->lineTexture);
-    glBindVertexArray(this->VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-
-    // dot x position is the left edge of the slider + (the width of the slider * this->sliderPosition)
-    float dotXPos = this->position.x + this->sliderWidth * this->sliderPosition;
+    // Keep the thumb fully inside the slider width and render it above the
+    // track quads so depth testing does not discard it.
+    const float usableSliderTravel = this->sliderWidth > this->sliderHeight ? this->sliderWidth - this->sliderHeight : 0.0f;
+    float dotXPos = this->position.x + usableSliderTravel * this->sliderPosition;
     float dotYPos = this->position.y - this->sliderHeight;
     float verticesDot[6][4] = {
         // Positions            // Texture Coords
@@ -1313,12 +1401,25 @@ void M_SliderTexture::draw()
         { dotXPos + this->sliderHeight, dotYPos + this->sliderHeight, 1.0f, 0.0f }, // Top-right
         { dotXPos + this->sliderHeight, dotYPos, 1.0f, 1.0f } // Bottom-right
     };
-    glBindTexture(GL_TEXTURE_2D, this->dotTexture);
+    shader->setFloat("bg_alpha", 0.0f);
+    shader->setVec3("textColor", 0.0f, 0.0f, 0.0f);
+    shader->setFloat("zindex", 0.22f);
+    glBindTexture(GL_TEXTURE_2D, this->thumbFillTexture);
     glBindVertexArray(this->VAO);
     glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(verticesDot), verticesDot);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    shader->setVec3("textColor", this->color.x, this->color.y, this->color.z);
+    shader->setFloat("zindex", 0.23f);
+    glBindTexture(GL_TEXTURE_2D, this->thumbBorderTexture);
+    glBindVertexArray(this->VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(verticesDot), verticesDot);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    shader->setFloat("bg_alpha", 1.0f);
     glBindVertexArray(0);
     glBindTexture(GL_TEXTURE_2D, 0);
 }

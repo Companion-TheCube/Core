@@ -38,8 +38,7 @@ SOFTWARE.
 // Components
 // - Intent: name + action + parameters + response strings (optionally emotion-scored)
 // - IntentRegistry: in-memory map of intents, plus HTTP API surface via AutoRegisterAPI
-// - I_IntentRecognition: strategy interface for recognizing intents (local/remote)
-// - LocalIntentRecognition: simple token/parameter name matcher with lightweight workers
+// - I_IntentRecognition: strategy interface for recognizing intents
 // - RemoteIntentRecognition: defers recognition to TheCubeServer (WIP)
 //
 // Typical flow
@@ -56,7 +55,6 @@ SOFTWARE.
 #ifndef API_I_H
 #include "../api/api.h"
 #endif
-#include "cubeWhisper.h"
 #include "nlohmann/json.hpp"
 #include "remoteServer.h"
 #include <chrono>
@@ -82,9 +80,6 @@ SOFTWARE.
 #include "functionRegistry.h"
 // #include "decisionsError.hpp"
 #include "remoteApi.h"
-
-#define LOCAL_INTENT_RECOGNITION_THREAD_COUNT 4
-#define LOCAL_INTENT_RECOGNITION_THREAD_SLEEP_MS 100
 
 namespace DecisionEngine {
 
@@ -212,6 +207,7 @@ private:
      * @brief Map of intent names to intents
      */
     std::unordered_map<std::string, std::shared_ptr<Intent>> intentMap;
+    std::shared_ptr<FunctionRegistry> functionRegistry;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -227,27 +223,6 @@ public:
 
 /////////////////////////////////////////////////////////////////////////////////////
 
-class LocalIntentRecognition : public I_IntentRecognition {
-public:
-    // Basic local recognition: tokenizes the input and matches against parameter
-    // names of registered intents. Intended for offline operation and as a fallback.
-    LocalIntentRecognition(std::shared_ptr<IntentRegistry> intentRegistry);
-    ~LocalIntentRecognition();
-    bool recognizeIntentAsync(const std::string& intentString, std::function<void(std::shared_ptr<Intent>)> callback) override;
-    bool recognizeIntentAsync(const std::string& intentString) override;
-
-private:
-    std::shared_ptr<Intent> recognizeIntent(const std::string& name, const std::string& intentString) override;
-    std::vector<std::jthread*> recognitionThreads;
-    std::vector<std::shared_ptr<TaskQueueWithData<std::function<void()>, std::string>>> taskQueues;
-    bool threadsReady = false;
-    // Pattern matching
-    // Weighted pattern matching
-    // Machine learning?
-};
-
-/////////////////////////////////////////////////////////////////////////////////////
-
 class RemoteIntentRecognition : public I_IntentRecognition, public I_RemoteApi {
 public:
     // Remote recognition: ships input text to TheCubeServer for LLM-backed matching.
@@ -258,7 +233,6 @@ public:
 
 private:
     std::shared_ptr<Intent> recognizeIntent(const std::string& name, const std::string& intentString) override;
-    std::jthread* recognitionThread;
 };
 /////////////////////////////////////////////////////////////////////////////////////
 
