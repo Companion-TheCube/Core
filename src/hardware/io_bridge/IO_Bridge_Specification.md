@@ -87,11 +87,20 @@ Required signals:
 - `MISO`
 - `CS`
 
-Recommended sideband signals:
+Current board constraint:
 
-- `BRIDGE_IRQ`: bridge to core interrupt / event doorbell
-- `BRIDGE_RDY`: bridge ready indicator after reset / boot
-- `BRIDGE_RST`: optional host-controlled reset line
+- The current bridge board revision does not expose dedicated `BRIDGE_IRQ`,
+  `BRIDGE_RDY`, or `BRIDGE_RST` signals.
+
+Software replacements for those functions:
+
+- The CORE discovers readiness by sending `HELLO` at a conservative SPI rate
+  until a valid `HELLO_RSP` is received.
+- The CORE drains pending events and credit updates by scheduling periodic
+  poll/drain SPI transactions when idle.
+- Reset and reboot behavior are requested through control packets such as
+  `CTRL.RESET` or `CTRL.REBOOT`; if the link is completely wedged, recovery is
+  by full system power cycle rather than a dedicated bridge reset pin.
 
 The SPI clock is expected to run in a high-speed range suitable for board layout and cable integrity. The exact supported range is advertised by the bridge during handshake.
 
@@ -140,7 +149,8 @@ The bridge is deliberately a small coprocessor, not a collection of fixed-functi
 - Discover bridge capabilities at boot
 - Configure ports as needed by Companion subsystems or third-party developer features
 - Submit requests and data to the bridge
-- Drain events from the bridge when `BRIDGE_IRQ` is asserted
+- Perform scheduled poll/drain SPI cycles so pending events and credit updates
+  are retrieved even when the host is otherwise idle
 - Manage timeouts, retries, and policy decisions at the application level
 - Route higher-level APIs such as Companion SPI / I2C / UART wrappers through the bridge instead of raw Linux devices where applicable
 
@@ -308,19 +318,20 @@ This document summarizes the protocol. The companion `ioBridge.md` contains the 
 - SPI is the primary transport
 - UART and I2C fallbacks may reuse the same frame structure for rescue or maintenance
 - The CORE must actively clock event data out of the BRIDGE because the BRIDGE is SPI slave
-- `BRIDGE_IRQ` tells the CORE that it should perform an event-drain cycle
+- There is no dedicated bridge-to-host interrupt or ready line in the current
+  board revision, so event draining and readiness detection are software-driven
+  over SPI packets
 
 ### 10.3 Session bring-up
 
 Expected sequence:
 
 1. Reset or power-up
-2. Wait for `BRIDGE_RDY`
-3. Send `HELLO`
-4. Receive `HELLO_RSP`
-5. Negotiate MTU, window size, endpoint counts, and capabilities
-6. Optionally time-sync
-7. Enter normal operation
+2. Send `HELLO` at a conservative SPI rate until the BRIDGE responds
+3. Receive `HELLO_RSP`
+4. Negotiate MTU, window size, endpoint counts, and capabilities
+5. Optionally time-sync
+6. Enter normal operation
 
 ## 11. Frame Structure
 
@@ -544,7 +555,7 @@ Event requirements:
 
 - timestamped
 - routable to the correct endpoint / port
-- drainable when `BRIDGE_IRQ` is asserted
+- drainable during normal traffic or explicit host-initiated poll/drain cycles
 - safe to batch when multiple events are pending
 
 ## 15. Error Model
@@ -643,7 +654,7 @@ Minimum coverage:
 - frame parser fuzzing
 - CRC failure handling
 - sliding-window retransmission behavior
-- event drain behavior under interrupt load
+- event drain behavior under host polling load and during active traffic
 - simultaneous slow `SPIX` plus active UART RX
 - I2C clock-stretch and timeout cases
 - GPIO interrupt batching
