@@ -1536,18 +1536,23 @@ bool transientUnitNeedsReplacement(
     return false;
 }
 
+void clearTransientUnitState(const std::string& unitName)
+{
+    const auto stopCommand = systemctlCommandPrefix() + " stop " + shellQuote(unitName) + " >/dev/null 2>&1";
+    runCommand(stopCommand);
+
+    const auto resetFailedCommand = systemctlCommandPrefix() + " reset-failed " + shellQuote(unitName) + " >/dev/null 2>&1";
+    runCommand(resetFailedCommand);
+}
+
 std::string buildLauncherRunCommand(
     const std::string& unitName,
     const std::string& appId,
     const fs::path& launcherExecutable,
-    const fs::path& launchRoot,
-    bool replaceExisting)
+    const fs::path& launchRoot)
 {
     std::string command = systemdRunCommandPrefix()
         + " --quiet";
-    if (replaceExisting) {
-        command += " --replace";
-    }
     command += " --unit " + shellQuote(unitName)
         + " --service-type=exec"
         + " --property=" + shellQuote("Restart=on-failure")
@@ -1569,7 +1574,8 @@ bool SystemdAppRuntimeController::startUnit(const std::string& unitName, std::st
     if (appId.has_value() && launcherExecutable.has_value()) {
         const auto inspection = inspectUnit(unitName);
         if (transientUnitNeedsReplacement(inspection, launcherExecutable->string(), *appId, launchRoot)) {
-            const auto replaceCommand = buildLauncherRunCommand(unitName, *appId, *launcherExecutable, launchRoot, true);
+            clearTransientUnitState(unitName);
+            const auto replaceCommand = buildLauncherRunCommand(unitName, *appId, *launcherExecutable, launchRoot);
             const int replaceRc = extractCommandExitCode(runCommand(replaceCommand));
             if (replaceRc == 0) {
                 return true;
@@ -1600,7 +1606,7 @@ bool SystemdAppRuntimeController::startUnit(const std::string& unitName, std::st
         return false;
     }
 
-    const auto fallbackCommand = buildLauncherRunCommand(unitName, *appId, *launcherExecutable, launchRoot, true);
+    const auto fallbackCommand = buildLauncherRunCommand(unitName, *appId, *launcherExecutable, launchRoot);
     const int fallbackRc = extractCommandExitCode(runCommand(fallbackCommand));
     if (fallbackRc == 0) {
         return true;

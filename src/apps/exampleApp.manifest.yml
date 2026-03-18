@@ -20,6 +20,7 @@ runtime:
   compatibility: "3.11"
   python:
     entry_script: "main.py"
+    package_name: "weather_clock"
   restart_policy: "on-failure"
   max_restart_burst: 5
   restart_window_seconds: 60
@@ -37,9 +38,23 @@ permissions:
     - "network.http_client"
     - "storage.app.private"
   filesystem:
+    # App-scoped tokens:
+    #   app://install
+    #   app://assets
+    #   app://data
+    #   app://cache
+    #   app://runtime
+    #
+    # Shared read-only token:
+    #   shared://readonly/<relative-path>
+    #
+    # Host system token:
+    #   system://<relative-host-path>
     read_only:
       - "app://install"
       - "app://assets"
+      - "shared://readonly/weather/icons"
+      - "system://usr/share/zoneinfo"
     read_write:
       - "app://data"
       - "app://cache"

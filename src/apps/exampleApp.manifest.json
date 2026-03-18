@@ -20,7 +20,8 @@
     "distribution": "venv",
     "compatibility": "3.11",
     "python": {
-      "entry_script": "main.py"
+      "entry_script": "main.py",
+      "package_name": "weather_clock"
     },
     "restart_policy": "on-failure",
     "max_restart_burst": 5,
@@ -43,7 +44,9 @@
     "filesystem": {
       "read_only": [
         "app://install",
-        "app://assets"
+        "app://assets",
+        "shared://readonly/weather/icons",
+        "system://usr/share/zoneinfo"
       ],
       "read_write": [
         "app://data",

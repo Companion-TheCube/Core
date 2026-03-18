@@ -1,52 +1,97 @@
-Steps for interacting with the API:
-1. Make an http GET request to TheCube.local (or localhost) on port 55200.
-2. Wait for this request to return code 200 OK.
-3. Interact with the API at TheCube.local:55280, localhost:55280, or the unix socket.
+# Core API
 
-The API is a RESTful API, and the following endpoints are available:
-- GET / - Main GUI page
-- GET /auth.js - Authentication Javascript functions
-- GET /getEndpoints - Returns a list of all available endpoints in JSON format
-- GET /getCubeSocketPath - Returns the path to the cube socket in JSON format
+This document describes the device-local API exposed by `CubeCore`.
 
-## Additional Endpoints
+## Overview
 
-Interface endpoints are exposed at `/InterfaceName-endpoint`.
+The API has two transports:
 
-### AudioManager
-- **GET /AudioManager-start** – Start the audio. (Public)
-- **GET /AudioManager-stop** – Stop the audio. (Public)
-- **GET /AudioManager-toggleSound** – Toggle the sound. (Public)
-- **GET /AudioManager-setSound** – Set the sound state; accepts `soundOn=true|false`. (Public)
+* HTTP, bound to `HTTP_ADDRESS:HTTP_PORT`
+* a local Unix socket, bound to `IPC_SOCKET_PATH`
 
-### CubeAuth
-- **GET /CubeAuth-authHeader** – Authorize a client and return an authentication header; requires `client_id` and `initial_code`. (Public)
-- **GET /CubeAuth-initCode** – Generate an initial authorization code for a client; requires `client_id`. Pass `return_code=true` to also receive the code and use the confirmation flow. (Public)
+Default values in code:
 
-### CubeDB
-- **POST /CubeDB-saveBlob** – Save a blob for a client or app; requires `client_id` or `app_id` and either `stringBlob` or `blob` (base64). (Private)
-- **GET /CubeDB-insertData** – Insert test data into the database. (Public)
-- **GET /CubeDB-retrieveBlobBinary** – Retrieve a binary blob; parameters `clientOrApp_id` and `blob_id`; returns base64 data. (Private)
-- **GET /CubeDB-retrieveBlobString** – Retrieve a string blob; parameters `clientOrApp_id` and `blob_id`. (Private)
+* HTTP address: `0.0.0.0`
+* HTTP port: `55280`
+* IPC socket path: `cube.sock`
 
-### Bluetooth
-- **GET /Bluetooth-stopBTManager** – Stop the Bluetooth manager. (Private)
-- **GET /Bluetooth-startBTManager** – Start the Bluetooth manager. (Private)
-- **POST /Bluetooth-addBTService** – Add a Bluetooth service to the manager. (Private)
+There is no separate bootstrap port in the current implementation. Clients talk directly to the configured HTTP port or the configured Unix socket.
 
-### GUI
-- **GET /GUI-messageBox** – Display a message box; parameters `text` and `title`. (Public)
-- **GET /GUI-textBox** – Display a text box; parameters `text`, `title`, `size-x`, `size-y`, `position-x`, `position-y`. (Public)
-- **POST /GUI-addMenu** – Add a menu to the GUI. (Private)
+## Configuration
 
-### Notifications
-- **POST /Notifications-showNotificationOkayWarningError** – Show a notification with an optional callback. (Private)
-- **POST /Notifications-showNotificationYesNo** – Show a yes/no notification with callbacks. (Private)
+These values are loaded from `.env` through `Config::loadFromDotEnv()`:
 
-### PersonalityManager
-- **GET /PersonalityManager-getEmotionValue** – Retrieve the value of an emotion; requires `emotion`. (Private)
-- **GET /PersonalityManager-setEmotionValue** – Set an emotion value with optional targeting parameters; requires `emotion` and may include `value`, `targetValue`, `targetTime`, `expiration`, `rampType`. (Private)
+* `HTTP_ADDRESS`
+* `HTTP_PORT`
+* `IPC_SOCKET_PATH`
 
-### Logger
-- **POST /Logger-log** – Log a message; requires `message`, `level`, `source`, `line`, and `function`. (Private)
-- **GET /Logger-getLogs** – Retrieve log entries. (Private)
+Important detail:
+
+* `.env` is loaded from the current working directory of the `CubeCore` process
+* if `IPC_SOCKET_PATH` is relative, `/getCubeSocketPath` resolves it relative to the server process working directory
+
+## Discovery Endpoints
+
+These public endpoints are added directly by the API builder:
+
+* `GET /` serves the main UI from `http/index.html`
+* `GET /auth.js` serves the auth helper script
+* `GET /getEndpoints` returns the currently registered API surface as JSON
+* `GET /getCubeSocketPath` returns the resolved IPC socket path as JSON
+* `GET /openapi.json` returns an OpenAPI-like description generated from registered endpoint metadata
+
+For clients and docs, `/getEndpoints` and `/openapi.json` are the source of truth for the currently active interface set.
+
+## Interface Endpoints
+
+Interface endpoints are exposed with this path shape:
+
+* `/InterfaceName-endpoint`
+
+Examples:
+
+* `/AudioManager-start`
+* `/CubeAuth-authHeader`
+* `/GUI-messageBox`
+
+These endpoints are registered dynamically from `AutoRegisterAPI` interfaces during startup. That means the exact API surface depends on:
+
+* which interfaces are compiled in
+* which components are instantiated at runtime
+* build flags such as Bluetooth-related options
+* platform/runtime availability
+
+## Security Model
+
+The API server distinguishes between public and non-public endpoints.
+
+Current behavior:
+
+* public endpoints are available on the HTTP server and the IPC server
+* non-public endpoints are intended to require auth on the HTTP side
+* the IPC server is the intended local transport for trusted on-device clients and apps
+
+This area is still evolving, so client code should not assume that every documented interface endpoint is safe to call unauthenticated over HTTP.
+
+## Practical Usage
+
+### HTTP
+
+Example:
+
+```bash
+curl http://127.0.0.1:55280/getEndpoints
+curl http://127.0.0.1:55280/openapi.json
+```
+
+If `HTTP_PORT` is overridden in `.env`, use that port instead.
+
+### IPC
+
+Use `/getCubeSocketPath` to discover the resolved socket path if you are not already controlling `IPC_SOCKET_PATH`.
+
+## Notes
+
+* Static files under `http/` are exposed as public GET endpoints.
+* The endpoint list in this repo can drift as interfaces evolve, so this document intentionally does not try to mirror every single interface method manually.
+* If you need the exact current contract for a running build, query `/getEndpoints` and `/openapi.json`.

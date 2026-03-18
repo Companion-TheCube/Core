@@ -59,54 +59,56 @@ cd Companion-TheCube---Core
 ```
 3. Build the project:
 ```bash
-mkdir build
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_BUILD_SERVER=ON
-# or for Debug build
-# cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DENABLE_BUILD_SERVER=ON
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+# or for Release
+# cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j --target CubeCore
 ```
 
-To skip syncing build information or artifacts with the remote server, configure with:
+Notes:
 
-```
--DENABLE_BUILD_SERVER=OFF
-```
-
-Alternatively set the environment variable `CUBECORE_OFFLINE=1` to keep the option enabled but avoid network calls during the build.
+- `ENABLE_BUILD_SERVER` defaults to `OFF`.
+- `ENABLE_TOOLING_SCRIPTS` defaults to `OFF`.
+- `BUILD_BT_MANAGER` defaults to `ON`.
 4. Run the application:
 ```bash
+cd build/bin
 ./CubeCore
 ```
 
 ## Environment Configuration (.env)
-The application reads configuration from a `.env` file in the repo root. Values are loaded once at startup and are available anywhere via `Config::get("KEY")`. Environment variables (exported in your shell or CI) override values in `.env`.
+The application reads configuration from a `.env` file in the current working directory when `CubeCore` starts. Values are loaded once at startup and are available anywhere via `Config::get("KEY")`. Environment variables exported in your shell or CI override values in `.env`.
 
 - HTTP: `HTTP_ADDRESS` (e.g., `0.0.0.0`), `HTTP_PORT` (e.g., `55280`).
 - IPC: `IPC_SOCKET_PATH` (UNIX domain socket path, e.g., `cube.sock`).
 - Tests: `HTTP_PORT_TEST` (e.g., `55281`), `IPC_SOCKET_PATH_TEST` (e.g., `test_ipc.sock`).
+- Apps/runtime: `THECUBE_APP_LAUNCHER_BIN`, `THECUBE_LAUNCH_ROOT`, `THECUBE_RUNTIME_ROOT`, `THECUBE_DATA_ROOT`, `THECUBE_CACHE_ROOT`.
 
 Quick start:
 ```bash
-cp .env.example .env
-# then edit .env as needed
+cp .env.example build/bin/.env
+# then edit build/bin/.env as needed
+cd build/bin
+./CubeCore
 ```
 
 Internals:
 - `.env` is parsed by `Config::loadFromDotEnv()` (called in `main.cpp`).
 - Access config anywhere with `#include "src/utils.h"` and `Config::get("KEY", "default")`.
+- If you run `CubeCore` from a different working directory, place `.env` in that directory or export the needed environment variables before launch.
 
 ## Running the tests
 Tests use Google Test and are built as `CubeCoreTests`.
 
 Quick start (Debug):
 ```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DENABLE_BUILD_SERVER=OFF
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
 cmake --build build -j --target CubeCoreTests
 ctest --test-dir build -C Debug -j
 ```
 
 Notes:
-- Ensure you have a `.env` (copy `.env.example`), especially for integration tests.
+- Ensure the test process can read the intended `.env`, especially for integration tests.
 - Integration tests read `HTTP_PORT_TEST` and `IPC_SOCKET_PATH_TEST`; avoid conflicts with other processes.
 - Run a single test via CTest:
   ```bash
@@ -141,7 +143,7 @@ Notes:
 
 All required system packages for these dependencies can be installed with:
 ```bash
-./install.sh
+./install-deps.sh dev
 ```
 
 The following fonts are used in the application and have been obtained from [Google Fonts](https://fonts.google.com/):
