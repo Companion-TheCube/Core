@@ -1,11 +1,43 @@
-# Translation Update Guide
+# Localization Guide
 
-This document explains how to update and compile translations for this project.
+This document describes the translation workflow that exists in this repository today.
 
-### Code 
+## Current Status
 
-In order to enable translation in your code, you need to use the `gettext` library. This library provides functions to translate strings into different languages.
-Place the following code at the beginning of your program to include the necessary headers:
+Translation support is currently gated in CMake behind:
+
+* `UNIX`
+* `TRANSLATE_ENABLED`
+
+In the current `CMakeLists.txt`, `TRANSLATE_ENABLED` defaults to `ON`.
+
+Current translation-related paths:
+
+* source templates: `localization/po/*.pot`
+* editable translations: `localization/po/<lang>.po`
+* compiled translations: `localization/mo/<lang>/LC_MESSAGES/CubeCore.mo`
+* runtime copy destination: `build/bin/localization/<lang>/LC_MESSAGES/CubeCore.mo`
+
+Current languages declared in CMake:
+
+* `en_US`
+* `es`
+* `fr`
+* `de`
+* `it`
+* `ja`
+* `ko`
+
+Important detail:
+
+* the repository currently contains translation templates, but not every language `.po` file is checked in yet
+* there is also some mismatch today between checked-in template naming and the per-language `.pot` naming that the CMake merge targets expect
+
+## Marking Strings In Code
+
+The current codebase uses `gettext`-style macros such as `_()` and `N_()` when translation is enabled.
+
+Pattern used in the codebase:
 
 ```cpp
 #ifdef TRANSLATE_ENABLED
@@ -18,92 +50,132 @@ Place the following code at the beginning of your program to include the necessa
 #define N_(String) String
 #endif
 ```
-Use "_()" function to mark the strings that need to be translated. For example:
+
+Example:
 
 ```cpp
 std::cout << _("Hello, World!") << std::endl;
 ```
-The macro will convert this to a call to the gettext function `gettext("Hello, World!")`.
 
-### Prerequisites
+If you introduce translatable UI strings in new code, make sure the translation macros are available in that compilation unit or header path.
 
-Ensure that `gettext` is installed on your system. You may need the following utilities:
-- `xgettext`: Extracts translatable strings to a `.pot` file.
-- `msgfmt`: Compiles `.po` files into `.mo` files.
+## Prerequisites
 
-### Directory Structure
+You need the standard gettext tools:
 
-The translation files are organized as follows:
-```
-project-root/
-    └── localization/
-        ├── po/
-        │   ├── en_US.po
-        │   └── es.po
-        └── mo/
-            ├── en_US/
-            │   └── LC_MESSAGES/
-            │       └── yourapp.mo
-            └── es/
-                └── LC_MESSAGES/
-                    └── yourapp.mo
-```
+* `xgettext`
+* `msgmerge`
+* `msgfmt`
 
-### How to Update Translations
+On Debian or Ubuntu, installing `gettext` is sufficient.
 
-Follow these steps to update the translations whenever you add or modify translatable strings in the code:
+## Practical Workflow
 
-## Step 1: Extract Translatable Strings
+### 1. Mark new strings
 
--  Run build command on the target GenerateTranslationPotFiles to generate the .pot files.
-- This command looks for `_()` function calls in `yourapp.cpp` and extracts the strings into `yourapp.pot`.
+Wrap user-facing strings with `_()` where appropriate.
 
-## Step 2: Update Language Files (`.po`)
+### 2. Regenerate or update the `.pot` template
 
-1. **Update Existing `.po` Files**: Merge any changes in the `.pot` file into each `.po` file to ensure they contain all current translatable strings.
+The current CMake file declares a POT-generation target named `GenrateTranslationPotFiles`.
 
-     - Run build on the target UpdateTranslationsPoFiles to update the .po files.
+Important detail:
 
-2. **Translate New Strings**: Open each `.po` file (e.g., `locale/po/en_US.po` and `locale/po/es.po`) in a text editor, and fill in translations for any new or modified `msgid` entries.
+* that target name is misspelled in CMake
+* it is also annotated there as `# not working`
 
-## Step 3: Compile `.po` Files to `.mo`
+So the reliable workflow today is to use `xgettext` manually if the target does not behave as expected.
 
-1. **Compile**: Convert each updated `.po` file into a binary `.mo` file. The `.mo` files are used by the application at runtime.
-
-    ```bash
-    msgfmt -o locale/mo/en_US/LC_MESSAGES/yourapp.mo locale/po/en_US.po
-    msgfmt -o locale/mo/es/LC_MESSAGES/yourapp.mo locale/po/es.po
-    ```
-
-## Step 4: Run the Application with Different Locales
-
-To test the application in a specific language, set the `LANG` environment variable:
+Example manual command pattern:
 
 ```bash
-LANG=es ./yourapp
+xgettext \
+  --keyword=_ \
+  --language=C++ \
+  --sort-output \
+  --from-code=UTF-8 \
+  --package-name=CubeCore \
+  --package-version=1.0.0 \
+  -o localization/po/gui.cpp.pot \
+  src/gui/gui.cpp
 ```
 
-This will run the application in Spanish (if `es.po` has been translated and compiled).
+If you are touching multiple translation-bearing source files, regenerate the relevant template files the same way.
 
-## Alternative: Using CMake to Automate Translation Updates
+### 3. Create or update language `.po` files
 
-1. If you prefer to update translations through CMake, use the `translations` target. Run the following commands:
+If a language file does not exist yet, create it from the relevant template.
 
-    ```bash
-    mkdir build
-    cd build
-    cmake ..
-    make translations
-    ```
+Example:
 
-2. This command will:
-   - Extract translatable strings.
-   - Update `.po` files.
-   - Compile `.po` files into `.mo` files.
+```bash
+cp localization/po/gui.cpp.pot localization/po/es.po
+```
 
-## Notes
+If the `.po` file already exists, merge updated template entries into it:
 
-- **Adding a New Language**: To add a new language, copy the `.pot` file to create a new `.po` file (e.g., `fr.po` for French), add translations, and follow Step 3 to compile.
-- **Editing Translations**: When modifying translations, edit only the `.po` files. Re-run Step 3 to compile the changes.
+```bash
+msgmerge --update localization/po/es.po localization/po/gui.cpp.pot
+```
 
-By following these steps, you can keep translations up to date and test your application with multiple languages.
+The current CMake file also declares:
+
+* `UpdateTranslationsPoFiles`
+
+That target reflects the intended merge step, but the repo should still be treated as using a partially rough translation pipeline because the file naming and target wiring are not fully cleaned up yet.
+
+### 4. Compile `.po` files into `.mo`
+
+Compile the finished translation into the runtime binary format:
+
+```bash
+mkdir -p localization/mo/es/LC_MESSAGES
+msgfmt -o localization/mo/es/LC_MESSAGES/CubeCore.mo localization/po/es.po
+```
+
+The current CMake file declares a target for this step:
+
+* `GenerateTranslationMoFiles`
+
+### 5. Make the runtime output available
+
+When the build-side copy step runs, locale files are copied into:
+
+```text
+build/bin/localization/<lang>/LC_MESSAGES/CubeCore.mo
+```
+
+That is the runtime location `CubeCore` expects in the build output tree.
+
+The current CMake file also declares an umbrella target:
+
+* `update_translations`
+
+Treat that as the intended combined target, not a guarantee that every translation workflow edge case is already polished.
+
+## Testing
+
+To test a locale, launch `CubeCore` with `LANG` set:
+
+```bash
+cd build/bin
+LANG=es ./CubeCore
+```
+
+Use the locale code that matches your compiled `.mo` directory.
+
+## Adding A New Language
+
+When adding a new language:
+
+1. create the new `.po` file from the appropriate template
+2. compile a matching `.mo` file under `localization/mo/<lang>/LC_MESSAGES/`
+3. add the language code to the `LANGUAGES` list in `CMakeLists.txt` if it is not already present
+
+## Current Gaps
+
+The translation pipeline exists, but it is not fully tidy yet:
+
+* the POT target is currently named `GenrateTranslationPotFiles`
+* the repository does not currently check in a full set of ready-to-edit `.po` files
+* translation automation in CMake should be treated as implementation-in-progress rather than a polished localization toolchain
