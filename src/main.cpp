@@ -442,6 +442,7 @@ int getTermColors()
         return false;
     }
 
+    // TODO: popen() + fgets() against a shell command is fragile because it depends on shell/process cleanup and unchecked command output; replace with a direct terminfo/terminal capability query or an RAII subprocess wrapper.
     FILE* pipe = popen("tput colors", "r");
     if (!pipe) {
         return false;

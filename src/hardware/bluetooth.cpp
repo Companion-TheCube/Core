@@ -74,6 +74,7 @@ BTControl::BTControl(uuids::uuid authUUID)
     // If it is, we will connect to it and get the client_id
     // If it is not, we will start it and then connect to it
 #ifndef PRODUCTION_BUILD
+    // TODO: Heap-allocating std::jthread/HTTP server/client objects here is fragile because destruction depends on matching manual delete/join paths; make them direct members or std::unique_ptr-owned resources.
     mockThread = new std::jthread(startMock);
 #endif
     this->server = new httplib::Server();
@@ -572,6 +573,7 @@ BTControl::BTControl(uuids::uuid authUUID)
     // TODO: register the callbacks with the GlobalSettings class so that the enabled/disable/etc actions get called when the setting is changed.
 
     // Start the server
+    // TODO: These worker threads are manually heap-managed, which makes shutdown ordering easy to break; store std::jthread directly so stop/join happen through normal object lifetime.
     this->serverThread = new std::jthread([&] {
         this->server->set_address_family(AF_UNIX).listen(this->address, 80);
     });
@@ -631,6 +633,7 @@ BTControl::~BTControl()
     this->mockThread->request_stop();
     this->mockThread->join();
 #endif
+    // TODO: Destructor cleanup is doing manual stop/delete/join across several heap-owned resources; replace with RAII members so shutdown cannot leak or double-delete on partial construction.
     if(this->server != nullptr){
         this->server->stop();
         delete this->server;

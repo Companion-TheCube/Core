@@ -726,6 +726,7 @@ char* Database::selectBlob(const std::string& tableName, const std::string& colu
         SQLite::Statement stmt(*this->db, query);
         if (stmt.executeStep()) {
             size = stmt.getColumn(0).size();
+            // TODO: Returning a raw heap blob makes ownership non-obvious because callers must remember to delete[] it; return a std::vector<std::byte>/std::string so lifetime stays local to the value type.
             char* blob = new char[size];
             // use std::copy to copy the data from the blob to the char array
             std::copy(static_cast<const char*>(stmt.getColumn(0).getBlob()), static_cast<const char*>(stmt.getColumn(0).getBlob()) + size, blob);
@@ -846,6 +847,7 @@ CubeDatabaseManager::~CubeDatabaseManager()
  */
 void CubeDatabaseManager::addDatabase(const std::string& dbPath)
 {
+    // TODO: Manual Database* ownership here is fragile because every success/failure path must stay paired with delete; store databases as std::unique_ptr<Database> and return references or observers.
     Database* db = new Database(dbPath);
     if (db->open()) {
         this->databases.push_back(db);
@@ -883,6 +885,7 @@ bool CubeDatabaseManager::removeDatabase(const std::string& dbName)
     for (size_t i = 0; i < this->databases.size(); i++) {
         if (this->databases[i]->getDBName() == dbName) {
             this->databases[i]->close();
+            // TODO: Manual delete in the manager is error-prone because container ownership is spread across add/remove/close paths; use std::unique_ptr in the vector so erasure performs cleanup automatically.
             delete this->databases[i];
             this->databases.erase(this->databases.begin() + i);
             return true;

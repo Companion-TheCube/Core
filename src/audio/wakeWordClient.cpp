@@ -64,6 +64,7 @@ void WakeWordClient::run(std::stop_token st)
         }
         sockaddr_un addr{};
         addr.sun_family = AF_UNIX;
+        // TODO: strncpy() into sockaddr_un plus reinterpret_cast<sockaddr*> is easy to misuse because truncation and ABI assumptions stay implicit; wrap UNIX-socket address setup in a helper that validates length and returns a typed sockaddr view.
         std::strncpy(addr.sun_path, kOpenWWSock, sizeof(addr.sun_path) - 1);
         if (connect(sockfd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {
             ++reconnects;

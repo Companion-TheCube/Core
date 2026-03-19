@@ -242,6 +242,7 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
     data.push_back({ PUBLIC_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
             // first we create a buffer to hold the response
+            // TODO: This manual response buffer is unsafe because size bookkeeping, cross-thread writes, and delete[] cleanup all have to stay perfectly aligned; replace it with a std::string/std::vector owned by the waiting scope.
             char* ret = new char[65535];
             int size = 0;
             std::mutex m;
@@ -285,6 +286,7 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
     data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
             // first we create a buffer to hold the response
+            // TODO: This manual response buffer is unsafe because size bookkeeping, cross-thread writes, and delete[] cleanup all have to stay perfectly aligned; replace it with a std::string/std::vector owned by the waiting scope.
             char* ret = new char[65535];
             int size = 0;
             std::mutex m;
@@ -451,4 +453,3 @@ constexpr std::string CubeDB::getInterfaceName() const
 {
     return "CubeDB";
 }
-

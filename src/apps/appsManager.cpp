@@ -1447,6 +1447,7 @@ std::string captureCommandOutput(const std::string& command)
 #else
     std::array<char, 256> buffer {};
     std::string output;
+    // TODO: popen() on a composed shell command is risky because quoting/injection and cleanup are easy to get wrong here; switch to an argument-vector subprocess API with RAII-managed pipes.
     FILE* pipe = popen(command.c_str(), "r");
     if (!pipe) {
         return {};

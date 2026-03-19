@@ -572,6 +572,7 @@ glm::mat4 M_PartCircle::getProjectionMatrix()
 unsigned char* createRadioButtonTexture(unsigned int size, unsigned int padding, bool selected)
 {
     float overallWidthHeight = size + padding * 2.f;
+    // TODO: Returning a raw heap bitmap here hides ownership because every caller must remember delete[]; return std::vector<unsigned char> or an owning texture-buffer type instead.
     unsigned char* data = new unsigned char[(unsigned int)(overallWidthHeight * overallWidthHeight)];
     float center_x = overallWidthHeight / 2.0f;
     float center_y = overallWidthHeight / 2.0f;
@@ -1129,6 +1130,7 @@ float M_ToggleTexture::getWidth() { return this->toggleWidth; }
 unsigned char* createRingTexture(unsigned int size, unsigned int padding)
 {
     float overallWidthHeight = size + padding * 2.f;
+    // TODO: Returning a raw heap bitmap here hides ownership because every caller must remember delete[]; return std::vector<unsigned char> or an owning texture-buffer type instead.
     unsigned char* data = new unsigned char[(unsigned int)(overallWidthHeight * overallWidthHeight)];
     float center_x = overallWidthHeight / 2.0f;
     float center_y = overallWidthHeight / 2.0f;
@@ -1174,6 +1176,7 @@ unsigned char* createCapsuleTexture(unsigned int width, unsigned int height, uns
 {
     const unsigned int totalWidth = width + padding * 2;
     const unsigned int totalHeight = height + padding * 2;
+    // TODO: This texture factory leaks ownership details into callers because it returns a raw array; switch to std::vector<unsigned char> so size and lifetime stay coupled.
     unsigned char* data = new unsigned char[static_cast<size_t>(totalWidth) * static_cast<size_t>(totalHeight)];
     std::fill(data, data + (static_cast<size_t>(totalWidth) * static_cast<size_t>(totalHeight)), 0);
 
@@ -1215,6 +1218,7 @@ unsigned char* createCapsuleTexture(unsigned int width, unsigned int height, uns
 unsigned char* createSliderThumbRingTexture(unsigned int size)
 {
     const float overallSize = static_cast<float>(size);
+    // TODO: This texture factory leaks ownership details into callers because it returns a raw array; switch to std::vector<unsigned char> so size and lifetime stay coupled.
     unsigned char* data = new unsigned char[static_cast<size_t>(size) * static_cast<size_t>(size)];
     const float center = overallSize / 2.0f;
     const float outerRadius = (overallSize / 2.0f) - 1.0f;
@@ -1244,6 +1248,7 @@ M_SliderTexture::M_SliderTexture(Shader* sh, float sliderWidth, float sliderHeig
     const auto thumbTextureSize = static_cast<unsigned int>(std::lround(sliderHeight));
     this->thumbBorderTextureBitmap = createSliderThumbRingTexture(thumbTextureSize);
     this->thumbFillTextureBitmap = createCircleTexture(thumbTextureSize, 0, 0.66f);
+    // TODO: M_SliderTexture manually owns several heap bitmaps, which is brittle because constructor/destructor paths must stay perfectly matched; replace these buffers with std::vector<unsigned char> members.
     this->lineTextureBitmap = new unsigned char[(unsigned int)(sliderWidth + padding * 2) * (unsigned int)(sliderHeight + padding * 2)];
     for (unsigned int y = 0; y < sliderHeight + padding * 2; ++y) {
         for (unsigned int x = 0; x < sliderWidth + padding * 2; ++x) {

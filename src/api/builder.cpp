@@ -289,6 +289,7 @@ void API_Builder::start()
                 CubeLog::warning("Unknown file type: " + l_path);
                 contentType = "application/octet-stream";
             }
+            // TODO: This heap buffer copy is wasteful and easy to get wrong because ownership is split across unique_ptr + raw pointer APIs; pass a std::string/std::vector-backed buffer to set_content() directly if the library supports it.
             std::unique_ptr<char[]> fileData(new char[fileSize]);
             memcpy(fileData.get(), buffer.data(), fileSize);
             res.set_content(fileData.get(), fileSize, contentType);

@@ -108,6 +108,7 @@ Menu::Menu(Renderer* renderer, CountingLatch& latch, unsigned int xMin, unsigned
 Menu::~Menu()
 {
     // CubeLog::info("Menu destroyed");
+    // TODO: Manual delete over this object list is fragile because ownership is implicit and must stay in sync with every push_back/new site; convert the collection to std::unique_ptr-owned renderables.
     for (auto object : this->objects) {
         delete object;
     }
@@ -131,6 +132,7 @@ unsigned int Menu::addMenuEntry(const std::string& text, const std::string& uniq
     float textY = mapRange(MENU_POSITION_SCREEN_RELATIVE_Y_TOP, SCREEN_RELATIVE_MIN_Y, SCREEN_RELATIVE_MAX_Y, SCREEN_PX_MIN_Y, SCREEN_PX_MAX_Y) - startY - (STENCIL_INSET_PX * 2) - this->menuItemTextSize;
     float menuWidthPx = mapRange(MENU_WIDTH_SCREEN_RELATIVE, SCREEN_RELATIVE_MIN_WIDTH, SCREEN_RELATIVE_MAX_WIDTH, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X);
     float menuWidthAdjusted = menuWidthPx - (STENCIL_INSET_PX * 2) - (MENU_ITEM_PADDING_PX * 2);
+    // TODO: Allocating MenuEntry with raw new() obscures ownership because lifetime is split across multiple containers and a manual destructor; store entries in std::unique_ptr and hand out non-owning pointers only where needed.
     auto entry = new MenuEntry(this->renderer->getTextShader(), this->renderer->getMeshShader(), text, { textX, textY }, menuItemTextSize, menuWidthAdjusted, type, statusAction, statusActionData);
     entry->getClickableArea()->yMin -= (MENU_ITEM_PADDING_PX);
     entry->getClickableArea()->yMax += (MENU_ITEM_PADDING_PX);
@@ -174,6 +176,7 @@ void Menu::addHorizontalRule()
     float startY = (((menuItemTextSize * 1.2) + MENU_ITEM_PADDING_PX) * this->childrenClickables.size()) + MENU_TOP_PADDING_PX + ((menuItemTextSize + (MENU_ITEM_PADDING_PX * 2)) / 2);
     // get start x from screen relative position of menu
     float startX = mapRange(MENU_POSITION_SCREEN_RELATIVE_X_LEFT, SCREEN_RELATIVE_MIN_X, SCREEN_RELATIVE_MAX_X, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X) + (STENCIL_INSET_PX * 2) + 30;
+    // TODO: This raw allocation relies on container/destructor discipline for cleanup; switch childrenClickables to std::unique_ptr so ownership is explicit and exception-safe.
     this->childrenClickables.push_back(new MenuHorizontalRule({ startX, startY }, 350, this->renderer->getMeshShader()));
     this->childrenClickables.at(this->childrenClickables.size() - 1)->setVisible(true);
     for (auto object : this->childrenClickables.at(this->childrenClickables.size() - 1)->getObjects()) {
@@ -297,6 +300,7 @@ void Menu::setAsMainMenu()
  */
 void Menu::setup()
 {
+    // TODO: Menu-owned UI objects are manually heap-allocated here and freed elsewhere, which makes lifetime brittle during setup failures; use std::unique_ptr-backed storage for renderer objects and stencil state.
     this->objects.push_back(new MenuBox({ MENU_POSITION_SCREEN_RELATIVE_X_CENTER, MENU_POSITION_SCREEN_RELATIVE_Y_CENTER }, { MENU_WIDTH_SCREEN_RELATIVE, MENU_HEIGHT_SCREEN_RELATIVE }, this->renderer->getMeshShader()));
     this->objects.at(0)->setVisible(true);
     // Shader* stencilShader = new Shader("shaders/menuStencil.vs", "shaders/menuStencil.fs");
@@ -306,6 +310,7 @@ void Menu::setup()
     float stencilY_start = mapRange(stencilY_start_temp, SCREEN_RELATIVE_MIN_Y, SCREEN_RELATIVE_MAX_Y, SCREEN_PX_MIN_Y, SCREEN_PX_MAX_Y);
     float stencilWidth = mapRange(MENU_WIDTH_SCREEN_RELATIVE, SCREEN_RELATIVE_MIN_WIDTH, SCREEN_RELATIVE_MAX_WIDTH, SCREEN_PX_MIN_X, SCREEN_PX_MAX_X) - (STENCIL_INSET_PX * 2);
     float stencilHeight = mapRange(MENU_HEIGHT_SCREEN_RELATIVE, SCREEN_RELATIVE_MIN_HEIGHT, SCREEN_RELATIVE_MAX_HEIGHT, SCREEN_PX_MIN_Y, SCREEN_PX_MAX_Y) - (STENCIL_INSET_PX * 2);
+    // TODO: This singleton-like raw pointer has hidden ownership and no local cleanup guarantee; make stencil a direct member or std::unique_ptr owned by Menu.
     this->stencil = new MenuStencil({ stencilX_start + STENCIL_INSET_PX, stencilY_start + STENCIL_INSET_PX }, { stencilWidth, stencilHeight }, this->renderer->getStencilShader());
     std::lock_guard<std::mutex> lock(this->mutex);
     this->ready = true;
@@ -654,6 +659,7 @@ MenuEntry::MenuEntry(Shader* t_shader, Shader* m_shader, const std::string& text
     this->statusReturnData = statusAction(statusActionArg);
     this->statusActionArg = statusActionArg;
 
+    // TODO: MenuEntry manually owns UI subobjects via raw pointers, which is brittle because every variant path must add/remove them consistently; replace allObjects/scrollObjects with smart-pointer-backed containers.
     this->textObject = new M_Text(
         textShader,
         text,
@@ -730,6 +736,7 @@ void MenuEntry::setEntryText(const std::string& text)
  */
 MenuEntry::~MenuEntry()
 {
+    // TODO: Manual delete over heterogeneous UI objects is easy to desynchronize from construction paths; use std::unique_ptr so destruction is automatic and exception-safe.
     for (auto object : this->allObjects) {
         delete object;
     }

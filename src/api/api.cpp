@@ -678,6 +678,7 @@ void CubeHttpServer::stop()
         struct sockaddr_un addr;
         memset(&addr, 0, sizeof(addr));
         addr.sun_family = AF_UNIX;
+        // TODO: Raw sockaddr_un setup here is brittle because strncpy() truncation and manual socket cleanup are silent failure modes; move this AF_UNIX wakeup path behind a small RAII helper that validates the socket path.
         strncpy(addr.sun_path, this->address.c_str(), sizeof(addr.sun_path) - 1);
         connect(dummy_fd, (struct sockaddr*)&addr, sizeof(addr));
         close(dummy_fd);

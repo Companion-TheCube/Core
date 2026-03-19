@@ -75,6 +75,7 @@ CubeMessageBox::CubeMessageBox(Shader* shader, Shader* textShader, Renderer* ren
  */
 CubeMessageBox::~CubeMessageBox()
 {
+    // TODO: Manual delete across message-box object arrays is brittle because ownership is spread across setup/update paths; convert these collections to std::unique_ptr-owned renderables.
     for (auto object : this->objects) {
         delete object;
     }
@@ -98,6 +99,7 @@ void CubeMessageBox::setup()
     glm::vec2 size_ = { 1.2f, 1.2f };
     // TODO: make the outline more like a speech bubble
     // TODO: the character to needs to be aligned with the box in a way that makes it look like a speech bubble
+    // TODO: This setup builds the widget tree with raw new() calls and relies on later manual cleanup; use std::unique_ptr-backed storage so partial setup and exceptions cannot leak UI objects.
     this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart + radius, Z_DISTANCE + this->index }, { size_.x - diameter, size_.y - diameter }, 0.0, 0.0)); // main box
     this->objects.push_back(new M_Rect(shader, { xStart, yStart + radius, Z_DISTANCE + this->index }, { radius, size_.y - diameter }, 0.0, 0.0)); // left
     this->objects.push_back(new M_Rect(shader, { xStart + size_.x - radius, yStart + radius, Z_DISTANCE + this->index }, { radius, size_.y - diameter }, 0.0, 0.0)); // right
@@ -131,6 +133,7 @@ void CubeMessageBox::setText(const std::string& text, const std::string& title)
         CubeLog::info("Objects size: " + std::to_string(this->objects.size()));
         CubeLog::info("textObjects size: " + std::to_string(this->textObjects.size()));
         CubeLog::info("Objects size in memory: " + std::to_string(this->objects.size() * sizeof(MeshObject)));
+        // TODO: Clearing and rebuilding textObjects with manual delete/new is fragile because ownership crosses async renderer tasks; store text objects as std::unique_ptr and replace the vector atomically.
         for (size_t index = 0; index < this->textObjects.size(); index++) {
             delete this->textObjects[index];
         }
@@ -603,6 +606,7 @@ void CubeNotificaionBox::setText(const std::string& text, const std::string& tit
 
     this->renderer->addSetupTask([&, text, title]() {
         // Clear old text
+        // TODO: Notification text rebuilds manually delete and recreate heap objects inside a queued task, which is easy to race or leak; use std::unique_ptr and swap in a rebuilt object list.
         for (auto* t : this->textObjects) delete t;
         this->textObjects.clear();
         // Title centered
