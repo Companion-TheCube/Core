@@ -214,6 +214,13 @@ struct TheCubeServerAPI::WsBridge {
             const auto j = nlohmann::json::parse(payload);
             if (j.contains("transcript") && j["transcript"].is_string()) {
                 latestTranscript = j["transcript"].get<std::string>();
+                const bool isFinal = !j.contains("final")
+                    || !j["final"].is_boolean()
+                    || j["final"].get<bool>();
+                if (isFinal && !latestTranscript.empty()) {
+                    finalTranscript = latestTranscript;
+                    finalReady = true;
+                }
                 cv.notify_all();
                 return;
             }

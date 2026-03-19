@@ -185,6 +185,9 @@ std::string get(const std::string& key, const std::string& defaultValue = "");
 // Insert or override a key at runtime (useful for tests or dynamic config).
 void set(const std::string& key, const std::string& value);
 
+// Remove a key from the runtime config map so tests can exercise fallback paths.
+void erase(const std::string& key);
+
 // Whether a key exists in the configuration map (after lazy load).
 bool has(const std::string& key);
 } // namespace Config

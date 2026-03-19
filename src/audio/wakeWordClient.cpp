@@ -27,7 +27,12 @@ void WakeWordClient::setOnWake(OnWake cb) { onWake_ = std::move(cb); }
 void WakeWordClient::start()
 {
     CubeLog::info("WakeWordClient: start requested");
+    if (thread_.joinable()) {
+        stop();
+        thread_.join();
+    }
     stop_.store(false);
+    txQueue_->reopen(true);
     thread_ = std::jthread([this](std::stop_token st) { this->run(st); });
 }
 
@@ -35,6 +40,7 @@ void WakeWordClient::stop()
 {
     CubeLog::info("WakeWordClient: stop requested");
     stop_.store(true);
+    txQueue_->close(true);
     if (thread_.joinable()) thread_.request_stop();
 }
 
@@ -72,6 +78,9 @@ void WakeWordClient::run(std::stop_token st)
         while (!st.stop_requested() && !stop_.load()) {
             auto opt = txQueue_->pop();
             if (!opt) {
+                if (st.stop_requested() || stop_.load()) {
+                    break;
+                }
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
                 continue;
             }

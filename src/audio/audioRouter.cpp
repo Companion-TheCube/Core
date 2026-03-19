@@ -35,7 +35,12 @@ void AudioRouter::setProviders(TargetsProvider wakeTargets, TargetsProvider preT
 void AudioRouter::start()
 {
     CubeLog::info("AudioRouter: start requested");
+    if (thread_.joinable()) {
+        stop();
+        thread_.join();
+    }
     stop_.store(false);
+    ingest_->reopen(true);
     thread_ = std::jthread([this](std::stop_token st) { this->run(st); });
 }
 
@@ -43,6 +48,7 @@ void AudioRouter::stop()
 {
     CubeLog::info("AudioRouter: stop requested");
     stop_.store(true);
+    ingest_->close(true);
     if (thread_.joinable()) thread_.request_stop();
 }
 
@@ -74,6 +80,9 @@ void AudioRouter::run(std::stop_token st)
     while (!st.stop_requested() && !stop_.load()) {
         auto opt = ingest_->pop();
         if (!opt) {
+            if (st.stop_requested() || stop_.load()) {
+                break;
+            }
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
             continue;
         }

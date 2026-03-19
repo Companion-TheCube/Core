@@ -99,6 +99,12 @@ void set(const std::string& key, const std::string& value)
     g_cfg[key] = value;
 }
 
+void erase(const std::string& key)
+{
+    ensure_loaded();
+    g_cfg.erase(key);
+}
+
 bool has(const std::string& key)
 {
     ensure_loaded();
@@ -107,4 +113,3 @@ bool has(const std::string& key)
 }
 
 } // namespace Config
-
