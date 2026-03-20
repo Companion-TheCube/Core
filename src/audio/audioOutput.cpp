@@ -35,6 +35,17 @@ SOFTWARE.
 #include <logger.h>
 #endif
 #include "audioOutput.h"
+#include "../decisionEngine/remoteServer.h"
+#include "httplib.h"
+
+#include <SFML/Audio.hpp>
+#include <algorithm>
+#include <cctype>
+#include <cstring>
+#include <filesystem>
+#include <mutex>
+#include <nlohmann/json.hpp>
+#include <thread>
 
 /*
 NOTES:
@@ -49,6 +60,154 @@ This class will need to be able to play multiple sounds at once.
 UserData AudioOutput::userData = { 0.0, 0.0, false };
 bool AudioOutput::audioStarted = false;
 std::unique_ptr<RtAudio> AudioOutput::dac = nullptr;
+
+namespace {
+
+struct PlaybackState {
+    std::vector<std::shared_ptr<sf::SoundBuffer>> buffers;
+    std::vector<std::shared_ptr<sf::Sound>> sounds;
+    std::mutex mutex;
+};
+
+PlaybackState& playbackState()
+{
+    static PlaybackState state;
+    return state;
+}
+
+void cleanupFinishedSounds()
+{
+    auto& state = playbackState();
+    std::lock_guard<std::mutex> lock(state.mutex);
+
+    std::vector<std::shared_ptr<sf::SoundBuffer>> liveBuffers;
+    std::vector<std::shared_ptr<sf::Sound>> liveSounds;
+    liveBuffers.reserve(state.buffers.size());
+    liveSounds.reserve(state.sounds.size());
+
+    for (size_t i = 0; i < state.sounds.size(); ++i) {
+        const auto& sound = state.sounds[i];
+        if (sound && sound->getStatus() == sf::SoundSource::Playing) {
+            liveSounds.push_back(sound);
+            if (i < state.buffers.size()) {
+                liveBuffers.push_back(state.buffers[i]);
+            }
+        }
+    }
+
+    state.buffers = std::move(liveBuffers);
+    state.sounds = std::move(liveSounds);
+}
+
+bool startPlayback(const std::shared_ptr<sf::SoundBuffer>& buffer, float volume)
+{
+    if (!buffer) {
+        return false;
+    }
+
+    cleanupFinishedSounds();
+
+    auto sound = std::make_shared<sf::Sound>();
+    sound->setBuffer(*buffer);
+    sound->setVolume(std::clamp(volume, 0.0f, 100.0f));
+    sound->play();
+
+    auto& state = playbackState();
+    std::lock_guard<std::mutex> lock(state.mutex);
+    state.buffers.push_back(buffer);
+    state.sounds.push_back(sound);
+    return true;
+}
+
+std::string trimTrailingSlash(std::string url)
+{
+    while (!url.empty() && url.size() > 1 && url.back() == '/') {
+        url.pop_back();
+    }
+    return url;
+}
+
+bool hasScheme(const std::string& value)
+{
+    return value.rfind("http://", 0) == 0
+        || value.rfind("https://", 0) == 0
+        || value.rfind("ws://", 0) == 0
+        || value.rfind("wss://", 0) == 0;
+}
+
+std::string normalizeHttpBaseUrl(std::string value)
+{
+    if (value.empty()) {
+        return value;
+    }
+    if (value.rfind("ws://", 0) == 0) {
+        value.replace(0, 5, "http://");
+    } else if (value.rfind("wss://", 0) == 0) {
+        value.replace(0, 6, "https://");
+    } else if (!hasScheme(value)) {
+        value = "http://" + value;
+    }
+    return trimTrailingSlash(std::move(value));
+}
+
+void configureHttpAuth(
+    httplib::Client& client,
+    const std::string& bearerToken,
+    const std::string& apiKey,
+    const std::string& serialNumber)
+{
+    httplib::Headers headers = {
+        { "Content-Type", "application/json" },
+        { "Accept", "application/json" }
+    };
+    if (!apiKey.empty()) {
+        headers.insert({ "X-API-Key", apiKey });
+        headers.insert({ "ApiKey", apiKey });
+    }
+    client.set_default_headers(headers);
+    if (!bearerToken.empty()) {
+        client.set_bearer_token_auth(bearerToken.c_str());
+    } else if (!serialNumber.empty()) {
+        client.set_basic_auth(serialNumber.c_str(), TheCubeServer::serialNumberToPassword(serialNumber).c_str());
+    }
+}
+
+std::filesystem::path resolveAssetPath(const std::filesystem::path& input)
+{
+    if (input.empty()) {
+        return {};
+    }
+    if (input.is_absolute() && std::filesystem::exists(input)) {
+        return input;
+    }
+
+    const std::vector<std::filesystem::path> candidates = {
+        input,
+        std::filesystem::current_path() / input,
+        std::filesystem::current_path() / ".." / input,
+        std::filesystem::current_path() / "build" / "bin" / input
+    };
+
+    for (const auto& candidate : candidates) {
+        std::error_code ec;
+        if (std::filesystem::exists(candidate, ec)) {
+            return candidate;
+        }
+    }
+
+    return input;
+}
+
+bool looksLikeMockAudio(const std::vector<unsigned char>& bytes)
+{
+    constexpr char prefix[] = "MOCK_AUDIO:";
+    if (bytes.size() < sizeof(prefix) - 1) {
+        return false;
+    }
+    return std::memcmp(bytes.data(), prefix, sizeof(prefix) - 1) == 0;
+}
+
+} // namespace
 
 AudioOutput::AudioOutput()
 {
@@ -152,6 +311,137 @@ void AudioOutput::setSound(bool soundOn)
     } else {
         CubeLog::info("Sound off.");
     }
+}
+
+bool AudioOutput::playFileAsync(const std::filesystem::path& filePath, float volume)
+{
+    const auto resolvedPath = resolveAssetPath(filePath);
+    std::thread([resolvedPath, volume]() {
+        try {
+            auto buffer = std::make_shared<sf::SoundBuffer>();
+            if (!buffer->loadFromFile(resolvedPath.string())) {
+                CubeLog::error("AudioOutput: failed to load audio file: " + resolvedPath.string());
+                return;
+            }
+            startPlayback(buffer, volume);
+        } catch (const std::exception& e) {
+            CubeLog::error(std::string("AudioOutput: playFileAsync exception: ") + e.what());
+        } catch (...) {
+            CubeLog::error("AudioOutput: playFileAsync unknown exception");
+        }
+    }).detach();
+    return true;
+}
+
+bool AudioOutput::playPcm16MonoAsync(const std::vector<int16_t>& samples, unsigned int sampleRateHz, float volume)
+{
+    if (samples.empty() || sampleRateHz == 0) {
+        return false;
+    }
+
+    std::thread([samples, sampleRateHz, volume]() {
+        try {
+            auto buffer = std::make_shared<sf::SoundBuffer>();
+            if (!buffer->loadFromSamples(samples.data(), samples.size(), 1, sampleRateHz)) {
+                CubeLog::error("AudioOutput: failed to load PCM samples into sound buffer");
+                return;
+            }
+            startPlayback(buffer, volume);
+        } catch (const std::exception& e) {
+            CubeLog::error(std::string("AudioOutput: playPcm16MonoAsync exception: ") + e.what());
+        } catch (...) {
+            CubeLog::error("AudioOutput: playPcm16MonoAsync unknown exception");
+        }
+    }).detach();
+    return true;
+}
+
+bool AudioOutput::speakTextAsync(const std::string& text, float volume)
+{
+    if (text.empty()) {
+        return false;
+    }
+
+    std::thread([text, volume]() {
+        try {
+            const std::string configuredBase = Config::get(
+                "REMOTE_SERVER_BASE_URL",
+                Config::get("REMOTE_TRANSCRIPTION_BASE_URL", "https://api.4thecube.com"));
+            const std::string baseUrl = normalizeHttpBaseUrl(configuredBase);
+            if (baseUrl.empty()) {
+                CubeLog::error("AudioOutput: no remote server base URL configured for speech synthesis");
+                return;
+            }
+
+            httplib::Client client(baseUrl);
+            client.set_read_timeout(30, 0);
+            client.set_write_timeout(30, 0);
+            client.set_connection_timeout(5, 0);
+
+            const auto bearerToken = Config::get("REMOTE_SERVER_BEARER_TOKEN", Config::get("REMOTE_AUTH_KEY", ""));
+            const auto apiKey = Config::get(
+                "REMOTE_SERVER_API_KEY",
+                Config::get("REMOTE_TRANSCRIPTION_API_KEY", Config::get("REMOTE_API_KEY", "")));
+            const auto serialNumber = Config::get("REMOTE_SERVER_SERIAL", Config::get("DEVICE_SERIAL_NUMBER", ""));
+            configureHttpAuth(client, bearerToken, apiKey, serialNumber);
+
+            const nlohmann::json payload = {
+                { "text", text },
+                { "responseMode", "json" },
+                { "outputFormat", "pcm" }
+            };
+
+            auto res = client.Post("/API/audio/synthesize", payload.dump(), "application/json");
+            if (!res) {
+                CubeLog::error("AudioOutput: speech synthesis request failed");
+                return;
+            }
+            if (res->status != 200) {
+                CubeLog::error("AudioOutput: speech synthesis returned status " + std::to_string(res->status));
+                return;
+            }
+
+            auto json = nlohmann::json::parse(res->body);
+            if (!json.contains("audioData") || !json["audioData"].is_string()) {
+                CubeLog::error("AudioOutput: synthesis response did not include audioData");
+                return;
+            }
+
+            const auto bytes = base64_decode_cube(json["audioData"].get<std::string>());
+            if (bytes.empty()) {
+                CubeLog::warning("AudioOutput: synthesis response returned empty audio");
+                return;
+            }
+            if (looksLikeMockAudio(bytes)) {
+                CubeLog::info("AudioOutput: mock synthesis audio received; skipping playback");
+                return;
+            }
+            if ((bytes.size() % sizeof(int16_t)) != 0) {
+                CubeLog::error("AudioOutput: synthesis audio was not aligned to 16-bit PCM");
+                return;
+            }
+
+            unsigned int sampleRateHz = 16000;
+            try {
+                const auto configured = Config::get("REMOTE_TTS_PCM_SAMPLE_RATE_HZ", "16000");
+                sampleRateHz = static_cast<unsigned int>(std::stoul(configured));
+            } catch (...) {
+                sampleRateHz = 16000;
+            }
+
+            std::vector<int16_t> samples(bytes.size() / sizeof(int16_t));
+            std::memcpy(samples.data(), bytes.data(), bytes.size());
+            if (!playPcm16MonoAsync(samples, sampleRateHz, volume)) {
+                CubeLog::error("AudioOutput: failed to enqueue synthesized speech playback");
+            }
+        } catch (const std::exception& e) {
+            CubeLog::error(std::string("AudioOutput: speakTextAsync exception: ") + e.what());
+        } catch (...) {
+            CubeLog::error("AudioOutput: speakTextAsync unknown exception");
+        }
+    }).detach();
+
+    return true;
 }
 
 // TODO: create a function that the output can use to stream data from a ThreadSafeQueue<> to the audio output.

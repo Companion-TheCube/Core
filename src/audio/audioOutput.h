@@ -35,8 +35,12 @@ SOFTWARE.
 #define AUDIOOUTPUT_H
 
 #include <RtAudio.h>
+#include <cstdint>
 #include <cmath>
+#include <filesystem>
 #include <iostream>
+#include <string>
+#include <vector>
 #include <utils.h>
 
 struct UserData {
@@ -52,6 +56,9 @@ public:
     static void stop();
     static void toggleSound();
     static void setSound(bool soundOn);
+    static bool playFileAsync(const std::filesystem::path& filePath, float volume = 100.0f);
+    static bool playPcm16MonoAsync(const std::vector<int16_t>& samples, unsigned int sampleRateHz, float volume = 100.0f);
+    static bool speakTextAsync(const std::string& text, float volume = 100.0f);
 private:
     static bool audioStarted;
     static std::unique_ptr<RtAudio> dac;

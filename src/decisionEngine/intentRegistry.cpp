@@ -36,6 +36,9 @@ SOFTWARE.
 // routes utterances to TheCubeServer for LLM-backed intent selection.
 #include "intentRegistry.h"
 #include <cctype>
+#include <filesystem>
+#include <fstream>
+#include <sstream>
 #include <utility>
 
 namespace DecisionEngine {
@@ -175,6 +178,59 @@ std::shared_ptr<Intent> runRemoteIntentRecognition(
     auto intent = matchIntentByName(registry, intentName);
     if (!intent) intent = matchIntentFromResponseText(registry, response);
     return intent;
+}
+
+std::vector<std::string> configuredIntentRoots()
+{
+    std::vector<std::string> roots;
+    const auto raw = Config::get("APP_INSTALL_ROOTS", "");
+    if (raw.empty()) {
+        roots.push_back("apps");
+        return roots;
+    }
+
+    std::stringstream stream(raw);
+    std::string part;
+    while (std::getline(stream, part, ':')) {
+        if (!part.empty()) {
+            roots.push_back(part);
+        }
+    }
+    return roots;
+}
+
+Parameters parametersFromJson(const nlohmann::json& value)
+{
+    Parameters parameters;
+    if (!value.is_object()) {
+        return parameters;
+    }
+
+    for (const auto& [key, jsonValue] : value.items()) {
+        if (jsonValue.is_string()) {
+            parameters[key] = jsonValue.get<std::string>();
+        } else if (jsonValue.is_boolean()) {
+            parameters[key] = jsonValue.get<bool>() ? "true" : "false";
+        } else if (jsonValue.is_number_integer()) {
+            parameters[key] = std::to_string(jsonValue.get<long long>());
+        } else if (jsonValue.is_number_float()) {
+            parameters[key] = std::to_string(jsonValue.get<double>());
+        } else {
+            parameters[key] = jsonValue.dump();
+        }
+    }
+
+    return parameters;
+}
+
+Intent::IntentType intentTypeFromJson(const nlohmann::json& value)
+{
+    if (!value.is_string()) {
+        return Intent::IntentType::COMMAND;
+    }
+
+    const auto lower = toLowerAscii(value.get<std::string>());
+    return lower == "question" ? Intent::IntentType::QUESTION : Intent::IntentType::COMMAND;
 }
 } // namespace
 
@@ -526,7 +582,7 @@ std::vector<IntentCTorParams> getSystemIntents()
         "core.get_time",
         "User is asking for the current time, local time, or what time it is right now.",
         "The current time is ${time}.",
-        { { "time", "" } },
+        { { "time", "" }, { "speak_result", "true" } },
         Intent::IntentType::QUESTION));
 
     intents.push_back(makeIntent(
@@ -619,6 +675,113 @@ IntentRegistry::IntentRegistry()
     }
 }
 
+void IntentRegistry::loadIntentManifests()
+{
+    if (manifestIntentsLoaded || !functionRegistry) {
+        return;
+    }
+
+    auto loadManifest = [this](const std::filesystem::path& filePath) {
+        try {
+            std::ifstream ifs(filePath);
+            if (!ifs.good()) {
+                CubeLog::error("IntentRegistry: failed to open intent manifest " + filePath.string());
+                return;
+            }
+
+            const auto manifest = nlohmann::json::parse(ifs);
+            const auto intentName = manifest.value("intentName", "");
+            if (intentName.empty()) {
+                CubeLog::error("IntentRegistry: manifest missing intentName: " + filePath.string());
+                return;
+            }
+
+            std::string capabilityName = manifest.value("capabilityName", "");
+            if (capabilityName.empty()) {
+                capabilityName = manifest.value("capability_name", "");
+            }
+            if (capabilityName.empty()) {
+                CubeLog::error("IntentRegistry: manifest missing capabilityName: " + filePath.string());
+                return;
+            }
+
+            if (!functionRegistry->findCapability(capabilityName)) {
+                CubeLog::error(
+                    "IntentRegistry: manifest references unknown capability '"
+                    + capabilityName
+                    + "': "
+                    + filePath.string());
+                return;
+            }
+
+            Parameters parameters;
+            if (manifest.contains("parameters")) {
+                parameters = parametersFromJson(manifest["parameters"]);
+            } else if (manifest.contains("defaultParameters")) {
+                parameters = parametersFromJson(manifest["defaultParameters"]);
+            }
+            parameters["capability_name"] = capabilityName;
+
+            if (manifest.value("speakResult", false)) {
+                parameters["speak_result"] = "true";
+            }
+
+            IntentCTorParams params;
+            params.intentName = intentName;
+            params.parameters = std::move(parameters);
+            params.briefDesc = manifest.value("briefDesc", "");
+            params.responseString = manifest.value("responseString", "");
+            params.type = intentTypeFromJson(manifest.value("type", "command"));
+            params.action = [](const Parameters&, Intent) {};
+
+            auto intent = std::make_shared<Intent>(params);
+            if (!registerIntent(intentName, intent)) {
+                CubeLog::error("IntentRegistry: duplicate intent manifest name '" + intentName + "'");
+            }
+        } catch (const std::exception& e) {
+            CubeLog::error(std::string("IntentRegistry: failed to parse intent manifest: ") + e.what());
+        }
+    };
+
+    const std::vector<std::filesystem::path> searchRoots = { std::filesystem::path("data/intents") };
+    for (const auto& root : searchRoots) {
+        std::error_code ec;
+        if (!std::filesystem::exists(root, ec)) {
+            continue;
+        }
+        for (const auto& entry : std::filesystem::directory_iterator(root, ec)) {
+            if (ec || !entry.is_regular_file()) {
+                continue;
+            }
+            loadManifest(entry.path());
+        }
+    }
+
+    for (const auto& root : configuredIntentRoots()) {
+        std::error_code ec;
+        if (!std::filesystem::exists(root, ec)) {
+            continue;
+        }
+        for (const auto& entry : std::filesystem::directory_iterator(root, ec)) {
+            if (ec || !entry.is_directory()) {
+                continue;
+            }
+            const auto intentsDir = entry.path() / "intents";
+            if (!std::filesystem::exists(intentsDir, ec)) {
+                continue;
+            }
+            for (const auto& file : std::filesystem::directory_iterator(intentsDir, ec)) {
+                if (ec || !file.is_regular_file()) {
+                    continue;
+                }
+                loadManifest(file.path());
+            }
+        }
+    }
+
+    manifestIntentsLoaded = true;
+}
+
 void IntentRegistry::setFunctionRegistry(std::shared_ptr<FunctionRegistry> registry)
 {
     functionRegistry = std::move(registry);
@@ -626,6 +789,7 @@ void IntentRegistry::setFunctionRegistry(std::shared_ptr<FunctionRegistry> regis
         auto &intent = kv.second;
         if (intent) intent->setFunctionRegistry(functionRegistry);
     }
+    loadIntentManifests();
 }
 
 bool IntentRegistry::registerIntent(const std::string& intentName, const std::shared_ptr<Intent> intent)

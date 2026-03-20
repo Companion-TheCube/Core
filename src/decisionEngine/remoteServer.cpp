@@ -4,6 +4,7 @@ Copyright (c) 2025 A-McD Technology LLC
 */
 
 #include "remoteServer.h"
+#include "transcriptionEvents.h"
 
 #ifndef LOGGER_H
 #include <logger.h>
@@ -253,6 +254,7 @@ struct TheCubeServerAPI::WsBridge {
                     || j["final"].get<bool>();
                 if (!isFinal && !latestTranscript.empty()) {
                     CubeLog::info("TheCubeServerAPI: partial transcript received: " + latestTranscript);
+                    DecisionEngine::TranscriptionEvents::publish(latestTranscript, false);
                 }
                 if (isFinal && !latestTranscript.empty()) {
                     finalTranscript = latestTranscript;

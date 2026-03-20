@@ -549,6 +549,53 @@ FunctionRegistry::FunctionRegistry()
         };
         this->registerCapability(setSound);
 
+        CapabilitySpec playSound;
+        playSound.name = "core.play_sound";
+        playSound.description = "Play a one-shot sound file through the CORE audio subsystem";
+        playSound.action = [](const nlohmann::json& args) {
+            if (!args.is_object() || !args.contains("file")) {
+                return nlohmann::json({
+                    { "error", "file_required" },
+                    { "status", "error" }
+                });
+            }
+
+            const auto file = args["file"].is_string() ? args["file"].get<std::string>() : args["file"].dump();
+            const float volume = args.contains("volume") && args["volume"].is_number()
+                ? args["volume"].get<float>()
+                : 100.0f;
+            const bool started = AudioOutput::playFileAsync(file, volume);
+            return nlohmann::json({
+                { "status", started ? "ok" : "error" },
+                { "started", started },
+                { "file", file }
+            });
+        };
+        this->registerCapability(playSound);
+
+        CapabilitySpec speakText;
+        speakText.name = "core.speak_text";
+        speakText.description = "Speak a text response through the configured remote synthesis service";
+        speakText.action = [](const nlohmann::json& args) {
+            if (!args.is_object() || !args.contains("text")) {
+                return nlohmann::json({
+                    { "error", "text_required" },
+                    { "status", "error" }
+                });
+            }
+
+            const auto text = args["text"].is_string() ? args["text"].get<std::string>() : args["text"].dump();
+            const float volume = args.contains("volume") && args["volume"].is_number()
+                ? args["volume"].get<float>()
+                : 100.0f;
+            const bool started = AudioOutput::speakTextAsync(text, volume);
+            return nlohmann::json({
+                { "status", started ? "ok" : "error" },
+                { "started", started }
+            });
+        };
+        this->registerCapability(speakText);
+
         // TODO: Add other built-in core capabilities here (audio playback,
         // UI drawing, NFC, etc.). Keep implementations in a dedicated
         // source file when they become non-trivial.

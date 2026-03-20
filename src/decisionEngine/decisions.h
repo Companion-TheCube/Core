@@ -18,6 +18,8 @@ Copyright (c) 2025 A-McD Technology LLC
 #include "transcriptionEvents.h"
 
 #include <atomic>
+#include <cstdint>
+#include <filesystem>
 #include <limits>
 #include <memory>
 #include <mutex>
@@ -32,6 +34,7 @@ struct DecisionTurnResult {
     std::string responseText;
     nlohmann::json capabilityResult = nlohmann::json::object();
     std::string error;
+    bool speakResult = false;
     int64_t timestampEpochMs = 0;
 
     nlohmann::json toJson() const
@@ -43,6 +46,7 @@ struct DecisionTurnResult {
             { "responseText", responseText },
             { "capabilityResult", capabilityResult },
             { "error", error },
+            { "speakResult", speakResult },
             { "timestampEpochMs", timestampEpochMs }
         });
     }
@@ -50,6 +54,16 @@ struct DecisionTurnResult {
 
 class DecisionEngineMain : public AutoRegisterAPI<DecisionEngineMain> {
 public:
+    enum class TurnState {
+        IDLE,
+        WAKE_ACKNOWLEDGED,
+        LISTENING,
+        TRANSCRIPT_STREAMING,
+        FINAL_TRANSCRIPT_PENDING_INTENT,
+        INTENT_EXECUTING,
+        RESULT_PRESENTED
+    };
+
     DecisionEngineMain();
     ~DecisionEngineMain();
 
@@ -71,6 +85,11 @@ private:
     void applyCapabilityResultToIntent(const std::shared_ptr<Intent>& intent, const nlohmann::json& capabilityResult);
     void stopTranscriptionConsumer();
     void onWakeWordDetected();
+    void handleTranscriptEvent(const std::string& text, bool isFinal);
+    void showListeningUi();
+    void presentTurnResult(const DecisionTurnResult& result);
+    void hideTurnUi();
+    void setTurnState(TurnState newState);
 
     std::shared_ptr<I_IntentRecognition> intentRecognition;
     std::shared_ptr<IntentRegistry> intentRegistry;
@@ -88,6 +107,8 @@ private:
     mutable std::mutex stateMutex;
     DecisionTurnResult lastDecisionResult;
     std::string latestTranscriptEvent;
+    TurnState turnState = TurnState::IDLE;
+    std::string activeTranscriptPreview;
     bool started = false;
     size_t wakeWordCallbackHandle = std::numeric_limits<size_t>::max();
     size_t wakeAudioQueueHandle = std::numeric_limits<size_t>::max();

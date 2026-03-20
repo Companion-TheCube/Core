@@ -4,6 +4,8 @@ Copyright (c) 2025 A-McD Technology LLC
 */
 
 #include "decisions.h"
+#include "../audio/audioOutput.h"
+#include "../gui/gui.h"
 
 #ifndef LOGGER_H
 #include <logger.h>
@@ -12,6 +14,7 @@ Copyright (c) 2025 A-McD Technology LLC
 #include <chrono>
 #include <cctype>
 #include <cstdlib>
+#include <filesystem>
 #include <thread>
 
 using namespace DecisionEngine;
@@ -63,6 +66,95 @@ std::string lookupParameter(const Parameters& parameters, const std::string& key
     const auto it = parameters.find(key);
     if (it == parameters.end()) return {};
     return it->second;
+}
+
+bool parseBoolString(const std::string& value)
+{
+    std::string lower;
+    lower.reserve(value.size());
+    for (unsigned char ch : value) {
+        lower.push_back(static_cast<char>(std::tolower(ch)));
+    }
+    return lower == "1" || lower == "true" || lower == "yes" || lower == "on";
+}
+
+std::string turnStateName(DecisionEngineMain::TurnState state)
+{
+    switch (state) {
+    case DecisionEngineMain::TurnState::IDLE:
+        return "idle";
+    case DecisionEngineMain::TurnState::WAKE_ACKNOWLEDGED:
+        return "wake_acknowledged";
+    case DecisionEngineMain::TurnState::LISTENING:
+        return "listening";
+    case DecisionEngineMain::TurnState::TRANSCRIPT_STREAMING:
+        return "transcript_streaming";
+    case DecisionEngineMain::TurnState::FINAL_TRANSCRIPT_PENDING_INTENT:
+        return "final_transcript_pending_intent";
+    case DecisionEngineMain::TurnState::INTENT_EXECUTING:
+        return "intent_executing";
+    case DecisionEngineMain::TurnState::RESULT_PRESENTED:
+        return "result_presented";
+    }
+    return "unknown";
+}
+
+std::filesystem::path wakeSoundPath()
+{
+    return std::filesystem::path("data") / "wake_sounds" / "song (3).wav";
+}
+
+class TurnPresentationController {
+public:
+    void showListening()
+    {
+        generation_.fetch_add(1, std::memory_order_relaxed);
+        GUI::showMessageBox("TheCube", "Listening...");
+    }
+
+    void updateTranscript(const std::string& text)
+    {
+        if (text.empty()) {
+            return;
+        }
+        GUI::showMessageBox("TheCube", text);
+    }
+
+    void showResult(const std::string& text)
+    {
+        if (text.empty()) {
+            return;
+        }
+        generation_.fetch_add(1, std::memory_order_relaxed);
+        GUI::showMessageBox("TheCube", text);
+    }
+
+    void hide()
+    {
+        generation_.fetch_add(1, std::memory_order_relaxed);
+        GUI::hideMessageBox();
+    }
+
+    void scheduleHide(std::chrono::milliseconds delay)
+    {
+        const auto generation = generation_.load(std::memory_order_relaxed);
+        std::thread([generation, delay, this]() {
+            std::this_thread::sleep_for(delay);
+            if (generation_.load(std::memory_order_relaxed) != generation) {
+                return;
+            }
+            GUI::hideMessageBox();
+        }).detach();
+    }
+
+private:
+    std::atomic<uint64_t> generation_ { 0 };
+};
+
+TurnPresentationController& presentationController()
+{
+    static TurnPresentationController controller;
+    return controller;
 }
 
 } // namespace
@@ -131,9 +223,7 @@ void DecisionEngineMain::start()
         onWakeWordDetected();
     });
     transcriptionEventHandle = TranscriptionEvents::subscribe([this](const std::string& text, bool isFinal) {
-        if (!isFinal) return;
-        std::scoped_lock lock(stateMutex);
-        latestTranscriptEvent = text;
+        handleTranscriptEvent(text, isFinal);
     });
 
     if (scheduler) scheduler->start();
@@ -158,12 +248,16 @@ void DecisionEngineMain::stop()
             transcriptionEventHandle = std::numeric_limits<size_t>::max();
         }
         started = false;
+        activeTranscriptPreview.clear();
+        latestTranscriptEvent.clear();
+        turnState = TurnState::IDLE;
     }
 
     if (auto rt = std::dynamic_pointer_cast<RemoteTranscriber>(transcriber)) {
         rt->interrupt();
     }
     stopTranscriptionConsumer();
+    hideTurnUi();
     if (scheduler) scheduler->stop();
     if (triggerManager) triggerManager->stop();
 }
@@ -193,6 +287,68 @@ void DecisionEngineMain::stopTranscriptionConsumer()
     transcription.reset();
 }
 
+void DecisionEngineMain::setTurnState(TurnState newState)
+{
+    std::scoped_lock lock(stateMutex);
+    turnState = newState;
+}
+
+void DecisionEngineMain::hideTurnUi()
+{
+    presentationController().hide();
+}
+
+void DecisionEngineMain::showListeningUi()
+{
+    presentationController().showListening();
+}
+
+void DecisionEngineMain::handleTranscriptEvent(const std::string& text, bool isFinal)
+{
+    if (text.empty()) {
+        return;
+    }
+
+    bool acceptEvent = false;
+    {
+        std::scoped_lock lock(stateMutex);
+        acceptEvent = started
+            && turnState != TurnState::IDLE
+            && turnState != TurnState::INTENT_EXECUTING
+            && turnState != TurnState::RESULT_PRESENTED;
+        if (!acceptEvent) {
+            return;
+        }
+        latestTranscriptEvent = text;
+        activeTranscriptPreview = text;
+        if (isFinal) {
+            turnState = TurnState::FINAL_TRANSCRIPT_PENDING_INTENT;
+        } else {
+            turnState = TurnState::TRANSCRIPT_STREAMING;
+        }
+    }
+
+    presentationController().updateTranscript(text);
+}
+
+void DecisionEngineMain::presentTurnResult(const DecisionTurnResult& result)
+{
+    const std::string message = !result.responseText.empty()
+        ? result.responseText
+        : (!result.error.empty() ? result.error : "Done.");
+    presentationController().showResult(message);
+
+    if (result.speakResult && !message.empty() && functionRegistry) {
+        functionRegistry->runCapabilityAsync(
+            "core.speak_text",
+            nlohmann::json({ { "text", message } }),
+            nullptr);
+    }
+
+    setTurnState(TurnState::RESULT_PRESENTED);
+    presentationController().scheduleHide(std::chrono::milliseconds(4000));
+}
+
 void DecisionEngineMain::onWakeWordDetected()
 {
     CubeLog::info("DecisionEngine: wake word detected");
@@ -201,9 +357,20 @@ void DecisionEngineMain::onWakeWordDetected()
     }
 
     stopTranscriptionConsumer();
+    setTurnState(TurnState::WAKE_ACKNOWLEDGED);
+    {
+        std::scoped_lock lock(stateMutex);
+        activeTranscriptPreview.clear();
+        latestTranscriptEvent.clear();
+    }
+    AudioOutput::playFileAsync(wakeSoundPath());
+    showListeningUi();
+    setTurnState(TurnState::LISTENING);
     transcription = transcriber ? transcriber->transcribeQueue(audioQueue) : nullptr;
     if (!transcription) {
         CubeLog::error("DecisionEngine: transcription queue was not created");
+        hideTurnUi();
+        setTurnState(TurnState::IDLE);
         return;
     }
 
@@ -220,8 +387,10 @@ void DecisionEngineMain::onWakeWordDetected()
                 continue;
             }
 
+            setTurnState(TurnState::FINAL_TRANSCRIPT_PENDING_INTENT);
             const auto turn = processTranscript(*result);
             recordTurnResult(turn);
+            presentTurnResult(turn);
             break;
         }
     });
@@ -253,16 +422,19 @@ DecisionTurnResult DecisionEngineMain::executeIntent(const std::shared_ptr<Inten
     DecisionTurnResult result;
     result.transcript = transcript;
     result.timestampEpochMs = nowEpochMs();
+    setTurnState(TurnState::INTENT_EXECUTING);
 
     if (!intent) {
         result.executionStatus = "intent_not_found";
         result.error = "intent_not_found";
+        result.responseText = "I couldn't match that request to an available action.";
         return result;
     }
 
     result.intentName = intent->getIntentName();
     const auto parameters = intent->getParameters();
     const auto capabilityName = lookupParameter(parameters, "capability_name");
+    result.speakResult = parseBoolString(lookupParameter(parameters, "speak_result"));
 
     if (!capabilityName.empty()) {
         const auto capabilityArgs = parametersToJson(parameters);
@@ -271,13 +443,18 @@ DecisionTurnResult DecisionEngineMain::executeIntent(const std::shared_ptr<Inten
         if (result.capabilityResult.is_object() && result.capabilityResult.contains("error")) {
             result.executionStatus = "capability_error";
             result.error = jsonToParameterString(result.capabilityResult["error"]);
-            result.responseText = intent->getResponseString();
+            result.responseText = intent->getResponseString().empty()
+                ? "I found the right action, but it failed."
+                : intent->getResponseString();
             return result;
         }
     }
 
     intent->execute();
     result.responseText = intent->getResponseString();
+    if (result.responseText.empty()) {
+        result.responseText = "Done.";
+    }
     result.executionStatus = "success";
     return result;
 }
@@ -312,7 +489,9 @@ nlohmann::json DecisionEngineMain::statusJson() const
     std::scoped_lock lk(stateMutex);
     return nlohmann::json({
         { "started", started },
+        { "turnState", turnStateName(turnState) },
         { "latestTranscriptEvent", latestTranscriptEvent },
+        { "activeTranscriptPreview", activeTranscriptPreview },
         { "remoteServerStatus", static_cast<int>(remoteServerAPI ? remoteServerAPI->getServerStatus() : TheCubeServer::TheCubeServerAPI::ServerStatus::SERVER_STATUS_ERROR) },
         { "remoteServerError", static_cast<int>(remoteServerAPI ? remoteServerAPI->getServerError() : TheCubeServer::TheCubeServerAPI::ServerError::SERVER_ERROR_INTERNAL_ERROR) },
         { "lastDecisionResult", lastDecisionResult.toJson() }
