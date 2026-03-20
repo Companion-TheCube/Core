@@ -193,6 +193,9 @@ struct TheCubeServerAPI::WsBridge {
     std::string errorMessage;
     std::string latestTranscript;
     std::string finalTranscript;
+    size_t binaryMessagesSent = 0;
+    size_t binaryBytesSent = 0;
+    size_t textMessagesSent = 0;
 
     ~WsBridge() { close(); }
 
@@ -205,6 +208,37 @@ struct TheCubeServerAPI::WsBridge {
         errorMessage.clear();
         latestTranscript.clear();
         finalTranscript.clear();
+        binaryMessagesSent = 0;
+        binaryBytesSent = 0;
+        textMessagesSent = 0;
+    }
+
+    std::string debugSummaryLocked() const
+    {
+        std::ostringstream oss;
+        oss << "open=" << (open ? "true" : "false")
+            << ", failed=" << (failed ? "true" : "false")
+            << ", closed=" << (closed ? "true" : "false")
+            << ", finalReady=" << (finalReady ? "true" : "false")
+            << ", binaryMessagesSent=" << binaryMessagesSent
+            << ", binaryBytesSent=" << binaryBytesSent
+            << ", textMessagesSent=" << textMessagesSent;
+        if (!errorMessage.empty()) {
+            oss << ", errorMessage=" << errorMessage;
+        }
+        if (!latestTranscript.empty()) {
+            oss << ", latestTranscriptLength=" << latestTranscript.size();
+        }
+        if (!finalTranscript.empty()) {
+            oss << ", finalTranscriptLength=" << finalTranscript.size();
+        }
+        return oss.str();
+    }
+
+    std::string debugSummary()
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        return debugSummaryLocked();
     }
 
     void onMessage(const std::string& payload)
@@ -217,6 +251,9 @@ struct TheCubeServerAPI::WsBridge {
                 const bool isFinal = !j.contains("final")
                     || !j["final"].is_boolean()
                     || j["final"].get<bool>();
+                if (!isFinal && !latestTranscript.empty()) {
+                    CubeLog::info("TheCubeServerAPI: partial transcript received: " + latestTranscript);
+                }
                 if (isFinal && !latestTranscript.empty()) {
                     finalTranscript = latestTranscript;
                     finalReady = true;
@@ -372,6 +409,8 @@ struct TheCubeServerAPI::WsBridge {
             cv.notify_all();
             return false;
         }
+        ++binaryMessagesSent;
+        binaryBytesSent += numBytes;
         return true;
     }
 
@@ -394,6 +433,7 @@ struct TheCubeServerAPI::WsBridge {
             cv.notify_all();
             return false;
         }
+        ++textMessagesSent;
         return true;
     }
 
@@ -550,7 +590,16 @@ bool TheCubeServerAPI::sendAudioChunk(std::span<const int16_t> audio)
     if (!activeSession.has_value() || !wsBridge || audio.empty()) {
         return false;
     }
-    return wsBridge->sendBinary(audio.data(), audio.size_bytes());
+    const bool sent = wsBridge->sendBinary(audio.data(), audio.size_bytes());
+    if (!sent) {
+        CubeLog::error(
+            "TheCubeServerAPI: sendAudioChunk failed for session="
+            + activeSession->sessionId
+            + ", samples=" + std::to_string(audio.size())
+            + ", bytes=" + std::to_string(audio.size_bytes())
+            + ", bridge={" + wsBridge->debugSummary() + "}");
+    }
+    return sent;
 }
 
 bool TheCubeServerAPI::sendAudioChunk(const int16_t* audio, size_t samples)
@@ -577,7 +626,14 @@ bool TheCubeServerAPI::finishTranscriptionSession()
         return false;
     }
     state = ServerState::SERVER_STATE_TRANSCRIBING;
-    return wsBridge->sendText("__END__");
+    const bool sent = wsBridge->sendText("__END__");
+    if (!sent) {
+        CubeLog::error(
+            "TheCubeServerAPI: finishTranscriptionSession failed for session="
+            + activeSession->sessionId
+            + ", bridge={" + wsBridge->debugSummary() + "}");
+    }
+    return sent;
 }
 
 std::string TheCubeServerAPI::waitForFinalTranscript(std::chrono::milliseconds timeout)
@@ -590,6 +646,11 @@ std::string TheCubeServerAPI::waitForFinalTranscript(std::chrono::milliseconds t
         if (!activeSession.has_value() || !wsBridge) {
             return {};
         }
+        CubeLog::info(
+            "TheCubeServerAPI: waiting for final transcript for session="
+            + activeSession->sessionId
+            + ", timeoutMs=" + std::to_string(timeout.count())
+            + ", bridge={" + wsBridge->debugSummary() + "}");
     }
 
     if (!wsBridge->waitForFinal(timeout, transcript, waitError)) {
@@ -605,6 +666,13 @@ std::string TheCubeServerAPI::waitForFinalTranscript(std::chrono::milliseconds t
 
     {
         std::lock_guard<std::mutex> lock(transcriptionMutex);
+        if (activeSession.has_value() && wsBridge) {
+            CubeLog::info(
+                "TheCubeServerAPI: final transcript ready for session="
+                + activeSession->sessionId
+                + ", transcriptLength=" + std::to_string(transcript.size())
+                + ", bridge={" + wsBridge->debugSummary() + "}");
+        }
         error = transcript.empty() ? ServerError::SERVER_ERROR_TRANSCRIPTION_ERROR : ServerError::SERVER_ERROR_NONE;
         status = transcript.empty() ? ServerStatus::SERVER_STATUS_ERROR : ServerStatus::SERVER_STATUS_READY;
         state = ServerState::SERVER_STATE_IDLE;

@@ -215,7 +215,7 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
         sessionActive = false;
 
         if (!transcription.empty()) {
-            CubeLog::info("RemoteTranscriber: final transcript received");
+            CubeLog::info("RemoteTranscriber: final transcript received: " + transcription);
             TranscriptionEvents::publish(transcription, true);
             textQueue->push(transcription);
         } else {

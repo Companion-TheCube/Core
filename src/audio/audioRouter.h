@@ -31,7 +31,6 @@ public:
 
     void start();
     void stop();
-
     // Queue that AudioCapture should push into
     QueuePtr ingestQueue() const { return ingest_; }
 
@@ -57,4 +56,3 @@ private:
 
     void run(std::stop_token st);
 };
-

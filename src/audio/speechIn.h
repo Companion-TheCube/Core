@@ -111,7 +111,6 @@ public:
         std::lock_guard<std::mutex> lock(SpeechIn::registeredQueuesMutex);
         return SpeechIn::registeredPreTriggerAudioQueues.erase(handleId) > 0;
     }
-
 private:
     // Three-class split components (pimpl-style)
     std::unique_ptr<class AudioRouter> router;
