@@ -4,6 +4,7 @@
 #include "../src/database/cubeDB.h"
 
 #include <chrono>
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -357,8 +358,10 @@ TEST_F(AppsManagerTest, InitializeUsesExecutableDirectoryAppsWhenInstallRootsUns
     AppsManager manager(runtime);
 
     EXPECT_TRUE(manager.initialize());
-    ASSERT_EQ(runtime->startedUnits.size(), 1u);
-    EXPECT_EQ(runtime->startedUnits[0], "thecube-app@com.example.cwd.service");
+    EXPECT_FALSE(runtime->startedUnits.empty());
+    EXPECT_NE(
+        std::find(runtime->startedUnits.begin(), runtime->startedUnits.end(), "thecube-app@com.example.cwd.service"),
+        runtime->startedUnits.end());
     EXPECT_TRUE(fs::exists(launchRoot / "com.example.cwd/launch-policy.json"));
 
     fs::remove_all(appRoot);

@@ -71,8 +71,9 @@ public:
             throw std::runtime_error("Failed to bind WebSocket test server: " + ec.message());
         }
 
-        port_ = static_cast<int>(server_.get_local_endpoint(ec).port());
-        if (ec || port_ <= 0) {
+        websocketpp::lib::asio::error_code endpointEc;
+        port_ = static_cast<int>(server_.get_local_endpoint(endpointEc).port());
+        if (endpointEc || port_ <= 0) {
             throw std::runtime_error("Failed to read WebSocket test server port");
         }
 

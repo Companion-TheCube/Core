@@ -14,6 +14,7 @@ Copyright (c) 2025 A-McD Technology LLC
 namespace {
 struct CaptureCtx {
     std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> q;
+    AudioCapture::AudioObserver observer;
 };
 
 int rtCallback(void* /*outputBuffer*/, void* inputBuffer, unsigned int nBufferFrames,
@@ -22,14 +23,20 @@ int rtCallback(void* /*outputBuffer*/, void* inputBuffer, unsigned int nBufferFr
     if (!userData || !inputBuffer || nBufferFrames == 0) return 0;
     auto* ctx = static_cast<CaptureCtx*>(userData);
     int16_t* buffer = static_cast<int16_t*>(inputBuffer);
+    if (ctx->observer) {
+        ctx->observer(std::span<const int16_t>(buffer, nBufferFrames));
+    }
     std::vector<int16_t> audio(buffer, buffer + nBufferFrames);
     ctx->q->push(std::move(audio));
     return 0;
 }
 }
 
-AudioCapture::AudioCapture(std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> targetQueue)
-    : queue_(std::move(targetQueue)) {}
+AudioCapture::AudioCapture(
+    std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> targetQueue,
+    AudioObserver observer)
+    : queue_(std::move(targetQueue))
+    , observer_(std::move(observer)) {}
 
 AudioCapture::~AudioCapture() { stop(); }
 
@@ -68,7 +75,7 @@ void AudioCapture::run(std::stop_token st)
         options.numberOfBuffers = 1;
 
         unsigned int bufferFrames = audio::ROUTER_FIFO_FRAMES; // capture block size
-        CaptureCtx ctx{ queue_ };
+        CaptureCtx ctx{ queue_, observer_ };
         audio->openStream(nullptr, &params, RTAUDIO_SINT16, audio::SAMPLE_RATE, &bufferFrames, &rtCallback, &ctx, &options);
         auto info = audio->getDeviceInfo(deviceId);
         CubeLog::info("AudioCapture: opening device '" + info.name + "' id=" + std::to_string(deviceId) +

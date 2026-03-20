@@ -43,9 +43,11 @@ SOFTWARE.
 #include "threadsafeQueue.h"
 // include time library for time point
 #include <chrono>
+#include <condition_variable>
 #include <unordered_map>
 #include <mutex>
 #include <functional>
+#include <thread>
 
 // Audio constants moved to audio/constants.h to decouple dependencies
 
@@ -115,6 +117,15 @@ private:
     std::unique_ptr<class AudioRouter> router;
     std::unique_ptr<class WakeWordClient> wwClient;
     std::unique_ptr<class AudioCapture> capture;
+    std::unique_ptr<class MicInputLevelMonitor> micLevelMonitor;
+    std::unique_ptr<class MicSourceVolumeController> micVolumeController;
+    std::jthread micAutoLevelWorker;
+    std::mutex micAutoLevelMutex;
+    std::condition_variable micAutoLevelCv;
+    bool micAutoLevelPending = false;
+    int micAutoLevelPendingPeak = 0;
+    double micAutoLevelPendingClipRatio = 0.0;
+    bool micRestoreOnStop = false;
     // Wake word detection callback vector
     static std::unordered_map<unsigned int,std::function<void()>> wakeWordDetectionCallbacks;
     static std::atomic<unsigned int> handle;

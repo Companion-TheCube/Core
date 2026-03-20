@@ -884,6 +884,8 @@ fs::path managedPythonVenvRoot(const std::string& appId)
     return fs::path(runtimeDataDir(appId)) / "venv";
 }
 
+std::optional<fs::path> findExistingPath(const std::vector<fs::path>& candidates);
+
 std::vector<fs::path> pythonExecutableCandidates(const ManifestSummary& summary)
 {
     return {
@@ -914,7 +916,7 @@ std::string pythonPackageName(const ManifestSummary& summary)
             return python["package_name"].get<std::string>();
         }
     }
-    return summary.installRoot.filename().string();
+    return {};
 }
 
 fs::path pythonInstallStatePath(const std::string& appId)
@@ -941,7 +943,7 @@ std::optional<PythonInstallState> readPythonInstallState(const std::string& appI
         state.appVersion = json.value("app_version", "");
         state.packageName = json.value("package_name", "");
         state.venvRoot = json.value("venv_root", "");
-        if (state.appVersion.empty() || state.packageName.empty() || state.venvRoot.empty()) {
+        if (state.appVersion.empty() || state.venvRoot.empty()) {
             return std::nullopt;
         }
         return state;
@@ -991,8 +993,10 @@ bool ensurePythonRuntimeInstalled(const ManifestSummary& summary, std::string& e
 
     const auto packageName = pythonPackageName(summary);
     if (packageName.empty()) {
-        error = "Python package name could not be determined";
-        return false;
+        if (findExistingPath(pythonExecutableCandidates(summary)).has_value()) {
+            CubeLog::info("AppsManager: using existing Python runtime for script app " + summary.appId);
+            return true;
+        }
     }
 
     const auto venvRoot = managedPythonVenvRoot(summary.appId);
@@ -1029,26 +1033,32 @@ bool ensurePythonRuntimeInstalled(const ManifestSummary& summary, std::string& e
         }
     }
 
-    if (!fs::exists(pipBinary)) {
-        error = "Python venv pip executable does not exist after bootstrap: " + pipBinary.string();
-        return false;
-    }
+    if (!packageName.empty()) {
+        if (!fs::exists(pipBinary)) {
+            error = "Python venv pip executable does not exist after bootstrap: " + pipBinary.string();
+            return false;
+        }
 
-    const auto upgradeCommand = shellQuote(pipBinary.string()) + " install --upgrade pip setuptools wheel";
-    if (!runShellCommand(upgradeCommand, "upgrading pip/setuptools/wheel for " + summary.appId, error)) {
-        return false;
-    }
+        const auto upgradeCommand = shellQuote(pipBinary.string()) + " install --upgrade pip setuptools wheel";
+        if (!runShellCommand(upgradeCommand, "upgrading pip/setuptools/wheel for " + summary.appId, error)) {
+            return false;
+        }
 
-    const auto installCommand = shellQuote(pipBinary.string()) + " install " + shellQuote(packageName);
-    if (!runShellCommand(installCommand, "installing Python package " + packageName + " for " + summary.appId, error)) {
-        return false;
+        const auto installCommand = shellQuote(pipBinary.string()) + " install " + shellQuote(packageName);
+        if (!runShellCommand(installCommand, "installing Python package " + packageName + " for " + summary.appId, error)) {
+            return false;
+        }
     }
 
     if (!writePythonInstallState(summary, venvRoot, packageName, error)) {
         return false;
     }
 
-    CubeLog::info("AppsManager: Python runtime is ready for " + summary.appId + " using package " + packageName);
+    if (packageName.empty()) {
+        CubeLog::info("AppsManager: Python runtime is ready for script app " + summary.appId);
+    } else {
+        CubeLog::info("AppsManager: Python runtime is ready for " + summary.appId + " using package " + packageName);
+    }
     return true;
 }
 
