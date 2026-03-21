@@ -1,2 +1,2 @@
 #pragma once
-#define NUM_INTERFACES 15
+#define NUM_INTERFACES 16

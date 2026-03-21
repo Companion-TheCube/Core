@@ -597,6 +597,21 @@ bool Database::rowExists(const std::string& tableName, const std::string& whereC
     }
 }
 
+bool Database::execute(const std::string& query)
+{
+    if (!this->isOpen()) {
+        this->lastError = "Database is not open";
+        return false;
+    }
+    try {
+        this->db->exec(query);
+        return true;
+    } catch (std::exception& e) {
+        this->lastError = e.what();
+        return false;
+    }
+}
+
 /**
  * @brief Open the database
  *

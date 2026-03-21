@@ -10,6 +10,7 @@ Copyright (c) 2025 A-McD Technology LLC
 #include "../threadsafeQueue.h"
 #include "functionRegistry.h"
 #include "intentRegistry.h"
+#include "notificationCenter.h"
 #include "personalityManager.h"
 #include "remoteServer.h"
 #include "scheduler.h"
@@ -78,7 +79,7 @@ public:
 
 private:
     DecisionTurnResult processTranscript(const std::string& transcript);
-    DecisionTurnResult executeIntent(const std::shared_ptr<Intent>& intent, const std::string& transcript);
+    DecisionTurnResult executeIntent(const std::shared_ptr<Intent>& intent, const std::string& transcript, const nlohmann::json& resolvedArgs = nlohmann::json::object());
     void recordTurnResult(const DecisionTurnResult& result);
     nlohmann::json statusJson() const;
     nlohmann::json parametersToJson(const Parameters& parameters) const;
@@ -94,6 +95,7 @@ private:
     std::shared_ptr<I_IntentRecognition> intentRecognition;
     std::shared_ptr<IntentRegistry> intentRegistry;
     std::shared_ptr<FunctionRegistry> functionRegistry;
+    std::shared_ptr<NotificationCenter> notificationCenter;
     std::shared_ptr<I_Transcriber> transcriber;
     std::shared_ptr<Scheduler> scheduler;
     std::shared_ptr<TriggerManager> triggerManager;

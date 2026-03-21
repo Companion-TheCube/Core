@@ -455,18 +455,18 @@ const std::string Intent::getResponseString() const
         }
     }
 
-    // Parse the response string and replace the placeholders with the actual values
-    bool allParamsFound = true;
-    for (auto& param : parameters) {
+    // Replace all referenced placeholders. Extra parameters are fine.
+    for (const auto& param : parameters) {
         std::string placeholder = "${" + param.first + "}";
         size_t pos = temp.find(placeholder);
-        if (pos != std::string::npos)
+        while (pos != std::string::npos) {
             temp.replace(pos, placeholder.length(), param.second);
-        else
-            allParamsFound = false;
+            pos = temp.find(placeholder, pos + param.second.length());
+        }
     }
-    if (!allParamsFound)
-        CubeLog::warning("Not all parameters found in response string for intent: " + intentName);
+    if (temp.find("${") != std::string::npos) {
+        CubeLog::warning("Unresolved placeholders remain in response string for intent: " + intentName);
+    }
     return temp;
 }
 
@@ -608,6 +608,54 @@ std::vector<IntentCTorParams> getSystemIntents()
         "${answer}",
         { { "answer", "" } },
         Intent::IntentType::QUESTION));
+
+    intents.push_back(makeIntent(
+        "core.create_reminder",
+        "core.create_reminder",
+        "User wants TheCube to create a reminder for a future time, date, or delay.",
+        "${summary}",
+        { { "summary", "" }, { "notificationId", "" }, { "scheduledForEpochMs", "" } },
+        Intent::IntentType::COMMAND));
+
+    intents.push_back(makeIntent(
+        "core.create_alarm",
+        "core.create_alarm",
+        "User wants TheCube to set an alarm for a future time or delay.",
+        "${summary}",
+        { { "summary", "" }, { "notificationId", "" }, { "scheduledForEpochMs", "" } },
+        Intent::IntentType::COMMAND));
+
+    intents.push_back(makeIntent(
+        "core.list_reminders",
+        "core.list_reminders",
+        "User is asking what reminders are scheduled or what reminders are coming up.",
+        "${summary}",
+        { { "summary", "" }, { "count", "" } },
+        Intent::IntentType::QUESTION));
+
+    intents.push_back(makeIntent(
+        "core.list_alarms",
+        "core.list_alarms",
+        "User is asking what alarms are active or currently scheduled.",
+        "${summary}",
+        { { "summary", "" }, { "count", "" } },
+        Intent::IntentType::QUESTION));
+
+    intents.push_back(makeIntent(
+        "core.cancel_notification",
+        "core.cancel_notification",
+        "User wants to cancel, dismiss, or clear a reminder or alarm.",
+        "${summary}",
+        { { "summary", "" } },
+        Intent::IntentType::COMMAND));
+
+    intents.push_back(makeIntent(
+        "core.snooze_alarm",
+        "core.snooze_alarm",
+        "User wants to snooze the currently ringing or active alarm.",
+        "${summary}",
+        { { "summary", "" } },
+        Intent::IntentType::COMMAND));
 
     intents.push_back(makeIntent(
         "apps.list_installed",

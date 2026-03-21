@@ -120,13 +120,14 @@ nlohmann::json FunctionSpec::toJson() const
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 CapabilitySpec::CapabilitySpec()
-    : name(""), description(""), timeoutMs(2000), retryLimit(3), lastCalled(TimePoint::min()), enabled(true), type("core"), entry("")
+    : name(""), description(""), timeoutMs(2000), retryLimit(3), lastCalled(TimePoint::min()), enabled(true), type("core"), entry(""), voiceEnabled(false), voiceInputSchema(nlohmann::json::object())
 {
 }
 
 CapabilitySpec::CapabilitySpec(const CapabilitySpec& other)
     : name(other.name), description(other.description), action(other.action), timeoutMs(other.timeoutMs),
-      retryLimit(other.retryLimit), lastCalled(other.lastCalled), enabled(other.enabled), type(other.type), entry(other.entry), parameters(other.parameters)
+      retryLimit(other.retryLimit), lastCalled(other.lastCalled), enabled(other.enabled), type(other.type), entry(other.entry), parameters(other.parameters),
+      voiceEnabled(other.voiceEnabled), voiceInputSchema(other.voiceInputSchema)
 {
 }
 
@@ -143,6 +144,8 @@ CapabilitySpec& CapabilitySpec::operator=(const CapabilitySpec& other)
         type = other.type;
         entry = other.entry;
         parameters = other.parameters;
+        voiceEnabled = other.voiceEnabled;
+        voiceInputSchema = other.voiceInputSchema;
     }
     return *this;
 }
@@ -150,7 +153,8 @@ CapabilitySpec& CapabilitySpec::operator=(const CapabilitySpec& other)
 CapabilitySpec::CapabilitySpec(CapabilitySpec&& other) noexcept
     : name(std::move(other.name)), description(std::move(other.description)), action(std::move(other.action)),
       timeoutMs(other.timeoutMs), retryLimit(other.retryLimit), lastCalled(std::move(other.lastCalled)),
-      enabled(other.enabled), type(std::move(other.type)), entry(std::move(other.entry)), parameters(std::move(other.parameters))
+      enabled(other.enabled), type(std::move(other.type)), entry(std::move(other.entry)), parameters(std::move(other.parameters)),
+      voiceEnabled(other.voiceEnabled), voiceInputSchema(std::move(other.voiceInputSchema))
 {
 }
 
@@ -167,6 +171,8 @@ CapabilitySpec& CapabilitySpec::operator=(CapabilitySpec&& other)
         type = std::move(other.type);
         entry = std::move(other.entry);
         parameters = std::move(other.parameters);
+        voiceEnabled = other.voiceEnabled;
+        voiceInputSchema = std::move(other.voiceInputSchema);
     }
     return *this;
 }
@@ -180,6 +186,8 @@ nlohmann::json CapabilitySpec::toJson() const {
     j["timeoutMs"] = timeoutMs;
     j["type"] = type;
     j["entry"] = entry;
+    j["voiceEnabled"] = voiceEnabled;
+    j["voiceInputSchema"] = voiceInputSchema;
     j["parameters"] = nlohmann::json::array();
     for (const auto& param : parameters) {
         nlohmann::json paramJson;
@@ -193,4 +201,3 @@ nlohmann::json CapabilitySpec::toJson() const {
 }
 
 } // namespace DecisionEngine
-

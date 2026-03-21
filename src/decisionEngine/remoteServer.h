@@ -20,6 +20,13 @@ Copyright (c) 2025 A-McD Technology LLC
 
 namespace TheCubeServer {
 
+struct ResolvedIntentCall {
+    std::string status = "no_match";
+    std::string intentName;
+    nlohmann::json arguments = nlohmann::json::object();
+    std::string message;
+};
+
 class IRemoteAudioClient {
 public:
     virtual ~IRemoteAudioClient() = default;
@@ -41,6 +48,10 @@ public:
     virtual std::future<std::string> getGeneralAnswerAsync(
         const std::string& question,
         const std::function<void(std::string)>& progressCB = [](std::string) {}) = 0;
+    virtual std::future<ResolvedIntentCall> getResolvedIntentCallAsync(
+        const std::string& utterance,
+        const nlohmann::json& functions,
+        const nlohmann::json& context = nlohmann::json::object()) = 0;
 };
 
 class TheCubeServerAPI : public IRemoteAudioClient, public IRemoteConversationClient {
@@ -107,6 +118,10 @@ public:
     std::future<std::string> getGeneralAnswerAsync(
         const std::string& question,
         const std::function<void(std::string)>& progressCB = [](std::string) {}) override;
+    std::future<ResolvedIntentCall> getResolvedIntentCallAsync(
+        const std::string& utterance,
+        const nlohmann::json& functions,
+        const nlohmann::json& context = nlohmann::json::object()) override;
 
     // Compatibility wrappers while the rest of the codebase finishes moving to
     // the narrower interfaces.
@@ -155,6 +170,7 @@ private:
         const std::string& message,
         const std::string& mode,
         const std::function<void(std::string)>& progressCB);
+    std::future<nlohmann::json> postChatRequestAsync(const nlohmann::json& payload);
 };
 
 std::string serialNumberToPassword(const std::string& serialNumber);

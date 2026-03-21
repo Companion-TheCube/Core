@@ -6,6 +6,7 @@ Copyright (c) 2025 A-McD Technology LLC
 #include "decisions.h"
 #include "../audio/audioOutput.h"
 #include "../gui/gui.h"
+#include "nlohmann/json-schema.hpp"
 
 #ifndef LOGGER_H
 #include <logger.h>
@@ -14,7 +15,10 @@ Copyright (c) 2025 A-McD Technology LLC
 #include <chrono>
 #include <cctype>
 #include <cstdlib>
+#include <ctime>
 #include <filesystem>
+#include <fstream>
+#include <iomanip>
 #include <sstream>
 #include <thread>
 
@@ -22,10 +26,64 @@ using namespace DecisionEngine;
 
 namespace {
 
+std::string makeOpenAiToolName(const std::string& rawName)
+{
+    std::string normalized;
+    normalized.reserve(rawName.size() * 2);
+    for (unsigned char ch : rawName) {
+        if (std::isalnum(ch) || ch == '_' || ch == '-') {
+            normalized.push_back(static_cast<char>(ch));
+            continue;
+        }
+
+        std::ostringstream escaped;
+        escaped << "_x" << std::hex << std::nouppercase << static_cast<int>(ch) << "_";
+        normalized += escaped.str();
+    }
+
+    if (normalized.empty()) {
+        return "tool";
+    }
+    if (!(std::isalpha(static_cast<unsigned char>(normalized.front())) || normalized.front() == '_')) {
+        normalized = "tool_" + normalized;
+    }
+    return normalized;
+}
+
+std::string summarizeJsonForLog(const nlohmann::json& value, size_t maxLen = 400)
+{
+    std::string dump;
+    try {
+        dump = value.dump();
+    } catch (...) {
+        dump = "<json_dump_failed>";
+    }
+    if (dump.size() <= maxLen) {
+        return dump;
+    }
+    return dump.substr(0, maxLen) + "...";
+}
+
 int64_t nowEpochMs()
 {
     const auto now = std::chrono::system_clock::now();
     return std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+}
+
+std::string nowIsoLocal()
+{
+    const auto now = std::chrono::system_clock::now();
+    const auto nowTime = std::chrono::system_clock::to_time_t(now);
+    std::tm localTm {};
+#if defined(_WIN32)
+    localtime_s(&localTm, &nowTime);
+#else
+    localtime_r(&nowTime, &localTm);
+#endif
+
+    std::ostringstream oss;
+    oss << std::put_time(&localTm, "%Y-%m-%dT%H:%M:%S");
+    return oss.str();
 }
 
 nlohmann::json jsonValueFromString(const std::string& value)
@@ -130,6 +188,116 @@ bool shouldFallbackToAskAi(const std::string& transcript)
         || startsWith(normalized, "describe");
 }
 
+std::string localTimezoneId()
+{
+    if (const char* tz = std::getenv("TZ")) {
+        std::string value = tz;
+        if (!value.empty()) {
+            return value;
+        }
+    }
+
+    {
+        std::ifstream timezoneFile("/etc/timezone");
+        std::string timezone;
+        if (timezoneFile.good() && std::getline(timezoneFile, timezone)) {
+            timezone = toLowerTrimmedAscii(timezone) == "utc" ? "UTC" : timezone;
+            if (!timezone.empty()) {
+                return timezone;
+            }
+        }
+    }
+
+    std::error_code ec;
+    if (std::filesystem::is_symlink("/etc/localtime", ec)) {
+        const auto link = std::filesystem::read_symlink("/etc/localtime", ec).string();
+        const auto marker = link.find("zoneinfo/");
+        if (marker != std::string::npos) {
+            return link.substr(marker + 9);
+        }
+    }
+
+    return "UTC";
+}
+
+bool validateJsonAgainstSchema(const nlohmann::json& value, const nlohmann::json& schema, std::string& error)
+{
+    try {
+        if (!schema.is_object() || schema.empty()) {
+            return true;
+        }
+        nlohmann::json rootSchema = schema;
+        nlohmann::json_schema::json_validator validator(
+            [rootSchema](const nlohmann::json_uri& uri, nlohmann::json& resolved) mutable {
+                const auto ref = uri.to_string();
+                if (!ref.empty() && ref[0] == '#') {
+                    resolved = rootSchema.at(nlohmann::json::json_pointer(ref.substr(1)));
+                    return;
+                }
+                throw std::runtime_error("External schema references are not supported for voiceInputSchema");
+            });
+        validator.set_root_schema(rootSchema);
+        validator.validate(value);
+        return true;
+    } catch (const std::exception& e) {
+        error = e.what();
+        return false;
+    }
+}
+
+nlohmann::json effectiveVoiceSchema(const std::shared_ptr<Intent>& intent, const DecisionEngine::CapabilitySpec* capability)
+{
+    (void)intent;
+    if (!capability || !capability->voiceEnabled) {
+        return nlohmann::json::object();
+    }
+
+    nlohmann::json schema = capability->voiceInputSchema.is_object()
+        ? capability->voiceInputSchema
+        : nlohmann::json::object();
+    if (!schema.contains("type")) {
+        schema["type"] = "object";
+    }
+    if (!schema.contains("properties") || !schema["properties"].is_object()) {
+        schema["properties"] = nlohmann::json::object();
+    }
+    if (!schema.contains("additionalProperties")) {
+        schema["additionalProperties"] = false;
+    }
+    return schema;
+}
+
+nlohmann::json buildVoiceToolCatalogue(
+    const std::shared_ptr<IntentRegistry>& intentRegistry,
+    const std::shared_ptr<FunctionRegistry>& functionRegistry)
+{
+    nlohmann::json tools = nlohmann::json::array();
+    if (!intentRegistry || !functionRegistry) {
+        return tools;
+    }
+
+    for (const auto& intent : intentRegistry->getRegisteredIntents()) {
+        if (!intent) {
+            continue;
+        }
+        const auto capabilityName = lookupParameter(intent->getParameters(), "capability_name");
+        if (capabilityName.empty()) {
+            continue;
+        }
+        const auto* capability = functionRegistry->findCapability(capabilityName);
+        if (!capability || !capability->voiceEnabled || !capability->enabled) {
+            continue;
+        }
+        tools.push_back({
+            { "name", makeOpenAiToolName(intent->getIntentName()) },
+            { "intentName", intent->getIntentName() },
+            { "description", intent->getBriefDesc() },
+            { "parameters", effectiveVoiceSchema(intent, capability) }
+        });
+    }
+    return tools;
+}
+
 bool shouldSpeakForGeneralAiAnswer()
 {
     try {
@@ -229,6 +397,7 @@ DecisionEngineMain::DecisionEngineMain()
     intentRegistry = std::make_shared<IntentRegistry>();
     functionRegistry = std::make_shared<FunctionRegistry>();
     scheduler = std::make_shared<Scheduler>();
+    notificationCenter = std::make_shared<NotificationCenter>();
     triggerManager = std::make_shared<TriggerManager>(scheduler);
     personalityManager = std::make_shared<Personality::PersonalityManager>();
 
@@ -238,12 +407,18 @@ DecisionEngineMain::DecisionEngineMain()
     }
     if (functionRegistry) {
         functionRegistry->setRemoteConversationClient(remoteServerAPI);
+        functionRegistry->setNotificationCenter(notificationCenter);
         try { functionRegistry->registerInterface(); } catch (...) { CubeLog::error("Failed to register FunctionRegistry interface"); }
     }
     if (scheduler) {
         scheduler->setIntentRegistry(intentRegistry);
         scheduler->setFunctionRegistry(functionRegistry);
         try { scheduler->registerInterface(); } catch (...) { CubeLog::error("Failed to register Scheduler interface"); }
+    }
+    if (notificationCenter) {
+        notificationCenter->setScheduler(scheduler);
+        NotificationCenter::setSharedInstance(notificationCenter);
+        try { notificationCenter->registerInterface(); } catch (...) { CubeLog::error("Failed to register NotificationCenter interface"); }
     }
     if (triggerManager) {
         triggerManager->setIntentRegistry(intentRegistry);
@@ -290,6 +465,7 @@ void DecisionEngineMain::start()
     });
 
     if (scheduler) scheduler->start();
+    if (notificationCenter) notificationCenter->start();
     if (triggerManager) triggerManager->start();
     started = true;
 }
@@ -321,6 +497,7 @@ void DecisionEngineMain::stop()
     }
     stopTranscriptionConsumer();
     hideTurnUi();
+    if (notificationCenter) notificationCenter->stop();
     if (scheduler) scheduler->stop();
     if (triggerManager) triggerManager->stop();
 }
@@ -399,6 +576,12 @@ void DecisionEngineMain::presentTurnResult(const DecisionTurnResult& result)
     const std::string message = !result.responseText.empty()
         ? result.responseText
         : (!result.error.empty() ? result.error : "Done.");
+    CubeLog::info(
+        "DecisionEngine: presenting result"
+        " status=" + result.executionStatus
+        + ", intent=" + result.intentName
+        + ", error=" + result.error
+        + ", message=" + message);
     presentationController().showResult(message);
 
     if (result.speakResult && !message.empty() && functionRegistry) {
@@ -496,7 +679,7 @@ void DecisionEngineMain::applyCapabilityResultToIntent(const std::shared_ptr<Int
     }
 }
 
-DecisionTurnResult DecisionEngineMain::executeIntent(const std::shared_ptr<Intent>& intent, const std::string& transcript)
+DecisionTurnResult DecisionEngineMain::executeIntent(const std::shared_ptr<Intent>& intent, const std::string& transcript, const nlohmann::json& resolvedArgs)
 {
     DecisionTurnResult result;
     result.transcript = transcript;
@@ -504,6 +687,7 @@ DecisionTurnResult DecisionEngineMain::executeIntent(const std::shared_ptr<Inten
     setTurnState(TurnState::INTENT_EXECUTING);
 
     if (!intent) {
+        CubeLog::warning("DecisionEngine: executeIntent called with null intent for transcript: " + transcript);
         result.executionStatus = "intent_not_found";
         result.error = "intent_not_found";
         result.responseText = "I couldn't match that request to an available action.";
@@ -516,13 +700,53 @@ DecisionTurnResult DecisionEngineMain::executeIntent(const std::shared_ptr<Inten
     result.speakResult = parseBoolString(lookupParameter(parameters, "speak_result"));
 
     if (!capabilityName.empty()) {
+        if (const auto* capability = functionRegistry ? functionRegistry->findCapability(capabilityName) : nullptr) {
+            const auto schema = effectiveVoiceSchema(intent, capability);
+            std::string validationError;
+            const auto argsToValidate = resolvedArgs.is_object() ? resolvedArgs : nlohmann::json::object();
+            if (!validateJsonAgainstSchema(argsToValidate, schema, validationError)) {
+                CubeLog::warning(
+                    "DecisionEngine: capability argument validation failed"
+                    " intent=" + result.intentName
+                    + ", capability=" + capabilityName
+                    + ", args=" + summarizeJsonForLog(argsToValidate)
+                    + ", schema=" + summarizeJsonForLog(schema)
+                    + ", error=" + validationError);
+                result.executionStatus = "capability_validation_error";
+                result.error = validationError;
+                result.responseText = "I understood the request, but I couldn't determine the required details.";
+                return result;
+            }
+        }
+
         auto capabilityArgs = parametersToJson(parameters);
+        if (resolvedArgs.is_object()) {
+            for (const auto& [key, value] : resolvedArgs.items()) {
+                capabilityArgs[key] = value;
+            }
+        }
         if (!capabilityArgs.contains("transcript")) {
             capabilityArgs["transcript"] = transcript;
         }
+
+        CubeLog::info(
+            "DecisionEngine: executing capability"
+            " intent=" + result.intentName
+            + ", capability=" + capabilityName
+            + ", args=" + summarizeJsonForLog(capabilityArgs));
         result.capabilityResult = intent->runCapabilitySync(capabilityName, capabilityArgs, 4000);
+        CubeLog::info(
+            "DecisionEngine: capability result"
+            " intent=" + result.intentName
+            + ", capability=" + capabilityName
+            + ", result=" + summarizeJsonForLog(result.capabilityResult));
         applyCapabilityResultToIntent(intent, result.capabilityResult);
         if (result.capabilityResult.is_object() && result.capabilityResult.contains("error")) {
+            CubeLog::warning(
+                "DecisionEngine: capability reported error"
+                " intent=" + result.intentName
+                + ", capability=" + capabilityName
+                + ", error=" + jsonToParameterString(result.capabilityResult["error"]));
             result.executionStatus = "capability_error";
             result.error = jsonToParameterString(result.capabilityResult["error"]);
             result.responseText = intent->getResponseString().empty()
@@ -542,30 +766,85 @@ DecisionTurnResult DecisionEngineMain::executeIntent(const std::shared_ptr<Inten
         result.responseText = "Done.";
     }
     result.executionStatus = "success";
+    CubeLog::info(
+        "DecisionEngine: intent execution complete"
+        " intent=" + result.intentName
+        + ", status=" + result.executionStatus
+        + ", response=" + result.responseText);
     return result;
 }
 
 DecisionTurnResult DecisionEngineMain::processTranscript(const std::string& transcript)
 {
     CubeLog::info("DecisionEngine: processing transcript: " + transcript);
-    if (!intentRecognition) {
+    if (!remoteServerAPI || !intentRegistry || !functionRegistry) {
         return DecisionTurnResult {
             .transcript = transcript,
             .intentName = "",
             .executionStatus = "error",
             .responseText = "",
             .capabilityResult = nlohmann::json::object(),
-            .error = "intent_recognition_unavailable",
+            .error = "intent_resolution_unavailable",
             .timestampEpochMs = nowEpochMs()
         };
     }
 
-    auto intent = intentRecognition->recognizeIntent("voice", transcript);
-    if (!intent && shouldFallbackToAskAi(transcript) && intentRegistry) {
-        CubeLog::info("DecisionEngine: falling back to core.ask_ai for general question");
-        intent = intentRegistry->getIntent("core.ask_ai");
+    const auto tools = buildVoiceToolCatalogue(intentRegistry, functionRegistry);
+    const auto resolved = remoteServerAPI->getResolvedIntentCallAsync(
+        transcript,
+        tools,
+        nlohmann::json({
+            { "deviceTimezone", localTimezoneId() },
+            { "deviceNowEpochMs", nowEpochMs() },
+            { "deviceNowIsoLocal", nowIsoLocal() }
+        }))
+                              .get();
+
+    CubeLog::info(
+        "DecisionEngine: resolved intent_call"
+        " status=" + resolved.status
+        + ", intentName=" + resolved.intentName
+        + ", arguments=" + summarizeJsonForLog(resolved.arguments)
+        + ", message=" + resolved.message);
+
+    if (resolved.status == "matched") {
+        auto intent = intentRegistry->getIntent(resolved.intentName);
+        if (!intent) {
+            CubeLog::warning("DecisionEngine: resolved intent not registered locally: " + resolved.intentName);
+            return DecisionTurnResult {
+                .transcript = transcript,
+                .intentName = resolved.intentName,
+                .executionStatus = "intent_not_found",
+                .responseText = "I found a matching action, but it isn't available on this device.",
+                .capabilityResult = nlohmann::json::object(),
+                .error = "intent_not_found",
+                .timestampEpochMs = nowEpochMs()
+            };
+        }
+        return executeIntent(intent, transcript, resolved.arguments);
     }
-    return executeIntent(intent, transcript);
+
+    if (resolved.status == "error") {
+        CubeLog::warning("DecisionEngine: intent resolution returned error: " + resolved.message);
+        return DecisionTurnResult {
+            .transcript = transcript,
+            .intentName = "",
+            .executionStatus = "error",
+            .responseText = "I couldn't process that request right now.",
+            .capabilityResult = nlohmann::json::object(),
+            .error = resolved.message.empty() ? "intent_resolution_failed" : resolved.message,
+            .timestampEpochMs = nowEpochMs()
+        };
+    }
+
+    if (shouldFallbackToAskAi(transcript) && intentRegistry) {
+        CubeLog::info("DecisionEngine: falling back to core.ask_ai for general question");
+        auto intent = intentRegistry->getIntent("core.ask_ai");
+        return executeIntent(intent, transcript);
+    }
+
+    CubeLog::warning("DecisionEngine: no intent matched transcript and no ask_ai fallback applied: " + transcript);
+    return executeIntent(nullptr, transcript);
 }
 
 void DecisionEngineMain::recordTurnResult(const DecisionTurnResult& result)

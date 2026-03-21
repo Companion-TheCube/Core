@@ -46,6 +46,7 @@ SOFTWARE.
 // #define _ENABLE_LAMBDAS
 
 #include "./gui.h"
+#include "../decisionEngine/notificationCenter.h"
 #include <algorithm>
 #include <memory>
 #include <optional>
@@ -1103,10 +1104,18 @@ void GUI::eventLoop()
     auto notificationsMenu_RecentNotifications = createANewSubMenu(_("Recent Notifications"), "Recent Notifications", notificationsMenu);
     this->renderer->addSetupTask([&notificationsMenu_RecentNotifications, addBackButton, addToParent]() {
         addBackButton(notificationsMenu_RecentNotifications);
-        // TODO: list all the recent notifications. we'll need to determine the max number of notifications to show,
-        // then create that many entries and set them up to pull the notification data from the notification manager
-        // and update the text of the title from the notification. then when the user clicks/taps, we'll pop up a
-        // message box with the full notification text.
+        notificationsMenu_RecentNotifications->addMenuEntry(
+            _("Open Notification Center"),
+            "Notifications_Open_Notification_Center",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [](void*) {
+                auto center = DecisionEngine::NotificationCenter::sharedInstance();
+                const auto summary = center ? center->recentSummary(10) : std::string("Notification center unavailable.");
+                GUI::showMessageBox("Recent Notifications", summary);
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr);
         notificationsMenu_RecentNotifications->setup();
         addToParent(notificationsMenu_RecentNotifications);
         notificationsMenu_RecentNotifications->setChildrenClickables_isClickable(false);

@@ -45,7 +45,21 @@ public:
         return std::async(std::launch::deferred, []() { return std::string("answer"); });
     }
 
+    std::future<TheCubeServer::ResolvedIntentCall> getResolvedIntentCallAsync(
+        const std::string& utterance,
+        const nlohmann::json& functions,
+        const nlohmann::json& context = nlohmann::json::object()) override
+    {
+        lastResolvedUtterance = utterance;
+        lastResolvedFunctions = functions;
+        lastResolvedContext = context;
+        return std::async(std::launch::deferred, []() { return TheCubeServer::ResolvedIntentCall {}; });
+    }
+
     std::string lastQuestion;
+    std::string lastResolvedUtterance;
+    nlohmann::json lastResolvedFunctions = nlohmann::json::array();
+    nlohmann::json lastResolvedContext = nlohmann::json::object();
 };
 
 } // namespace
@@ -87,11 +101,38 @@ TEST(FunctionRegistry, BuiltInCoreCapabilitiesPresent)
     EXPECT_NE(registry.findCapability("core.get_date"), nullptr);
     EXPECT_NE(registry.findCapability("core.get_datetime"), nullptr);
     EXPECT_NE(registry.findCapability("core.ask_ai"), nullptr);
+    EXPECT_NE(registry.findCapability("core.create_reminder"), nullptr);
+    EXPECT_NE(registry.findCapability("core.create_alarm"), nullptr);
+    EXPECT_NE(registry.findCapability("core.list_reminders"), nullptr);
+    EXPECT_NE(registry.findCapability("core.list_alarms"), nullptr);
+    EXPECT_NE(registry.findCapability("core.cancel_notification"), nullptr);
+    EXPECT_NE(registry.findCapability("core.snooze_alarm"), nullptr);
     EXPECT_NE(registry.findCapability("apps.list_installed"), nullptr);
     EXPECT_NE(registry.findCapability("audio.toggle_sound"), nullptr);
     EXPECT_NE(registry.findCapability("audio.set_sound"), nullptr);
     EXPECT_NE(registry.findCapability("core.play_sound"), nullptr);
     EXPECT_NE(registry.findCapability("core.speak_text"), nullptr);
+}
+
+TEST(FunctionRegistry, ParameterizedVoiceCapabilitiesExposeSchemas)
+{
+    FunctionRegistry registry;
+
+    const auto* reminder = registry.findCapability("core.create_reminder");
+    ASSERT_NE(reminder, nullptr);
+    EXPECT_TRUE(reminder->voiceEnabled);
+    ASSERT_TRUE(reminder->voiceInputSchema.is_object());
+    EXPECT_TRUE(reminder->voiceInputSchema["properties"].contains("scheduledForEpochMs"));
+
+    const auto* alarm = registry.findCapability("core.create_alarm");
+    ASSERT_NE(alarm, nullptr);
+    EXPECT_TRUE(alarm->voiceEnabled);
+    EXPECT_TRUE(alarm->voiceInputSchema["properties"].contains("scheduledForEpochMs"));
+
+    const auto* setSound = registry.findCapability("audio.set_sound");
+    ASSERT_NE(setSound, nullptr);
+    EXPECT_TRUE(setSound->voiceEnabled);
+    EXPECT_TRUE(setSound->voiceInputSchema["properties"].contains("soundOn"));
 }
 
 TEST(FunctionRegistry, BuiltInAskAiCapabilityUsesRemoteConversationClient)
@@ -123,6 +164,12 @@ TEST(IntentRegistry, RegistersV1BuiltInIntents)
     EXPECT_NE(std::find(names.begin(), names.end(), "core.get_date"), names.end());
     EXPECT_NE(std::find(names.begin(), names.end(), "core.get_datetime"), names.end());
     EXPECT_NE(std::find(names.begin(), names.end(), "core.ask_ai"), names.end());
+    EXPECT_NE(std::find(names.begin(), names.end(), "core.create_reminder"), names.end());
+    EXPECT_NE(std::find(names.begin(), names.end(), "core.create_alarm"), names.end());
+    EXPECT_NE(std::find(names.begin(), names.end(), "core.list_reminders"), names.end());
+    EXPECT_NE(std::find(names.begin(), names.end(), "core.list_alarms"), names.end());
+    EXPECT_NE(std::find(names.begin(), names.end(), "core.cancel_notification"), names.end());
+    EXPECT_NE(std::find(names.begin(), names.end(), "core.snooze_alarm"), names.end());
     EXPECT_NE(std::find(names.begin(), names.end(), "apps.list_installed"), names.end());
     EXPECT_NE(std::find(names.begin(), names.end(), "audio.toggle_sound"), names.end());
     EXPECT_NE(std::find(names.begin(), names.end(), "audio.set_sound_on"), names.end());
@@ -134,6 +181,23 @@ TEST(IntentRegistry, RegistersV1BuiltInIntents)
     const auto it = params.find("speak_result");
     ASSERT_NE(it, params.end());
     EXPECT_EQ(it->second, "true");
+}
+
+TEST(IntentRegistry, ResponseStringIgnoresExtraParametersAndReplacesRepeatedPlaceholders)
+{
+    Parameters params = {
+        { "summary", "Alarm set for 6:00 PM." },
+        { "notificationId", "42" },
+        { "scheduledForEpochMs", "1742594400000" }
+    };
+    Intent intent(
+        "core.create_alarm",
+        [](const Parameters&, Intent) {},
+        params,
+        "Create an alarm",
+        "${summary} ${summary}");
+
+    EXPECT_EQ(intent.getResponseString(), "Alarm set for 6:00 PM. Alarm set for 6:00 PM.");
 }
 
 TEST(GlobalSettings, GeneralAiResponseModeDefaultsToPopupOnly)
@@ -191,6 +255,48 @@ TEST(IntentRegistry, LoadsAppIntentManifestsWhenCapabilityExists)
     EXPECT_EQ(params.at("capability_name"), "sample.hello");
     EXPECT_EQ(params.at("audience"), "developer");
     EXPECT_EQ(params.at("speak_result"), "true");
+
+    Config::erase("APP_INSTALL_ROOTS");
+    std::filesystem::remove_all(tempRoot, ec);
+}
+
+TEST(FunctionRegistry, LoadsVoiceSchemaFromCapabilityManifest)
+{
+    const auto tempRoot = std::filesystem::temp_directory_path() / "cube_capability_manifest_voice_schema_test";
+    std::error_code ec;
+    std::filesystem::remove_all(tempRoot, ec);
+    std::filesystem::create_directories(tempRoot / "sample-app" / "capabilities", ec);
+    ASSERT_FALSE(ec);
+
+    const auto manifestPath = tempRoot / "sample-app" / "capabilities" / "sample.capability.json";
+    std::ofstream(manifestPath) << R"json(
+{
+  "name": "sample.schedule",
+  "description": "Schedule a sample action.",
+  "type": "rpc",
+  "entry": "sample-app",
+  "voiceEnabled": true,
+  "voiceInputSchema": {
+    "type": "object",
+    "properties": {
+      "scheduledForEpochMs": {
+        "type": "integer"
+      }
+    },
+    "required": ["scheduledForEpochMs"],
+    "additionalProperties": false
+  }
+}
+)json";
+
+    Config::set("APP_INSTALL_ROOTS", tempRoot.string());
+    FunctionRegistry registry;
+
+    const auto* capability = registry.findCapability("sample.schedule");
+    ASSERT_NE(capability, nullptr);
+    EXPECT_TRUE(capability->voiceEnabled);
+    EXPECT_TRUE(capability->voiceInputSchema.is_object());
+    EXPECT_TRUE(capability->voiceInputSchema["properties"].contains("scheduledForEpochMs"));
 
     Config::erase("APP_INSTALL_ROOTS");
     std::filesystem::remove_all(tempRoot, ec);

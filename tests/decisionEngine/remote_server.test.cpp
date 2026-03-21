@@ -213,3 +213,66 @@ TEST(TheCubeServerAPI, GeneralAnswerRequestsUseDedicatedChatMode)
     EXPECT_EQ(seenMessage, "Why is the sky blue?");
     EXPECT_EQ(answer, "Because shorter wavelengths scatter more strongly.");
 }
+
+TEST(TheCubeServerAPI, ResolvedIntentCallRequestsUseIntentCallModeAndParseArguments)
+{
+    resetRemoteServerConfig();
+
+    std::string seenMode;
+    std::string seenMessage;
+    nlohmann::json seenFunctions;
+    nlohmann::json seenContext;
+    ScopedHttpServer server;
+    server.server().Post("/API/llm/session", [&](const httplib::Request&, httplib::Response& res) {
+        res.set_content(R"({"sessionId":"intent-call-session"})", "application/json");
+    });
+    server.server().Post("/API/llm/chat", [&](const httplib::Request& req, httplib::Response& res) {
+        const auto body = nlohmann::json::parse(req.body);
+        seenMode = body.value("mode", "");
+        seenMessage = body.value("message", "");
+        seenFunctions = body.value("functions", nlohmann::json::array());
+        seenContext = body.value("context", nlohmann::json::object());
+        res.set_content(
+            R"({"status":"matched","intentName":"core.create_alarm","arguments":{"scheduledForEpochMs":1742517660000,"title":"Alarm"}})",
+            "application/json");
+    });
+
+    Config::set("REMOTE_SERVER_BASE_URL", "http://127.0.0.1:" + std::to_string(server.port()));
+    Config::set("REMOTE_SERVER_BEARER_TOKEN", "dev-user");
+
+    TheCubeServer::TheCubeServerAPI api;
+    const auto resolved = api.getResolvedIntentCallAsync(
+        "set an alarm for 4:41 pm today",
+        nlohmann::json::array({
+            nlohmann::json({
+                { "name", "core_x2e_create_alarm" },
+                { "intentName", "core.create_alarm" },
+                { "description", "Set an alarm" },
+                { "parameters", {
+                      { "type", "object" },
+                      { "properties", {
+                            { "scheduledForEpochMs", { { "type", "integer" } } }
+                        } },
+                      { "required", nlohmann::json::array({ "scheduledForEpochMs" }) }
+                  } }
+            })
+        }),
+        nlohmann::json({
+            { "deviceTimezone", "America/New_York" },
+            { "deviceNowEpochMs", 1742510000000LL }
+        }))
+                              .get();
+
+    EXPECT_EQ(seenMode, "intent_call");
+    EXPECT_EQ(seenMessage, "set an alarm for 4:41 pm today");
+    ASSERT_TRUE(seenFunctions.is_array());
+    ASSERT_FALSE(seenFunctions.empty());
+    EXPECT_EQ(seenFunctions[0]["name"].get<std::string>(), "core_x2e_create_alarm");
+    EXPECT_EQ(seenFunctions[0]["intentName"].get<std::string>(), "core.create_alarm");
+    EXPECT_EQ(seenContext["deviceTimezone"].get<std::string>(), "America/New_York");
+
+    EXPECT_EQ(resolved.status, "matched");
+    EXPECT_EQ(resolved.intentName, "core.create_alarm");
+    EXPECT_EQ(resolved.arguments["scheduledForEpochMs"].get<long long>(), 1742517660000LL);
+    EXPECT_EQ(resolved.arguments["title"].get<std::string>(), "Alarm");
+}

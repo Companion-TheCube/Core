@@ -78,6 +78,7 @@ initialization respectively.
 */
 
 #include "functionRegistry.h"
+#include "notificationCenter.h"
 #include "../audio/audioOutput.h"
 #include "utils.h"
 // Asio and json-rpc-cxx
@@ -471,6 +472,11 @@ FunctionRegistry::FunctionRegistry()
     // hard-coded capabilities (hardware or core services) that don't come
     // from app manifests. Implementations should be added to this helper.
     auto registerBuiltInCoreCapabilities = [this]() {
+        auto getNotificationCenter = [this]() -> std::shared_ptr<NotificationCenter> {
+            std::lock_guard<std::mutex> lock(this->mutex_);
+            return this->notificationCenter_;
+        };
+
         CapabilitySpec ping;
         ping.name = "core.ping";
         ping.description = "Simple ping capability";
@@ -484,6 +490,12 @@ FunctionRegistry::FunctionRegistry()
         CapabilitySpec getTime;
         getTime.name = "core.get_time";
         getTime.description = "Get the current local device time";
+        getTime.voiceEnabled = true;
+        getTime.voiceInputSchema = nlohmann::json({
+            { "type", "object" },
+            { "properties", nlohmann::json::object() },
+            { "additionalProperties", false }
+        });
         getTime.action = [](const nlohmann::json& args) {
             (void)args;
             const auto now = std::chrono::system_clock::now();
@@ -508,6 +520,12 @@ FunctionRegistry::FunctionRegistry()
         CapabilitySpec getDate;
         getDate.name = "core.get_date";
         getDate.description = "Get the current local device date";
+        getDate.voiceEnabled = true;
+        getDate.voiceInputSchema = nlohmann::json({
+            { "type", "object" },
+            { "properties", nlohmann::json::object() },
+            { "additionalProperties", false }
+        });
         getDate.action = [](const nlohmann::json& args) {
             (void)args;
             const auto now = std::chrono::system_clock::now();
@@ -530,6 +548,12 @@ FunctionRegistry::FunctionRegistry()
         CapabilitySpec getDateTime;
         getDateTime.name = "core.get_datetime";
         getDateTime.description = "Get the current local device date and time";
+        getDateTime.voiceEnabled = true;
+        getDateTime.voiceInputSchema = nlohmann::json({
+            { "type", "object" },
+            { "properties", nlohmann::json::object() },
+            { "additionalProperties", false }
+        });
         getDateTime.action = [](const nlohmann::json& args) {
             (void)args;
             const auto now = std::chrono::system_clock::now();
@@ -554,6 +578,12 @@ FunctionRegistry::FunctionRegistry()
         CapabilitySpec listInstalled;
         listInstalled.name = "apps.list_installed";
         listInstalled.description = "List installed apps known to the CORE";
+        listInstalled.voiceEnabled = true;
+        listInstalled.voiceInputSchema = nlohmann::json({
+            { "type", "object" },
+            { "properties", nlohmann::json::object() },
+            { "additionalProperties", false }
+        });
         listInstalled.action = [](const nlohmann::json& args) {
             (void)args;
             const auto appNames = AppsManager::getAppNames_static();
@@ -569,6 +599,12 @@ FunctionRegistry::FunctionRegistry()
         CapabilitySpec toggleSound;
         toggleSound.name = "audio.toggle_sound";
         toggleSound.description = "Toggle CORE audio output";
+        toggleSound.voiceEnabled = true;
+        toggleSound.voiceInputSchema = nlohmann::json({
+            { "type", "object" },
+            { "properties", nlohmann::json::object() },
+            { "additionalProperties", false }
+        });
         toggleSound.action = [](const nlohmann::json& args) {
             (void)args;
             AudioOutput::toggleSound();
@@ -582,6 +618,18 @@ FunctionRegistry::FunctionRegistry()
         CapabilitySpec setSound;
         setSound.name = "audio.set_sound";
         setSound.description = "Set CORE audio output on or off";
+        setSound.voiceEnabled = true;
+        setSound.voiceInputSchema = nlohmann::json({
+            { "type", "object" },
+            { "properties", {
+                  { "soundOn", {
+                        { "type", "boolean" },
+                        { "description", "Whether audio output should be enabled." }
+                    } }
+              } },
+            { "required", nlohmann::json::array({ "soundOn" }) },
+            { "additionalProperties", false }
+        });
         setSound.action = [](const nlohmann::json& args) {
             bool soundOn = false;
             if (args.is_object() && args.contains("soundOn")) {
@@ -696,6 +744,171 @@ FunctionRegistry::FunctionRegistry()
             });
         };
         this->registerCapability(askAi);
+
+        CapabilitySpec createReminder;
+        createReminder.name = "core.create_reminder";
+        createReminder.description = "Create a reminder from structured scheduling arguments";
+        createReminder.voiceEnabled = true;
+        createReminder.voiceInputSchema = nlohmann::json({
+            { "type", "object" },
+            { "properties", {
+                  { "scheduledForLocalIso", {
+                        { "type", "string" },
+                        { "description", "Preferred. Local device date-time in ISO 8601 without timezone, for example 2026-03-21T22:00:00." }
+                    } },
+                  { "scheduledForEpochMs", {
+                        { "type", "integer" },
+                        { "description", "Legacy fallback. Absolute device-local execution time in epoch milliseconds." }
+                    } },
+                  { "title", { { "type", "string" } } },
+                  { "message", { { "type", "string" } } },
+                  { "repeatRule", {
+                        { "type", "string" },
+                        { "enum", nlohmann::json::array({ "none", "daily", "weekly", "custom_seconds" }) }
+                    } },
+                  { "repeatSeconds", {
+                        { "type", "integer" },
+                        { "minimum", 1 }
+                    } }
+              } },
+            { "oneOf", nlohmann::json::array({
+                  nlohmann::json({ { "required", nlohmann::json::array({ "scheduledForLocalIso" }) } }),
+                  nlohmann::json({ { "required", nlohmann::json::array({ "scheduledForEpochMs" }) } })
+              }) },
+            { "additionalProperties", false }
+        });
+        createReminder.action = [getNotificationCenter](const nlohmann::json& args) {
+            const auto center = getNotificationCenter();
+            if (!center) {
+                return nlohmann::json({ { "status", "error" }, { "error", "notification_center_unavailable" } });
+            }
+            return center->createReminderFromArgs(args);
+        };
+        this->registerCapability(createReminder);
+
+        CapabilitySpec createAlarm;
+        createAlarm.name = "core.create_alarm";
+        createAlarm.description = "Create an alarm from structured scheduling arguments";
+        createAlarm.voiceEnabled = true;
+        createAlarm.voiceInputSchema = nlohmann::json({
+            { "type", "object" },
+            { "properties", {
+                  { "scheduledForLocalIso", {
+                        { "type", "string" },
+                        { "description", "Preferred. Local device date-time in ISO 8601 without timezone, for example 2026-03-21T22:00:00." }
+                    } },
+                  { "scheduledForEpochMs", {
+                        { "type", "integer" },
+                        { "description", "Legacy fallback. Absolute device-local execution time in epoch milliseconds." }
+                    } },
+                  { "title", { { "type", "string" } } },
+                  { "message", { { "type", "string" } } },
+                  { "repeatRule", {
+                        { "type", "string" },
+                        { "enum", nlohmann::json::array({ "none", "daily", "weekly", "custom_seconds" }) }
+                    } },
+                  { "repeatSeconds", {
+                        { "type", "integer" },
+                        { "minimum", 1 }
+                    } }
+              } },
+            { "oneOf", nlohmann::json::array({
+                  nlohmann::json({ { "required", nlohmann::json::array({ "scheduledForLocalIso" }) } }),
+                  nlohmann::json({ { "required", nlohmann::json::array({ "scheduledForEpochMs" }) } })
+              }) },
+            { "additionalProperties", false }
+        });
+        createAlarm.action = [getNotificationCenter](const nlohmann::json& args) {
+            const auto center = getNotificationCenter();
+            if (!center) {
+                return nlohmann::json({ { "status", "error" }, { "error", "notification_center_unavailable" } });
+            }
+            return center->createAlarmFromArgs(args);
+        };
+        this->registerCapability(createAlarm);
+
+        CapabilitySpec listReminders;
+        listReminders.name = "core.list_reminders";
+        listReminders.description = "List upcoming reminders";
+        listReminders.voiceEnabled = true;
+        listReminders.voiceInputSchema = nlohmann::json({
+            { "type", "object" },
+            { "properties", nlohmann::json::object() },
+            { "additionalProperties", false }
+        });
+        listReminders.action = [getNotificationCenter](const nlohmann::json& args) {
+            (void)args;
+            const auto center = getNotificationCenter();
+            if (!center) {
+                return nlohmann::json({ { "status", "error" }, { "error", "notification_center_unavailable" } });
+            }
+            return center->listUpcomingRemindersResult();
+        };
+        this->registerCapability(listReminders);
+
+        CapabilitySpec listAlarms;
+        listAlarms.name = "core.list_alarms";
+        listAlarms.description = "List active alarms";
+        listAlarms.voiceEnabled = true;
+        listAlarms.voiceInputSchema = nlohmann::json({
+            { "type", "object" },
+            { "properties", nlohmann::json::object() },
+            { "additionalProperties", false }
+        });
+        listAlarms.action = [getNotificationCenter](const nlohmann::json& args) {
+            (void)args;
+            const auto center = getNotificationCenter();
+            if (!center) {
+                return nlohmann::json({ { "status", "error" }, { "error", "notification_center_unavailable" } });
+            }
+            return center->listActiveAlarmsResult();
+        };
+        this->registerCapability(listAlarms);
+
+        CapabilitySpec cancelNotification;
+        cancelNotification.name = "core.cancel_notification";
+        cancelNotification.description = "Cancel a reminder or alarm";
+        cancelNotification.voiceEnabled = true;
+        cancelNotification.voiceInputSchema = nlohmann::json({
+            { "type", "object" },
+            { "properties", {
+                  { "notificationId", { { "type", "integer" } } },
+                  { "kind", {
+                        { "type", "string" },
+                        { "enum", nlohmann::json::array({ "alarm", "reminder" }) }
+                    } }
+              } },
+            { "additionalProperties", false }
+        });
+        cancelNotification.action = [getNotificationCenter](const nlohmann::json& args) {
+            const auto center = getNotificationCenter();
+            if (!center) {
+                return nlohmann::json({ { "status", "error" }, { "error", "notification_center_unavailable" } });
+            }
+            return center->cancelFromArgs(args);
+        };
+        this->registerCapability(cancelNotification);
+
+        CapabilitySpec snoozeAlarm;
+        snoozeAlarm.name = "core.snooze_alarm";
+        snoozeAlarm.description = "Snooze the active alarm";
+        snoozeAlarm.voiceEnabled = true;
+        snoozeAlarm.voiceInputSchema = nlohmann::json({
+            { "type", "object" },
+            { "properties", {
+                  { "notificationId", { { "type", "integer" } } },
+                  { "delayMs", { { "type", "integer" }, { "minimum", 1000 } } }
+              } },
+            { "additionalProperties", false }
+        });
+        snoozeAlarm.action = [getNotificationCenter](const nlohmann::json& args) {
+            const auto center = getNotificationCenter();
+            if (!center) {
+                return nlohmann::json({ { "status", "error" }, { "error", "notification_center_unavailable" } });
+            }
+            return center->snoozeFromArgs(args);
+        };
+        this->registerCapability(snoozeAlarm);
 
         // TODO: Add other built-in core capabilities here (audio playback,
         // UI drawing, NFC, etc.). Keep implementations in a dedicated
@@ -983,6 +1196,12 @@ void FunctionRegistry::setRemoteConversationClient(std::shared_ptr<TheCubeServer
 {
     std::lock_guard<std::mutex> lock(mutex_);
     remoteConversationClient_ = std::move(client);
+}
+
+void FunctionRegistry::setNotificationCenter(std::shared_ptr<NotificationCenter> notificationCenter)
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    notificationCenter_ = std::move(notificationCenter);
 }
 
 void FunctionRegistry::runCapabilityAsync(const std::string& capabilityName,

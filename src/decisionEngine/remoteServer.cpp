@@ -768,10 +768,6 @@ std::future<std::string> TheCubeServerAPI::getChatResponseWithModeAsync(
     const std::function<void(std::string)>& progressCB)
 {
     return std::async(std::launch::async, [this, sessionId, message, mode, progressCB]() {
-        if (!httpClient || sessionId.empty()) {
-            return std::string();
-        }
-
         nlohmann::json payload = {
             { "sessionId", sessionId },
             { "message", message }
@@ -780,31 +776,46 @@ std::future<std::string> TheCubeServerAPI::getChatResponseWithModeAsync(
             payload["mode"] = mode;
         }
 
+        const auto j = postChatRequestAsync(payload).get();
+        if (!j.is_object()) {
+            return std::string();
+        }
+        auto reply = jsonString(j, "message");
+        if (!reply.empty() && progressCB) {
+            progressCB(reply);
+        }
+        return reply;
+    });
+}
+
+std::future<nlohmann::json> TheCubeServerAPI::postChatRequestAsync(const nlohmann::json& payload)
+{
+    return std::async(std::launch::async, [this, payload]() {
+        if (!httpClient || !payload.contains("sessionId") || jsonString(payload, "sessionId").empty()) {
+            return nlohmann::json();
+        }
+
         auto res = httpClient->client.Post("/API/llm/chat", payload.dump(), "application/json");
         if (!res) {
             error = ServerError::SERVER_ERROR_CONNECTION_ERROR;
             status = ServerStatus::SERVER_STATUS_ERROR;
-            return std::string();
+            return nlohmann::json();
         }
         if (res->status != 200) {
             error = ServerError::SERVER_ERROR_AUTHENTICATION_ERROR;
             status = ServerStatus::SERVER_STATUS_ERROR;
-            return std::string();
+            return nlohmann::json();
         }
 
         try {
             auto j = nlohmann::json::parse(res->body);
-            auto reply = jsonString(j, "message");
-            if (!reply.empty() && progressCB) {
-                progressCB(reply);
-            }
             error = ServerError::SERVER_ERROR_NONE;
             status = ServerStatus::SERVER_STATUS_READY;
-            return reply;
+            return j;
         } catch (...) {
             error = ServerError::SERVER_ERROR_INTERNAL_ERROR;
             status = ServerStatus::SERVER_STATUS_ERROR;
-            return std::string();
+            return nlohmann::json();
         }
     });
 }
@@ -832,6 +843,50 @@ std::future<std::string> TheCubeServerAPI::getGeneralAnswerAsync(
             return std::string();
         }
         return getChatResponseWithModeAsync(*sessionId, question, "general_answer", progressCB).get();
+    });
+}
+
+std::future<ResolvedIntentCall> TheCubeServerAPI::getResolvedIntentCallAsync(
+    const std::string& utterance,
+    const nlohmann::json& functions,
+    const nlohmann::json& context)
+{
+    return std::async(std::launch::async, [this, utterance, functions, context]() {
+        ResolvedIntentCall resolved;
+        const auto sessionId = createConversationSession();
+        if (!sessionId.has_value()) {
+            resolved.status = "error";
+            resolved.message = "session_create_failed";
+            return resolved;
+        }
+
+        nlohmann::json payload = {
+            { "sessionId", *sessionId },
+            { "message", utterance },
+            { "mode", "intent_call" },
+            { "functions", functions.is_array() ? functions : nlohmann::json::array() }
+        };
+        if (context.is_object() && !context.empty()) {
+            payload["context"] = context;
+        }
+
+        const auto j = postChatRequestAsync(payload).get();
+        if (!j.is_object()) {
+            resolved.status = "error";
+            resolved.message = "invalid_response";
+            return resolved;
+        }
+
+        resolved.status = jsonString(j, "status");
+        if (resolved.status.empty()) {
+            resolved.status = "no_match";
+        }
+        resolved.intentName = jsonString(j, "intentName");
+        if (j.contains("arguments") && j["arguments"].is_object()) {
+            resolved.arguments = j["arguments"];
+        }
+        resolved.message = jsonString(j, "message");
+        return resolved;
     });
 }
 

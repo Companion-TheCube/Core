@@ -71,6 +71,7 @@ namespace DecisionEngine {
 using TimePoint = std::chrono::system_clock::time_point;
 
 class FunctionRunner;
+class NotificationCenter;
 
 // Parameter specification (name, type, description, required)
 struct ParamSpec {
@@ -139,6 +140,8 @@ struct CapabilitySpec {
     // Optional entry: for rpc this can be the app_id, for plugin the plugin path
     std::string entry;
     std::vector<ParamSpec> parameters;
+    bool voiceEnabled { false };
+    nlohmann::json voiceInputSchema = nlohmann::json::object();
     nlohmann::json toJson() const;
     // Whether the implementing app's socket is currently unavailable.
     bool socketUnavailable { false };
@@ -233,6 +236,7 @@ public:
                             std::function<void(const nlohmann::json&)> onComplete = nullptr);
 
     void setRemoteConversationClient(std::shared_ptr<TheCubeServer::IRemoteConversationClient> client);
+    void setNotificationCenter(std::shared_ptr<NotificationCenter> notificationCenter);
 
     std::string getInterfaceName() const override { return "FunctionRegistry"; }
     HttpEndPointData_t getHttpEndpointData() override;
@@ -246,6 +250,7 @@ private:
     std::unordered_map<std::string, FunctionSpec> funcs_;
     std::unordered_map<std::string, CapabilitySpec> capabilities_;
     std::shared_ptr<TheCubeServer::IRemoteConversationClient> remoteConversationClient_;
+    std::shared_ptr<NotificationCenter> notificationCenter_;
     mutable std::mutex mutex_;
     // Background socket rechecker thread
     std::thread socketRecheckerThread_;

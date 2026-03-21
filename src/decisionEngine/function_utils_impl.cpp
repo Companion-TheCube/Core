@@ -72,6 +72,10 @@ namespace FunctionUtils {
         spec.enabled = j.value("enabled", true);
         spec.type = j.value("type", "core");
         spec.entry = j.value("entry", "");
+        spec.voiceEnabled = j.value("voiceEnabled", false);
+        if (j.contains("voiceInputSchema") && j["voiceInputSchema"].is_object()) {
+            spec.voiceInputSchema = j["voiceInputSchema"];
+        }
         if (j.contains("parameters")) {
             for (const auto& param : j.at("parameters")) {
                 ParamSpec p;
@@ -87,4 +91,3 @@ namespace FunctionUtils {
     }
 }
 }
-

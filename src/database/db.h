@@ -158,9 +158,9 @@ const std::vector<DB_NS::Database_T> dbDefs = {
         { 
             { 
                 DB_NS::TableNames::NOTIFICATIONS, 
-                { "id", "title", "message", "time", "source", "read" }, 
-                { "INTEGER PRIMARY KEY", "TEXT", "TEXT", "TEXT", "TEXT", "INTEGER" }, 
-                { true, false, false, false, false, false } 
+                { "id", "kind", "title", "message", "time", "created_at", "scheduled_for", "delivered_at", "source", "read", "acknowledged", "active", "priority", "repeat_rule", "metadata" },
+                { "INTEGER PRIMARY KEY", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "INTEGER", "INTEGER", "INTEGER", "TEXT", "TEXT", "TEXT" },
+                { true, false, false, false, false, false, false, false, false, false, false, false, false, false, false }
             } 
         } 
     }
@@ -193,6 +193,7 @@ public:
     bool tableExists(const std::string& tableName);
     bool columnExists(const std::string& tableName, const std::string& columnName);
     bool rowExists(const std::string& tableName, const std::string& whereClause);
+    bool execute(const std::string& query);
     bool open();
     bool close();
     bool isOpen();
