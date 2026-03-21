@@ -382,9 +382,25 @@ void DecisionEngineMain::onWakeWordDetected()
                 continue;
             }
             auto result = transcription->pop();
-            if (!result || result->empty()) {
+            if (!result) {
                 std::this_thread::sleep_for(25ms);
                 continue;
+            }
+            if (result->empty()) {
+                CubeLog::warning("DecisionEngine: transcription session ended without a final transcript");
+                recordTurnResult(DecisionTurnResult {
+                    .transcript = "",
+                    .intentName = "",
+                    .executionStatus = "transcription_failed",
+                    .responseText = "",
+                    .capabilityResult = nlohmann::json::object(),
+                    .error = "transcription_failed",
+                    .speakResult = false,
+                    .timestampEpochMs = nowEpochMs()
+                });
+                hideTurnUi();
+                setTurnState(TurnState::IDLE);
+                break;
             }
 
             setTurnState(TurnState::FINAL_TRANSCRIPT_PENDING_INTENT);

@@ -105,11 +105,11 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
     auto textQueue = std::make_shared<ThreadSafeQueue<std::string>>(10);
     if (!remoteAudioClient) {
         CubeLog::error("RemoteTranscriber: remote audio client is not set");
-        return textQueue;
+        return nullptr;
     }
     if (!audioQueue) {
         CubeLog::error("RemoteTranscriber: audio queue is null");
-        return textQueue;
+        return nullptr;
     }
     this->audioQueue = audioQueue;
 
@@ -118,6 +118,11 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
         cancelActiveSession();
     }
     workerThread = std::jthread([this, audioQueue, textQueue](std::stop_token stoken) {
+        const auto signalFailure = [&textQueue]() {
+            if (textQueue) {
+                textQueue->push(std::string());
+            }
+        };
         const auto silenceTimeout = std::chrono::milliseconds(parseNumericConfig<int>("REMOTE_TRANSCRIPTION_SILENCE_TIMEOUT_MS", static_cast<int>(audio::SILENCE_TIMEOUT_SEC * 1000.0)));
         const auto noSpeechTimeout = std::chrono::milliseconds(parseNumericConfig<int>("REMOTE_TRANSCRIPTION_NO_SPEECH_TIMEOUT_MS", 5000));
         const auto maxSessionDuration = std::chrono::milliseconds(parseNumericConfig<int>("REMOTE_TRANSCRIPTION_MAX_SESSION_MS", 15000));
@@ -129,6 +134,7 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
 
         if (!initTranscribing()) {
             CubeLog::error("RemoteTranscriber: failed to create remote transcription session");
+            signalFailure();
             return;
         }
         sessionActive = true;
@@ -165,6 +171,7 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
                 CubeLog::error("RemoteTranscriber: failed while streaming audio; cancelling session");
                 cancelActiveSession();
                 sessionActive = false;
+                signalFailure();
                 return;
             }
 
@@ -187,12 +194,14 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
             cancelActiveSession();
             sessionActive = false;
             drainAudioQueue(audioQueue);
+            signalFailure();
             return;
         }
 
         if (!sessionActive) {
             CubeLog::warning("RemoteTranscriber: no active session found at finalize step");
             sessionActive = false;
+            signalFailure();
             return;
         }
 
@@ -200,6 +209,7 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
             CubeLog::warning("RemoteTranscriber: no audio chunks sent; cancelling session");
             cancelActiveSession();
             sessionActive = false;
+            signalFailure();
             return;
         }
 
@@ -208,6 +218,7 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
             CubeLog::error("RemoteTranscriber: finish failed; cancelling session");
             cancelActiveSession();
             sessionActive = false;
+            signalFailure();
             return;
         }
 
@@ -220,6 +231,7 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
             textQueue->push(transcription);
         } else {
             CubeLog::warning("RemoteTranscriber: final transcript missing or empty");
+            signalFailure();
         }
 
         // Ensure local/remote session state is cleaned even after successful final.
