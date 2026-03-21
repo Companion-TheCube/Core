@@ -467,6 +467,15 @@ list(REMOVE_ITEM LIB_SOURCES ${MAIN_SOURCE})
 # Core library with most of the code
 add_library(CubeCoreLib STATIC ${LIB_SOURCES})
 
+# WebSocket++ 0.8.2 does not compile cleanly as C++20/23 with GCC 13.
+# Scope those translation units to C++17 instead of lowering the whole project.
+set_source_files_properties(
+    ${CMAKE_SOURCE_DIR}/src/decisionEngine/remoteServer.cpp
+    PROPERTIES
+        CXX_STANDARD 17
+        CXX_STANDARD_REQUIRED YES
+)
+
 # Application executable contains only main and links the core library
 add_executable(CubeCore ${MAIN_SOURCE})
 
@@ -827,6 +836,12 @@ FetchContent_MakeAvailable(googletest)
 file(GLOB_RECURSE TEST_SOURCES
     "tests/*.cpp" "tests/**/*.cpp")
 add_executable(CubeCoreTests ${TEST_SOURCES})
+set_source_files_properties(
+    ${CMAKE_SOURCE_DIR}/tests/decisionEngine/remote_server.test.cpp
+    PROPERTIES
+        CXX_STANDARD 17
+        CXX_STANDARD_REQUIRED YES
+)
 target_link_libraries(CubeCoreTests PRIVATE
     gtest
     gtest_main
