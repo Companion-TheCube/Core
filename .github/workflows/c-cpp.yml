@@ -16,8 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30   # ↑ allow cold builds to finish
     env:
-      CC: gcc
-      CXX: g++
+      CC: gcc-15
+      CXX: g++-15
       # Limit parallelism to fit the 2-core/7GB runner and avoid OOM
       JOBS: 2
       CMAKE_BUILD_PARALLEL_LEVEL: 2
@@ -29,12 +29,24 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Install dependencies (system + ninja + ccache)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get install -y ninja-build ccache gcc-15 g++-15
+          sudo ./install-deps.sh
+          ccache --set-config=max_size=500M || true
+          ccache --zero-stats || true
+          ccache --show-config || true
+
       - name: Capture compiler versions
         id: compver
         shell: bash
         run: |
-          echo "gcc=$(/usr/bin/gcc -dumpfullversion -dumpversion)" >> $GITHUB_OUTPUT
-          echo "gpp=$(/usr/bin/g++ -dumpfullversion -dumpversion)" >> $GITHUB_OUTPUT
+          echo "gcc=$(/usr/bin/gcc-15 -dumpfullversion -dumpversion)" >> $GITHUB_OUTPUT
+          echo "gpp=$(/usr/bin/g++-15 -dumpfullversion -dumpversion)" >> $GITHUB_OUTPUT
 
       - name: Restore ccache
         uses: actions/cache@v4
@@ -64,15 +76,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-build-gcc${{ steps.compver.outputs.gcc }}-Debug-
             ${{ runner.os }}-build-
-
-      - name: Install dependencies (system + ninja + ccache)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ninja-build ccache
-          sudo ./install-deps.sh
-          ccache --set-config=max_size=500M || true
-          ccache --zero-stats || true
-          ccache --show-config || true
 
       - name: Create SSL certs
         run: |
