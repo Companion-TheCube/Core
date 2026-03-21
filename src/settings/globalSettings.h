@@ -116,6 +116,7 @@ struct GlobalSettings {
     GlobalSettings()
     {
         std::unique_lock<std::mutex> lock(settingChangeMutex);
+        settings = nlohmann::json::object();
         bool defaultFound = false;
         for (auto fontPath : loadFontPaths()) {
             // set the default font to Roboto-Regular.ttf
