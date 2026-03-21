@@ -14,6 +14,42 @@
 
 using namespace DecisionEngine;
 
+namespace {
+
+class FakeConversationClient : public TheCubeServer::IRemoteConversationClient {
+public:
+    std::optional<std::string> createConversationSession() override
+    {
+        return std::string("fake-session");
+    }
+
+    std::future<std::string> getChatResponseAsync(
+        const std::string& sessionId,
+        const std::string& message,
+        const std::function<void(std::string)>& progressCB = [](std::string) {}) override
+    {
+        (void)sessionId;
+        (void)message;
+        (void)progressCB;
+        return std::async(std::launch::deferred, []() { return std::string(); });
+    }
+
+    std::future<std::string> getGeneralAnswerAsync(
+        const std::string& question,
+        const std::function<void(std::string)>& progressCB = [](std::string) {}) override
+    {
+        lastQuestion = question;
+        if (progressCB) {
+            progressCB("answer");
+        }
+        return std::async(std::launch::deferred, []() { return std::string("answer"); });
+    }
+
+    std::string lastQuestion;
+};
+
+} // namespace
+
 TEST(FunctionRegistry, RunCapabilityAsyncReturnsActionJson)
 {
     FunctionRegistry registry;
@@ -48,11 +84,33 @@ TEST(FunctionRegistry, BuiltInCoreCapabilitiesPresent)
 
     EXPECT_NE(registry.findCapability("core.ping"), nullptr);
     EXPECT_NE(registry.findCapability("core.get_time"), nullptr);
+    EXPECT_NE(registry.findCapability("core.get_date"), nullptr);
+    EXPECT_NE(registry.findCapability("core.get_datetime"), nullptr);
+    EXPECT_NE(registry.findCapability("core.ask_ai"), nullptr);
     EXPECT_NE(registry.findCapability("apps.list_installed"), nullptr);
     EXPECT_NE(registry.findCapability("audio.toggle_sound"), nullptr);
     EXPECT_NE(registry.findCapability("audio.set_sound"), nullptr);
     EXPECT_NE(registry.findCapability("core.play_sound"), nullptr);
     EXPECT_NE(registry.findCapability("core.speak_text"), nullptr);
+}
+
+TEST(FunctionRegistry, BuiltInAskAiCapabilityUsesRemoteConversationClient)
+{
+    auto registry = std::make_shared<FunctionRegistry>();
+    auto fakeClient = std::make_shared<FakeConversationClient>();
+    registry->setRemoteConversationClient(fakeClient);
+
+    std::promise<nlohmann::json> promise;
+    auto future = promise.get_future();
+    registry->runCapabilityAsync("core.ask_ai", nlohmann::json({ { "transcript", "Why is the sky blue?" } }), [&promise](const nlohmann::json& result) mutable {
+        promise.set_value(result);
+    });
+
+    ASSERT_EQ(future.wait_for(std::chrono::seconds(2)), std::future_status::ready);
+    const auto result = future.get();
+    EXPECT_EQ(fakeClient->lastQuestion, "Why is the sky blue?");
+    EXPECT_EQ(result["status"].get<std::string>(), "ok");
+    EXPECT_EQ(result["answer"].get<std::string>(), "answer");
 }
 
 TEST(IntentRegistry, RegistersV1BuiltInIntents)
@@ -62,6 +120,9 @@ TEST(IntentRegistry, RegistersV1BuiltInIntents)
 
     EXPECT_NE(std::find(names.begin(), names.end(), "core.ping"), names.end());
     EXPECT_NE(std::find(names.begin(), names.end(), "core.get_time"), names.end());
+    EXPECT_NE(std::find(names.begin(), names.end(), "core.get_date"), names.end());
+    EXPECT_NE(std::find(names.begin(), names.end(), "core.get_datetime"), names.end());
+    EXPECT_NE(std::find(names.begin(), names.end(), "core.ask_ai"), names.end());
     EXPECT_NE(std::find(names.begin(), names.end(), "apps.list_installed"), names.end());
     EXPECT_NE(std::find(names.begin(), names.end(), "audio.toggle_sound"), names.end());
     EXPECT_NE(std::find(names.begin(), names.end(), "audio.set_sound_on"), names.end());
@@ -73,6 +134,14 @@ TEST(IntentRegistry, RegistersV1BuiltInIntents)
     const auto it = params.find("speak_result");
     ASSERT_NE(it, params.end());
     EXPECT_EQ(it->second, "true");
+}
+
+TEST(GlobalSettings, GeneralAiResponseModeDefaultsToPopupOnly)
+{
+    GlobalSettings settings;
+    EXPECT_EQ(
+        settings.getSettingOfType<std::string>(GlobalSettings::SettingType::GENERAL_AI_RESPONSE_MODE),
+        "popupOnly");
 }
 
 TEST(IntentRegistry, LoadsAppIntentManifestsWhenCapabilityExists)

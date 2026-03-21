@@ -15,6 +15,7 @@ Copyright (c) 2025 A-McD Technology LLC
 #include <cctype>
 #include <cstdlib>
 #include <filesystem>
+#include <sstream>
 #include <thread>
 
 using namespace DecisionEngine;
@@ -76,6 +77,67 @@ bool parseBoolString(const std::string& value)
         lower.push_back(static_cast<char>(std::tolower(ch)));
     }
     return lower == "1" || lower == "true" || lower == "yes" || lower == "on";
+}
+
+std::string toLowerTrimmedAscii(const std::string& value)
+{
+    size_t start = 0;
+    while (start < value.size() && std::isspace(static_cast<unsigned char>(value[start]))) {
+        ++start;
+    }
+    size_t end = value.size();
+    while (end > start && std::isspace(static_cast<unsigned char>(value[end - 1]))) {
+        --end;
+    }
+
+    std::string out;
+    out.reserve(end - start);
+    for (size_t i = start; i < end; ++i) {
+        out.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(value[i]))));
+    }
+    return out;
+}
+
+bool startsWith(const std::string& value, const std::string& prefix)
+{
+    return value.rfind(prefix, 0) == 0;
+}
+
+bool shouldFallbackToAskAi(const std::string& transcript)
+{
+    const auto normalized = toLowerTrimmedAscii(transcript);
+    if (normalized.empty()) {
+        return false;
+    }
+    if (!normalized.empty() && normalized.back() == '?') {
+        return true;
+    }
+
+    std::istringstream iss(normalized);
+    std::string firstToken;
+    iss >> firstToken;
+    static const std::vector<std::string> questionStarters = {
+        "who", "what", "when", "where", "why", "how",
+        "is", "are", "can", "could", "would", "should",
+        "do", "does", "did"
+    };
+    if (std::find(questionStarters.begin(), questionStarters.end(), firstToken) != questionStarters.end()) {
+        return true;
+    }
+
+    return startsWith(normalized, "tell me")
+        || startsWith(normalized, "explain")
+        || startsWith(normalized, "describe");
+}
+
+bool shouldSpeakForGeneralAiAnswer()
+{
+    try {
+        const auto mode = GlobalSettings::getSettingOfType<std::string>(GlobalSettings::SettingType::GENERAL_AI_RESPONSE_MODE);
+        return mode == "popupAndSpeech" || mode == "speechFirst";
+    } catch (...) {
+        return false;
+    }
 }
 
 std::string turnStateName(DecisionEngineMain::TurnState state)
@@ -175,6 +237,7 @@ DecisionEngineMain::DecisionEngineMain()
         try { intentRegistry->registerInterface(); } catch (...) { CubeLog::error("Failed to register IntentRegistry interface"); }
     }
     if (functionRegistry) {
+        functionRegistry->setRemoteConversationClient(remoteServerAPI);
         try { functionRegistry->registerInterface(); } catch (...) { CubeLog::error("Failed to register FunctionRegistry interface"); }
     }
     if (scheduler) {
@@ -453,7 +516,10 @@ DecisionTurnResult DecisionEngineMain::executeIntent(const std::shared_ptr<Inten
     result.speakResult = parseBoolString(lookupParameter(parameters, "speak_result"));
 
     if (!capabilityName.empty()) {
-        const auto capabilityArgs = parametersToJson(parameters);
+        auto capabilityArgs = parametersToJson(parameters);
+        if (!capabilityArgs.contains("transcript")) {
+            capabilityArgs["transcript"] = transcript;
+        }
         result.capabilityResult = intent->runCapabilitySync(capabilityName, capabilityArgs, 4000);
         applyCapabilityResultToIntent(intent, result.capabilityResult);
         if (result.capabilityResult.is_object() && result.capabilityResult.contains("error")) {
@@ -464,6 +530,10 @@ DecisionTurnResult DecisionEngineMain::executeIntent(const std::shared_ptr<Inten
                 : intent->getResponseString();
             return result;
         }
+    }
+
+    if (result.intentName == "core.ask_ai") {
+        result.speakResult = shouldSpeakForGeneralAiAnswer();
     }
 
     intent->execute();
@@ -491,6 +561,10 @@ DecisionTurnResult DecisionEngineMain::processTranscript(const std::string& tran
     }
 
     auto intent = intentRecognition->recognizeIntent("voice", transcript);
+    if (!intent && shouldFallbackToAskAi(transcript) && intentRegistry) {
+        CubeLog::info("DecisionEngine: falling back to core.ask_ai for general question");
+        intent = intentRegistry->getIntent("core.ask_ai");
+    }
     return executeIntent(intent, transcript);
 }
 

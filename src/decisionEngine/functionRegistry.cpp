@@ -505,6 +505,52 @@ FunctionRegistry::FunctionRegistry()
         };
         this->registerCapability(getTime);
 
+        CapabilitySpec getDate;
+        getDate.name = "core.get_date";
+        getDate.description = "Get the current local device date";
+        getDate.action = [](const nlohmann::json& args) {
+            (void)args;
+            const auto now = std::chrono::system_clock::now();
+            const auto tt = std::chrono::system_clock::to_time_t(now);
+            std::tm tm {};
+#ifdef _WIN32
+            localtime_s(&tm, &tt);
+#else
+            localtime_r(&tt, &tm);
+#endif
+            std::ostringstream formatted;
+            formatted << std::put_time(&tm, "%A, %B %d, %Y");
+            return nlohmann::json({
+                { "date", formatted.str() },
+                { "status", "ok" }
+            });
+        };
+        this->registerCapability(getDate);
+
+        CapabilitySpec getDateTime;
+        getDateTime.name = "core.get_datetime";
+        getDateTime.description = "Get the current local device date and time";
+        getDateTime.action = [](const nlohmann::json& args) {
+            (void)args;
+            const auto now = std::chrono::system_clock::now();
+            const auto epochMs = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+            const auto tt = std::chrono::system_clock::to_time_t(now);
+            std::tm tm {};
+#ifdef _WIN32
+            localtime_s(&tm, &tt);
+#else
+            localtime_r(&tt, &tm);
+#endif
+            std::ostringstream formatted;
+            formatted << std::put_time(&tm, "%A, %B %d, %Y at %I:%M %p");
+            return nlohmann::json({
+                { "datetime", formatted.str() },
+                { "epochMs", epochMs },
+                { "status", "ok" }
+            });
+        };
+        this->registerCapability(getDateTime);
+
         CapabilitySpec listInstalled;
         listInstalled.name = "apps.list_installed";
         listInstalled.description = "List installed apps known to the CORE";
@@ -595,6 +641,61 @@ FunctionRegistry::FunctionRegistry()
             });
         };
         this->registerCapability(speakText);
+
+        CapabilitySpec askAi;
+        askAi.name = "core.ask_ai";
+        askAi.description = "Answer a general informational question using the configured remote AI service";
+        askAi.action = [this](const nlohmann::json& args) {
+            std::shared_ptr<TheCubeServer::IRemoteConversationClient> client;
+            {
+                std::lock_guard<std::mutex> lock(this->mutex_);
+                client = this->remoteConversationClient_;
+            }
+
+            if (!client) {
+                return nlohmann::json({
+                    { "error", "remote_conversation_client_unavailable" },
+                    { "status", "error" }
+                });
+            }
+
+            std::string question;
+            if (args.is_object() && args.contains("transcript")) {
+                if (args["transcript"].is_string()) {
+                    question = args["transcript"].get<std::string>();
+                } else {
+                    question = args["transcript"].dump();
+                }
+            }
+            if (question.empty() && args.is_object() && args.contains("question")) {
+                if (args["question"].is_string()) {
+                    question = args["question"].get<std::string>();
+                } else {
+                    question = args["question"].dump();
+                }
+            }
+
+            if (question.empty()) {
+                return nlohmann::json({
+                    { "error", "question_required" },
+                    { "status", "error" }
+                });
+            }
+
+            const auto answer = client->getGeneralAnswerAsync(question).get();
+            if (answer.empty()) {
+                return nlohmann::json({
+                    { "error", "empty_answer" },
+                    { "status", "error" }
+                });
+            }
+
+            return nlohmann::json({
+                { "answer", answer },
+                { "status", "ok" }
+            });
+        };
+        this->registerCapability(askAi);
 
         // TODO: Add other built-in core capabilities here (audio playback,
         // UI drawing, NFC, etc.). Keep implementations in a dedicated
@@ -876,6 +977,12 @@ void FunctionRegistry::runFunctionAsync(const std::string& functionName,
         }
     };
     runner_.enqueue(std::move(t));
+}
+
+void FunctionRegistry::setRemoteConversationClient(std::shared_ptr<TheCubeServer::IRemoteConversationClient> client)
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    remoteConversationClient_ = std::move(client);
 }
 
 void FunctionRegistry::runCapabilityAsync(const std::string& capabilityName,

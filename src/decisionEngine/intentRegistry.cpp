@@ -586,6 +586,30 @@ std::vector<IntentCTorParams> getSystemIntents()
         Intent::IntentType::QUESTION));
 
     intents.push_back(makeIntent(
+        "core.get_date",
+        "core.get_date",
+        "User is asking for today's date, the current date, or what day it is.",
+        "Today is ${date}.",
+        { { "date", "" }, { "speak_result", "true" } },
+        Intent::IntentType::QUESTION));
+
+    intents.push_back(makeIntent(
+        "core.get_datetime",
+        "core.get_datetime",
+        "User is asking for the current date and time together.",
+        "It is ${datetime}.",
+        { { "datetime", "" }, { "speak_result", "true" } },
+        Intent::IntentType::QUESTION));
+
+    intents.push_back(makeIntent(
+        "core.ask_ai",
+        "core.ask_ai",
+        "User is asking a general informational, explanatory, or conversational question that does not map to a specific device action.",
+        "${answer}",
+        { { "answer", "" } },
+        Intent::IntentType::QUESTION));
+
+    intents.push_back(makeIntent(
         "apps.list_installed",
         "apps.list_installed",
         "User is asking what apps are installed, available, or on this device.",

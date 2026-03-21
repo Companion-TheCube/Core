@@ -758,7 +758,16 @@ std::future<std::string> TheCubeServerAPI::getChatResponseAsync(
     const std::string& message,
     const std::function<void(std::string)>& progressCB)
 {
-    return std::async(std::launch::async, [this, sessionId, message, progressCB]() {
+    return getChatResponseWithModeAsync(sessionId, message, "", progressCB);
+}
+
+std::future<std::string> TheCubeServerAPI::getChatResponseWithModeAsync(
+    const std::string& sessionId,
+    const std::string& message,
+    const std::string& mode,
+    const std::function<void(std::string)>& progressCB)
+{
+    return std::async(std::launch::async, [this, sessionId, message, mode, progressCB]() {
         if (!httpClient || sessionId.empty()) {
             return std::string();
         }
@@ -767,6 +776,9 @@ std::future<std::string> TheCubeServerAPI::getChatResponseAsync(
             { "sessionId", sessionId },
             { "message", message }
         };
+        if (!mode.empty()) {
+            payload["mode"] = mode;
+        }
 
         auto res = httpClient->client.Post("/API/llm/chat", payload.dump(), "application/json");
         if (!res) {
@@ -807,6 +819,19 @@ std::future<std::string> TheCubeServerAPI::getChatResponseAsync(
             return std::string();
         }
         return getChatResponseAsync(*sessionId, message, progressCB).get();
+    });
+}
+
+std::future<std::string> TheCubeServerAPI::getGeneralAnswerAsync(
+    const std::string& question,
+    const std::function<void(std::string)>& progressCB)
+{
+    return std::async(std::launch::async, [this, question, progressCB]() {
+        const auto sessionId = createConversationSession();
+        if (!sessionId.has_value()) {
+            return std::string();
+        }
+        return getChatResponseWithModeAsync(*sessionId, question, "general_answer", progressCB).get();
     });
 }
 

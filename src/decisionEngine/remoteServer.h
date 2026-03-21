@@ -38,6 +38,9 @@ public:
         const std::string& sessionId,
         const std::string& message,
         const std::function<void(std::string)>& progressCB = [](std::string) {}) = 0;
+    virtual std::future<std::string> getGeneralAnswerAsync(
+        const std::string& question,
+        const std::function<void(std::string)>& progressCB = [](std::string) {}) = 0;
 };
 
 class TheCubeServerAPI : public IRemoteAudioClient, public IRemoteConversationClient {
@@ -101,6 +104,9 @@ public:
     std::future<std::string> getChatResponseAsync(
         const std::string& message,
         const std::function<void(std::string)>& progressCB = [](std::string) {});
+    std::future<std::string> getGeneralAnswerAsync(
+        const std::string& question,
+        const std::function<void(std::string)>& progressCB = [](std::string) {}) override;
 
     // Compatibility wrappers while the rest of the codebase finishes moving to
     // the narrower interfaces.
@@ -144,6 +150,11 @@ private:
 
     bool openAudioStreamLocked();
     void resetActiveSessionLocked();
+    std::future<std::string> getChatResponseWithModeAsync(
+        const std::string& sessionId,
+        const std::string& message,
+        const std::string& mode,
+        const std::function<void(std::string)>& progressCB);
 };
 
 std::string serialNumberToPassword(const std::string& serialNumber);

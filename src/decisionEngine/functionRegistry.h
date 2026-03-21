@@ -61,6 +61,7 @@ SOFTWARE.
 #include "../api/api.h"
 #endif
 #include "../threadsafeQueue.h"
+#include "remoteServer.h"
 #include "jsonrpccxx/client.hpp"
 // TODO: consider adding `AppsManager::isAppReady(appId)` to allow checking
 // whether an app has finished startup and created its unix socket. That can
@@ -231,6 +232,8 @@ public:
                             const nlohmann::json& args,
                             std::function<void(const nlohmann::json&)> onComplete = nullptr);
 
+    void setRemoteConversationClient(std::shared_ptr<TheCubeServer::IRemoteConversationClient> client);
+
     std::string getInterfaceName() const override { return "FunctionRegistry"; }
     HttpEndPointData_t getHttpEndpointData() override;
 
@@ -242,6 +245,7 @@ public:
 private:
     std::unordered_map<std::string, FunctionSpec> funcs_;
     std::unordered_map<std::string, CapabilitySpec> capabilities_;
+    std::shared_ptr<TheCubeServer::IRemoteConversationClient> remoteConversationClient_;
     mutable std::mutex mutex_;
     // Background socket rechecker thread
     std::thread socketRecheckerThread_;

@@ -88,6 +88,7 @@ struct GlobalSettings {
         NOTIFICATION_SOUND,
         ALARM_SOUND,
         VOICE_COMMAND_SOUND,
+        GENERAL_AI_RESPONSE_MODE,
         NFC_ENABLED,
         MICROPHONE_ENABLED,
         PRESENCE_DETECTION_ENABLED,
@@ -167,6 +168,8 @@ struct GlobalSettings {
         GlobalSettings::setSetting(SettingType::ALARM_SOUND, "default");
         // set the default voice command sound to default
         GlobalSettings::setSetting(SettingType::VOICE_COMMAND_SOUND, "default");
+        // general AI answers default to popup-only presentation
+        GlobalSettings::setSetting(SettingType::GENERAL_AI_RESPONSE_MODE, "popupOnly");
         // set the default NFC to true
         GlobalSettings::setSetting(SettingType::NFC_ENABLED, true);
         // set the default microphone to true

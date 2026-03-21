@@ -185,3 +185,31 @@ TEST(TheCubeServerAPI, WaitForFinalTranscriptTreatsLegacyTranscriptFramesAsTermi
     const auto transcript = api.waitForFinalTranscript(std::chrono::milliseconds(500));
     EXPECT_EQ(transcript, "play jazz");
 }
+
+TEST(TheCubeServerAPI, GeneralAnswerRequestsUseDedicatedChatMode)
+{
+    resetRemoteServerConfig();
+
+    std::string seenMode;
+    std::string seenMessage;
+    ScopedHttpServer server;
+    server.server().Post("/API/llm/session", [&](const httplib::Request&, httplib::Response& res) {
+        res.set_content(R"({"sessionId":"general-answer-session"})", "application/json");
+    });
+    server.server().Post("/API/llm/chat", [&](const httplib::Request& req, httplib::Response& res) {
+        const auto body = nlohmann::json::parse(req.body);
+        seenMode = body.value("mode", "");
+        seenMessage = body.value("message", "");
+        res.set_content(R"({"message":"Because shorter wavelengths scatter more strongly."})", "application/json");
+    });
+
+    Config::set("REMOTE_SERVER_BASE_URL", "http://127.0.0.1:" + std::to_string(server.port()));
+    Config::set("REMOTE_SERVER_BEARER_TOKEN", "dev-user");
+
+    TheCubeServer::TheCubeServerAPI api;
+    const auto answer = api.getGeneralAnswerAsync("Why is the sky blue?").get();
+
+    EXPECT_EQ(seenMode, "general_answer");
+    EXPECT_EQ(seenMessage, "Why is the sky blue?");
+    EXPECT_EQ(answer, "Because shorter wavelengths scatter more strongly.");
+}
