@@ -771,10 +771,7 @@ FunctionRegistry::FunctionRegistry()
                         { "minimum", 1 }
                     } }
               } },
-            { "oneOf", nlohmann::json::array({
-                  nlohmann::json({ { "required", nlohmann::json::array({ "scheduledForLocalIso" }) } }),
-                  nlohmann::json({ { "required", nlohmann::json::array({ "scheduledForEpochMs" }) } })
-              }) },
+            { "required", nlohmann::json::array({ "scheduledForLocalIso" }) },
             { "additionalProperties", false }
         });
         createReminder.action = [getNotificationCenter](const nlohmann::json& args) {
@@ -812,10 +809,7 @@ FunctionRegistry::FunctionRegistry()
                         { "minimum", 1 }
                     } }
               } },
-            { "oneOf", nlohmann::json::array({
-                  nlohmann::json({ { "required", nlohmann::json::array({ "scheduledForLocalIso" }) } }),
-                  nlohmann::json({ { "required", nlohmann::json::array({ "scheduledForEpochMs" }) } })
-              }) },
+            { "required", nlohmann::json::array({ "scheduledForLocalIso" }) },
             { "additionalProperties", false }
         });
         createAlarm.action = [getNotificationCenter](const nlohmann::json& args) {

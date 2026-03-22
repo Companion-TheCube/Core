@@ -122,12 +122,16 @@ TEST(FunctionRegistry, ParameterizedVoiceCapabilitiesExposeSchemas)
     ASSERT_NE(reminder, nullptr);
     EXPECT_TRUE(reminder->voiceEnabled);
     ASSERT_TRUE(reminder->voiceInputSchema.is_object());
+    EXPECT_TRUE(reminder->voiceInputSchema["properties"].contains("scheduledForLocalIso"));
     EXPECT_TRUE(reminder->voiceInputSchema["properties"].contains("scheduledForEpochMs"));
+    EXPECT_EQ(reminder->voiceInputSchema["required"], nlohmann::json::array({ "scheduledForLocalIso" }));
 
     const auto* alarm = registry.findCapability("core.create_alarm");
     ASSERT_NE(alarm, nullptr);
     EXPECT_TRUE(alarm->voiceEnabled);
+    EXPECT_TRUE(alarm->voiceInputSchema["properties"].contains("scheduledForLocalIso"));
     EXPECT_TRUE(alarm->voiceInputSchema["properties"].contains("scheduledForEpochMs"));
+    EXPECT_EQ(alarm->voiceInputSchema["required"], nlohmann::json::array({ "scheduledForLocalIso" }));
 
     const auto* setSound = registry.findCapability("audio.set_sound");
     ASSERT_NE(setSound, nullptr);
