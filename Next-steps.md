@@ -16,6 +16,9 @@ Server hardening: auth/device registration, stable API shape, telemetry/admin cl
 If you want the practical recommendation, I’d tackle them in this order:
 
 1. notifications/reminders/alarms/Pomodoro
+  a. fix notification modal bugs and polish flows
+  b. have the alarm system remove one shot alarms from the db after they fire. 
+  c. test reminders and alarms more thoroughly, including edge cases like DST changes, time zone changes, and device restarts.
 2. presence-aware idle/personality loop
 3. UI/settings/system pages
 4. audio hardening/local fallback
