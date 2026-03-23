@@ -339,15 +339,41 @@ public:
     void showListening()
     {
         generation_.fetch_add(1, std::memory_order_relaxed);
+        {
+            std::scoped_lock lock(mutex_);
+            liveTranscript_.clear();
+            hasVisibleTranscript_ = false;
+        }
         GUI::showMessageBox("TheCube", "Listening...");
     }
 
-    void updateTranscript(const std::string& text)
+    void updateTranscript(const TranscriptionEvent& event)
     {
-        if (text.empty()) {
+        if (event.isFinal) {
+            if (event.fullText.empty()) {
+                return;
+            }
+            std::scoped_lock lock(mutex_);
+            liveTranscript_ = event.fullText;
+            hasVisibleTranscript_ = true;
+            GUI::showMessageBox("TheCube", liveTranscript_);
             return;
         }
-        GUI::showMessageBox("TheCube", text);
+
+        if (event.appendText.empty()) {
+            return;
+        }
+
+        std::scoped_lock lock(mutex_);
+        if (!hasVisibleTranscript_) {
+            liveTranscript_ = event.appendText;
+            hasVisibleTranscript_ = !liveTranscript_.empty();
+        } else {
+            liveTranscript_ += event.appendText;
+        }
+        if (!liveTranscript_.empty()) {
+            GUI::showMessageBox("TheCube", liveTranscript_);
+        }
     }
 
     void showResult(const std::string& text)
@@ -379,6 +405,9 @@ public:
 
 private:
     std::atomic<uint64_t> generation_ { 0 };
+    std::mutex mutex_;
+    std::string liveTranscript_;
+    bool hasVisibleTranscript_ = false;
 };
 
 TurnPresentationController& presentationController()
@@ -460,8 +489,8 @@ void DecisionEngineMain::start()
     wakeWordCallbackHandle = SpeechIn::subscribeToWakeWordDetection([this]() {
         onWakeWordDetected();
     });
-    transcriptionEventHandle = TranscriptionEvents::subscribe([this](const std::string& text, bool isFinal) {
-        handleTranscriptEvent(text, isFinal);
+    transcriptionEventHandle = TranscriptionEvents::subscribe([this](const TranscriptionEvent& event) {
+        handleTranscriptEvent(event);
     });
 
     if (scheduler) scheduler->start();
@@ -543,9 +572,9 @@ void DecisionEngineMain::showListeningUi()
     presentationController().showListening();
 }
 
-void DecisionEngineMain::handleTranscriptEvent(const std::string& text, bool isFinal)
+void DecisionEngineMain::handleTranscriptEvent(const TranscriptionEvent& event)
 {
-    if (text.empty()) {
+    if (event.fullText.empty() && event.appendText.empty()) {
         return;
     }
 
@@ -559,16 +588,21 @@ void DecisionEngineMain::handleTranscriptEvent(const std::string& text, bool isF
         if (!acceptEvent) {
             return;
         }
-        latestTranscriptEvent = text;
-        activeTranscriptPreview = text;
-        if (isFinal) {
+        if (!event.fullText.empty()) {
+            latestTranscriptEvent = event.fullText;
+        }
+        if (event.isFinal) {
+            activeTranscriptPreview = event.fullText;
             turnState = TurnState::FINAL_TRANSCRIPT_PENDING_INTENT;
         } else {
+            if (!event.appendText.empty()) {
+                activeTranscriptPreview += event.appendText;
+            }
             turnState = TurnState::TRANSCRIPT_STREAMING;
         }
     }
 
-    presentationController().updateTranscript(text);
+    presentationController().updateTranscript(event);
 }
 
 void DecisionEngineMain::presentTurnResult(const DecisionTurnResult& result)

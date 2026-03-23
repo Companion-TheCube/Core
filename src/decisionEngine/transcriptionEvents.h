@@ -12,14 +12,20 @@ Copyright (c) 2025 A-McD Technology LLC
 
 namespace DecisionEngine {
 
+struct TranscriptionEvent {
+    std::string fullText;
+    std::string appendText;
+    bool isFinal = false;
+};
+
 class TranscriptionEvents {
 public:
     using Handle = size_t;
-    using Callback = std::function<void(const std::string& text, bool isFinal)>;
+    using Callback = std::function<void(const TranscriptionEvent&)>;
 
     static Handle subscribe(Callback cb);
     static bool unsubscribe(Handle h);
-    static void publish(const std::string& text, bool isFinal);
+    static void publish(const TranscriptionEvent& event);
 
 private:
     static std::mutex mtx_;
@@ -28,4 +34,3 @@ private:
 };
 
 } // namespace DecisionEngine
-

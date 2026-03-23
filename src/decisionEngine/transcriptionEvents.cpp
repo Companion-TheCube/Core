@@ -25,7 +25,7 @@ bool TranscriptionEvents::unsubscribe(Handle h)
     return cbs_.erase(h) > 0;
 }
 
-void TranscriptionEvents::publish(const std::string& text, bool isFinal)
+void TranscriptionEvents::publish(const TranscriptionEvent& event)
 {
     std::unordered_map<Handle, Callback> copy;
     {
@@ -33,9 +33,8 @@ void TranscriptionEvents::publish(const std::string& text, bool isFinal)
         copy = cbs_;
     }
     for (auto & kv : copy) {
-        try { kv.second(text, isFinal); } catch (...) {}
+        try { kv.second(event); } catch (...) {}
     }
 }
 
 } // namespace DecisionEngine
-

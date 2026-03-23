@@ -158,6 +158,7 @@ private:
 
     bool visible;
     std::vector<MeshObject*> objects;
+    std::vector<MeshObject*> buttonObjects;
     std::vector<MeshObject*> textObjects;
     Shader* shader;
     Shader* textShader;
@@ -188,7 +189,9 @@ private:
 
     void clearTextObjects();
     void clearObjects();
+    void clearButtonObjects();
     void updateRectsLocked();
+    void appendRoundedButtonOutlineLocked(const Rect& rect, float zOffset);
     void refreshVisualStateLocked();
 
 public:

@@ -90,7 +90,7 @@ std::string RemoteTranscriber::transcribeBuffer(const int16_t* audio, size_t len
     const auto finalWaitMs = parseNumericConfig<int>("REMOTE_TRANSCRIPTION_WAIT_FINAL_MS", 15000);
     std::string transcript = remoteAudioClient->waitForFinalTranscript(std::chrono::milliseconds(finalWaitMs));
     if (!transcript.empty()) {
-        TranscriptionEvents::publish(transcript, true);
+        TranscriptionEvents::publish({ .fullText = transcript, .appendText = "", .isFinal = true });
     }
     cancelActiveSession();
     return transcript;
@@ -227,7 +227,7 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
 
         if (!transcription.empty()) {
             CubeLog::info("RemoteTranscriber: final transcript received: " + transcription);
-            TranscriptionEvents::publish(transcription, true);
+            TranscriptionEvents::publish({ .fullText = transcription, .appendText = "", .isFinal = true });
             textQueue->push(transcription);
         } else {
             CubeLog::warning("RemoteTranscriber: final transcript missing or empty");
@@ -274,7 +274,7 @@ bool RemoteTranscriber::stopTranscribing()
     }
     std::string finalText = remoteAudioClient->waitForFinalTranscript(std::chrono::milliseconds(15000));
     if (!finalText.empty()) {
-        TranscriptionEvents::publish(finalText, true);
+        TranscriptionEvents::publish({ .fullText = finalText, .appendText = "", .isFinal = true });
     }
     return !finalText.empty();
 }

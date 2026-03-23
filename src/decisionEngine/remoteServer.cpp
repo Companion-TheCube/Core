@@ -249,12 +249,20 @@ struct TheCubeServerAPI::WsBridge {
             const auto j = nlohmann::json::parse(payload);
             if (j.contains("transcript") && j["transcript"].is_string()) {
                 latestTranscript = j["transcript"].get<std::string>();
+                std::string appendTranscript;
+                if (j.contains("append") && j["append"].is_string()) {
+                    appendTranscript = j["append"].get<std::string>();
+                }
                 const bool isFinal = !j.contains("final")
                     || !j["final"].is_boolean()
                     || j["final"].get<bool>();
                 if (!isFinal && !latestTranscript.empty()) {
                     CubeLog::info("TheCubeServerAPI: partial transcript received: " + latestTranscript);
-                    DecisionEngine::TranscriptionEvents::publish(latestTranscript, false);
+                    DecisionEngine::TranscriptionEvents::publish({
+                        .fullText = latestTranscript,
+                        .appendText = appendTranscript,
+                        .isFinal = false
+                    });
                 }
                 if (isFinal && !latestTranscript.empty()) {
                     finalTranscript = latestTranscript;

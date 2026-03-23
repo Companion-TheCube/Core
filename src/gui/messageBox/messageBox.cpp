@@ -469,6 +469,7 @@ CubeNotificaionBox::CubeNotificaionBox(Shader* shader, Shader* textShader, Rende
 CubeNotificaionBox::~CubeNotificaionBox()
 {
     clearTextObjects();
+    clearButtonObjects();
     clearObjects();
     CubeLog::info("NotificationBox destroyed");
 }
@@ -487,6 +488,14 @@ void CubeNotificaionBox::clearObjects()
         delete object;
     }
     this->objects.clear();
+}
+
+void CubeNotificaionBox::clearButtonObjects()
+{
+    for (auto* object : this->buttonObjects) {
+        delete object;
+    }
+    this->buttonObjects.clear();
 }
 
 void CubeNotificaionBox::updateRectsLocked()
@@ -509,10 +518,53 @@ void CubeNotificaionBox::updateRectsLocked()
     this->noBtn_ = { noXMin, noXMin + buttonWidth, buttonsYMin, buttonsYMax };
 }
 
+void CubeNotificaionBox::appendRoundedButtonOutlineLocked(const Rect& rect, float zOffset)
+{
+    constexpr unsigned int buttonInsetPx = 8;
+    constexpr float buttonRadiusPx = 16.0f;
+
+    const unsigned int rectWidth = rect.xMax > rect.xMin ? (rect.xMax - rect.xMin) : 0;
+    const unsigned int rectHeight = rect.yMax > rect.yMin ? (rect.yMax - rect.yMin) : 0;
+    if (rectWidth <= (buttonInsetPx * 2) || rectHeight <= (buttonInsetPx * 2)) {
+        return;
+    }
+
+    const float xMinPx = static_cast<float>(rect.xMin + buttonInsetPx);
+    const float xMaxPx = static_cast<float>(rect.xMax - buttonInsetPx);
+    const float yMinPx = static_cast<float>(rect.yMin + buttonInsetPx);
+    const float yMaxPx = static_cast<float>(rect.yMax - buttonInsetPx);
+    const float widthPx = xMaxPx - xMinPx;
+    const float heightPx = yMaxPx - yMinPx;
+    if (widthPx <= 0.f || heightPx <= 0.f) {
+        return;
+    }
+
+    const float radiusPx = std::clamp(buttonRadiusPx, 6.0f, std::max(6.0f, (heightPx * 0.5f) - 1.0f));
+    const float radius = mapRange(radiusPx, 0.f, 720.f, 0.f, 2.f);
+    const float xStart = mapRange(xMinPx, 0.f, 720.f, -1.f, 1.f);
+    const float yStart = mapRange(yMinPx, 0.f, 720.f, -1.f, 1.f);
+    const float xSize = mapRange(widthPx, 0.f, 720.f, 0.f, 2.f);
+    const float ySize = mapRange(heightPx, 0.f, 720.f, 0.f, 2.f);
+    const float z = Z_DISTANCE + zOffset + this->index;
+
+    this->buttonObjects.push_back(new M_Line(this->shader, { xStart + radius, yStart + ySize, z }, { xStart + xSize - radius, yStart + ySize, z }));
+    this->buttonObjects.push_back(new M_Line(this->shader, { xStart + xSize, yStart + radius, z }, { xStart + xSize, yStart + ySize - radius, z }));
+    this->buttonObjects.push_back(new M_Line(this->shader, { xStart + radius, yStart, z }, { xStart + xSize - radius, yStart, z }));
+    this->buttonObjects.push_back(new M_Line(this->shader, { xStart, yStart + radius, z }, { xStart, yStart + ySize - radius, z }));
+    this->buttonObjects.push_back(new M_Arc(this->shader, 40, radius, 0, 90, { xStart + xSize - radius, yStart + ySize - radius, z }));
+    this->buttonObjects.push_back(new M_Arc(this->shader, 40, radius, 360, 270, { xStart + xSize - radius, yStart + radius, z }));
+    this->buttonObjects.push_back(new M_Arc(this->shader, 40, radius, 180, 270, { xStart + radius, yStart + radius, z }));
+    this->buttonObjects.push_back(new M_Arc(this->shader, 40, radius, 180, 90, { xStart + radius, yStart + ySize - radius, z }));
+}
+
 void CubeNotificaionBox::refreshVisualStateLocked()
 {
     updateRectsLocked();
+    clearButtonObjects();
     clearTextObjects();
+
+    appendRoundedButtonOutlineLocked(this->yesBtn_, 0.0325f);
+    appendRoundedButtonOutlineLocked(this->noBtn_, 0.0325f);
 
     auto* titleText = new M_Text(this->textShader, this->titleText, (this->messageTextSize * this->titleScaleMultiplier), { 1.f, 1.f, 1.f }, { 0.f, 0.f });
     const float titleWidth = titleText->getWidth();
@@ -666,6 +718,9 @@ void CubeNotificaionBox::draw()
     for (auto* object : this->objects) {
         object->draw();
     }
+    for (auto* object : this->buttonObjects) {
+        object->draw();
+    }
     for (auto* object : this->textObjects) {
         object->draw();
     }
@@ -699,6 +754,7 @@ std::vector<MeshObject*> CubeNotificaionBox::getObjects()
     std::lock_guard<std::mutex> lock(this->mutex);
     std::vector<MeshObject*> allObjects;
     allObjects.insert(allObjects.end(), this->objects.begin(), this->objects.end());
+    allObjects.insert(allObjects.end(), this->buttonObjects.begin(), this->buttonObjects.end());
     allObjects.insert(allObjects.end(), this->textObjects.begin(), this->textObjects.end());
     return allObjects;
 }

@@ -86,7 +86,7 @@ private:
     void applyCapabilityResultToIntent(const std::shared_ptr<Intent>& intent, const nlohmann::json& capabilityResult);
     void stopTranscriptionConsumer();
     void onWakeWordDetected();
-    void handleTranscriptEvent(const std::string& text, bool isFinal);
+    void handleTranscriptEvent(const TranscriptionEvent& event);
     void showListeningUi();
     void presentTurnResult(const DecisionTurnResult& result);
     void hideTurnUi();
