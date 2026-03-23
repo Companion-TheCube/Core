@@ -47,18 +47,32 @@ class ScopedTranscriptWebSocketServer {
 public:
     using Server = websocketpp::server<websocketpp::config::asio>;
 
-    explicit ScopedTranscriptWebSocketServer(std::string payload)
-        : payload_(std::move(payload))
+    explicit ScopedTranscriptWebSocketServer(std::string transcriptPayload, std::string resolvedPayload = {})
+        : transcriptPayload_(std::move(transcriptPayload))
+        , resolvedPayload_(std::move(resolvedPayload))
     {
         server_.clear_access_channels(websocketpp::log::alevel::all);
         server_.clear_error_channels(websocketpp::log::elevel::all);
         server_.init_asio();
+        server_.set_open_handler([this](websocketpp::connection_hdl hdl) {
+            websocketpp::lib::error_code ec;
+            server_.send(hdl, R"({"type":"voice_turn_started","sessionId":"voice-turn-session"})", websocketpp::frame::opcode::text, ec);
+        });
         server_.set_reuse_addr(true);
         server_.set_message_handler([this](websocketpp::connection_hdl hdl, Server::message_ptr msg) {
-            if (msg->get_opcode() == websocketpp::frame::opcode::text && msg->get_payload() == "__END__") {
-                websocketpp::lib::error_code ec;
-                server_.send(hdl, payload_, websocketpp::frame::opcode::text, ec);
+            if (msg->get_opcode() != websocketpp::frame::opcode::text) {
+                return;
             }
+
+            if (msg->get_payload() == "__END__") {
+                websocketpp::lib::error_code ec;
+                server_.send(hdl, transcriptPayload_, websocketpp::frame::opcode::text, ec);
+                if (!resolvedPayload_.empty()) {
+                    server_.send(hdl, resolvedPayload_, websocketpp::frame::opcode::text, ec);
+                }
+                return;
+            }
+            lastTextMessage_ = msg->get_payload();
         });
 
         websocketpp::lib::error_code ec;
@@ -93,11 +107,14 @@ public:
     }
 
     int port() const { return port_; }
+    const std::string& lastTextMessage() const { return lastTextMessage_; }
 
 private:
     Server server_;
     std::thread thread_;
-    std::string payload_;
+    std::string transcriptPayload_;
+    std::string resolvedPayload_;
+    std::string lastTextMessage_;
     int port_ = -1;
 };
 
@@ -176,6 +193,23 @@ TEST(TheCubeServerAPI, WaitForFinalTranscriptTreatsLegacyTranscriptFramesAsTermi
     Config::set("REMOTE_SERVER_BASE_URL", "ws://127.0.0.1:" + std::to_string(wsServer.port()));
 
     TheCubeServer::TheCubeServerAPI api;
+    api.prepareVoiceTurn(
+        nlohmann::json::array({
+            nlohmann::json({
+                { "name", "core_x2e_get_time" },
+                { "intentName", "core.get_time" },
+                { "description", "Get time" },
+                { "parameters", {
+                      { "type", "object" },
+                      { "properties", nlohmann::json::object() },
+                      { "additionalProperties", false }
+                  } }
+            })
+        }),
+        nlohmann::json({
+            { "deviceTimezone", "America/New_York" },
+            { "deviceNowEpochMs", 1742510000000LL }
+        }));
     ASSERT_TRUE(api.startStreamingTranscription());
 
     const std::vector<int16_t> audioChunk { 1, 2, 3, 4 };
@@ -184,6 +218,52 @@ TEST(TheCubeServerAPI, WaitForFinalTranscriptTreatsLegacyTranscriptFramesAsTermi
 
     const auto transcript = api.waitForFinalTranscript(std::chrono::milliseconds(500));
     EXPECT_EQ(transcript, "play jazz");
+    EXPECT_NE(wsServer.lastTextMessage().find("\"type\":\"voice_turn_init\""), std::string::npos);
+    EXPECT_NE(wsServer.lastTextMessage().find("\"sessionId\":\"voice-turn-session\""), std::string::npos);
+    api.cancelStreamingTranscription();
+}
+
+TEST(TheCubeServerAPI, WaitForResolvedIntentCallUsesAudioStreamSession)
+{
+    resetRemoteServerConfig();
+
+    ScopedTranscriptWebSocketServer wsServer(
+        R"({"type":"transcript_final","transcript":"set an alarm for 10 pm"})",
+        R"({"type":"intent_call_resolved","sessionId":"voice-turn-session","status":"matched","intentName":"core.create_alarm","arguments":{"scheduledForLocalIso":"2026-03-23T22:00:00"},"message":""})");
+    Config::set("REMOTE_SERVER_BASE_URL", "ws://127.0.0.1:" + std::to_string(wsServer.port()));
+
+    TheCubeServer::TheCubeServerAPI api;
+    api.prepareVoiceTurn(
+        nlohmann::json::array({
+            nlohmann::json({
+                { "name", "core_x2e_create_alarm" },
+                { "intentName", "core.create_alarm" },
+                { "description", "Create alarm" },
+                { "parameters", {
+                      { "type", "object" },
+                      { "properties", {
+                            { "scheduledForLocalIso", { { "type", "string" } } }
+                        } },
+                      { "required", nlohmann::json::array({ "scheduledForLocalIso" }) },
+                      { "additionalProperties", false }
+                  } }
+            })
+        }),
+        nlohmann::json({
+            { "deviceTimezone", "America/New_York" },
+            { "deviceNowEpochMs", 1774212000000LL }
+        }));
+
+    ASSERT_TRUE(api.startStreamingTranscription());
+    ASSERT_TRUE(api.sendAudioChunk(std::vector<int16_t> { 1, 2, 3, 4 }));
+    ASSERT_TRUE(api.finishStreamingTranscription());
+    EXPECT_EQ(api.waitForFinalTranscript(std::chrono::milliseconds(500)), "set an alarm for 10 pm");
+
+    const auto resolved = api.waitForResolvedIntentCall(std::chrono::milliseconds(500));
+    EXPECT_EQ(resolved.status, "matched");
+    EXPECT_EQ(resolved.intentName, "core.create_alarm");
+    EXPECT_EQ(resolved.arguments["scheduledForLocalIso"].get<std::string>(), "2026-03-23T22:00:00");
+    api.cancelStreamingTranscription();
 }
 
 TEST(TheCubeServerAPI, GeneralAnswerRequestsUseDedicatedChatMode)

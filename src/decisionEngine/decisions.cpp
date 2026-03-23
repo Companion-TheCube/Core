@@ -647,6 +647,15 @@ void DecisionEngineMain::onWakeWordDetected()
     showListeningUi();
     CubeLog::info("DecisionEngine: listening UI shown");
     setTurnState(TurnState::LISTENING);
+    if (remoteServerAPI && intentRegistry && functionRegistry) {
+        remoteServerAPI->prepareVoiceTurn(
+            buildVoiceToolCatalogue(intentRegistry, functionRegistry),
+            nlohmann::json({
+                { "deviceTimezone", localTimezoneId() },
+                { "deviceNowEpochMs", nowEpochMs() },
+                { "deviceNowIsoLocal", nowIsoLocal() }
+            }));
+    }
     transcription = transcriber ? transcriber->transcribeQueue(audioQueue) : nullptr;
     if (!transcription) {
         CubeLog::error("DecisionEngine: transcription queue was not created");
@@ -812,8 +821,13 @@ DecisionTurnResult DecisionEngineMain::executeIntent(const std::shared_ptr<Inten
 DecisionTurnResult DecisionEngineMain::processTranscript(const std::string& transcript)
 {
     CubeLog::info("DecisionEngine: processing transcript: " + transcript);
+    const auto cleanupVoiceTurn = [this]() {
+        if (remoteServerAPI) {
+            remoteServerAPI->cancelStreamingTranscription();
+        }
+    };
     if (!remoteServerAPI || !intentRegistry || !functionRegistry) {
-        return DecisionTurnResult {
+        auto result = DecisionTurnResult {
             .transcript = transcript,
             .intentName = "",
             .executionStatus = "error",
@@ -822,18 +836,11 @@ DecisionTurnResult DecisionEngineMain::processTranscript(const std::string& tran
             .error = "intent_resolution_unavailable",
             .timestampEpochMs = nowEpochMs()
         };
+        cleanupVoiceTurn();
+        return result;
     }
 
-    const auto tools = buildVoiceToolCatalogue(intentRegistry, functionRegistry);
-    const auto resolved = remoteServerAPI->getResolvedIntentCallAsync(
-        transcript,
-        tools,
-        nlohmann::json({
-            { "deviceTimezone", localTimezoneId() },
-            { "deviceNowEpochMs", nowEpochMs() },
-            { "deviceNowIsoLocal", nowIsoLocal() }
-        }))
-                              .get();
+    const auto resolved = remoteServerAPI->waitForResolvedIntentCall(std::chrono::milliseconds(15000));
 
     CubeLog::info(
         "DecisionEngine: resolved intent_call"
@@ -846,7 +853,7 @@ DecisionTurnResult DecisionEngineMain::processTranscript(const std::string& tran
         auto intent = intentRegistry->getIntent(resolved.intentName);
         if (!intent) {
             CubeLog::warning("DecisionEngine: resolved intent not registered locally: " + resolved.intentName);
-            return DecisionTurnResult {
+            auto result = DecisionTurnResult {
                 .transcript = transcript,
                 .intentName = resolved.intentName,
                 .executionStatus = "intent_not_found",
@@ -855,13 +862,17 @@ DecisionTurnResult DecisionEngineMain::processTranscript(const std::string& tran
                 .error = "intent_not_found",
                 .timestampEpochMs = nowEpochMs()
             };
+            cleanupVoiceTurn();
+            return result;
         }
-        return executeIntent(intent, transcript, resolved.arguments);
+        auto result = executeIntent(intent, transcript, resolved.arguments);
+        cleanupVoiceTurn();
+        return result;
     }
 
     if (resolved.status == "error") {
         CubeLog::warning("DecisionEngine: intent resolution returned error: " + resolved.message);
-        return DecisionTurnResult {
+        auto result = DecisionTurnResult {
             .transcript = transcript,
             .intentName = "",
             .executionStatus = "error",
@@ -870,16 +881,22 @@ DecisionTurnResult DecisionEngineMain::processTranscript(const std::string& tran
             .error = resolved.message.empty() ? "intent_resolution_failed" : resolved.message,
             .timestampEpochMs = nowEpochMs()
         };
+        cleanupVoiceTurn();
+        return result;
     }
 
     if (shouldFallbackToAskAi(transcript) && intentRegistry) {
         CubeLog::info("DecisionEngine: falling back to core.ask_ai for general question");
         auto intent = intentRegistry->getIntent("core.ask_ai");
-        return executeIntent(intent, transcript);
+        auto result = executeIntent(intent, transcript);
+        cleanupVoiceTurn();
+        return result;
     }
 
     CubeLog::warning("DecisionEngine: no intent matched transcript and no ask_ai fallback applied: " + transcript);
-    return executeIntent(nullptr, transcript);
+    auto result = executeIntent(nullptr, transcript);
+    cleanupVoiceTurn();
+    return result;
 }
 
 void DecisionEngineMain::recordTurnResult(const DecisionTurnResult& result)

@@ -191,9 +191,13 @@ struct TheCubeServerAPI::WsBridge {
     bool failed = false;
     bool closed = false;
     bool finalReady = false;
+    bool sessionStarted = false;
+    bool intentReady = false;
     std::string errorMessage;
     std::string latestTranscript;
     std::string finalTranscript;
+    std::string serverSessionId;
+    ResolvedIntentCall resolvedIntentCall;
     size_t binaryMessagesSent = 0;
     size_t binaryBytesSent = 0;
     size_t textMessagesSent = 0;
@@ -206,9 +210,13 @@ struct TheCubeServerAPI::WsBridge {
         failed = false;
         closed = false;
         finalReady = false;
+        sessionStarted = false;
+        intentReady = false;
         errorMessage.clear();
         latestTranscript.clear();
         finalTranscript.clear();
+        serverSessionId.clear();
+        resolvedIntentCall = ResolvedIntentCall();
         binaryMessagesSent = 0;
         binaryBytesSent = 0;
         textMessagesSent = 0;
@@ -221,6 +229,8 @@ struct TheCubeServerAPI::WsBridge {
             << ", failed=" << (failed ? "true" : "false")
             << ", closed=" << (closed ? "true" : "false")
             << ", finalReady=" << (finalReady ? "true" : "false")
+            << ", sessionStarted=" << (sessionStarted ? "true" : "false")
+            << ", intentReady=" << (intentReady ? "true" : "false")
             << ", binaryMessagesSent=" << binaryMessagesSent
             << ", binaryBytesSent=" << binaryBytesSent
             << ", textMessagesSent=" << textMessagesSent;
@@ -247,6 +257,65 @@ struct TheCubeServerAPI::WsBridge {
         std::lock_guard<std::mutex> lock(mutex);
         try {
             const auto j = nlohmann::json::parse(payload);
+            const auto type = jsonString(j, "type");
+            if (type == "voice_turn_started") {
+                serverSessionId = jsonString(j, "sessionId");
+                if (!serverSessionId.empty()) {
+                    sessionStarted = true;
+                    cv.notify_all();
+                }
+                return;
+            }
+            if (type == "transcript_partial" || type == "transcript_final") {
+                const auto transcript = jsonString(j, "transcript");
+                if (!transcript.empty()) {
+                    latestTranscript = transcript;
+                }
+                std::string appendTranscript;
+                if (j.contains("append") && j["append"].is_string()) {
+                    appendTranscript = j["append"].get<std::string>();
+                }
+                const bool isFinal = (type == "transcript_final");
+                if (!isFinal && !latestTranscript.empty()) {
+                    CubeLog::info("TheCubeServerAPI: partial transcript received: " + latestTranscript);
+                    DecisionEngine::TranscriptionEvents::publish({
+                        .fullText = latestTranscript,
+                        .appendText = appendTranscript,
+                        .isFinal = false
+                    });
+                }
+                if (isFinal && !latestTranscript.empty()) {
+                    finalTranscript = latestTranscript;
+                    finalReady = true;
+                }
+                cv.notify_all();
+                return;
+            }
+            if (type == "intent_call_resolved") {
+                intentReady = true;
+                resolvedIntentCall.status = jsonString(j, "status");
+                if (resolvedIntentCall.status.empty()) {
+                    resolvedIntentCall.status = "no_match";
+                }
+                resolvedIntentCall.intentName = jsonString(j, "intentName");
+                if (j.contains("arguments") && j["arguments"].is_object()) {
+                    resolvedIntentCall.arguments = j["arguments"];
+                } else {
+                    resolvedIntentCall.arguments = nlohmann::json::object();
+                }
+                resolvedIntentCall.message = jsonString(j, "message");
+                cv.notify_all();
+                return;
+            }
+            if (type == "intent_call_error") {
+                intentReady = true;
+                resolvedIntentCall.status = "error";
+                resolvedIntentCall.intentName.clear();
+                resolvedIntentCall.arguments = nlohmann::json::object();
+                resolvedIntentCall.message = jsonString(j, "message");
+                cv.notify_all();
+                return;
+            }
             if (j.contains("transcript") && j["transcript"].is_string()) {
                 latestTranscript = j["transcript"].get<std::string>();
                 std::string appendTranscript;
@@ -471,6 +540,46 @@ struct TheCubeServerAPI::WsBridge {
         return false;
     }
 
+    bool waitForSessionStart(std::chrono::milliseconds timeout, std::string& sessionIdOut, std::string& errorOut)
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        const bool signaled = cv.wait_for(lock, timeout, [this]() { return sessionStarted || failed || closed; });
+        if (!signaled) {
+            errorOut = "Timed out waiting for voice turn session bootstrap";
+            return false;
+        }
+        if (failed) {
+            errorOut = errorMessage.empty() ? "WebSocket voice turn bootstrap failed" : errorMessage;
+            return false;
+        }
+        if (!sessionStarted || serverSessionId.empty()) {
+            errorOut = errorMessage.empty() ? "WebSocket closed before voice turn session bootstrap" : errorMessage;
+            return false;
+        }
+        sessionIdOut = serverSessionId;
+        return true;
+    }
+
+    bool waitForIntent(std::chrono::milliseconds timeout, ResolvedIntentCall& intentOut, std::string& errorOut)
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        const bool signaled = cv.wait_for(lock, timeout, [this]() { return intentReady || failed || closed; });
+        if (!signaled) {
+            errorOut = "Timed out waiting for resolved intent call";
+            return false;
+        }
+        if (failed) {
+            errorOut = errorMessage.empty() ? "WebSocket voice turn failed" : errorMessage;
+            return false;
+        }
+        if (!intentReady) {
+            errorOut = errorMessage.empty() ? "WebSocket closed before resolved intent call was produced" : errorMessage;
+            return false;
+        }
+        intentOut = resolvedIntentCall;
+        return true;
+    }
+
     void close()
     {
         Mode activeMode = Mode::NONE;
@@ -543,6 +652,39 @@ bool TheCubeServerAPI::openAudioStreamLocked()
         state = ServerState::SERVER_STATE_IDLE;
         return false;
     }
+
+    std::string sessionId;
+    std::string waitError;
+    if (wsBridge->waitForSessionStart(std::chrono::milliseconds(1000), sessionId, waitError)) {
+        if (activeSession.has_value()) {
+            activeSession->sessionId = sessionId;
+        }
+        CubeLog::info("TheCubeServerAPI: voice turn started session=" + sessionId);
+    } else {
+        CubeLog::warning("TheCubeServerAPI: voice turn bootstrap not received: " + waitError);
+    }
+
+    const auto voiceFunctions = pendingVoiceFunctions.is_array() ? pendingVoiceFunctions : nlohmann::json::array();
+    const auto voiceContext = pendingVoiceContext.is_object() ? pendingVoiceContext : nlohmann::json::object();
+    nlohmann::json initPayload = {
+        { "type", "voice_turn_init" },
+        { "sessionId", activeSession.has_value() ? activeSession->sessionId : std::string() },
+        { "functions", voiceFunctions },
+        { "context", voiceContext }
+    };
+    if (!wsBridge->sendText(initPayload.dump())) {
+        error = ServerError::SERVER_ERROR_STREAMING_ERROR;
+        status = ServerStatus::SERVER_STATUS_ERROR;
+        state = ServerState::SERVER_STATE_IDLE;
+        return false;
+    }
+    CubeLog::info(
+        "TheCubeServerAPI: voice turn init sent"
+        " session=" + (activeSession.has_value() ? activeSession->sessionId : std::string("<none>"))
+        + ", toolCount=" + std::to_string(voiceFunctions.is_array() ? voiceFunctions.size() : 0)
+        + ", hasContext=" + std::string(voiceContext.is_object() && !voiceContext.empty() ? "true" : "false"));
+    pendingVoiceFunctions = nlohmann::json::array();
+    pendingVoiceContext = nlohmann::json::object();
 
     state = ServerState::SERVER_STATE_STREAMING;
     return true;
@@ -646,6 +788,17 @@ bool TheCubeServerAPI::finishTranscriptionSession()
     return sent;
 }
 
+void TheCubeServerAPI::prepareVoiceTurn(const nlohmann::json& functions, const nlohmann::json& context)
+{
+    std::lock_guard<std::mutex> lock(transcriptionMutex);
+    pendingVoiceFunctions = functions.is_array() ? functions : nlohmann::json::array();
+    pendingVoiceContext = context.is_object() ? context : nlohmann::json::object();
+    CubeLog::info(
+        "TheCubeServerAPI: prepared voice turn"
+        " toolCount=" + std::to_string(pendingVoiceFunctions.is_array() ? pendingVoiceFunctions.size() : 0)
+        + ", hasContext=" + std::string(pendingVoiceContext.is_object() && !pendingVoiceContext.empty() ? "true" : "false"));
+}
+
 std::string TheCubeServerAPI::waitForFinalTranscript(std::chrono::milliseconds timeout)
 {
     std::string transcript;
@@ -669,8 +822,7 @@ std::string TheCubeServerAPI::waitForFinalTranscript(std::chrono::milliseconds t
         error = ServerError::SERVER_ERROR_TRANSCRIPTION_ERROR;
         status = ServerStatus::SERVER_STATUS_ERROR;
         if (wsBridge) wsBridge->close();
-        activeSession.reset();
-        state = ServerState::SERVER_STATE_IDLE;
+        resetActiveSessionLocked();
         return {};
     }
 
@@ -684,12 +836,50 @@ std::string TheCubeServerAPI::waitForFinalTranscript(std::chrono::milliseconds t
                 + ", bridge={" + wsBridge->debugSummary() + "}");
         }
         error = transcript.empty() ? ServerError::SERVER_ERROR_TRANSCRIPTION_ERROR : ServerError::SERVER_ERROR_NONE;
-        status = transcript.empty() ? ServerStatus::SERVER_STATUS_ERROR : ServerStatus::SERVER_STATUS_READY;
-        state = ServerState::SERVER_STATE_IDLE;
-        if (wsBridge) wsBridge->close();
-        activeSession.reset();
+        status = transcript.empty() ? ServerStatus::SERVER_STATUS_ERROR : ServerStatus::SERVER_STATUS_BUSY;
+        state = ServerState::SERVER_STATE_TRANSCRIBING;
     }
     return transcript;
+}
+
+ResolvedIntentCall TheCubeServerAPI::waitForResolvedIntentCall(std::chrono::milliseconds timeout)
+{
+    ResolvedIntentCall resolved;
+    std::string waitError;
+
+    {
+        std::lock_guard<std::mutex> lock(transcriptionMutex);
+        if (!activeSession.has_value() || !wsBridge) {
+            resolved.status = "error";
+            resolved.message = "no_active_voice_turn";
+            return resolved;
+        }
+        CubeLog::info(
+            "TheCubeServerAPI: waiting for resolved intent call for session="
+            + activeSession->sessionId
+            + ", timeoutMs=" + std::to_string(timeout.count())
+            + ", bridge={" + wsBridge->debugSummary() + "}");
+    }
+
+    if (!wsBridge->waitForIntent(timeout, resolved, waitError)) {
+        CubeLog::error("TheCubeServerAPI: intent wait failed: " + waitError);
+        std::lock_guard<std::mutex> lock(transcriptionMutex);
+        error = ServerError::SERVER_ERROR_INTERNAL_ERROR;
+        status = ServerStatus::SERVER_STATUS_ERROR;
+        if (wsBridge) wsBridge->close();
+        resetActiveSessionLocked();
+        resolved.status = "error";
+        resolved.message = waitError.empty() ? "intent_resolution_failed" : waitError;
+        return resolved;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(transcriptionMutex);
+        error = ServerError::SERVER_ERROR_NONE;
+        status = ServerStatus::SERVER_STATUS_READY;
+        state = ServerState::SERVER_STATE_IDLE;
+    }
+    return resolved;
 }
 
 bool TheCubeServerAPI::cancelStreamingTranscription()
@@ -703,10 +893,8 @@ bool TheCubeServerAPI::cancelTranscriptionSession()
     if (wsBridge) {
         wsBridge->close();
     }
-    activeSession.reset();
-    state = ServerState::SERVER_STATE_IDLE;
-    status = ServerStatus::SERVER_STATUS_READY;
     error = ServerError::SERVER_ERROR_NONE;
+    resetActiveSessionLocked();
     return true;
 }
 

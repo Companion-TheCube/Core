@@ -106,6 +106,8 @@ public:
     bool finishStreamingTranscription() override;
     std::string waitForFinalTranscript(std::chrono::milliseconds timeout = std::chrono::milliseconds(15000)) override;
     bool cancelStreamingTranscription() override;
+    void prepareVoiceTurn(const nlohmann::json& functions, const nlohmann::json& context);
+    ResolvedIntentCall waitForResolvedIntentCall(std::chrono::milliseconds timeout = std::chrono::milliseconds(15000));
 
     std::optional<std::string> createConversationSession() override;
     std::future<std::string> getChatResponseAsync(
@@ -153,6 +155,8 @@ private:
     mutable std::mutex transcriptionMutex;
     std::optional<TranscriptionSessionMeta> activeSession;
     std::unique_ptr<WsBridge> wsBridge;
+    nlohmann::json pendingVoiceFunctions = nlohmann::json::array();
+    nlohmann::json pendingVoiceContext = nlohmann::json::object();
 
     std::string baseUrl;
     std::string websocketUrl;

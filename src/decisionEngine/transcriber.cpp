@@ -234,8 +234,6 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
             signalFailure();
         }
 
-        // Ensure local/remote session state is cleaned even after successful final.
-        cancelActiveSession();
         drainAudioQueue(audioQueue);
     });
     CubeLog::info("RemoteTranscriber: transcription worker started");
