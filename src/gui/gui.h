@@ -144,6 +144,7 @@ public:
     static void showNotification(const std::string& title, const std::string& message, NotificationsManager::NotificationType type);
     static void showNotificationWithCallback(const std::string& title, const std::string& message, NotificationsManager::NotificationType type, std::function<void()> callback);
     static void showNotificationWithCallback(const std::string& title, const std::string& message, NotificationsManager::NotificationType type, std::function<void()> callbackYes, std::function<void()> callbackNo);
+    static void showAlarmModal(const std::string& title, const std::string& message, std::function<void()> onDismiss, std::function<void()> onSnooze);
     static void showTextInputBox(const std::string& title, std::vector<std::string> fields, std::function<void(std::vector<std::string>&)> callback);
     static void showTextInputBox(const std::string& title, const std::string& field, std::function<void(std::string&)> callback);
     // API Interface

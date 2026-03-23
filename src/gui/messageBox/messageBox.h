@@ -152,6 +152,10 @@ public:
 
 class CubeNotificaionBox : public M_Box {
 private:
+    struct Rect {
+        unsigned int xMin, xMax, yMin, yMax;
+    };
+
     bool visible;
     std::vector<MeshObject*> objects;
     std::vector<MeshObject*> textObjects;
@@ -167,13 +171,25 @@ private:
     std::function<void()> callbackNo = nullptr;
     ClickableArea clickArea;
     bool needsSetup = true;
+    bool needsRefresh = true;
+    bool hasCountedDown = false;
     glm::vec2 position;
     glm::vec2 size;
-    int textMeshCount = 0;
-    // Button rectangles (pixel coordinates in 720x720 space)
-    struct Rect { unsigned int xMin, xMax, yMin, yMax; };
+    std::string titleText = "Notification";
+    std::string bodyText;
+    std::string secondaryText;
+    std::string yesButtonLabel = "Approve";
+    std::string noButtonLabel = "Deny";
+    float titleScaleMultiplier = MESSAGEBOX_TITLE_TEXT_MULT;
+    float secondaryTextScaleMultiplier = 1.85f;
+    Rect popupRect_{};
     Rect yesBtn_{};
     Rect noBtn_{};
+
+    void clearTextObjects();
+    void clearObjects();
+    void updateRectsLocked();
+    void refreshVisualStateLocked();
 
 public:
     CubeNotificaionBox(Shader* shader, Shader* textShader, Renderer* renderer, CountingLatch& latch);
@@ -187,6 +203,9 @@ public:
     void setTextSize(float size);
     std::vector<MeshObject*> getObjects();
     void setText(const std::string& text, const std::string& title);
+    void setSecondaryText(const std::string& text);
+    void setButtonLabels(const std::string& yesLabel, const std::string& noLabel);
+    void setTitleScaleMultiplier(float multiplier);
     void setCallbackYes(std::function<void()> callback);
     void setCallbackNo(std::function<void()> callback);
     void call_callback()
@@ -196,13 +215,23 @@ public:
     };
     ClickableArea getClickableArea_() { return this->clickArea; };
     // Helpers for click handling
+    bool isInsidePopup(unsigned int x, unsigned int y) const
+    {
+        const unsigned int yMin = 720u - popupRect_.yMax;
+        const unsigned int yMax = 720u - popupRect_.yMin;
+        return x < popupRect_.xMax && x > popupRect_.xMin && y < yMax && y > yMin;
+    }
     bool isInsideYes(unsigned int x, unsigned int y) const
     {
-        return x < yesBtn_.xMax && x > yesBtn_.xMin && y < yesBtn_.yMax && y > yesBtn_.yMin;
+        const unsigned int yMin = 720u - yesBtn_.yMax;
+        const unsigned int yMax = 720u - yesBtn_.yMin;
+        return x < yesBtn_.xMax && x > yesBtn_.xMin && y < yMax && y > yMin;
     }
     bool isInsideNo(unsigned int x, unsigned int y) const
     {
-        return x < noBtn_.xMax && x > noBtn_.xMin && y < noBtn_.yMax && y > noBtn_.yMin;
+        const unsigned int yMin = 720u - noBtn_.yMax;
+        const unsigned int yMax = 720u - noBtn_.yMin;
+        return x < noBtn_.xMax && x > noBtn_.xMin && y < yMax && y > yMin;
     }
     void triggerYes()
     {

@@ -48,6 +48,10 @@ SOFTWARE.
 #include "./gui.h"
 #include "../decisionEngine/notificationCenter.h"
 #include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <ctime>
+#include <iomanip>
 #include <memory>
 #include <optional>
 
@@ -61,6 +65,8 @@ CubeSliderBox* GUI::sliderBox = nullptr;
 GUI* GUI::activeGuiInstance = nullptr;
 
 namespace {
+
+std::atomic<uint64_t> gNotificationBoxGeneration { 0 };
 
 int clampAndSnapSliderValue(int value, int minValue, int maxValue, int step)
 {
@@ -145,6 +151,25 @@ httplib::Result sendRequestWithOptionalValue(
         return client.Delete(path.c_str());
     }
     return httplib::Result();
+}
+
+std::string formatCurrentAlarmClockText()
+{
+    const auto now = std::chrono::system_clock::now();
+    const auto nowTime = std::chrono::system_clock::to_time_t(now);
+    std::tm localTm {};
+#ifdef _WIN32
+    localtime_s(&localTm, &nowTime);
+#else
+    localtime_r(&nowTime, &localTm);
+#endif
+    std::ostringstream out;
+    out << std::put_time(&localTm, "%I:%M %p");
+    auto formatted = out.str();
+    if (!formatted.empty() && formatted.front() == '0') {
+        formatted.erase(formatted.begin());
+    }
+    return formatted;
 }
 
 unsigned int addPopupSliderMenuEntryImpl(
@@ -1041,6 +1066,7 @@ void GUI::eventLoop()
     this->renderer->addSetupTask([&soundMenu_AlarmSound_SelectSound, addBackButton, addToParent]() {
         addBackButton(soundMenu_AlarmSound_SelectSound);
         // TODO: list all the alarm sounds
+        // TODO: add a menu entry here for the alarm snooze time setting.
         soundMenu_AlarmSound_SelectSound->setup();
         addToParent(soundMenu_AlarmSound_SelectSound);
         soundMenu_AlarmSound_SelectSound->setChildrenClickables_isClickable(false);
@@ -2056,37 +2082,109 @@ void GUI::showNotificationWithCallback(const std::string& title, const std::stri
 
 void GUI::showNotificationWithCallback(const std::string& title, const std::string& message, NotificationsManager::NotificationType type, std::function<void()> callbackYes, std::function<void()> cancelNo)
 {
-    // Use NotificationBox with explicit Approve/Deny regions and a 60s timeout
     try {
         if (!GUI::notificationBox) {
             CubeLog::error("NotificationBox not initialized");
             return;
         }
+        const uint64_t generation = gNotificationBoxGeneration.fetch_add(1) + 1;
         glm::vec2 pos{ 144, 144 };
         glm::vec2 size{ 432, 432 };
         GUI::notificationBox->setPosition(pos);
         GUI::notificationBox->setSize(size);
-        GUI::notificationBox->setCallbackYes(callbackYes);
-        GUI::notificationBox->setCallbackNo(cancelNo);
+        GUI::notificationBox->setButtonLabels("Approve", "Deny");
+        GUI::notificationBox->setSecondaryText("");
+        GUI::notificationBox->setTitleScaleMultiplier(MESSAGEBOX_TITLE_TEXT_MULT);
+        GUI::notificationBox->setCallbackYes([generation, callbackYes]() {
+            if (gNotificationBoxGeneration.load() != generation) {
+                return;
+            }
+            gNotificationBoxGeneration.fetch_add(1);
+            GUI::setVisibleMenuClickablesEnabled(true);
+            if (callbackYes) {
+                callbackYes();
+            }
+        });
+        GUI::notificationBox->setCallbackNo([generation, cancelNo]() {
+            if (gNotificationBoxGeneration.load() != generation) {
+                return;
+            }
+            gNotificationBoxGeneration.fetch_add(1);
+            GUI::setVisibleMenuClickablesEnabled(true);
+            if (cancelNo) {
+                cancelNo();
+            }
+        });
         GUI::notificationBox->setText(message, title);
+        setVisibleMenuClickablesEnabled(false);
         GUI::notificationBox->setVisible(true);
 
-        // Timeout watcher
-        std::thread([]() {
+        std::thread([generation]() {
             using namespace std::chrono;
             auto start = steady_clock::now();
             while (duration_cast<seconds>(steady_clock::now() - start).count() < 60) {
+                if (gNotificationBoxGeneration.load() != generation) return;
                 if (GUI::notificationBox && !GUI::notificationBox->getVisible()) return;
                 std::this_thread::sleep_for(milliseconds(50));
             }
-            if (GUI::notificationBox && GUI::notificationBox->getVisible()) {
+            if (gNotificationBoxGeneration.load() == generation && GUI::notificationBox && GUI::notificationBox->getVisible()) {
                 GUI::notificationBox->setVisible(false);
-                // Invoke cancel callback on timeout
                 GUI::notificationBox->call_callback();
             }
         }).detach();
     } catch (...) {
         CubeLog::error("Failed to display notification with callback");
+    }
+}
+
+void GUI::showAlarmModal(const std::string& title, const std::string& message, std::function<void()> onDismiss, std::function<void()> onSnooze)
+{
+    try {
+        if (!GUI::notificationBox) {
+            CubeLog::error("NotificationBox not initialized");
+            return;
+        }
+        const uint64_t generation = gNotificationBoxGeneration.fetch_add(1) + 1;
+        glm::vec2 pos{ 144, 144 };
+        glm::vec2 size{ 432, 432 };
+        GUI::notificationBox->setPosition(pos);
+        GUI::notificationBox->setSize(size);
+        GUI::notificationBox->setButtonLabels("Dismiss", "Snooze");
+        GUI::notificationBox->setTitleScaleMultiplier(1.55f);
+        GUI::notificationBox->setSecondaryText(formatCurrentAlarmClockText());
+        GUI::notificationBox->setCallbackYes([generation, onDismiss]() {
+            if (gNotificationBoxGeneration.load() != generation) {
+                return;
+            }
+            gNotificationBoxGeneration.fetch_add(1);
+            GUI::setVisibleMenuClickablesEnabled(true);
+            if (onDismiss) {
+                onDismiss();
+            }
+        });
+        GUI::notificationBox->setCallbackNo([generation, onSnooze]() {
+            if (gNotificationBoxGeneration.load() != generation) {
+                return;
+            }
+            gNotificationBoxGeneration.fetch_add(1);
+            GUI::setVisibleMenuClickablesEnabled(true);
+            if (onSnooze) {
+                onSnooze();
+            }
+        });
+        GUI::notificationBox->setText(message, title);
+        setVisibleMenuClickablesEnabled(false);
+        GUI::notificationBox->setVisible(true);
+
+        std::thread([generation]() {
+            using namespace std::chrono_literals;
+            while (gNotificationBoxGeneration.load() == generation && GUI::notificationBox && GUI::notificationBox->getVisible()) {
+                GUI::notificationBox->setSecondaryText(formatCurrentAlarmClockText());
+                std::this_thread::sleep_for(1s);
+            }
+        }).detach();
+    } catch (...) {
+        CubeLog::error("Failed to display alarm modal");
     }
 }
 

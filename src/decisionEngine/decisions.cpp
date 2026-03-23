@@ -611,6 +611,7 @@ void DecisionEngineMain::onWakeWordDetected()
     }
     AudioOutput::playFileAsync(wakeSoundPath());
     showListeningUi();
+    CubeLog::info("DecisionEngine: listening UI shown");
     setTurnState(TurnState::LISTENING);
     transcription = transcriber ? transcriber->transcribeQueue(audioQueue) : nullptr;
     if (!transcription) {

@@ -84,6 +84,7 @@ struct GlobalSettings {
         SYSTEM_VOLUME,
         NOTIFICATION_SOUND_VOLUME,
         ALARM_SOUND_VOLUME,
+        ALARM_SNOOZE_MINUTES,
         VOICE_COMMAND_SOUND_VOLUME,
         NOTIFICATION_SOUND,
         ALARM_SOUND,
@@ -161,6 +162,8 @@ struct GlobalSettings {
         GlobalSettings::setSetting(SettingType::NOTIFICATION_SOUND_VOLUME, 100);
         // set the default alarm sound volume to 100
         GlobalSettings::setSetting(SettingType::ALARM_SOUND_VOLUME, 100);
+        // set the default alarm snooze duration to 10 minutes
+        GlobalSettings::setSetting(SettingType::ALARM_SNOOZE_MINUTES, 10);
         // set the default voice command sound volume to 100
         GlobalSettings::setSetting(SettingType::VOICE_COMMAND_SOUND_VOLUME, 100);
         // set the default notification sound to default

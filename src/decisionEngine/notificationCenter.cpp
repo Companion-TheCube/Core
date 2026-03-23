@@ -525,15 +525,17 @@ NotificationCenter::NotificationCenter()
         GUI::showNotification(item.title, item.message, NotificationsManager::NotificationType::NOTIFICATION_OKAY);
     };
     presenterCallbacks_.showAlarm = [this](const Item& item) {
-        GUI::showNotificationWithCallback(
-            item.title,
-            item.message,
-            NotificationsManager::NotificationType::NOTIFICATION_YES_NO,
+        const auto snoozeMinutes = std::max(
+            1,
+            GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::ALARM_SNOOZE_MINUTES));
+        GUI::showAlarmModal(
+            "Alarm",
+            item.message.empty() ? item.title : item.message,
             [this, id = item.id]() {
                 acknowledge(id);
             },
-            [this, id = item.id]() {
-                snooze(id, 10LL * 60LL * 1000LL);
+            [this, id = item.id, snoozeMinutes]() {
+                snooze(id, static_cast<int64_t>(snoozeMinutes) * 60LL * 1000LL);
             });
     };
     presenterCallbacks_.startAlarmSound = []() {
@@ -990,18 +992,62 @@ int64_t NotificationCenter::computeNextScheduledFor(const Item& item, int64_t ba
 
 void NotificationCenter::reloadScheduledItems()
 {
+    constexpr int64_t staleAlarmGraceMs = 5LL * 60LL * 1000LL;
     stopAlarmLoop();
+    const auto now = nowEpochMs();
     const auto reminders = listUpcomingReminders(250);
     const auto alarms = listActiveAlarms(250);
     for (const auto& item : reminders) {
-        if (item.scheduledForEpochMs > nowEpochMs()) {
+        if (item.scheduledForEpochMs > now) {
             scheduleItem(item);
         } else {
-            deliverItem(item.id);
+            auto updated = item;
+            const auto next = computeNextScheduledFor(updated, updated.scheduledForEpochMs);
+            if (next > 0) {
+                updated.scheduledForEpochMs = next;
+                updated.active = true;
+                updated.acknowledged = false;
+                updateItem(updated);
+                scheduleItem(updated);
+                CubeLog::info("NotificationCenter: rescheduled stale reminder " + std::to_string(updated.id));
+            } else {
+                updated.active = false;
+                updated.acknowledged = true;
+                updated.read = true;
+                updated.scheduledForEpochMs = 0;
+                updateItem(updated);
+                CubeLog::info("NotificationCenter: archived stale reminder " + std::to_string(updated.id));
+            }
         }
     }
     for (const auto& item : alarms) {
         if (item.deliveredAtEpochMs > 0 && item.active && !item.acknowledged) {
+            if (item.deliveredAtEpochMs + staleAlarmGraceMs < now) {
+                auto updated = item;
+                if (updated.repeatRule != RepeatRule::NONE) {
+                    auto next = computeNextScheduledFor(updated, updated.deliveredAtEpochMs);
+                    while (next > 0 && next <= now) {
+                        next = computeNextScheduledFor(updated, next);
+                    }
+                    if (next > 0) {
+                        updated.scheduledForEpochMs = next;
+                        updated.active = true;
+                        updated.acknowledged = false;
+                        updateItem(updated);
+                        scheduleItem(updated);
+                        CubeLog::info("NotificationCenter: rescheduled stale active alarm " + std::to_string(updated.id));
+                        continue;
+                    }
+                }
+
+                updated.active = false;
+                updated.acknowledged = true;
+                updated.read = true;
+                updated.scheduledForEpochMs = 0;
+                updateItem(updated);
+                CubeLog::info("NotificationCenter: archived stale active alarm " + std::to_string(updated.id));
+                continue;
+            }
             {
                 std::scoped_lock lock(mutex_);
                 activeAlarmId_ = item.id;
@@ -1010,10 +1056,29 @@ void NotificationCenter::reloadScheduledItems()
             startAlarmLoop(item.id);
             continue;
         }
-        if (item.scheduledForEpochMs > nowEpochMs()) {
+        if (item.scheduledForEpochMs > now) {
             scheduleItem(item);
         } else {
-            deliverItem(item.id);
+            auto updated = item;
+            auto next = computeNextScheduledFor(updated, updated.scheduledForEpochMs);
+            while (next > 0 && next <= now) {
+                next = computeNextScheduledFor(updated, next);
+            }
+            if (next > 0) {
+                updated.scheduledForEpochMs = next;
+                updated.active = true;
+                updated.acknowledged = false;
+                updateItem(updated);
+                scheduleItem(updated);
+                CubeLog::info("NotificationCenter: rescheduled stale scheduled alarm " + std::to_string(updated.id));
+            } else {
+                updated.active = false;
+                updated.acknowledged = true;
+                updated.read = true;
+                updated.scheduledForEpochMs = 0;
+                updateItem(updated);
+                CubeLog::info("NotificationCenter: archived stale scheduled alarm " + std::to_string(updated.id));
+            }
         }
     }
 }

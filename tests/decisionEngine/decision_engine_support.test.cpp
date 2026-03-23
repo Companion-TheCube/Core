@@ -212,6 +212,14 @@ TEST(GlobalSettings, GeneralAiResponseModeDefaultsToPopupOnly)
         "popupOnly");
 }
 
+TEST(GlobalSettings, AlarmSnoozeMinutesDefaultsToTen)
+{
+    GlobalSettings settings;
+    EXPECT_EQ(
+        settings.getSettingOfType<int>(GlobalSettings::SettingType::ALARM_SNOOZE_MINUTES),
+        10);
+}
+
 TEST(IntentRegistry, LoadsAppIntentManifestsWhenCapabilityExists)
 {
     const auto tempRoot = std::filesystem::temp_directory_path() / "cube_intent_manifest_test";

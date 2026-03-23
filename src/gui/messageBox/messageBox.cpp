@@ -460,122 +460,243 @@ CubeNotificaionBox::CubeNotificaionBox(Shader* shader, Shader* textShader, Rende
     this->size = { 432, 432 };
     this->clickArea = ClickableArea();
     this->clickArea.clickableObject = nullptr;
-    this->clickArea.xMin = (unsigned int)this->position.x;
-    this->clickArea.xMax = (unsigned int)(this->position.x + this->size.x);
-    this->clickArea.yMin = (unsigned int)this->position.y;
-    this->clickArea.yMax = (unsigned int)(this->position.y + this->size.y);
+    this->clickArea.xMin = 0;
+    this->clickArea.xMax = 720;
+    this->clickArea.yMin = 0;
+    this->clickArea.yMax = 720;
 }
 
 CubeNotificaionBox::~CubeNotificaionBox()
 {
-    for (auto object : this->objects) {
-        delete object;
-    }
-    for (auto object : this->textObjects) {
-        delete object;
-    }
+    clearTextObjects();
+    clearObjects();
     CubeLog::info("NotificationBox destroyed");
+}
+
+void CubeNotificaionBox::clearTextObjects()
+{
+    for (auto* object : this->textObjects) {
+        delete object;
+    }
+    this->textObjects.clear();
+}
+
+void CubeNotificaionBox::clearObjects()
+{
+    for (auto* object : this->objects) {
+        delete object;
+    }
+    this->objects.clear();
+}
+
+void CubeNotificaionBox::updateRectsLocked()
+{
+    this->popupRect_ = {
+        static_cast<unsigned int>(this->position.x),
+        static_cast<unsigned int>(this->position.x + this->size.x),
+        static_cast<unsigned int>(this->position.y),
+        static_cast<unsigned int>(this->position.y + this->size.y)
+    };
+
+    const unsigned int buttonHeight = static_cast<unsigned int>(this->messageTextSize * 2.2f);
+    const unsigned int buttonWidth = static_cast<unsigned int>((this->size.x - 3 * STENCIL_INSET_PX) / 2.f);
+    const unsigned int buttonsYMin = static_cast<unsigned int>(this->position.y + STENCIL_INSET_PX);
+    const unsigned int buttonsYMax = buttonsYMin + buttonHeight;
+    const unsigned int yesXMin = static_cast<unsigned int>(this->position.x + STENCIL_INSET_PX);
+    const unsigned int noXMin = static_cast<unsigned int>(this->position.x + this->size.x - STENCIL_INSET_PX - buttonWidth);
+
+    this->yesBtn_ = { yesXMin, yesXMin + buttonWidth, buttonsYMin, buttonsYMax };
+    this->noBtn_ = { noXMin, noXMin + buttonWidth, buttonsYMin, buttonsYMax };
+}
+
+void CubeNotificaionBox::refreshVisualStateLocked()
+{
+    updateRectsLocked();
+    clearTextObjects();
+
+    auto* titleText = new M_Text(this->textShader, this->titleText, (this->messageTextSize * this->titleScaleMultiplier), { 1.f, 1.f, 1.f }, { 0.f, 0.f });
+    const float titleWidth = titleText->getWidth();
+    const float titleX = this->position.x + (this->size.x - titleWidth) / 2.f;
+    const float titleY = (this->position.y + this->size.y) - (this->messageTextSize * this->titleScaleMultiplier) - STENCIL_INSET_PX;
+    titleText->setPosition({ titleX, titleY });
+    this->textObjects.push_back(titleText);
+
+    float currentBaselineY = titleY - (this->messageTextSize * 1.9f);
+    if (!this->secondaryText.empty()) {
+        auto* secondary = new M_Text(this->textShader, this->secondaryText, (this->messageTextSize * this->secondaryTextScaleMultiplier), { 1.f, 1.f, 1.f }, { 0.f, 0.f });
+        const float secondaryWidth = secondary->getWidth();
+        const float secondaryX = this->position.x + (this->size.x - secondaryWidth) / 2.f;
+        const float secondaryY = currentBaselineY;
+        secondary->setPosition({ secondaryX, secondaryY });
+        this->textObjects.push_back(secondary);
+        currentBaselineY = secondaryY - (this->messageTextSize * (this->secondaryTextScaleMultiplier + 0.9f));
+    }
+
+    std::vector<std::string> lines;
+    const size_t maxCharsPerLine = static_cast<size_t>((this->size.x - (2 * STENCIL_INSET_PX)) / (this->messageTextSize * 0.55f));
+    std::istringstream textStream(this->bodyText);
+    std::string paragraph;
+    while (std::getline(textStream, paragraph)) {
+        if (paragraph.empty()) {
+            lines.push_back("");
+            continue;
+        }
+        std::istringstream wordStream(paragraph);
+        std::string word;
+        std::string current;
+        while (wordStream >> word) {
+            if (current.empty()) {
+                current = word;
+            } else if ((current.size() + 1 + word.size()) <= maxCharsPerLine) {
+                current += " " + word;
+            } else {
+                lines.push_back(current);
+                current = word;
+            }
+        }
+        if (!current.empty()) {
+            lines.push_back(current);
+        }
+    }
+    if (lines.empty()) {
+        lines.push_back(this->bodyText);
+    }
+
+    for (size_t i = 0; i < lines.size(); ++i) {
+        const float lineY = currentBaselineY - static_cast<float>(i) * (this->messageTextSize + (MESSAGEBOX_LINE_SPACING * this->messageTextSize));
+        this->textObjects.push_back(new M_Text(
+            this->textShader,
+            lines[i],
+            this->messageTextSize,
+            { 1.f, 1.f, 1.f },
+            { this->position.x + STENCIL_INSET_PX, lineY }));
+    }
+
+    auto* yesText = new M_Text(this->textShader, this->yesButtonLabel, this->messageTextSize, { 0.1f, 1.f, 0.1f }, { 0.f, 0.f });
+    const float yesWidth = yesText->getWidth();
+    const float yesX = this->yesBtn_.xMin + (this->yesBtn_.xMax - this->yesBtn_.xMin - yesWidth) / 2.f;
+    const float yesY = this->yesBtn_.yMin + ((this->yesBtn_.yMax - this->yesBtn_.yMin) - this->messageTextSize) / 2.f;
+    yesText->setPosition({ yesX, yesY });
+    this->textObjects.push_back(yesText);
+
+    auto* noText = new M_Text(this->textShader, this->noButtonLabel, this->messageTextSize, { 1.f, 0.2f, 0.2f }, { 0.f, 0.f });
+    const float noWidth = noText->getWidth();
+    const float noX = this->noBtn_.xMin + (this->noBtn_.xMax - this->noBtn_.xMin - noWidth) / 2.f;
+    const float noY = this->noBtn_.yMin + ((this->noBtn_.yMax - this->noBtn_.yMin) - this->messageTextSize) / 2.f;
+    noText->setPosition({ noX, noY });
+    this->textObjects.push_back(noText);
+
+    this->needsRefresh = false;
 }
 
 void CubeNotificaionBox::setup()
 {
-    float radius = BOX_RADIUS;
-    float diameter = radius * 2;
-    float xStart = -0.2;
-    float yStart = -0.2;
-    glm::vec2 size_ = { 1.f, 1.f };
-    // Fullscreen blackout backdrop to ensure content beneath is hidden
-    this->objects.push_back(new M_Rect(shader, { -1.f, -1.f, Z_DISTANCE + this->index - 0.0005f }, { 2.f, 2.f }, 0.0, 0.0));
-    // Main rounded box with outline
-    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart + radius, Z_DISTANCE + this->index }, { size_.x - diameter, size_.y - diameter }, 0.0, 0.0)); // main box
-    this->objects.push_back(new M_Rect(shader, { xStart, yStart + radius, Z_DISTANCE + this->index }, { radius, size_.y - diameter }, 0.0, 0.0)); // left
-    this->objects.push_back(new M_Rect(shader, { xStart + size_.x - radius, yStart + radius, Z_DISTANCE + this->index }, { radius, size_.y - diameter }, 0.0, 0.0)); // right
-    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart, Z_DISTANCE + this->index }, { size_.x - diameter, radius }, 0.0, 0.0)); // top
-    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart + size_.y - radius, Z_DISTANCE + this->index }, { size_.x - diameter, radius }, 0.0, 0.0)); // bottom
-    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + size_.x - radius, yStart + size_.y - radius, Z_DISTANCE + this->index }, 0, 90, { 0.f, 0.f, 0.f })); // top right
-    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + radius, yStart + size_.y - radius, Z_DISTANCE + this->index }, 90, 180, { 0.f, 0.f, 0.f })); // top left
-    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + radius, yStart + radius, Z_DISTANCE + this->index }, 180, 270, { 0.f, 0.f, 0.f })); // bottom left
-    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + size_.x - radius, yStart + radius, Z_DISTANCE + this->index }, 270, 360, { 0.f, 0.f, 0.f })); // bottom right
-    this->objects.push_back(new M_Line(shader, { xStart + radius, yStart + size_.y, Z_DISTANCE + 0.001 + this->index }, { xStart + size_.x - radius, yStart + size_.y, Z_DISTANCE + 0.001 + this->index })); // top
-    this->objects.push_back(new M_Line(shader, { xStart + size_.x, yStart + radius, Z_DISTANCE + 0.001 + this->index }, { xStart + size_.x, yStart + size_.y - radius, Z_DISTANCE + 0.001 + this->index })); // right
-    this->objects.push_back(new M_Line(shader, { xStart + radius, yStart, Z_DISTANCE + 0.001 + this->index }, { xStart + size_.x - radius, yStart, Z_DISTANCE + 0.001 + this->index })); // bottom
-    this->objects.push_back(new M_Line(shader, { xStart, yStart + radius, Z_DISTANCE + 0.001 + this->index }, { xStart, yStart + size_.y - radius, Z_DISTANCE + 0.001 + this->index })); // left
-    this->objects.push_back(new M_Arc(shader, 50, radius, 0, 90, { xStart + size_.x - radius, yStart + size_.y - radius, Z_DISTANCE + 0.001 + this->index })); // top right
-    this->objects.push_back(new M_Arc(shader, 50, radius, 360, 270, { xStart + size_.x - radius, yStart + radius, Z_DISTANCE + 0.001 + this->index })); // bottom right
-    this->objects.push_back(new M_Arc(shader, 50, radius, 180, 270, { xStart + radius, yStart + radius, Z_DISTANCE + 0.001 + this->index })); // bottom left
-    this->objects.push_back(new M_Arc(shader, 50, radius, 180, 90, { xStart + radius, yStart + size_.y - radius, Z_DISTANCE + 0.001 + this->index })); // top left
-    textMeshCount = this->objects.size();
-    std::lock_guard<std::mutex> lock(this->mutex);
-    this->latch->count_down();
+    if (!this->needsSetup) {
+        return;
+    }
+    this->needsSetup = false;
+
+    clearObjects();
+    const float radius = BOX_RADIUS;
+    const float diameter = radius * 2.0f;
+    const float xStart = mapRange(this->position.x, 0.f, 720.f, -1.f, 1.f);
+    const float yStart = mapRange(this->position.y, 0.f, 720.f, -1.f, 1.f);
+    const float xSize = mapRange(this->size.x, 0.f, 720.f, 0.f, 2.f);
+    const float ySize = mapRange(this->size.y, 0.f, 720.f, 0.f, 2.f);
+    glm::vec2 size_ = { xSize, ySize };
+    const float overlayZ = Z_DISTANCE + 0.02f;
+    const float panelZ = Z_DISTANCE + 0.03f;
+    const float outlineZ = Z_DISTANCE + 0.031f;
+
+    this->objects.push_back(new M_Rect(shader, { -1.f, -1.f, overlayZ }, { 2.f, 2.f }, 0.0, 0.0));
+    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart + radius, panelZ }, { size_.x - diameter, size_.y - diameter }, 0.0, 0.0));
+    this->objects.push_back(new M_Rect(shader, { xStart, yStart + radius, panelZ }, { radius, size_.y - diameter }, 0.0, 0.0));
+    this->objects.push_back(new M_Rect(shader, { xStart + size_.x - radius, yStart + radius, panelZ }, { radius, size_.y - diameter }, 0.0, 0.0));
+    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart, panelZ }, { size_.x - diameter, radius }, 0.0, 0.0));
+    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart + size_.y - radius, panelZ }, { size_.x - diameter, radius }, 0.0, 0.0));
+    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + size_.x - radius, yStart + size_.y - radius, panelZ }, 0, 90, { 0.f, 0.f, 0.f }));
+    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + radius, yStart + size_.y - radius, panelZ }, 90, 180, { 0.f, 0.f, 0.f }));
+    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + radius, yStart + radius, panelZ }, 180, 270, { 0.f, 0.f, 0.f }));
+    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + size_.x - radius, yStart + radius, panelZ }, 270, 360, { 0.f, 0.f, 0.f }));
+    this->objects.push_back(new M_Line(shader, { xStart + radius, yStart + size_.y, outlineZ }, { xStart + size_.x - radius, yStart + size_.y, outlineZ }));
+    this->objects.push_back(new M_Line(shader, { xStart + size_.x, yStart + radius, outlineZ }, { xStart + size_.x, yStart + size_.y - radius, outlineZ }));
+    this->objects.push_back(new M_Line(shader, { xStart + radius, yStart, outlineZ }, { xStart + size_.x - radius, yStart, outlineZ }));
+    this->objects.push_back(new M_Line(shader, { xStart, yStart + radius, outlineZ }, { xStart, yStart + size_.y - radius, outlineZ }));
+    this->objects.push_back(new M_Arc(shader, 50, radius, 0, 90, { xStart + size_.x - radius, yStart + size_.y - radius, outlineZ }));
+    this->objects.push_back(new M_Arc(shader, 50, radius, 360, 270, { xStart + size_.x - radius, yStart + radius, outlineZ }));
+    this->objects.push_back(new M_Arc(shader, 50, radius, 180, 270, { xStart + radius, yStart + radius, outlineZ }));
+    this->objects.push_back(new M_Arc(shader, 50, radius, 180, 90, { xStart + radius, yStart + size_.y - radius, outlineZ }));
+
+    if (!this->hasCountedDown) {
+        this->hasCountedDown = true;
+        this->latch->count_down();
+    }
+    this->needsRefresh = true;
     CubeLog::info("NotificationBox setup");
 }
 
 bool CubeNotificaionBox::setVisible(bool visible)
 {
+    std::lock_guard<std::mutex> lock(this->mutex);
     CubeLog::debug("NotificationBox visibility set to " + std::to_string(visible));
-    bool temp = this->visible;
+    bool previous = this->visible;
     this->visible = visible;
-    return temp;
+    this->needsRefresh = true;
+    return previous;
 }
 
 bool CubeNotificaionBox::getVisible()
 {
+    std::lock_guard<std::mutex> lock(this->mutex);
     return this->visible;
 }
 
 void CubeNotificaionBox::draw()
 {
+    std::lock_guard<std::mutex> lock(this->mutex);
+    if (this->needsSetup) {
+        setup();
+    }
+    if (this->needsRefresh) {
+        refreshVisualStateLocked();
+    }
     if (!this->visible) {
         return;
     }
-    for (auto object : this->objects) {
+    for (auto* object : this->objects) {
         object->draw();
     }
-    for (auto object : this->textObjects) {
+    for (auto* object : this->textObjects) {
         object->draw();
     }
 }
 
 void CubeNotificaionBox::setPosition(glm::vec2 position)
 {
-    this->needsSetup = true;
+    std::lock_guard<std::mutex> lock(this->mutex);
     this->position = position;
-    for (auto object : this->objects) {
-        delete object;
-    }
-    this->objects.clear();
-    this->index = 0.001;
-    // keep clickable area in sync
-    this->clickArea.xMin = (unsigned int)this->position.x;
-    this->clickArea.xMax = (unsigned int)(this->position.x + this->size.x);
-    this->clickArea.yMin = (unsigned int)this->position.y;
-    this->clickArea.yMax = (unsigned int)(this->position.y + this->size.y);
+    this->needsSetup = true;
+    this->needsRefresh = true;
 }
 
 void CubeNotificaionBox::setSize(glm::vec2 size)
 {
-    this->needsSetup = true;
+    std::lock_guard<std::mutex> lock(this->mutex);
     this->size = size;
-    for (auto object : this->objects) {
-        delete object;
-    }
-    this->objects.clear();
-    this->index = 0.001;
-    // keep clickable area in sync
-    this->clickArea.xMin = (unsigned int)this->position.x;
-    this->clickArea.xMax = (unsigned int)(this->position.x + this->size.x);
-    this->clickArea.yMin = (unsigned int)this->position.y;
-    this->clickArea.yMax = (unsigned int)(this->position.y + this->size.y);
+    this->needsSetup = true;
+    this->needsRefresh = true;
 }
 
 void CubeNotificaionBox::setTextSize(float size)
 {
+    std::lock_guard<std::mutex> lock(this->mutex);
     this->messageTextSize = size;
+    this->needsRefresh = true;
 }
 
 std::vector<MeshObject*> CubeNotificaionBox::getObjects()
 {
-    // concat objects and textObjects
+    std::lock_guard<std::mutex> lock(this->mutex);
     std::vector<MeshObject*> allObjects;
     allObjects.insert(allObjects.end(), this->objects.begin(), this->objects.end());
     allObjects.insert(allObjects.end(), this->textObjects.begin(), this->textObjects.end());
@@ -584,81 +705,44 @@ std::vector<MeshObject*> CubeNotificaionBox::getObjects()
 
 void CubeNotificaionBox::setCallbackNo(std::function<void()> callback)
 {
+    std::lock_guard<std::mutex> lock(this->mutex);
     this->callbackNo = callback;
 }
 
 void CubeNotificaionBox::setCallbackYes(std::function<void()> callback)
 {
+    std::lock_guard<std::mutex> lock(this->mutex);
     this->callbackYes = callback;
 }
 
 void CubeNotificaionBox::setText(const std::string& text, const std::string& title)
 {
-    // Precompute button rectangles synchronously so click handling works immediately
-    unsigned int btnHeight = (unsigned int)(this->messageTextSize * 2.2f);
-    unsigned int btnWidth = (unsigned int)((this->size.x - 3 * STENCIL_INSET_PX) / 2.f);
-    unsigned int yMin = (unsigned int)(this->position.y + STENCIL_INSET_PX);
-    unsigned int yMax = yMin + btnHeight;
-    unsigned int xLeft = (unsigned int)(this->position.x + STENCIL_INSET_PX);
-    unsigned int xRight = (unsigned int)(this->position.x + this->size.x - STENCIL_INSET_PX - btnWidth);
-    this->yesBtn_ = { xLeft, xLeft + btnWidth, yMin, yMax };
-    this->noBtn_ = { xRight, xRight + btnWidth, yMin, yMax };
+    std::lock_guard<std::mutex> lock(this->mutex);
+    this->titleText = title;
+    this->bodyText = text;
+    this->needsRefresh = true;
+}
 
-    this->renderer->addSetupTask([&, text, title]() {
-        // Clear old text
-        // TODO: Notification text rebuilds manually delete and recreate heap objects inside a queued task, which is easy to race or leak; use std::unique_ptr and swap in a rebuilt object list.
-        for (auto* t : this->textObjects) delete t;
-        this->textObjects.clear();
-        // Title centered
-        auto titleText = new M_Text(textShader, title, (this->messageTextSize * MESSAGEBOX_TITLE_TEXT_MULT), { 1.f, 1.f, 1.f }, { 0.f, 0.f });
-        float titleWidth = titleText->getWidth();
-        float titleX = this->position.x + (this->size.x - titleWidth) / 2.f;
-        float titleY = (this->position.y + this->size.y) - this->messageTextSize - STENCIL_INSET_PX;
-        titleText->setPosition({ titleX, titleY });
-        this->textObjects.push_back(titleText);
-        // Body text with simple wrapping
-        std::vector<std::string> lines;
-        size_t maxCharsPerLine = (size_t)((this->size.x - (2 * STENCIL_INSET_PX)) / (this->messageTextSize * 0.55f));
-        std::istringstream textStream(text);
-        std::string paragraph;
-        while (std::getline(textStream, paragraph)) {
-            if (paragraph.empty()) { lines.push_back(""); continue; }
-            std::istringstream wordStream(paragraph);
-            std::string word; std::string current;
-            while (wordStream >> word) {
-                if (current.empty()) current = word;
-                else if ((current.size() + 1 + word.size()) <= maxCharsPerLine) current += " " + word;
-                else { lines.push_back(current); current = word; }
-            }
-            if (!current.empty()) lines.push_back(current);
-        }
-        if (lines.empty()) lines.push_back(text);
-        for (size_t i = 0; i < lines.size(); ++i) {
-            float shiftForPrevious = ((float)(i + 1) * this->messageTextSize) + (this->messageTextSize * MESSAGEBOX_TITLE_TEXT_MULT);
-            float margin = (float)(i + 1) * MESSAGEBOX_LINE_SPACING * this->messageTextSize;
-            this->textObjects.push_back(new M_Text(textShader, lines[i], this->messageTextSize, { 1.f, 1.f, 1.f }, { this->position.x + STENCIL_INSET_PX, (this->position.y + this->size.y) - STENCIL_INSET_PX - shiftForPrevious - margin }));
-        }
-        // Use precomputed buttons rects for label placement
-        unsigned int btnHeight = this->yesBtn_.yMax - this->yesBtn_.yMin;
-        unsigned int btnWidth = this->yesBtn_.xMax - this->yesBtn_.xMin;
-        unsigned int xLeft = this->yesBtn_.xMin;
-        unsigned int xRight = this->noBtn_.xMin;
-        unsigned int yMin = this->yesBtn_.yMin;
-        // Button labels
-        auto yesText = new M_Text(textShader, std::string("Approve"), this->messageTextSize, { 0.1f, 1.f, 0.1f }, { 0.f, 0.f });
-        float yW = yesText->getWidth();
-        float yesX = xLeft + (btnWidth - yW) / 2.f;
-        float yesY = yMin + (btnHeight - this->messageTextSize) / 2.f;
-        yesText->setPosition({ yesX, yesY });
-        this->textObjects.push_back(yesText);
-        auto noText = new M_Text(textShader, std::string("Deny"), this->messageTextSize, { 1.f, 0.1f, 0.1f }, { 0.f, 0.f });
-        float nW = noText->getWidth();
-        float noX = xRight + (btnWidth - nW) / 2.f;
-        float noY = yesY;
-        noText->setPosition({ noX, noY });
-        this->textObjects.push_back(noText);
-        CubeLog::info("NotificationBox text set");
-    });
+void CubeNotificaionBox::setSecondaryText(const std::string& text)
+{
+    std::lock_guard<std::mutex> lock(this->mutex);
+    this->secondaryText = text;
+    this->needsRefresh = true;
+}
+
+void CubeNotificaionBox::setButtonLabels(const std::string& yesLabel, const std::string& noLabel)
+{
+    std::lock_guard<std::mutex> lock(this->mutex);
+    this->yesButtonLabel = yesLabel;
+    this->noButtonLabel = noLabel;
+    this->needsRefresh = true;
+}
+
+void CubeNotificaionBox::setTitleScaleMultiplier(float multiplier)
+{
+    std::lock_guard<std::mutex> lock(this->mutex);
+    this->titleScaleMultiplier = std::max(multiplier, 1.0f);
+    this->needsRefresh = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
