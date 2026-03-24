@@ -1,9 +1,9 @@
 /*
-███╗   ███╗███╗   ███╗██╗    ██╗ █████╗ ██╗   ██╗███████╗    ██████╗██████╗ ██████╗ 
+███╗   ███╗███╗   ███╗██╗    ██╗ █████╗ ██╗   ██╗███████╗    ██████╗██████╗ ██████╗
 ████╗ ████║████╗ ████║██║    ██║██╔══██╗██║   ██║██╔════╝   ██╔════╝██╔══██╗██╔══██╗
 ██╔████╔██║██╔████╔██║██║ █╗ ██║███████║██║   ██║█████╗     ██║     ██████╔╝██████╔╝
-██║╚██╔╝██║██║╚██╔╝██║██║███╗██║██╔══██║╚██╗ ██╔╝██╔══╝     ██║     ██╔═══╝ ██╔═══╝ 
-██║ ╚═╝ ██║██║ ╚═╝ ██║╚███╔███╔╝██║  ██║ ╚████╔╝ ███████╗██╗╚██████╗██║     ██║     
+██║╚██╔╝██║██║╚██╔╝██║██║███╗██║██╔══██║╚██╗ ██╔╝██╔══╝     ██║     ██╔═══╝ ██╔═══╝
+██║ ╚═╝ ██║██║ ╚═╝ ██║╚███╔███╔╝██║  ██║ ╚████╔╝ ███████╗██╗╚██████╗██║     ██║
 ╚═╝     ╚═╝╚═╝     ╚═╝ ╚══╝╚══╝ ╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚═╝ ╚═════╝╚═╝     ╚═╝
 */
 
@@ -31,24 +31,62 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-
 #include "mmWave.h"
+#include <chrono>
 
-#ifndef ___linux__
-int wiringPiSetup() { return -1; }
-int serialOpen(const char* port, int baud) { return -1; }
-void serialPuts(int port, char* data) { }
-int serialDataAvail(int port) { return 0; }
-char serialGetchar(int port) { return 0; }
-unsigned long millis() { return 0; }
+#ifdef __linux__
+static int serialOpen(const char* port, int baud)
+{
+    int fd = ::open(port, O_RDWR | O_NOCTTY | O_NDELAY);
+    if (fd < 0)
+        return -1;
+    struct termios options;
+    tcgetattr(fd, &options);
+    // 8N1, no flow control, raw mode
+    options.c_cflag = CS8 | CLOCAL | CREAD;
+    options.c_iflag = 0;
+    options.c_oflag = 0;
+    options.c_lflag = 0;
+    options.c_cc[VMIN] = 0;
+    options.c_cc[VTIME] = 0;
+    cfsetispeed(&options, B115200);
+    cfsetospeed(&options, B115200);
+    tcflush(fd, TCIFLUSH);
+    tcsetattr(fd, TCSANOW, &options);
+    return fd;
+}
+static int serialDataAvail(int fd)
+{
+    int bytes = 0;
+    ioctl(fd, FIONREAD, &bytes);
+    return bytes;
+}
+static uint8_t serialGetchar(int fd)
+{
+    uint8_t c = 0;
+    ::read(fd, &c, 1);
+    return c;
+}
+static void serialWrite(int fd, const uint8_t* data, size_t len)
+{
+    ::write(fd, data, len);
+}
+static unsigned long millis()
+{
+    using namespace std::chrono;
+    return static_cast<unsigned long>(
+        duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count());
+}
+#else
+static int serialOpen(const char*, int) { return -1; }
+static int serialDataAvail(int) { return 0; }
+static uint8_t serialGetchar(int) { return 0; }
+static void serialWrite(int, const uint8_t*, size_t) { }
+static unsigned long millis() { return 0; }
 #endif
 
 mmWave::mmWave()
 {
-    if (wiringPiSetup() == -1) {
-        CubeLog::error("Failed to setup wiringPi.");
-        return;
-    }
     this->readerThread = std::make_unique<std::jthread>([&](std::stop_token st) {
         this->serialPort_h = serialOpen("/dev/ttyAMA4", 115200);
         if (serialPort_h < 0) {
@@ -93,7 +131,7 @@ Response mmWave::sendCommand(std::vector<uint8_t> command)
     dataToSend.push_back((command.size() >> 8) & 0xFF);
     dataToSend.insert(dataToSend.end(), command.begin(), command.end());
     dataToSend.insert(dataToSend.end(), COMMAND_TAIL);
-    serialPuts(this->serialPort_h, (char*)dataToSend.data());
+    serialWrite(this->serialPort_h, dataToSend.data(), dataToSend.size());
     Response response;
     uint16_t waitTime = 0;
     while (serialDataAvail(this->serialPort_h) == 0 && waitTime < 1000) {

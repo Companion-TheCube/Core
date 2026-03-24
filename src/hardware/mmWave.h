@@ -31,7 +31,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-
 #pragma once
 #include <memory>
 #include <string>
@@ -39,11 +38,11 @@ SOFTWARE.
 #ifndef LOGGER_H
 #include <logger.h>
 #endif
-#ifdef ___linux__
-#include <iostream>
+#ifdef __linux__
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <termios.h>
 #include <unistd.h>
-#include <wiringPi.h>
-#include <wiringSerial.h>
 #endif
 
 // TODO: add some ifdefs and defines for the port name on RasPi
