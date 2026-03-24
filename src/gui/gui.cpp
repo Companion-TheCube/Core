@@ -917,32 +917,33 @@ void GUI::eventLoop()
         _("Personality Settings"),
         "Personality Settings",
         personalityMenu);
-    auto curiosityValue = std::make_shared<int>(50);
-    this->renderer->addSetupTask([&, personalityMenu_PersonalitySettings, curiosityValue, addBackButton, addToParent]() {
+    this->renderer->addSetupTask([&, personalityMenu_PersonalitySettings, addBackButton, addToParent]() {
         addBackButton(personalityMenu_PersonalitySettings);
-        // list each attribute of the personality and provide a slider to adjust.
-        // 1. Curiosity
-        this->addPopupSliderMenuEntry(
-            personalityMenu_PersonalitySettings,
-            _("Curiosity"),
-            "Curiosity",
-            0,
-            100,
-            1,
-            [curiosityValue]() {
-                return *curiosityValue;
-            },
-            [curiosityValue](int value) {
-                *curiosityValue = value;
-                CubeLog::info("Personality Settings - Curiosity set to " + std::to_string(value));
-            });
-        // TODO: before adding the rest of these, we need to figure out the slider rendering and how to get/set the values
-        // 2. Playfulness
-        // 3. Empathy
-        // 4. Assertiveness
-        // 5. Productivity Focus / Encouragement
-        // 6. Attentiveness
-        // 7. Caution
+        const auto addEmotionSlider = [this, personalityMenu_PersonalitySettings](const char* label, const char* uniqueID, GlobalSettings::SettingType settingType) {
+            this->addPopupSliderMenuEntry(
+                personalityMenu_PersonalitySettings,
+                _(label),
+                uniqueID,
+                0,
+                100,
+                1,
+                [settingType]() {
+                    return clampAndSnapSliderValue(GlobalSettings::getSettingOfType<int>(settingType), 0, 100, 1);
+                },
+                [label, settingType](int value) {
+                    const int clampedValue = clampAndSnapSliderValue(value, 0, 100, 1);
+                    GlobalSettings::setSetting(settingType, clampedValue);
+                    CubeLog::info(std::string("Personality Settings - ") + label + " set to " + std::to_string(clampedValue));
+                });
+        };
+
+        addEmotionSlider("Curiosity", "Curiosity", GlobalSettings::SettingType::EMOTION_CURIOSITY);
+        addEmotionSlider("Playfulness", "Playfulness", GlobalSettings::SettingType::EMOTION_PLAYFULNESS);
+        addEmotionSlider("Empathy", "Empathy", GlobalSettings::SettingType::EMOTION_EMPATHY);
+        addEmotionSlider("Assertiveness", "Assertiveness", GlobalSettings::SettingType::EMOTION_ASSERTIVENESS);
+        addEmotionSlider("Attentiveness", "Attentiveness", GlobalSettings::SettingType::EMOTION_ATTENTIVENESS);
+        addEmotionSlider("Caution", "Caution", GlobalSettings::SettingType::EMOTION_CAUTION);
+        addEmotionSlider("Annoyance", "Annoyance", GlobalSettings::SettingType::EMOTION_ANNOYANCE);
 
         personalityMenu_PersonalitySettings->setup();
         addToParent(personalityMenu_PersonalitySettings);

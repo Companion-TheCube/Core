@@ -123,7 +123,7 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
                 textQueue->push(std::string());
             }
         };
-        const auto silenceTimeout = std::chrono::milliseconds(parseNumericConfig<int>("REMOTE_TRANSCRIPTION_SILENCE_TIMEOUT_MS", static_cast<int>(audio::SILENCE_TIMEOUT_SEC * 1000.0)));
+        const auto silenceTimeout = std::chrono::milliseconds(parseNumericConfig<int>("REMOTE_TRANSCRIPTION_SILENCE_TIMEOUT_MS", 450));
         const auto noSpeechTimeout = std::chrono::milliseconds(parseNumericConfig<int>("REMOTE_TRANSCRIPTION_NO_SPEECH_TIMEOUT_MS", 5000));
         const auto maxSessionDuration = std::chrono::milliseconds(parseNumericConfig<int>("REMOTE_TRANSCRIPTION_MAX_SESSION_MS", 15000));
         const auto finalWait = std::chrono::milliseconds(parseNumericConfig<int>("REMOTE_TRANSCRIPTION_WAIT_FINAL_MS", 15000));

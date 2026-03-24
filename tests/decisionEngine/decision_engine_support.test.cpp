@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "../src/decisionEngine/functionRegistry.h"
+#include "../src/decisionEngine/decisions.h"
 #include "../src/decisionEngine/intentRegistry.h"
 #include "../src/decisionEngine/scheduler.h"
 
@@ -10,6 +11,7 @@
 #include <filesystem>
 #include <fstream>
 #include <future>
+#include <vector>
 #include <thread>
 
 using namespace DecisionEngine;
@@ -45,6 +47,19 @@ public:
         return std::async(std::launch::deferred, []() { return std::string("answer"); });
     }
 
+    std::future<std::string> getEmotionalRewriteAsync(
+        const std::string& responseText,
+        const nlohmann::json& context = nlohmann::json::object(),
+        const std::function<void(std::string)>& progressCB = [](std::string) {}) override
+    {
+        lastEmotionText = responseText;
+        lastEmotionContext = context;
+        if (progressCB) {
+            progressCB(responseText);
+        }
+        return std::async(std::launch::async, [responseText]() { return responseText + " (rewritten)"; });
+    }
+
     std::future<TheCubeServer::ResolvedIntentCall> getResolvedIntentCallAsync(
         const std::string& utterance,
         const nlohmann::json& functions,
@@ -57,6 +72,8 @@ public:
     }
 
     std::string lastQuestion;
+    std::string lastEmotionText;
+    nlohmann::json lastEmotionContext = nlohmann::json::object();
     std::string lastResolvedUtterance;
     nlohmann::json lastResolvedFunctions = nlohmann::json::array();
     nlohmann::json lastResolvedContext = nlohmann::json::object();
@@ -156,6 +173,39 @@ TEST(FunctionRegistry, BuiltInAskAiCapabilityUsesRemoteConversationClient)
     EXPECT_EQ(fakeClient->lastQuestion, "Why is the sky blue?");
     EXPECT_EQ(result["status"].get<std::string>(), "ok");
     EXPECT_EQ(result["answer"].get<std::string>(), "answer");
+}
+
+TEST(DecisionEngine, EmotionalRewriteUsesRemoteConversationClientAndFallsBackWhenUnavailable)
+{
+    auto fakeClient = std::make_shared<FakeConversationClient>();
+    const std::vector<Personality::EmotionSimple> emotions = {
+        { Personality::Emotion::EmotionType::CURIOSITY, 80 },
+        { Personality::Emotion::EmotionType::EMPATHY, 65 }
+    };
+
+    auto future = modifyStringUsingAIForEmotionalState(
+        "Alarm set for 9:00 PM.",
+        emotions,
+        fakeClient,
+        "intent_result");
+
+    ASSERT_EQ(future.wait_for(std::chrono::seconds(2)), std::future_status::ready);
+    EXPECT_EQ(future.get(), "Alarm set for 9:00 PM. (rewritten)");
+    EXPECT_EQ(fakeClient->lastEmotionText, "Alarm set for 9:00 PM.");
+    EXPECT_EQ(fakeClient->lastEmotionContext["responseCategory"], "intent_result");
+    ASSERT_TRUE(fakeClient->lastEmotionContext["emotions"].is_object());
+    EXPECT_EQ(fakeClient->lastEmotionContext["emotions"]["curiosity"], 80);
+    ASSERT_TRUE(fakeClient->lastEmotionContext["styleProfile"].is_object());
+    EXPECT_EQ(fakeClient->lastEmotionContext["styleProfile"]["dominantEmotion"], "Curiosity");
+    EXPECT_EQ(fakeClient->lastEmotionContext["styleProfile"]["secondaryEmotion"], "Empathy");
+
+    auto fallback = modifyStringUsingAIForEmotionalState(
+        "Keep this text.",
+        emotions,
+        nullptr,
+        "error");
+    ASSERT_EQ(fallback.wait_for(std::chrono::seconds(2)), std::future_status::ready);
+    EXPECT_EQ(fallback.get(), "Keep this text.");
 }
 
 TEST(IntentRegistry, RegistersV1BuiltInIntents)

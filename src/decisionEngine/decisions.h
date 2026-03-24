@@ -15,8 +15,8 @@ Copyright (c) 2025 A-McD Technology LLC
 #include "remoteServer.h"
 #include "scheduler.h"
 #include "transcriber.h"
-#include "triggers.h"
 #include "transcriptionEvents.h"
+#include "triggers.h"
 
 #include <atomic>
 #include <cstdint>
@@ -40,16 +40,14 @@ struct DecisionTurnResult {
 
     nlohmann::json toJson() const
     {
-        return nlohmann::json({
-            { "transcript", transcript },
+        return nlohmann::json({ { "transcript", transcript },
             { "intentName", intentName },
             { "executionStatus", executionStatus },
             { "responseText", responseText },
             { "capabilityResult", capabilityResult },
             { "error", error },
             { "speakResult", speakResult },
-            { "timestampEpochMs", timestampEpochMs }
-        });
+            { "timestampEpochMs", timestampEpochMs } });
     }
 };
 
@@ -78,12 +76,25 @@ public:
     constexpr std::string getInterfaceName() const override { return "DecisionEngine"; }
 
 private:
+    struct TurnTimingMetrics {
+        uint64_t turnId = 0;
+        int64_t wakeDetectedEpochMs = 0;
+        int64_t listeningUiShownEpochMs = 0;
+        int64_t firstPartialEpochMs = 0;
+        int64_t finalTranscriptEpochMs = 0;
+        int64_t intentResolvedEpochMs = 0;
+        int64_t resultPresentedEpochMs = 0;
+        int64_t speechRequestedEpochMs = 0;
+        std::string voiceSessionId;
+        size_t partialEventCount = 0;
+        size_t lastTranscriptLength = 0;
+        bool summaryLogged = false;
+    };
+
     DecisionTurnResult processTranscript(const std::string& transcript);
     DecisionTurnResult executeIntent(const std::shared_ptr<Intent>& intent, const std::string& transcript, const nlohmann::json& resolvedArgs = nlohmann::json::object());
     void recordTurnResult(const DecisionTurnResult& result);
     nlohmann::json statusJson() const;
-    nlohmann::json parametersToJson(const Parameters& parameters) const;
-    void applyCapabilityResultToIntent(const std::shared_ptr<Intent>& intent, const nlohmann::json& capabilityResult);
     void stopTranscriptionConsumer();
     void onWakeWordDetected();
     void handleTranscriptEvent(const TranscriptionEvent& event);
@@ -91,6 +102,16 @@ private:
     void presentTurnResult(const DecisionTurnResult& result);
     void hideTurnUi();
     void setTurnState(TurnState newState);
+    void beginTurnTiming();
+    void noteListeningUiShown();
+    void noteFirstPartial(const TranscriptionEvent& event);
+    void noteFinalTranscript(const std::string& transcript);
+    void noteIntentResolved(const TheCubeServer::ResolvedIntentCall& resolved);
+    void noteResultPresented(const DecisionTurnResult& result, const std::string& displayMessage);
+    void noteSpeechRequested();
+    void finalizeTurnTiming(const std::string& reason, const DecisionTurnResult* result = nullptr);
+    void maybeCaptureVoiceSessionIdLocked();
+    void logTurnTimingStage(const TurnTimingMetrics& snapshot, const std::string& stage, int64_t stageEpochMs, const std::string& extra = "") const;
 
     std::shared_ptr<I_IntentRecognition> intentRecognition;
     std::shared_ptr<IntentRegistry> intentRegistry;
@@ -108,6 +129,8 @@ private:
 
     mutable std::mutex stateMutex;
     DecisionTurnResult lastDecisionResult;
+    TurnTimingMetrics currentTurnTiming;
+    uint64_t nextTurnId = 1;
     std::string latestTranscriptEvent;
     TurnState turnState = TurnState::IDLE;
     std::string activeTranscriptPreview;
@@ -123,7 +146,8 @@ std::vector<IntentCTorParams> getSystemSchedule();
 std::future<std::string> modifyStringUsingAIForEmotionalState(
     const std::string& input,
     const std::vector<Personality::EmotionSimple>& emotions,
-    const std::shared_ptr<TheCubeServer::TheCubeServerAPI>& remoteServerAPI,
-    const std::function<void(std::string)>& progressCB);
+    const std::shared_ptr<TheCubeServer::IRemoteConversationClient>& remoteConversationClient,
+    const std::string& responseCategory = "",
+    const std::function<void(std::string)>& progressCB = [](std::string) {});
 
 } // namespace DecisionEngine

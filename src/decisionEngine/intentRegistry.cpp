@@ -581,7 +581,7 @@ std::vector<IntentCTorParams> getSystemIntents()
         "core.get_time",
         "core.get_time",
         "User is asking for the current time, local time, or what time it is right now.",
-        "The current time is ${time}.",
+        "It's ${time} right now.",
         { { "time", "" }, { "speak_result", "true" } },
         Intent::IntentType::QUESTION));
 
@@ -597,7 +597,7 @@ std::vector<IntentCTorParams> getSystemIntents()
         "core.get_datetime",
         "core.get_datetime",
         "User is asking for the current date and time together.",
-        "It is ${datetime}.",
+        "It's ${datetime} right now.",
         { { "datetime", "" }, { "speak_result", "true" } },
         Intent::IntentType::QUESTION));
 

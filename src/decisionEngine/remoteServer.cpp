@@ -1042,6 +1042,44 @@ std::future<std::string> TheCubeServerAPI::getGeneralAnswerAsync(
     });
 }
 
+std::future<std::string> TheCubeServerAPI::getEmotionalRewriteAsync(
+    const std::string& responseText,
+    const nlohmann::json& context,
+    const std::function<void(std::string)>& progressCB)
+{
+    return std::async(std::launch::async, [this, responseText, context, progressCB]() {
+        const auto sessionId = createConversationSession();
+        if (!sessionId.has_value()) {
+            return responseText;
+        }
+
+        nlohmann::json payload = {
+            { "sessionId", *sessionId },
+            { "message", responseText },
+            { "mode", "emotional_rewrite" }
+        };
+        if (context.is_object() && !context.empty()) {
+            payload["context"] = context;
+        }
+
+        const auto j = postChatRequestAsync(payload).get();
+        if (!j.is_object()) {
+            return responseText;
+        }
+        auto reply = jsonString(j, "message");
+        if (reply.empty()) {
+            reply = jsonString(j, "output");
+        }
+        if (reply.empty()) {
+            return responseText;
+        }
+        if (progressCB) {
+            progressCB(reply);
+        }
+        return reply;
+    });
+}
+
 std::future<ResolvedIntentCall> TheCubeServerAPI::getResolvedIntentCallAsync(
     const std::string& utterance,
     const nlohmann::json& functions,

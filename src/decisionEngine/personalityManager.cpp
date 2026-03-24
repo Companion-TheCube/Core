@@ -37,6 +37,27 @@ using namespace Personality;
 
 int calculateCurrentValue(int startValue, int endValue, TimePoint startTime, TimePoint endTime, TimePoint currentTime, Emotion::TimeTargetType rampType, double exponent = 2.0);
 
+namespace {
+
+void syncEmotionToFixedValue(Emotion& emotion, int value)
+{
+    emotion.currentValue = value;
+    emotion.defaultValue = value;
+    emotion.targetValue = value;
+    emotion.rampStartValue = value;
+    emotion.rampEndValue = value;
+    emotion.timeTargetType = Emotion::TimeTargetType::TARGET_TYPE_NOT_DEFINED;
+    emotion.expirationType = Emotion::TimeTargetType::TARGET_TYPE_NOT_DEFINED;
+    emotion.rampType = Emotion::TimeTargetType::TARGET_TYPE_NOT_DEFINED;
+    emotion.rampStage = Emotion::RampStage::RAMP_COMPLETE;
+    const auto now = std::chrono::system_clock::now();
+    emotion.expirationTime = now;
+    emotion.targetValueTime = now;
+    emotion.rampStartTime = now;
+}
+
+}
+
 Emotion::Emotion(int value, EmotionType name)
 {
     this->name = name;
@@ -220,51 +241,42 @@ PersonalityManager::PersonalityManager()
     auto cautionInt = GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::EMOTION_CAUTION);
     auto annoyanceInt = GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::EMOTION_ANNOYANCE);
 
-    // Assume that a value of 0 means that the setting was not previously set.
-    curiosity = curiosityInt > 0 ? curiosityInt : curiosity;
-    playfulness = playfulnessInt > 0 ? playfulnessInt : playfulness;
-    empathy = empathyInt > 0 ? empathyInt : empathy;
-    assertiveness = assertivenessInt > 0 ? assertivenessInt : assertiveness;
-    attentiveness = attentivenessInt > 0 ? attentivenessInt : attentiveness;
-    caution = cautionInt > 0 ? cautionInt : caution;
-    annoyance = annoyanceInt > 0 ? annoyanceInt : annoyance;
+    syncEmotionToFixedValue(curiosity, curiosityInt);
+    syncEmotionToFixedValue(playfulness, playfulnessInt);
+    syncEmotionToFixedValue(empathy, empathyInt);
+    syncEmotionToFixedValue(assertiveness, assertivenessInt);
+    syncEmotionToFixedValue(attentiveness, attentivenessInt);
+    syncEmotionToFixedValue(caution, cautionInt);
+    syncEmotionToFixedValue(annoyance, annoyanceInt);
 
     // When the settings are changed, such as in the menu, update the values in the personality manager
     GlobalSettings::setSettingCB(GlobalSettings::SettingType::EMOTION_CURIOSITY, [&]() {
         std::unique_lock<std::mutex> lock(managerMutex);
-        curiosity = GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::EMOTION_CURIOSITY);
-        // This is necessary in case the value is out of bounds
-        GlobalSettings::setSetting(GlobalSettings::SettingType::EMOTION_CURIOSITY, curiosity.currentValue);
+        syncEmotionToFixedValue(curiosity, GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::EMOTION_CURIOSITY));
     });
     GlobalSettings::setSettingCB(GlobalSettings::SettingType::EMOTION_PLAYFULNESS, [&]() {
         std::unique_lock<std::mutex> lock(managerMutex);
-        playfulness = GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::EMOTION_PLAYFULNESS);
-        GlobalSettings::setSetting(GlobalSettings::SettingType::EMOTION_PLAYFULNESS, playfulness.currentValue);
+        syncEmotionToFixedValue(playfulness, GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::EMOTION_PLAYFULNESS));
     });
     GlobalSettings::setSettingCB(GlobalSettings::SettingType::EMOTION_EMPATHY, [&]() {
         std::unique_lock<std::mutex> lock(managerMutex);
-        empathy = GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::EMOTION_EMPATHY);
-        GlobalSettings::setSetting(GlobalSettings::SettingType::EMOTION_EMPATHY, empathy.currentValue);
+        syncEmotionToFixedValue(empathy, GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::EMOTION_EMPATHY));
     });
     GlobalSettings::setSettingCB(GlobalSettings::SettingType::EMOTION_ASSERTIVENESS, [&]() {
         std::unique_lock<std::mutex> lock(managerMutex);
-        assertiveness = GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::EMOTION_ASSERTIVENESS);
-        GlobalSettings::setSetting(GlobalSettings::SettingType::EMOTION_ASSERTIVENESS, assertiveness.currentValue);
+        syncEmotionToFixedValue(assertiveness, GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::EMOTION_ASSERTIVENESS));
     });
     GlobalSettings::setSettingCB(GlobalSettings::SettingType::EMOTION_ATTENTIVENESS, [&]() {
         std::unique_lock<std::mutex> lock(managerMutex);
-        attentiveness = GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::EMOTION_ATTENTIVENESS);
-        GlobalSettings::setSetting(GlobalSettings::SettingType::EMOTION_ATTENTIVENESS, attentiveness.currentValue);
+        syncEmotionToFixedValue(attentiveness, GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::EMOTION_ATTENTIVENESS));
     });
     GlobalSettings::setSettingCB(GlobalSettings::SettingType::EMOTION_CAUTION, [&]() {
         std::unique_lock<std::mutex> lock(managerMutex);
-        caution = GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::EMOTION_CAUTION);
-        GlobalSettings::setSetting(GlobalSettings::SettingType::EMOTION_CAUTION, caution.currentValue);
+        syncEmotionToFixedValue(caution, GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::EMOTION_CAUTION));
     });
     GlobalSettings::setSettingCB(GlobalSettings::SettingType::EMOTION_ANNOYANCE, [&]() {
         std::unique_lock<std::mutex> lock(managerMutex);
-        annoyance = GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::EMOTION_ANNOYANCE);
-        GlobalSettings::setSetting(GlobalSettings::SettingType::EMOTION_ANNOYANCE, annoyance.currentValue);
+        syncEmotionToFixedValue(annoyance, GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::EMOTION_ANNOYANCE));
     });
 
     emotions.insert({ Emotion::EmotionType::CURIOSITY, curiosity });

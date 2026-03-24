@@ -12,8 +12,9 @@ Copyright (c) 2025 A-McD Technology LLC
 #include <logger.h>
 #endif
 
-#include <chrono>
 #include <cctype>
+#include <algorithm>
+#include <chrono>
 #include <cstdlib>
 #include <ctime>
 #include <filesystem>
@@ -86,6 +87,19 @@ std::string nowIsoLocal()
     return oss.str();
 }
 
+std::string formatDurationMsOrNa(int64_t startEpochMs, int64_t endEpochMs)
+{
+    if (startEpochMs <= 0 || endEpochMs <= 0 || endEpochMs < startEpochMs) {
+        return "n/a";
+    }
+    return std::to_string(endEpochMs - startEpochMs);
+}
+
+std::string valueOrNone(const std::string& value)
+{
+    return value.empty() ? "<none>" : value;
+}
+
 nlohmann::json jsonValueFromString(const std::string& value)
 {
     std::string lower;
@@ -93,8 +107,10 @@ nlohmann::json jsonValueFromString(const std::string& value)
     for (unsigned char ch : value) {
         lower.push_back(static_cast<char>(std::tolower(ch)));
     }
-    if (lower == "true") return true;
-    if (lower == "false") return false;
+    if (lower == "true")
+        return true;
+    if (lower == "false")
+        return false;
 
     char* end = nullptr;
     const auto integerValue = std::strtoll(value.c_str(), &end, 10);
@@ -111,19 +127,91 @@ nlohmann::json jsonValueFromString(const std::string& value)
     return value;
 }
 
+nlohmann::json emotionsToJson(const std::vector<Personality::EmotionSimple>& emotions)
+{
+    nlohmann::json state = nlohmann::json::object();
+    for (const auto& emotion : emotions) {
+        state[Personality::emotionToString(emotion.emotion)] = emotion.value;
+    }
+    return state;
+}
+
+struct EmotionalStyleProfile {
+    std::string dominantEmotion;
+    int dominantValue = 0;
+    std::string secondaryEmotion;
+    int secondaryValue = 0;
+    std::string intensityBucket = "low";
+};
+
+EmotionalStyleProfile buildEmotionalStyleProfile(const std::vector<Personality::EmotionSimple>& emotions)
+{
+    EmotionalStyleProfile profile;
+    if (emotions.empty()) {
+        return profile;
+    }
+
+    std::vector<Personality::EmotionSimple> sorted = emotions;
+    std::sort(sorted.begin(), sorted.end(), [](const auto& lhs, const auto& rhs) {
+        return lhs.value > rhs.value;
+    });
+
+    profile.dominantEmotion = Personality::emotionToString(sorted.front().emotion);
+    profile.dominantValue = sorted.front().value;
+    if (sorted.size() > 1) {
+        profile.secondaryEmotion = Personality::emotionToString(sorted[1].emotion);
+        profile.secondaryValue = sorted[1].value;
+    }
+
+    if (profile.dominantValue >= 85) {
+        profile.intensityBucket = "very_high";
+    } else if (profile.dominantValue >= 70) {
+        profile.intensityBucket = "high";
+    } else if (profile.dominantValue >= 45) {
+        profile.intensityBucket = "medium";
+    } else {
+        profile.intensityBucket = "low";
+    }
+
+    return profile;
+}
+
+std::string responseCategoryForTurnResult(const DecisionTurnResult& result)
+{
+    if (!result.error.empty()
+        || result.executionStatus == "error"
+        || result.executionStatus == "capability_error"
+        || result.executionStatus == "capability_validation_error"
+        || result.executionStatus == "transcription_failed") {
+        return "error";
+    }
+    if (result.intentName == "core.ask_ai") {
+        return "general_answer";
+    }
+    if (result.intentName.rfind("core.get_", 0) == 0) {
+        return "utility_fact";
+    }
+    return "confirmation";
+}
+
 std::string jsonToParameterString(const nlohmann::json& value)
 {
-    if (value.is_string()) return value.get<std::string>();
-    if (value.is_boolean()) return value.get<bool>() ? "true" : "false";
-    if (value.is_number_integer()) return std::to_string(value.get<long long>());
-    if (value.is_number_float()) return std::to_string(value.get<double>());
+    if (value.is_string())
+        return value.get<std::string>();
+    if (value.is_boolean())
+        return value.get<bool>() ? "true" : "false";
+    if (value.is_number_integer())
+        return std::to_string(value.get<long long>());
+    if (value.is_number_float())
+        return std::to_string(value.get<double>());
     return value.dump();
 }
 
 std::string lookupParameter(const Parameters& parameters, const std::string& key)
 {
     const auto it = parameters.find(key);
-    if (it == parameters.end()) return {};
+    if (it == parameters.end())
+        return {};
     return it->second;
 }
 
@@ -288,12 +376,10 @@ nlohmann::json buildVoiceToolCatalogue(
         if (!capability || !capability->voiceEnabled || !capability->enabled) {
             continue;
         }
-        tools.push_back({
-            { "name", makeOpenAiToolName(intent->getIntentName()) },
+        tools.push_back({ { "name", makeOpenAiToolName(intent->getIntentName()) },
             { "intentName", intent->getIntentName() },
             { "description", intent->getBriefDesc() },
-            { "parameters", effectiveVoiceSchema(intent, capability) }
-        });
+            { "parameters", effectiveVoiceSchema(intent, capability) } });
     }
     return tools;
 }
@@ -306,6 +392,84 @@ bool shouldSpeakForGeneralAiAnswer()
     } catch (...) {
         return false;
     }
+}
+
+nlohmann::json parametersToJson(const Parameters& parameters)
+{
+    nlohmann::json args = nlohmann::json::object();
+    for (const auto& [key, value] : parameters) {
+        if (key == "capability_name")
+            continue;
+        args[key] = jsonValueFromString(value);
+    }
+    return args;
+}
+
+nlohmann::json buildCapabilityArgs(
+    const Parameters& parameters,
+    const nlohmann::json& resolvedArgs,
+    const std::string& transcript)
+{
+    auto capabilityArgs = parametersToJson(parameters);
+    if (resolvedArgs.is_object()) {
+        for (const auto& [key, value] : resolvedArgs.items()) {
+            capabilityArgs[key] = value;
+        }
+    }
+    if (!capabilityArgs.contains("transcript")) {
+        capabilityArgs["transcript"] = transcript;
+    }
+    return capabilityArgs;
+}
+
+void applyCapabilityResultToIntent(const std::shared_ptr<Intent>& intent, const nlohmann::json& capabilityResult)
+{
+    if (!intent || !capabilityResult.is_object()) {
+        return;
+    }
+
+    for (const auto& [key, value] : capabilityResult.items()) {
+        intent->addParameter(key, jsonToParameterString(value));
+    }
+}
+
+DecisionTurnResult makeIntentResolutionUnavailableResult(const std::string& transcript)
+{
+    return DecisionTurnResult {
+        .transcript = transcript,
+        .intentName = "",
+        .executionStatus = "error",
+        .responseText = "",
+        .capabilityResult = nlohmann::json::object(),
+        .error = "intent_resolution_unavailable",
+        .timestampEpochMs = nowEpochMs()
+    };
+}
+
+DecisionTurnResult makeResolvedIntentNotFoundResult(const std::string& transcript, const std::string& intentName)
+{
+    return DecisionTurnResult {
+        .transcript = transcript,
+        .intentName = intentName,
+        .executionStatus = "intent_not_found",
+        .responseText = "I found a matching action, but it isn't available on this device.",
+        .capabilityResult = nlohmann::json::object(),
+        .error = "intent_not_found",
+        .timestampEpochMs = nowEpochMs()
+    };
+}
+
+DecisionTurnResult makeIntentResolutionErrorResult(const std::string& transcript, const std::string& message)
+{
+    return DecisionTurnResult {
+        .transcript = transcript,
+        .intentName = "",
+        .executionStatus = "error",
+        .responseText = "I couldn't process that request right now.",
+        .capabilityResult = nlohmann::json::object(),
+        .error = message.empty() ? "intent_resolution_failed" : message,
+        .timestampEpochMs = nowEpochMs()
+    };
 }
 
 std::string turnStateName(DecisionEngineMain::TurnState state)
@@ -432,30 +596,54 @@ DecisionEngineMain::DecisionEngineMain()
 
     if (intentRegistry) {
         intentRegistry->setFunctionRegistry(functionRegistry);
-        try { intentRegistry->registerInterface(); } catch (...) { CubeLog::error("Failed to register IntentRegistry interface"); }
+        try {
+            intentRegistry->registerInterface();
+        } catch (...) {
+            CubeLog::error("Failed to register IntentRegistry interface");
+        }
     }
     if (functionRegistry) {
         functionRegistry->setRemoteConversationClient(remoteServerAPI);
         functionRegistry->setNotificationCenter(notificationCenter);
-        try { functionRegistry->registerInterface(); } catch (...) { CubeLog::error("Failed to register FunctionRegistry interface"); }
+        try {
+            functionRegistry->registerInterface();
+        } catch (...) {
+            CubeLog::error("Failed to register FunctionRegistry interface");
+        }
     }
     if (scheduler) {
         scheduler->setIntentRegistry(intentRegistry);
         scheduler->setFunctionRegistry(functionRegistry);
-        try { scheduler->registerInterface(); } catch (...) { CubeLog::error("Failed to register Scheduler interface"); }
+        try {
+            scheduler->registerInterface();
+        } catch (...) {
+            CubeLog::error("Failed to register Scheduler interface");
+        }
     }
     if (notificationCenter) {
         notificationCenter->setScheduler(scheduler);
         NotificationCenter::setSharedInstance(notificationCenter);
-        try { notificationCenter->registerInterface(); } catch (...) { CubeLog::error("Failed to register NotificationCenter interface"); }
+        try {
+            notificationCenter->registerInterface();
+        } catch (...) {
+            CubeLog::error("Failed to register NotificationCenter interface");
+        }
     }
     if (triggerManager) {
         triggerManager->setIntentRegistry(intentRegistry);
         triggerManager->setFunctionRegistry(functionRegistry);
-        try { triggerManager->registerInterface(); } catch (...) { CubeLog::error("Failed to register TriggerManager interface"); }
+        try {
+            triggerManager->registerInterface();
+        } catch (...) {
+            CubeLog::error("Failed to register TriggerManager interface");
+        }
     }
     if (personalityManager) {
-        try { personalityManager->registerInterface(); } catch (...) { CubeLog::error("Failed to register PersonalityManager interface"); }
+        try {
+            personalityManager->registerInterface();
+        } catch (...) {
+            CubeLog::error("Failed to register PersonalityManager interface");
+        }
     }
 
     auto remoteIntentRecognition = std::make_shared<RemoteIntentRecognition>(intentRegistry);
@@ -493,9 +681,12 @@ void DecisionEngineMain::start()
         handleTranscriptEvent(event);
     });
 
-    if (scheduler) scheduler->start();
-    if (notificationCenter) notificationCenter->start();
-    if (triggerManager) triggerManager->start();
+    if (scheduler)
+        scheduler->start();
+    if (notificationCenter)
+        notificationCenter->start();
+    if (triggerManager)
+        triggerManager->start();
     started = true;
 }
 
@@ -526,9 +717,12 @@ void DecisionEngineMain::stop()
     }
     stopTranscriptionConsumer();
     hideTurnUi();
-    if (notificationCenter) notificationCenter->stop();
-    if (scheduler) scheduler->stop();
-    if (triggerManager) triggerManager->stop();
+    if (notificationCenter)
+        notificationCenter->stop();
+    if (scheduler)
+        scheduler->stop();
+    if (triggerManager)
+        triggerManager->stop();
 }
 
 void DecisionEngineMain::restart()
@@ -539,12 +733,14 @@ void DecisionEngineMain::restart()
 
 void DecisionEngineMain::pause()
 {
-    if (scheduler) scheduler->pause();
+    if (scheduler)
+        scheduler->pause();
 }
 
 void DecisionEngineMain::resume()
 {
-    if (scheduler) scheduler->resume();
+    if (scheduler)
+        scheduler->resume();
 }
 
 void DecisionEngineMain::stopTranscriptionConsumer()
@@ -560,6 +756,228 @@ void DecisionEngineMain::setTurnState(TurnState newState)
 {
     std::scoped_lock lock(stateMutex);
     turnState = newState;
+}
+
+void DecisionEngineMain::maybeCaptureVoiceSessionIdLocked()
+{
+    if (!currentTurnTiming.voiceSessionId.empty() || !remoteServerAPI) {
+        return;
+    }
+
+    const auto session = remoteServerAPI->getActiveTranscriptionSession();
+    if (session.has_value() && !session->sessionId.empty()) {
+        currentTurnTiming.voiceSessionId = session->sessionId;
+    }
+}
+
+void DecisionEngineMain::logTurnTimingStage(
+    const TurnTimingMetrics& snapshot,
+    const std::string& stage,
+    int64_t stageEpochMs,
+    const std::string& extra) const
+{
+    if (snapshot.turnId == 0 || stageEpochMs <= 0) {
+        return;
+    }
+
+    std::string message =
+        "DecisionEngine: turn_timing"
+        " stage=" + stage
+        + ", turnId=" + std::to_string(snapshot.turnId)
+        + ", session=" + valueOrNone(snapshot.voiceSessionId)
+        + ", tsEpochMs=" + std::to_string(stageEpochMs)
+        + ", sinceWakeMs=" + formatDurationMsOrNa(snapshot.wakeDetectedEpochMs, stageEpochMs);
+    if (!extra.empty()) {
+        message += ", " + extra;
+    }
+    CubeLog::info(message);
+}
+
+void DecisionEngineMain::beginTurnTiming()
+{
+    const auto stageEpochMs = nowEpochMs();
+    TurnTimingMetrics snapshot;
+    {
+        std::scoped_lock lock(stateMutex);
+        currentTurnTiming = {};
+        currentTurnTiming.turnId = nextTurnId++;
+        currentTurnTiming.wakeDetectedEpochMs = stageEpochMs;
+        maybeCaptureVoiceSessionIdLocked();
+        snapshot = currentTurnTiming;
+    }
+    logTurnTimingStage(snapshot, "wake_detected", stageEpochMs);
+}
+
+void DecisionEngineMain::noteListeningUiShown()
+{
+    const auto stageEpochMs = nowEpochMs();
+    TurnTimingMetrics snapshot;
+    {
+        std::scoped_lock lock(stateMutex);
+        if (currentTurnTiming.turnId == 0) {
+            return;
+        }
+        currentTurnTiming.listeningUiShownEpochMs = stageEpochMs;
+        maybeCaptureVoiceSessionIdLocked();
+        snapshot = currentTurnTiming;
+    }
+    logTurnTimingStage(snapshot, "listening_ui_shown", stageEpochMs);
+}
+
+void DecisionEngineMain::noteFirstPartial(const TranscriptionEvent& event)
+{
+    const auto stageEpochMs = nowEpochMs();
+    TurnTimingMetrics snapshot;
+    bool shouldLog = false;
+    {
+        std::scoped_lock lock(stateMutex);
+        if (currentTurnTiming.turnId == 0) {
+            return;
+        }
+        ++currentTurnTiming.partialEventCount;
+        if (!event.fullText.empty()) {
+            currentTurnTiming.lastTranscriptLength = event.fullText.size();
+        } else if (!event.appendText.empty()) {
+            currentTurnTiming.lastTranscriptLength += event.appendText.size();
+        }
+        if (currentTurnTiming.firstPartialEpochMs == 0) {
+            currentTurnTiming.firstPartialEpochMs = stageEpochMs;
+            shouldLog = true;
+        }
+        maybeCaptureVoiceSessionIdLocked();
+        snapshot = currentTurnTiming;
+    }
+    if (!shouldLog) {
+        return;
+    }
+    logTurnTimingStage(snapshot,
+        "first_partial",
+        stageEpochMs,
+        "appendLength=" + std::to_string(event.appendText.size())
+            + ", fullLength=" + std::to_string(event.fullText.size()));
+}
+
+void DecisionEngineMain::noteFinalTranscript(const std::string& transcript)
+{
+    const auto stageEpochMs = nowEpochMs();
+    TurnTimingMetrics snapshot;
+    {
+        std::scoped_lock lock(stateMutex);
+        if (currentTurnTiming.turnId == 0) {
+            return;
+        }
+        currentTurnTiming.finalTranscriptEpochMs = stageEpochMs;
+        currentTurnTiming.lastTranscriptLength = transcript.size();
+        maybeCaptureVoiceSessionIdLocked();
+        snapshot = currentTurnTiming;
+    }
+    logTurnTimingStage(snapshot,
+        "final_transcript",
+        stageEpochMs,
+        "transcriptLength=" + std::to_string(transcript.size())
+            + ", partialCount=" + std::to_string(snapshot.partialEventCount));
+}
+
+void DecisionEngineMain::noteIntentResolved(const TheCubeServer::ResolvedIntentCall& resolved)
+{
+    const auto stageEpochMs = nowEpochMs();
+    TurnTimingMetrics snapshot;
+    {
+        std::scoped_lock lock(stateMutex);
+        if (currentTurnTiming.turnId == 0) {
+            return;
+        }
+        currentTurnTiming.intentResolvedEpochMs = stageEpochMs;
+        maybeCaptureVoiceSessionIdLocked();
+        snapshot = currentTurnTiming;
+    }
+    logTurnTimingStage(snapshot,
+        "intent_resolved",
+        stageEpochMs,
+        "status=" + resolved.status
+            + ", intentName=" + valueOrNone(resolved.intentName));
+}
+
+void DecisionEngineMain::noteResultPresented(const DecisionTurnResult& result, const std::string& displayMessage)
+{
+    const auto stageEpochMs = nowEpochMs();
+    TurnTimingMetrics snapshot;
+    {
+        std::scoped_lock lock(stateMutex);
+        if (currentTurnTiming.turnId == 0) {
+            return;
+        }
+        currentTurnTiming.resultPresentedEpochMs = stageEpochMs;
+        maybeCaptureVoiceSessionIdLocked();
+        snapshot = currentTurnTiming;
+    }
+    logTurnTimingStage(snapshot,
+        "result_presented",
+        stageEpochMs,
+        "status=" + result.executionStatus
+            + ", intentName=" + valueOrNone(result.intentName)
+            + ", displayLength=" + std::to_string(displayMessage.size()));
+}
+
+void DecisionEngineMain::noteSpeechRequested()
+{
+    const auto stageEpochMs = nowEpochMs();
+    TurnTimingMetrics snapshot;
+    {
+        std::scoped_lock lock(stateMutex);
+        if (currentTurnTiming.turnId == 0) {
+            return;
+        }
+        currentTurnTiming.speechRequestedEpochMs = stageEpochMs;
+        maybeCaptureVoiceSessionIdLocked();
+        snapshot = currentTurnTiming;
+    }
+    logTurnTimingStage(snapshot, "speech_requested", stageEpochMs);
+}
+
+void DecisionEngineMain::finalizeTurnTiming(const std::string& reason, const DecisionTurnResult* result)
+{
+    const auto summaryEpochMs = nowEpochMs();
+    TurnTimingMetrics snapshot;
+    {
+        std::scoped_lock lock(stateMutex);
+        if (currentTurnTiming.turnId == 0 || currentTurnTiming.summaryLogged) {
+            return;
+        }
+        maybeCaptureVoiceSessionIdLocked();
+        currentTurnTiming.summaryLogged = true;
+        snapshot = currentTurnTiming;
+    }
+
+    std::string message =
+        "DecisionEngine: turn_timing_summary"
+        " turnId=" + std::to_string(snapshot.turnId)
+        + ", session=" + valueOrNone(snapshot.voiceSessionId)
+        + ", reason=" + reason
+        + ", wakeTs=" + std::to_string(snapshot.wakeDetectedEpochMs)
+        + ", listeningTs=" + std::to_string(snapshot.listeningUiShownEpochMs)
+        + ", firstPartialTs=" + std::to_string(snapshot.firstPartialEpochMs)
+        + ", finalTranscriptTs=" + std::to_string(snapshot.finalTranscriptEpochMs)
+        + ", intentResolvedTs=" + std::to_string(snapshot.intentResolvedEpochMs)
+        + ", resultPresentedTs=" + std::to_string(snapshot.resultPresentedEpochMs)
+        + ", speechRequestedTs=" + std::to_string(snapshot.speechRequestedEpochMs)
+        + ", wakeToListeningMs=" + formatDurationMsOrNa(snapshot.wakeDetectedEpochMs, snapshot.listeningUiShownEpochMs)
+        + ", wakeToFirstPartialMs=" + formatDurationMsOrNa(snapshot.wakeDetectedEpochMs, snapshot.firstPartialEpochMs)
+        + ", wakeToFinalTranscriptMs=" + formatDurationMsOrNa(snapshot.wakeDetectedEpochMs, snapshot.finalTranscriptEpochMs)
+        + ", finalTranscriptToIntentResolvedMs=" + formatDurationMsOrNa(snapshot.finalTranscriptEpochMs, snapshot.intentResolvedEpochMs)
+        + ", intentResolvedToResultPresentedMs=" + formatDurationMsOrNa(snapshot.intentResolvedEpochMs, snapshot.resultPresentedEpochMs)
+        + ", resultPresentedToSpeechRequestedMs=" + formatDurationMsOrNa(snapshot.resultPresentedEpochMs, snapshot.speechRequestedEpochMs)
+        + ", wakeToSummaryMs=" + formatDurationMsOrNa(snapshot.wakeDetectedEpochMs, summaryEpochMs)
+        + ", partialCount=" + std::to_string(snapshot.partialEventCount)
+        + ", transcriptLength=" + std::to_string(snapshot.lastTranscriptLength);
+
+    if (result) {
+        message += ", status=" + result->executionStatus
+            + ", intentName=" + valueOrNone(result->intentName)
+            + ", error=" + valueOrNone(result->error);
+    }
+
+    CubeLog::info(message);
 }
 
 void DecisionEngineMain::hideTurnUi()
@@ -602,23 +1020,60 @@ void DecisionEngineMain::handleTranscriptEvent(const TranscriptionEvent& event)
         }
     }
 
+    if (event.isFinal) {
+        noteFinalTranscript(event.fullText);
+    } else {
+        noteFirstPartial(event);
+    }
+
     presentationController().updateTranscript(event);
 }
 
 void DecisionEngineMain::presentTurnResult(const DecisionTurnResult& result)
 {
-    const std::string message = !result.responseText.empty()
+    const std::string sourceMessage = !result.responseText.empty()
         ? result.responseText
         : (!result.error.empty() ? result.error : "Done.");
+    std::string message = sourceMessage;
+    if (personalityManager && remoteServerAPI && !message.empty()) {
+        const auto emotions = personalityManager->getAllEmotionsCurrent();
+        const auto responseCategory = responseCategoryForTurnResult(result);
+        auto rewriteFuture = modifyStringUsingAIForEmotionalState(
+            message,
+            emotions,
+            remoteServerAPI,
+            responseCategory);
+        using namespace std::chrono_literals;
+        if (rewriteFuture.wait_for(2500ms) == std::future_status::ready) {
+            try {
+                const auto rewritten = rewriteFuture.get();
+                if (!rewritten.empty()) {
+                    message = rewritten;
+                }
+            } catch (const std::exception& e) {
+                CubeLog::warning(
+                    std::string("DecisionEngine: emotional rewrite failed: ")
+                    + e.what());
+            } catch (...) {
+                CubeLog::warning("DecisionEngine: emotional rewrite failed with unknown error");
+            }
+        } else {
+            CubeLog::warning("DecisionEngine: emotional rewrite timed out; using original response");
+        }
+    }
     CubeLog::info(
         "DecisionEngine: presenting result"
-        " status=" + result.executionStatus
+        " status="
+        + result.executionStatus
         + ", intent=" + result.intentName
         + ", error=" + result.error
-        + ", message=" + message);
+        + ", sourceMessage=" + sourceMessage
+        + ", displayMessage=" + message);
     presentationController().showResult(message);
+    noteResultPresented(result, message);
 
     if (result.speakResult && !message.empty() && functionRegistry) {
+        noteSpeechRequested();
         functionRegistry->runCapabilityAsync(
             "core.speak_text",
             nlohmann::json({ { "text", message } }),
@@ -627,11 +1082,14 @@ void DecisionEngineMain::presentTurnResult(const DecisionTurnResult& result)
 
     setTurnState(TurnState::RESULT_PRESENTED);
     presentationController().scheduleHide(std::chrono::milliseconds(4000));
+    finalizeTurnTiming("result_presented", &result);
 }
 
 void DecisionEngineMain::onWakeWordDetected()
 {
     CubeLog::info("DecisionEngine: wake word detected");
+    finalizeTurnTiming("interrupted_by_new_wake");
+    beginTurnTiming();
     if (auto rt = std::dynamic_pointer_cast<RemoteTranscriber>(transcriber)) {
         rt->interrupt();
     }
@@ -646,21 +1104,21 @@ void DecisionEngineMain::onWakeWordDetected()
     AudioOutput::playFileAsync(wakeSoundPath());
     showListeningUi();
     CubeLog::info("DecisionEngine: listening UI shown");
+    noteListeningUiShown();
     setTurnState(TurnState::LISTENING);
     if (remoteServerAPI && intentRegistry && functionRegistry) {
         remoteServerAPI->prepareVoiceTurn(
             buildVoiceToolCatalogue(intentRegistry, functionRegistry),
-            nlohmann::json({
-                { "deviceTimezone", localTimezoneId() },
+            nlohmann::json({ { "deviceTimezone", localTimezoneId() },
                 { "deviceNowEpochMs", nowEpochMs() },
-                { "deviceNowIsoLocal", nowIsoLocal() }
-            }));
+                { "deviceNowIsoLocal", nowIsoLocal() } }));
     }
     transcription = transcriber ? transcriber->transcribeQueue(audioQueue) : nullptr;
     if (!transcription) {
         CubeLog::error("DecisionEngine: transcription queue was not created");
         hideTurnUi();
         setTurnState(TurnState::IDLE);
+        finalizeTurnTiming("transcription_queue_creation_failed");
         return;
     }
 
@@ -678,7 +1136,7 @@ void DecisionEngineMain::onWakeWordDetected()
             }
             if (result->empty()) {
                 CubeLog::warning("DecisionEngine: transcription session ended without a final transcript");
-                recordTurnResult(DecisionTurnResult {
+                const DecisionTurnResult failedTurn {
                     .transcript = "",
                     .intentName = "",
                     .executionStatus = "transcription_failed",
@@ -686,10 +1144,11 @@ void DecisionEngineMain::onWakeWordDetected()
                     .capabilityResult = nlohmann::json::object(),
                     .error = "transcription_failed",
                     .speakResult = false,
-                    .timestampEpochMs = nowEpochMs()
-                });
+                    .timestampEpochMs = nowEpochMs() };
+                recordTurnResult(failedTurn);
                 hideTurnUi();
                 setTurnState(TurnState::IDLE);
+                finalizeTurnTiming("transcription_failed", &failedTurn);
                 break;
             }
 
@@ -700,27 +1159,6 @@ void DecisionEngineMain::onWakeWordDetected()
             break;
         }
     });
-}
-
-nlohmann::json DecisionEngineMain::parametersToJson(const Parameters& parameters) const
-{
-    nlohmann::json args = nlohmann::json::object();
-    for (const auto& [key, value] : parameters) {
-        if (key == "capability_name") continue;
-        args[key] = jsonValueFromString(value);
-    }
-    return args;
-}
-
-void DecisionEngineMain::applyCapabilityResultToIntent(const std::shared_ptr<Intent>& intent, const nlohmann::json& capabilityResult)
-{
-    if (!intent || !capabilityResult.is_object()) {
-        return;
-    }
-
-    for (const auto& [key, value] : capabilityResult.items()) {
-        intent->addParameter(key, jsonToParameterString(value));
-    }
 }
 
 DecisionTurnResult DecisionEngineMain::executeIntent(const std::shared_ptr<Intent>& intent, const std::string& transcript, const nlohmann::json& resolvedArgs)
@@ -751,7 +1189,8 @@ DecisionTurnResult DecisionEngineMain::executeIntent(const std::shared_ptr<Inten
             if (!validateJsonAgainstSchema(argsToValidate, schema, validationError)) {
                 CubeLog::warning(
                     "DecisionEngine: capability argument validation failed"
-                    " intent=" + result.intentName
+                    " intent="
+                    + result.intentName
                     + ", capability=" + capabilityName
                     + ", args=" + summarizeJsonForLog(argsToValidate)
                     + ", schema=" + summarizeJsonForLog(schema)
@@ -763,32 +1202,27 @@ DecisionTurnResult DecisionEngineMain::executeIntent(const std::shared_ptr<Inten
             }
         }
 
-        auto capabilityArgs = parametersToJson(parameters);
-        if (resolvedArgs.is_object()) {
-            for (const auto& [key, value] : resolvedArgs.items()) {
-                capabilityArgs[key] = value;
-            }
-        }
-        if (!capabilityArgs.contains("transcript")) {
-            capabilityArgs["transcript"] = transcript;
-        }
+        auto capabilityArgs = buildCapabilityArgs(parameters, resolvedArgs, transcript);
 
         CubeLog::info(
             "DecisionEngine: executing capability"
-            " intent=" + result.intentName
+            " intent="
+            + result.intentName
             + ", capability=" + capabilityName
             + ", args=" + summarizeJsonForLog(capabilityArgs));
         result.capabilityResult = intent->runCapabilitySync(capabilityName, capabilityArgs, 4000);
         CubeLog::info(
             "DecisionEngine: capability result"
-            " intent=" + result.intentName
+            " intent="
+            + result.intentName
             + ", capability=" + capabilityName
             + ", result=" + summarizeJsonForLog(result.capabilityResult));
         applyCapabilityResultToIntent(intent, result.capabilityResult);
         if (result.capabilityResult.is_object() && result.capabilityResult.contains("error")) {
             CubeLog::warning(
                 "DecisionEngine: capability reported error"
-                " intent=" + result.intentName
+                " intent="
+                + result.intentName
                 + ", capability=" + capabilityName
                 + ", error=" + jsonToParameterString(result.capabilityResult["error"]));
             result.executionStatus = "capability_error";
@@ -812,7 +1246,8 @@ DecisionTurnResult DecisionEngineMain::executeIntent(const std::shared_ptr<Inten
     result.executionStatus = "success";
     CubeLog::info(
         "DecisionEngine: intent execution complete"
-        " intent=" + result.intentName
+        " intent="
+        + result.intentName
         + ", status=" + result.executionStatus
         + ", response=" + result.responseText);
     return result;
@@ -827,24 +1262,18 @@ DecisionTurnResult DecisionEngineMain::processTranscript(const std::string& tran
         }
     };
     if (!remoteServerAPI || !intentRegistry || !functionRegistry) {
-        auto result = DecisionTurnResult {
-            .transcript = transcript,
-            .intentName = "",
-            .executionStatus = "error",
-            .responseText = "",
-            .capabilityResult = nlohmann::json::object(),
-            .error = "intent_resolution_unavailable",
-            .timestampEpochMs = nowEpochMs()
-        };
+        auto result = makeIntentResolutionUnavailableResult(transcript);
         cleanupVoiceTurn();
         return result;
     }
 
     const auto resolved = remoteServerAPI->waitForResolvedIntentCall(std::chrono::milliseconds(15000));
+    noteIntentResolved(resolved);
 
     CubeLog::info(
         "DecisionEngine: resolved intent_call"
-        " status=" + resolved.status
+        " status="
+        + resolved.status
         + ", intentName=" + resolved.intentName
         + ", arguments=" + summarizeJsonForLog(resolved.arguments)
         + ", message=" + resolved.message);
@@ -853,15 +1282,7 @@ DecisionTurnResult DecisionEngineMain::processTranscript(const std::string& tran
         auto intent = intentRegistry->getIntent(resolved.intentName);
         if (!intent) {
             CubeLog::warning("DecisionEngine: resolved intent not registered locally: " + resolved.intentName);
-            auto result = DecisionTurnResult {
-                .transcript = transcript,
-                .intentName = resolved.intentName,
-                .executionStatus = "intent_not_found",
-                .responseText = "I found a matching action, but it isn't available on this device.",
-                .capabilityResult = nlohmann::json::object(),
-                .error = "intent_not_found",
-                .timestampEpochMs = nowEpochMs()
-            };
+            auto result = makeResolvedIntentNotFoundResult(transcript, resolved.intentName);
             cleanupVoiceTurn();
             return result;
         }
@@ -872,15 +1293,7 @@ DecisionTurnResult DecisionEngineMain::processTranscript(const std::string& tran
 
     if (resolved.status == "error") {
         CubeLog::warning("DecisionEngine: intent resolution returned error: " + resolved.message);
-        auto result = DecisionTurnResult {
-            .transcript = transcript,
-            .intentName = "",
-            .executionStatus = "error",
-            .responseText = "I couldn't process that request right now.",
-            .capabilityResult = nlohmann::json::object(),
-            .error = resolved.message.empty() ? "intent_resolution_failed" : resolved.message,
-            .timestampEpochMs = nowEpochMs()
-        };
+        auto result = makeIntentResolutionErrorResult(transcript, resolved.message);
         cleanupVoiceTurn();
         return result;
     }
@@ -908,23 +1321,20 @@ void DecisionEngineMain::recordTurnResult(const DecisionTurnResult& result)
 nlohmann::json DecisionEngineMain::statusJson() const
 {
     std::scoped_lock lk(stateMutex);
-    return nlohmann::json({
-        { "started", started },
+    return nlohmann::json({ { "started", started },
         { "turnState", turnStateName(turnState) },
         { "latestTranscriptEvent", latestTranscriptEvent },
         { "activeTranscriptPreview", activeTranscriptPreview },
         { "remoteServerStatus", static_cast<int>(remoteServerAPI ? remoteServerAPI->getServerStatus() : TheCubeServer::TheCubeServerAPI::ServerStatus::SERVER_STATUS_ERROR) },
         { "remoteServerError", static_cast<int>(remoteServerAPI ? remoteServerAPI->getServerError() : TheCubeServer::TheCubeServerAPI::ServerError::SERVER_ERROR_INTERNAL_ERROR) },
-        { "lastDecisionResult", lastDecisionResult.toJson() }
-    });
+        { "lastDecisionResult", lastDecisionResult.toJson() } });
 }
 
 HttpEndPointData_t DecisionEngineMain::getHttpEndpointData()
 {
     HttpEndPointData_t data;
 
-    data.push_back({
-        PRIVATE_ENDPOINT | GET_ENDPOINT,
+    data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
             (void)req;
             res.status = 200;
@@ -933,11 +1343,9 @@ HttpEndPointData_t DecisionEngineMain::getHttpEndpointData()
         },
         "status",
         nlohmann::json({ { "type", "object" }, { "properties", nlohmann::json::object() } }),
-        "Get decision engine runtime status"
-    });
+        "Get decision engine runtime status" });
 
-    data.push_back({
-        PRIVATE_ENDPOINT | GET_ENDPOINT,
+    data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
             (void)req;
             std::scoped_lock lk(stateMutex);
@@ -947,11 +1355,9 @@ HttpEndPointData_t DecisionEngineMain::getHttpEndpointData()
         },
         "lastDecisionResult",
         nlohmann::json({ { "type", "object" }, { "properties", nlohmann::json::object() } }),
-        "Get the last completed decision turn"
-    });
+        "Get the last completed decision turn" });
 
-    data.push_back({
-        PRIVATE_ENDPOINT | POST_ENDPOINT,
+    data.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
             std::string text;
             try {
@@ -976,13 +1382,10 @@ HttpEndPointData_t DecisionEngineMain::getHttpEndpointData()
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
         "runText",
-        nlohmann::json({
-            { "type", "object" },
+        nlohmann::json({ { "type", "object" },
             { "properties", { { "text", { { "type", "string" } } } } },
-            { "required", nlohmann::json::array({ "text" }) }
-        }),
-        "Run a decision turn from plain text input"
-    });
+            { "required", nlohmann::json::array({ "text" }) } }),
+        "Run a decision turn from plain text input" });
 
     return data;
 }
@@ -990,41 +1393,26 @@ HttpEndPointData_t DecisionEngineMain::getHttpEndpointData()
 std::future<std::string> DecisionEngine::modifyStringUsingAIForEmotionalState(
     const std::string& input,
     const std::vector<Personality::EmotionSimple>& emotions,
-    const std::shared_ptr<TheCubeServer::TheCubeServerAPI>& remoteServerAPI,
+    const std::shared_ptr<TheCubeServer::IRemoteConversationClient>& remoteConversationClient,
+    const std::string& responseCategory,
     const std::function<void(std::string)>& progressCB)
 {
-    static const std::string chatString = "I have a robot program with an emotional state defined by 7 qualities: curiosity, playfulness, empathy, assertiveness, attentiveness, caution, and annoyance. Each quality has a value between 1 and 100 (inclusive). The robot interacts with the user by speaking sentences, and I need you to revise a given string to align with its emotional state.\n\n"
-                                          "Here are the definitions of each quality:\n"
-                                          "Curiosity (1-100): Reflects the robot’s interest in exploring or learning. High values make it more inquisitive or engaged.\n"
-                                          "Playfulness (1-100): Reflects the robot's tendency to be lighthearted and fun. High values lead to a more cheerful and humorous tone.\n"
-                                          "Empathy (1-100): Reflects the robot's capacity for understanding and kindness. High values result in more compassionate or sensitive language.\n"
-                                          "Assertiveness (1-100): Reflects the robot's directness and determination. High values lead to more confident and action-oriented language.\n"
-                                          "Attentiveness (1-100): Reflects the robot's focus and precision. High values make it more detailed and thorough.\n"
-                                          "Caution (1-100): Reflects the robot's tendency to warn or hesitate. High values make it more reserved or cautious.\n"
-                                          "Annoyance (1-100): Reflects the robot’s irritation level. High values lead to more curt or sarcastic language.\n\n"
-                                          "When I provide a string, the robot's emotional state will also be provided as a list of 7 values, each corresponding to the qualities above. Modify the string to align with these values while keeping the robot’s response functional and understandable.\n\n"
-                                          "Example:\n\n"
-                                          "Input:\n"
-                                          "String: \"You have eight items on your to-do list today.\"\n"
-                                          "Emotional State: {Curiosity: 40, Playfulness: 20, Empathy: 50, Assertiveness: 90, Attentiveness: 80, Caution: 30, Annoyance: 10}\n\n"
-                                          "Output:\n"
-                                          "\"You have eight items on your to-do list that must be accomplished today.\"\n\n"
-                                          "Another Example:\n\n"
-                                          "Input:\n"
-                                          "String: \"You have eight items on your to-do list today.\"\n"
-                                          "Emotional State: {Curiosity: 70, Playfulness: 60, Empathy: 80, Assertiveness: 20, Attentiveness: 50, Caution: 40, Annoyance: 10}\n\n"
-                                          "Output:\n"
-                                          "\"You've got eight items on your to-do list today. Let me know if you'd like help organizing them!\"\n\n"
-                                          "Request:\n"
-                                          "Modify the following string to align with the given emotional state. Use the emotional state values to adjust tone, word choice, and phrasing appropriately while retaining the core message. Your response should be a JSON object with the key \"output\" and a value that is only the revised string. Other keys are permissible.\n\n"
-                                          "Input:\n";
-    std::string inputString = "String: \"" + input + "\"\nEmotional State: {";
-    for (size_t i = 0; i < emotions.size(); i++) {
-        inputString += Personality::emotionToString(emotions[i].emotion) + ": " + std::to_string(emotions[i].value);
-        if (i < emotions.size() - 1) {
-            inputString += ", ";
-        }
+    if (!remoteConversationClient) {
+        return std::async(std::launch::async, [input]() { return input; });
     }
-    inputString += "}";
-    return remoteServerAPI->getChatResponseAsync(chatString + inputString, progressCB);
+
+    const auto profile = buildEmotionalStyleProfile(emotions);
+    nlohmann::json context = {
+        { "responseCategory", responseCategory.empty() ? "intent_result" : responseCategory },
+        { "responseText", input },
+        { "emotions", emotionsToJson(emotions) },
+        { "styleProfile", {
+            { "dominantEmotion", profile.dominantEmotion },
+            { "dominantValue", profile.dominantValue },
+            { "secondaryEmotion", profile.secondaryEmotion },
+            { "secondaryValue", profile.secondaryValue },
+            { "intensityBucket", profile.intensityBucket }
+        } }
+    };
+    return remoteConversationClient->getEmotionalRewriteAsync(input, context, progressCB);
 }

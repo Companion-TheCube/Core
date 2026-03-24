@@ -48,6 +48,10 @@ public:
     virtual std::future<std::string> getGeneralAnswerAsync(
         const std::string& question,
         const std::function<void(std::string)>& progressCB = [](std::string) {}) = 0;
+    virtual std::future<std::string> getEmotionalRewriteAsync(
+        const std::string& responseText,
+        const nlohmann::json& context = nlohmann::json::object(),
+        const std::function<void(std::string)>& progressCB = [](std::string) {}) = 0;
     virtual std::future<ResolvedIntentCall> getResolvedIntentCallAsync(
         const std::string& utterance,
         const nlohmann::json& functions,
@@ -119,6 +123,10 @@ public:
         const std::function<void(std::string)>& progressCB = [](std::string) {});
     std::future<std::string> getGeneralAnswerAsync(
         const std::string& question,
+        const std::function<void(std::string)>& progressCB = [](std::string) {}) override;
+    std::future<std::string> getEmotionalRewriteAsync(
+        const std::string& responseText,
+        const nlohmann::json& context = nlohmann::json::object(),
         const std::function<void(std::string)>& progressCB = [](std::string) {}) override;
     std::future<ResolvedIntentCall> getResolvedIntentCallAsync(
         const std::string& utterance,
