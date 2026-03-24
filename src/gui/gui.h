@@ -76,7 +76,6 @@ SOFTWARE.
 #include "globalSettings.h"
 #endif
 
-
 #ifdef TRANSLATE_ENABLED
 #include <libintl.h>
 #include <locale.h>
@@ -139,8 +138,10 @@ public:
     static void showTextBox(const std::string& title, const std::string& message);
     static void showTextBox(const std::string& title, const std::string& message, glm::vec2 size, glm::vec2 position);
     static void showTextBox(const std::string& title, const std::string& message, glm::vec2 size, glm::vec2 position, std::function<void()> callback);
-    static void showSliderBox(const std::string& title, int currentValue, int minValue, int maxValue, int step, std::function<void(int)> onConfirm, std::function<void()> onCancel = []() {});
+    static void showSliderBox(const std::string& title, int currentValue, int minValue, int maxValue, int step, std::function<void(int)> onConfirm, std::function<void()> onCancel = []() { });
     static void hideSliderBox();
+    static void suspendVisibleMenus();
+    static void restoreSuspendedMenus();
     static void showNotification(const std::string& title, const std::string& message, NotificationsManager::NotificationType type);
     static void showNotificationWithCallback(const std::string& title, const std::string& message, NotificationsManager::NotificationType type, std::function<void()> callback);
     static void showNotificationWithCallback(const std::string& title, const std::string& message, NotificationsManager::NotificationType type, std::function<void()> callbackYes, std::function<void()> callbackNo);

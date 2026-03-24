@@ -34,13 +34,13 @@ SOFTWARE.
 #pragma once
 #ifndef MESSAGEBOX_H
 #define MESSAGEBOX_H
+#include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <functional>
 #include <iostream>
 #include <latch>
-#include <algorithm>
-#include <cmath>
 #include <sstream>
 #include <string>
 #include <typeinfo>
@@ -83,6 +83,7 @@ private:
     std::function<void()> callback = nullptr;
     ClickableArea clickArea;
     bool needsSetup = true;
+    bool hasCountedDown = false;
     glm::vec2 position;
     glm::vec2 size;
 
@@ -183,9 +184,9 @@ private:
     std::string noButtonLabel = "Deny";
     float titleScaleMultiplier = MESSAGEBOX_TITLE_TEXT_MULT;
     float secondaryTextScaleMultiplier = 1.85f;
-    Rect popupRect_{};
-    Rect yesBtn_{};
-    Rect noBtn_{};
+    Rect popupRect_ {};
+    Rect yesBtn_ {};
+    Rect noBtn_ {};
 
     void clearTextObjects();
     void clearObjects();
@@ -238,11 +239,13 @@ public:
     }
     void triggerYes()
     {
-        if (callbackYes) callbackYes();
+        if (callbackYes)
+            callbackYes();
     }
     void triggerNo()
     {
-        if (callbackNo) callbackNo();
+        if (callbackNo)
+            callbackNo();
     }
     Rect getYesRect() const { return yesBtn_; }
     Rect getNoRect() const { return noBtn_; }
@@ -281,11 +284,11 @@ private:
     int draftValue = 0;
     std::function<void(int)> confirmCallback = nullptr;
     std::function<void()> cancelCallback = nullptr;
-    Rect popupRect_{};
-    Rect trackRect_{};
-    Rect okBtn_{};
-    Rect cancelBtn_{};
-    Rect thumbRect_{};
+    Rect popupRect_ {};
+    Rect trackRect_ {};
+    Rect okBtn_ {};
+    Rect cancelBtn_ {};
+    Rect thumbRect_ {};
     M_SliderTexture* sliderObject = nullptr;
 
     void clearTextObjects();
@@ -374,9 +377,9 @@ public:
         clickAreaPtr->yMax = object->getClickableArea_().yMax;
     };
     void onClick(void* data) override { object->setVisible(!object->getVisible()); };
-    void onRelease(void* data) override {};
-    void onMouseDown(void* data) override {};
-    void onRightClick(void* data) override {};
+    void onRelease(void* data) override { };
+    void onMouseDown(void* data) override { };
+    void onRightClick(void* data) override { };
     ClickableArea* getClickableArea() override
     {
 
@@ -387,16 +390,16 @@ public:
         clickAreaPtr->yMax = object->getClickableArea_().yMax;
         return this->clickAreaPtr;
     };
-    void setOnClick(std::function<unsigned int(void*)> action) override {};
-    void setOnRightClick(std::function<unsigned int(void*)> action) override {};
+    void setOnClick(std::function<unsigned int(void*)> action) override { };
+    void setOnRightClick(std::function<unsigned int(void*)> action) override { };
     bool getIsClickable() override { return object->getVisible(); };
-    void setVisibleWidth(float width) override {};
-    void setClickAreaSize(unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax) override {};
-    void capturePosition() override {};
-    void restorePosition() override {};
-    void resetScroll() override {};
+    void setVisibleWidth(float width) override { };
+    void setClickAreaSize(unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax) override { };
+    void capturePosition() override { };
+    void restorePosition() override { };
+    void resetScroll() override { };
     std::vector<MeshObject*> getObjects() override { return object->getObjects(); };
-    void draw() override {};
+    void draw() override { };
     bool setVisible(bool visible) override { return object->setVisible(visible); };
     bool getVisible() override { return object->getVisible(); };
     bool setIsClickable(bool isClickable) override { return object->getVisible(); };
@@ -415,7 +418,8 @@ public:
     ~NotificationBoxClickable() override { delete clickAreaPtr; }
     void onClick(void* data) override
     {
-        if (!box_->getVisible()) return;
+        if (!box_->getVisible())
+            return;
         auto* ev = static_cast<sf::Event*>(data);
         unsigned int x = ev ? static_cast<unsigned int>(ev->mouseButton.x) : 0;
         unsigned int y = ev ? static_cast<unsigned int>(ev->mouseButton.y) : 0;
@@ -427,9 +431,9 @@ public:
             box_->triggerNo();
         }
     }
-    void onRelease(void* /*data*/) override {}
-    void onMouseDown(void* /*data*/) override {}
-    void onRightClick(void* /*data*/) override {}
+    void onRelease(void* /*data*/) override { }
+    void onMouseDown(void* /*data*/) override { }
+    void onRightClick(void* /*data*/) override { }
     ClickableArea* getClickableArea() override
     {
         // Sync area with box bounds
@@ -441,19 +445,19 @@ public:
         clickAreaPtr->yMax = area.yMax;
         return clickAreaPtr;
     }
-    void setOnClick(std::function<unsigned int(void*)> /*action*/) override {}
-    void setOnRightClick(std::function<unsigned int(void*)> /*action*/) override {}
+    void setOnClick(std::function<unsigned int(void*)> /*action*/) override { }
+    void setOnRightClick(std::function<unsigned int(void*)> /*action*/) override { }
     bool getIsClickable() override { return box_->getVisible(); }
     bool setIsClickable(bool /*isClickable*/) override { return box_->getVisible(); }
     std::vector<MeshObject*> getObjects() override { return box_->getObjects(); }
-    void setVisibleWidth(float /*width*/) override {}
-    void setClickAreaSize(unsigned int /*xMin*/, unsigned int /*xMax*/, unsigned int /*yMin*/, unsigned int /*yMax*/) override {}
-    void capturePosition() override {}
-    void restorePosition() override {}
-    void resetScroll() override {}
+    void setVisibleWidth(float /*width*/) override { }
+    void setClickAreaSize(unsigned int /*xMin*/, unsigned int /*xMax*/, unsigned int /*yMin*/, unsigned int /*yMax*/) override { }
+    void capturePosition() override { }
+    void restorePosition() override { }
+    void resetScroll() override { }
     bool setVisible(bool v) override { return box_->setVisible(v); }
     bool getVisible() override { return box_->getVisible(); }
-    void draw() override {}
+    void draw() override { }
 
 private:
     CubeNotificaionBox* box_;
@@ -471,7 +475,8 @@ public:
     ~SliderBoxClickable() override { delete clickAreaPtr; }
     void onClick(void* data) override
     {
-        if (!box_->getVisible()) return;
+        if (!box_->getVisible())
+            return;
         auto* ev = static_cast<sf::Event*>(data);
         unsigned int x = ev ? static_cast<unsigned int>(ev->mouseButton.x) : 0;
         unsigned int y = ev ? static_cast<unsigned int>(ev->mouseButton.y) : 0;
@@ -493,13 +498,14 @@ public:
     }
     void onMouseDown(void* data) override
     {
-        if (!box_->getVisible()) return;
+        if (!box_->getVisible())
+            return;
         auto* ev = static_cast<sf::Event*>(data);
         unsigned int x = ev ? static_cast<unsigned int>(ev->mouseButton.x) : 0;
         unsigned int y = ev ? static_cast<unsigned int>(ev->mouseButton.y) : 0;
         box_->beginDrag(x, y);
     }
-    void onRightClick(void* /*data*/) override {}
+    void onRightClick(void* /*data*/) override { }
     ClickableArea* getClickableArea() override
     {
         auto area = box_->getClickableArea_();
@@ -510,19 +516,19 @@ public:
         clickAreaPtr->yMax = area.yMax;
         return clickAreaPtr;
     }
-    void setOnClick(std::function<unsigned int(void*)> /*action*/) override {}
-    void setOnRightClick(std::function<unsigned int(void*)> /*action*/) override {}
+    void setOnClick(std::function<unsigned int(void*)> /*action*/) override { }
+    void setOnRightClick(std::function<unsigned int(void*)> /*action*/) override { }
     bool getIsClickable() override { return box_->getVisible(); }
     bool setIsClickable(bool /*isClickable*/) override { return box_->getVisible(); }
     std::vector<MeshObject*> getObjects() override { return box_->getObjects(); }
-    void setVisibleWidth(float /*width*/) override {}
-    void setClickAreaSize(unsigned int /*xMin*/, unsigned int /*xMax*/, unsigned int /*yMin*/, unsigned int /*yMax*/) override {}
-    void capturePosition() override {}
-    void restorePosition() override {}
-    void resetScroll() override {}
+    void setVisibleWidth(float /*width*/) override { }
+    void setClickAreaSize(unsigned int /*xMin*/, unsigned int /*xMax*/, unsigned int /*yMin*/, unsigned int /*yMax*/) override { }
+    void capturePosition() override { }
+    void restorePosition() override { }
+    void resetScroll() override { }
     bool setVisible(bool v) override { return box_->setVisible(v); }
     bool getVisible() override { return box_->getVisible(); }
-    void draw() override {}
+    void draw() override { }
 
 private:
     CubeSliderBox* box_;
@@ -538,10 +544,16 @@ public:
         clickAreaPtr->clickableObject = this;
     }
     ~NotificationYesClickable() override { delete clickAreaPtr; }
-    void onClick(void* /*data*/) override { if (!box_->getVisible()) return; box_->setVisible(false); box_->triggerYes(); }
-    void onRelease(void* /*data*/) override {}
-    void onMouseDown(void* /*data*/) override {}
-    void onRightClick(void* /*data*/) override {}
+    void onClick(void* /*data*/) override
+    {
+        if (!box_->getVisible())
+            return;
+        box_->setVisible(false);
+        box_->triggerYes();
+    }
+    void onRelease(void* /*data*/) override { }
+    void onMouseDown(void* /*data*/) override { }
+    void onRightClick(void* /*data*/) override { }
     ClickableArea* getClickableArea() override
     {
         auto r = box_->getYesRect();
@@ -552,19 +564,19 @@ public:
         clickAreaPtr->yMax = r.yMax;
         return clickAreaPtr;
     }
-    void setOnClick(std::function<unsigned int(void*)> /*action*/) override {}
-    void setOnRightClick(std::function<unsigned int(void*)> /*action*/) override {}
+    void setOnClick(std::function<unsigned int(void*)> /*action*/) override { }
+    void setOnRightClick(std::function<unsigned int(void*)> /*action*/) override { }
     bool getIsClickable() override { return box_->getVisible(); }
     bool setIsClickable(bool /*isClickable*/) override { return box_->getVisible(); }
     std::vector<MeshObject*> getObjects() override { return {}; }
-    void setVisibleWidth(float /*width*/) override {}
-    void setClickAreaSize(unsigned int /*xMin*/, unsigned int /*xMax*/, unsigned int /*yMin*/, unsigned int /*yMax*/) override {}
-    void capturePosition() override {}
-    void restorePosition() override {}
-    void resetScroll() override {}
+    void setVisibleWidth(float /*width*/) override { }
+    void setClickAreaSize(unsigned int /*xMin*/, unsigned int /*xMax*/, unsigned int /*yMin*/, unsigned int /*yMax*/) override { }
+    void capturePosition() override { }
+    void restorePosition() override { }
+    void resetScroll() override { }
     bool setVisible(bool v) override { return box_->setVisible(v); }
     bool getVisible() override { return box_->getVisible(); }
-    void draw() override {}
+    void draw() override { }
 
 private:
     CubeNotificaionBox* box_;
@@ -580,25 +592,31 @@ public:
         clickAreaPtr->clickableObject = this;
     }
     ~NotificationNoClickable() override { delete clickAreaPtr; }
-    void onClick(void* /*data*/) override { if (!box_->getVisible()) return; box_->setVisible(false); box_->triggerNo(); }
-    void onRelease(void* /*data*/) override {}
-    void onMouseDown(void* /*data*/) override {}
-    void onRightClick(void* /*data*/) override {}
+    void onClick(void* /*data*/) override
+    {
+        if (!box_->getVisible())
+            return;
+        box_->setVisible(false);
+        box_->triggerNo();
+    }
+    void onRelease(void* /*data*/) override { }
+    void onMouseDown(void* /*data*/) override { }
+    void onRightClick(void* /*data*/) override { }
     ClickableArea* getClickableArea() override { return clickAreaPtr; }
     ClickableArea* getClickableArea() const { return clickAreaPtr; }
-    void setOnClick(std::function<unsigned int(void*)> /*action*/) override {}
-    void setOnRightClick(std::function<unsigned int(void*)> /*action*/) override {}
+    void setOnClick(std::function<unsigned int(void*)> /*action*/) override { }
+    void setOnRightClick(std::function<unsigned int(void*)> /*action*/) override { }
     bool getIsClickable() override { return box_->getVisible(); }
     bool setIsClickable(bool /*isClickable*/) override { return box_->getVisible(); }
     std::vector<MeshObject*> getObjects() override { return {}; }
-    void setVisibleWidth(float /*width*/) override {}
-    void setClickAreaSize(unsigned int /*xMin*/, unsigned int /*xMax*/, unsigned int /*yMin*/, unsigned int /*yMax*/) override {}
-    void capturePosition() override {}
-    void restorePosition() override {}
-    void resetScroll() override {}
+    void setVisibleWidth(float /*width*/) override { }
+    void setClickAreaSize(unsigned int /*xMin*/, unsigned int /*xMax*/, unsigned int /*yMin*/, unsigned int /*yMax*/) override { }
+    void capturePosition() override { }
+    void restorePosition() override { }
+    void resetScroll() override { }
     bool setVisible(bool v) override { return box_->setVisible(v); }
     bool getVisible() override { return box_->getVisible(); }
-    void draw() override {}
+    void draw() override { }
 
 private:
     CubeNotificaionBox* box_;

@@ -31,8 +31,14 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+// TODO: Need to tune detection. Currently, it just stays at "detected".
+
 #pragma once
+#include <atomic>
+#include <chrono>
+#include <functional>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 #ifndef LOGGER_H
@@ -41,7 +47,6 @@ SOFTWARE.
 #ifdef __linux__
 #include <fcntl.h>
 #include <sys/ioctl.h>
-#include <termios.h>
 #include <unistd.h>
 #endif
 
@@ -197,16 +202,40 @@ private:
     }
 };
 
-class mmWave {
+struct MmWaveReading {
     uint8_t targetState = 0;
     uint16_t movingTargetDistance = 0;
     uint8_t movingTargetEnergy = 0;
     uint16_t stationaryTargetDistance = 0;
     uint8_t stationaryTargetEnergy = 0;
     uint16_t detectionDistance = 0;
+};
 
-    int serialPort_h;
+class mmWave {
+    // Current reading protected by readingMutex
+    std::mutex readingMutex;
+    MmWaveReading currentReading;
+    float cachedPresenceConfidence = 0.0f;
+    bool presenceConfidenceInitialized = false;
+    bool cachedPresenceState = false;
+    bool absenceExitTimerActive = false;
+    std::chrono::steady_clock::time_point absenceExitTimerStart;
+
+    // Serialises all serial-port access (commands vs. reader loop)
+    std::mutex serialMutex;
+
+    // Stored config state — each setter updates these and sends the combined command
+    int cfgMovingGate = 5;
+    int cfgRestingGate = 5;
+    int cfgUnmannedSecs = 5;
+    int cfgGateNum = 0xFFFF; // 0xFFFF = all gates
+    int cfgMotionSens = 50;
+    int cfgRestingSens = 50;
+
+    int serialPort_h = -1;
     bool configModeEnabled = false;
+    std::atomic<bool> isReady_ { false };
+    std::function<void()> onReadyCallback;
     std::unique_ptr<std::jthread> readerThread;
 
     Response sendCommand(std::vector<uint8_t> command);
@@ -215,10 +244,12 @@ class mmWave {
     bool disableConfigMode();
     bool enableEngineeringMode();
     bool disableEngineeringMode();
-    bool setMaxMovingDistanceGate(int distance);
-    bool setMaxRestingDistanceGate(int distance);
-    bool setUnmannedDuration(int duration);
-    bool setDistanceGateSensitivity(int sensitivity);
+    // The following private setters assume config mode is already active.
+    // They update the respective stored cfg field and send the appropriate hardware command.
+    bool setMaxMovingDistanceGate(int gate);
+    bool setMaxRestingDistanceGate(int gate);
+    bool setUnmannedDuration(int seconds);
+    bool setDistanceGateSensitivity(int gateNum); // gateNum: 0-8, or 0xFFFF for all gates
     bool setMotionSensitivity(int sensitivity);
     bool setRestingSensitivity(int sensitivity);
     void restartModule();
@@ -228,4 +259,23 @@ class mmWave {
 public:
     mmWave();
     ~mmWave();
+
+    // Thread-safe snapshot of the latest decoded sensor reading.
+    MmWaveReading getReading();
+
+    // Thread-safe smoothed presence confidence score in [0.0, 1.0].
+    float getPresenceConfidence();
+
+    // Thread-safe hysteresis-based binary presence state.
+    bool isPresent();
+
+    // Atomically configure the sensor: set distance gates, unmanned duration, and sensitivity.
+    // Handles enable/disable config mode and module restart internally.
+    bool configure(int maxMovingGate, int maxRestingGate, int unmannedSecs, int motionSens, int restingSens);
+
+    // Reset module configuration to sensor defaults, then restart the module.
+    bool resetToDefaults();
+
+    // Register a callback invoked once the serial port opens successfully.
+    void setOnReadyCallback(std::function<void()> callback);
 };

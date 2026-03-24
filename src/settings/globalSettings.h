@@ -101,6 +101,13 @@ struct GlobalSettings {
         EMOTION_CAUTION,
         EMOTION_ANNOYANCE,
 
+        MMWAVE_MAX_MOVING_GATE,
+        MMWAVE_MAX_RESTING_GATE,
+        MMWAVE_UNMANNED_DURATION_SECS,
+        MMWAVE_MOTION_SENSITIVITY,
+        MMWAVE_RESTING_SENSITIVITY,
+        MMWAVE_IS_CALIBRATED,
+
         SETTING_TYPE_COUNT
     };
 
@@ -194,6 +201,13 @@ struct GlobalSettings {
         GlobalSettings::setSetting(SettingType::EMOTION_CAUTION, 50);
         // set the default emotion annoyance to 0
         GlobalSettings::setSetting(SettingType::EMOTION_ANNOYANCE, 0);
+        // mmWave sensor calibration defaults
+        GlobalSettings::setSetting(SettingType::MMWAVE_MAX_MOVING_GATE, 5);
+        GlobalSettings::setSetting(SettingType::MMWAVE_MAX_RESTING_GATE, 5);
+        GlobalSettings::setSetting(SettingType::MMWAVE_UNMANNED_DURATION_SECS, 5);
+        GlobalSettings::setSetting(SettingType::MMWAVE_MOTION_SENSITIVITY, 50);
+        GlobalSettings::setSetting(SettingType::MMWAVE_RESTING_SENSITIVITY, 50);
+        GlobalSettings::setSetting(SettingType::MMWAVE_IS_CALIBRATED, false);
     }
 
     static void setSettingCB(SettingType key, std::function<void()> callback)

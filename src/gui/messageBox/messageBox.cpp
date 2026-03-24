@@ -1,9 +1,9 @@
 /*
-███╗   ███╗███████╗███████╗███████╗ █████╗  ██████╗ ███████╗██████╗  ██████╗ ██╗  ██╗    ██████╗██████╗ ██████╗ 
+███╗   ███╗███████╗███████╗███████╗ █████╗  ██████╗ ███████╗██████╗  ██████╗ ██╗  ██╗    ██████╗██████╗ ██████╗
 ████╗ ████║██╔════╝██╔════╝██╔════╝██╔══██╗██╔════╝ ██╔════╝██╔══██╗██╔═══██╗╚██╗██╔╝   ██╔════╝██╔══██╗██╔══██╗
 ██╔████╔██║█████╗  ███████╗███████╗███████║██║  ███╗█████╗  ██████╔╝██║   ██║ ╚███╔╝    ██║     ██████╔╝██████╔╝
-██║╚██╔╝██║██╔══╝  ╚════██║╚════██║██╔══██║██║   ██║██╔══╝  ██╔══██╗██║   ██║ ██╔██╗    ██║     ██╔═══╝ ██╔═══╝ 
-██║ ╚═╝ ██║███████╗███████║███████║██║  ██║╚██████╔╝███████╗██████╔╝╚██████╔╝██╔╝ ██╗██╗╚██████╗██║     ██║     
+██║╚██╔╝██║██╔══╝  ╚════██║╚════██║██╔══██║██║   ██║██╔══╝  ██╔══██╗██║   ██║ ██╔██╗    ██║     ██╔═══╝ ██╔═══╝
+██║ ╚═╝ ██║███████╗███████║███████║██║  ██║╚██████╔╝███████╗██████╔╝╚██████╔╝██╔╝ ██╗██╗╚██████╗██║     ██║
 ╚═╝     ╚═╝╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚═╝ ╚═════╝╚═╝     ╚═╝
 */
 
@@ -92,33 +92,50 @@ CubeMessageBox::~CubeMessageBox()
 void CubeMessageBox::setup()
 {
 
-    float radius = BOX_RADIUS;
-    float diameter = radius * 2;
-    float xStart = -0.3;
-    float yStart = -0.3;
-    glm::vec2 size_ = { 1.2f, 1.2f };
-    // TODO: make the outline more like a speech bubble
-    // TODO: the character to needs to be aligned with the box in a way that makes it look like a speech bubble
-    // TODO: This setup builds the widget tree with raw new() calls and relies on later manual cleanup; use std::unique_ptr-backed storage so partial setup and exceptions cannot leak UI objects.
-    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart + radius, Z_DISTANCE + this->index }, { size_.x - diameter, size_.y - diameter }, 0.0, 0.0)); // main box
-    this->objects.push_back(new M_Rect(shader, { xStart, yStart + radius, Z_DISTANCE + this->index }, { radius, size_.y - diameter }, 0.0, 0.0)); // left
-    this->objects.push_back(new M_Rect(shader, { xStart + size_.x - radius, yStart + radius, Z_DISTANCE + this->index }, { radius, size_.y - diameter }, 0.0, 0.0)); // right
-    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart, Z_DISTANCE + this->index }, { size_.x - diameter, radius }, 0.0, 0.0)); // top
-    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart + size_.y - radius, Z_DISTANCE + this->index }, { size_.x - diameter, radius }, 0.0, 0.0)); // bottom
-    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + size_.x - radius, yStart + size_.y - radius, Z_DISTANCE + this->index }, 0, 90, { 0.f, 0.f, 0.f })); // top right
-    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + radius, yStart + size_.y - radius, Z_DISTANCE + this->index }, 90, 180, { 0.f, 0.f, 0.f })); // top left
-    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + radius, yStart + radius, Z_DISTANCE + this->index }, 180, 270, { 0.f, 0.f, 0.f })); // bottom left
-    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + size_.x - radius, yStart + radius, Z_DISTANCE + this->index }, 270, 360, { 0.f, 0.f, 0.f })); // bottom right
-    this->objects.push_back(new M_Line(shader, { xStart + radius, yStart + size_.y, Z_DISTANCE + 0.001 + this->index }, { xStart + size_.x - radius, yStart + size_.y, Z_DISTANCE + 0.001 + this->index })); // top
-    this->objects.push_back(new M_Line(shader, { xStart + size_.x, yStart + radius, Z_DISTANCE + 0.001 + this->index }, { xStart + size_.x, yStart + size_.y - radius, Z_DISTANCE + 0.001 + this->index })); // right
-    this->objects.push_back(new M_Line(shader, { xStart + radius, yStart, Z_DISTANCE + 0.001 + this->index }, { xStart + size_.x - radius, yStart, Z_DISTANCE + 0.001 + this->index })); // bottom
-    this->objects.push_back(new M_Line(shader, { xStart, yStart + radius, Z_DISTANCE + 0.001 + this->index }, { xStart, yStart + size_.y - radius, Z_DISTANCE + 0.001 + this->index })); // left
-    this->objects.push_back(new M_Arc(shader, 50, radius, 0, 90, { xStart + size_.x - radius, yStart + size_.y - radius, Z_DISTANCE + 0.001 + this->index })); // top right
-    this->objects.push_back(new M_Arc(shader, 50, radius, 360, 270, { xStart + size_.x - radius, yStart + radius, Z_DISTANCE + 0.001 + this->index })); // bottom right
-    this->objects.push_back(new M_Arc(shader, 50, radius, 180, 270, { xStart + radius, yStart + radius, Z_DISTANCE + 0.001 + this->index })); // bottom left
-    this->objects.push_back(new M_Arc(shader, 50, radius, 180, 90, { xStart + radius, yStart + size_.y - radius, Z_DISTANCE + 0.001 + this->index })); // top left
-    std::lock_guard<std::mutex> lock(this->mutex);
-    this->latch->count_down();
+    for (auto* obj : this->objects) {
+        delete obj;
+    }
+    this->objects.clear();
+    this->needsSetup = false;
+
+    const float radius = BOX_RADIUS;
+    const float diameter = radius * 2.0f;
+    const float xStart = mapRange(this->position.x, 0.f, 720.f, -1.f, 1.f);
+    const float yStart = mapRange(this->position.y, 0.f, 720.f, -1.f, 1.f);
+    const float xSize = mapRange(this->size.x, 0.f, 720.f, 0.f, 2.f);
+    const float ySize = mapRange(this->size.y - 1, 0.f, 720.f, 0.f, 2.f);
+    glm::vec2 size_ = { xSize, ySize };
+    const float overlayZ = Z_DISTANCE + 0.02f;
+    const float panelZ = Z_DISTANCE + 0.03f;
+    const float outlineZ = Z_DISTANCE + 0.031f;
+
+    // Full-screen black overlay to cover the 3D scene behind the popup
+    this->objects.push_back(new M_Rect(shader, { -1.f, -1.f, overlayZ }, { 2.f, 2.f }, 0.0, 0.0));
+    // Panel fill (rounded rect)
+    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart + radius, panelZ }, { size_.x - diameter, size_.y - diameter }, 0.0, 0.0));
+    this->objects.push_back(new M_Rect(shader, { xStart, yStart + radius, panelZ }, { radius, size_.y - diameter }, 0.0, 0.0));
+    this->objects.push_back(new M_Rect(shader, { xStart + size_.x - radius, yStart + radius, panelZ }, { radius, size_.y - diameter }, 0.0, 0.0));
+    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart, panelZ }, { size_.x - diameter, radius }, 0.0, 0.0));
+    this->objects.push_back(new M_Rect(shader, { xStart + radius, yStart + size_.y - radius, panelZ }, { size_.x - diameter, radius }, 0.0, 0.0));
+    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + size_.x - radius, yStart + size_.y - radius, panelZ }, 0, 90, { 0.f, 0.f, 0.f }));
+    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + radius, yStart + size_.y - radius, panelZ }, 90, 180, { 0.f, 0.f, 0.f }));
+    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + radius, yStart + radius, panelZ }, 180, 270, { 0.f, 0.f, 0.f }));
+    this->objects.push_back(new M_PartCircle(shader, 50, radius, { xStart + size_.x - radius, yStart + radius, panelZ }, 270, 360, { 0.f, 0.f, 0.f }));
+    // Outline
+    this->objects.push_back(new M_Line(shader, { xStart + radius, yStart + size_.y, outlineZ }, { xStart + size_.x - radius, yStart + size_.y, outlineZ }));
+    this->objects.push_back(new M_Line(shader, { xStart + size_.x, yStart + radius, outlineZ }, { xStart + size_.x, yStart + size_.y - radius, outlineZ }));
+    this->objects.push_back(new M_Line(shader, { xStart + radius, yStart, outlineZ }, { xStart + size_.x - radius, yStart, outlineZ }));
+    this->objects.push_back(new M_Line(shader, { xStart, yStart + radius, outlineZ }, { xStart, yStart + size_.y - radius, outlineZ }));
+    this->objects.push_back(new M_Arc(shader, 50, radius, 0, 90, { xStart + size_.x - radius, yStart + size_.y - radius, outlineZ }));
+    this->objects.push_back(new M_Arc(shader, 50, radius, 360, 270, { xStart + size_.x - radius, yStart + radius, outlineZ }));
+    this->objects.push_back(new M_Arc(shader, 50, radius, 180, 270, { xStart + radius, yStart + radius, outlineZ }));
+    this->objects.push_back(new M_Arc(shader, 50, radius, 180, 90, { xStart + radius, yStart + size_.y - radius, outlineZ }));
+
+    if (!this->hasCountedDown) {
+        this->hasCountedDown = true;
+        std::lock_guard<std::mutex> lock(this->mutex);
+        this->latch->count_down();
+    }
     CubeLog::info("MessageBox setup");
 }
 
@@ -214,15 +231,20 @@ bool CubeMessageBox::getVisible()
  */
 void CubeMessageBox::draw()
 {
+    if (this->needsSetup) {
+        setup();
+    }
     if (!this->visible) {
         return;
     }
+    glDisable(GL_DEPTH_TEST);
     for (auto object : this->objects) {
         object->draw();
     }
     for (auto object : this->textObjects) {
         object->draw();
     }
+    glEnable(GL_DEPTH_TEST);
 }
 
 /**
@@ -233,7 +255,11 @@ void CubeMessageBox::draw()
 void CubeMessageBox::setPosition(glm::vec2 position)
 {
     this->position = position;
-    // keep clickable area in sync
+    this->needsSetup = true;
+    for (auto* obj : this->objects) {
+        delete obj;
+    }
+    this->objects.clear();
     this->clickArea.xMin = (unsigned int)this->position.x;
     this->clickArea.xMax = (unsigned int)(this->position.x + this->size.x);
     this->clickArea.yMin = (unsigned int)this->position.y;
@@ -248,7 +274,11 @@ void CubeMessageBox::setPosition(glm::vec2 position)
 void CubeMessageBox::setSize(glm::vec2 size)
 {
     this->size = size;
-    // keep clickable area in sync
+    this->needsSetup = true;
+    for (auto* obj : this->objects) {
+        delete obj;
+    }
+    this->objects.clear();
     this->clickArea.xMin = (unsigned int)this->position.x;
     this->clickArea.xMax = (unsigned int)(this->position.x + this->size.x);
     this->clickArea.yMin = (unsigned int)this->position.y;
@@ -566,14 +596,43 @@ void CubeNotificaionBox::refreshVisualStateLocked()
     appendRoundedButtonOutlineLocked(this->yesBtn_, 0.0325f);
     appendRoundedButtonOutlineLocked(this->noBtn_, 0.0325f);
 
-    auto* titleText = new M_Text(this->textShader, this->titleText, (this->messageTextSize * this->titleScaleMultiplier), { 1.f, 1.f, 1.f }, { 0.f, 0.f });
-    const float titleWidth = titleText->getWidth();
-    const float titleX = this->position.x + (this->size.x - titleWidth) / 2.f;
-    const float titleY = (this->position.y + this->size.y) - (this->messageTextSize * this->titleScaleMultiplier) - STENCIL_INSET_PX;
-    titleText->setPosition({ titleX, titleY });
-    this->textObjects.push_back(titleText);
+    const float titleFontSize = this->messageTextSize * this->titleScaleMultiplier;
+    const size_t maxTitleCharsPerLine = static_cast<size_t>((this->size.x - (2 * STENCIL_INSET_PX)) / (titleFontSize * 0.55f));
+    std::vector<std::string> titleLines;
+    {
+        std::istringstream titleWords(this->titleText);
+        std::string word;
+        std::string current;
+        while (titleWords >> word) {
+            if (current.empty()) {
+                current = word;
+            } else if ((current.size() + 1 + word.size()) <= maxTitleCharsPerLine) {
+                current += " " + word;
+            } else {
+                titleLines.push_back(current);
+                current = word;
+            }
+        }
+        if (!current.empty()) {
+            titleLines.push_back(current);
+        }
+        if (titleLines.empty()) {
+            titleLines.push_back(this->titleText);
+        }
+    }
 
-    float currentBaselineY = titleY - (this->messageTextSize * 1.9f);
+    const float titleTopY = (this->position.y + this->size.y) - STENCIL_INSET_PX;
+    for (size_t i = 0; i < titleLines.size(); i++) {
+        auto* titleLine = new M_Text(this->textShader, titleLines[i], titleFontSize, { 1.f, 1.f, 1.f }, { 0.f, 0.f });
+        const float titleWidth = titleLine->getWidth();
+        const float titleX = this->position.x + (this->size.x - titleWidth) / 2.f;
+        const float titleY = titleTopY - static_cast<float>(i + 1) * titleFontSize;
+        titleLine->setPosition({ titleX, titleY });
+        this->textObjects.push_back(titleLine);
+    }
+
+    const float titleBlockBottomY = titleTopY - static_cast<float>(titleLines.size()) * titleFontSize;
+    float currentBaselineY = titleBlockBottomY - (this->messageTextSize * 1.1f);
     if (!this->secondaryText.empty()) {
         auto* secondary = new M_Text(this->textShader, this->secondaryText, (this->messageTextSize * this->secondaryTextScaleMultiplier), { 1.f, 1.f, 1.f }, { 0.f, 0.f });
         const float secondaryWidth = secondary->getWidth();
@@ -715,6 +774,7 @@ void CubeNotificaionBox::draw()
     if (!this->visible) {
         return;
     }
+    glDisable(GL_DEPTH_TEST);
     for (auto* object : this->objects) {
         object->draw();
     }
@@ -724,6 +784,7 @@ void CubeNotificaionBox::draw()
     for (auto* object : this->textObjects) {
         object->draw();
     }
+    glEnable(GL_DEPTH_TEST);
 }
 
 void CubeNotificaionBox::setPosition(glm::vec2 position)
@@ -879,8 +940,7 @@ int CubeSliderBox::valueFromScreenXLocked(int x) const
         return this->minValue;
     }
     const float normalized = std::clamp(
-        static_cast<float>(x - static_cast<int>(this->trackRect_.xMin)) /
-            static_cast<float>(this->trackRect_.xMax - this->trackRect_.xMin),
+        static_cast<float>(x - static_cast<int>(this->trackRect_.xMin)) / static_cast<float>(this->trackRect_.xMax - this->trackRect_.xMin),
         0.0f,
         1.0f);
     const int rawValue = this->minValue + static_cast<int>(std::lround(normalized * static_cast<float>(this->maxValue - this->minValue)));
@@ -920,8 +980,7 @@ void CubeSliderBox::updateRectsLocked()
     const unsigned int usableTravel = (this->trackRect_.xMax - this->trackRect_.xMin) > thumbWidth
         ? (this->trackRect_.xMax - this->trackRect_.xMin - thumbWidth)
         : 0;
-    const unsigned int thumbXMin = this->trackRect_.xMin +
-        static_cast<unsigned int>(std::lround(static_cast<float>(usableTravel) * getNormalizedDraftValueLocked()));
+    const unsigned int thumbXMin = this->trackRect_.xMin + static_cast<unsigned int>(std::lround(static_cast<float>(usableTravel) * getNormalizedDraftValueLocked()));
     this->thumbRect_ = { thumbXMin, thumbXMin + thumbWidth, this->trackRect_.yMin, this->trackRect_.yMax };
 }
 
@@ -946,11 +1005,38 @@ void CubeSliderBox::refreshVisualStateLocked()
     this->sliderObject->setVisibility(this->visible);
 
     auto* titleText = new M_Text(this->textShader, this->title, (this->messageTextSize * MESSAGEBOX_TITLE_TEXT_MULT), { 1.f, 1.f, 1.f }, { 0.f, 0.f });
-    const float titleWidth = titleText->getWidth();
-    const float titleX = this->position.x + (this->size.x - titleWidth) / 2.f;
-    const float titleY = (this->position.y + this->size.y) - this->messageTextSize - STENCIL_INSET_PX;
-    titleText->setPosition({ titleX, titleY });
-    this->textObjects.push_back(titleText);
+    // Word-wrap the title so long strings don't overflow the box
+    delete titleText; // discard the probe text used for sizing
+    const float titleFontSize = this->messageTextSize * MESSAGEBOX_TITLE_TEXT_MULT;
+    const size_t maxCharsPerLine = static_cast<size_t>((this->size.x - 2.f * STENCIL_INSET_PX) / (titleFontSize * 0.55f));
+    std::vector<std::string> titleLines;
+    {
+        std::istringstream wordStream(this->title);
+        std::string word, current;
+        while (wordStream >> word) {
+            if (current.empty()) {
+                current = word;
+            } else if ((current.size() + 1 + word.size()) <= maxCharsPerLine) {
+                current += " " + word;
+            } else {
+                titleLines.push_back(current);
+                current = word;
+            }
+        }
+        if (!current.empty())
+            titleLines.push_back(current);
+        if (titleLines.empty())
+            titleLines.push_back(this->title);
+    }
+    const float topY = (this->position.y + this->size.y) - STENCIL_INSET_PX;
+    for (size_t i = 0; i < titleLines.size(); i++) {
+        auto* line = new M_Text(this->textShader, titleLines[i], titleFontSize, { 1.f, 1.f, 1.f }, { 0.f, 0.f });
+        const float lineWidth = line->getWidth();
+        const float lineX = this->position.x + (this->size.x - lineWidth) / 2.f;
+        const float lineY = topY - static_cast<float>(i + 1) * titleFontSize;
+        line->setPosition({ lineX, lineY });
+        this->textObjects.push_back(line);
+    }
 
     auto* valueText = new M_Text(this->textShader, std::to_string(this->draftValue), this->messageTextSize * 1.2f, { 1.f, 1.f, 1.f }, { 0.f, 0.f });
     const float valueWidth = valueText->getWidth();
@@ -1054,12 +1140,14 @@ void CubeSliderBox::draw()
     if (!this->visible) {
         return;
     }
+    glDisable(GL_DEPTH_TEST);
     for (auto* object : this->objects) {
         object->draw();
     }
     for (auto* object : this->textObjects) {
         object->draw();
     }
+    glEnable(GL_DEPTH_TEST);
 }
 
 void CubeSliderBox::setPosition(glm::vec2 position)

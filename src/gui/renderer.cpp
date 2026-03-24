@@ -1,9 +1,9 @@
 /*
-██████╗ ███████╗███╗   ██╗██████╗ ███████╗██████╗ ███████╗██████╗     ██████╗██████╗ ██████╗ 
+██████╗ ███████╗███╗   ██╗██████╗ ███████╗██████╗ ███████╗██████╗     ██████╗██████╗ ██████╗
 ██╔══██╗██╔════╝████╗  ██║██╔══██╗██╔════╝██╔══██╗██╔════╝██╔══██╗   ██╔════╝██╔══██╗██╔══██╗
 ██████╔╝█████╗  ██╔██╗ ██║██║  ██║█████╗  ██████╔╝█████╗  ██████╔╝   ██║     ██████╔╝██████╔╝
-██╔══██╗██╔══╝  ██║╚██╗██║██║  ██║██╔══╝  ██╔══██╗██╔══╝  ██╔══██╗   ██║     ██╔═══╝ ██╔═══╝ 
-██║  ██║███████╗██║ ╚████║██████╔╝███████╗██║  ██║███████╗██║  ██║██╗╚██████╗██║     ██║     
+██╔══██╗██╔══╝  ██║╚██╗██║██║  ██║██╔══╝  ██╔══██╗██╔══╝  ██╔══██╗   ██║     ██╔═══╝ ██╔═══╝
+██║  ██║███████╗██║ ╚████║██████╔╝███████╗██║  ██║███████╗██║  ██║██╗╚██████╗██║     ██║
 ╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝╚═════╝ ╚══════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝ ╚═════╝╚═╝     ╚═╝
 */
 
@@ -54,8 +54,8 @@ Renderer::~Renderer()
 {
     this->ready = false;
     {
-    std::lock_guard<std::mutex> lock(this->mutex);
-    this->stop();
+        std::lock_guard<std::mutex> lock(this->mutex);
+        this->stop();
     }
     while (true) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -91,7 +91,7 @@ int Renderer::thread()
     this->window.create(sf::VideoMode(720, 720), "TheCube", sf::Style::None, settings);
     this->window.setVerticalSyncEnabled(true);
     this->window.setFramerateLimit(30);
-    
+
     // TODO: maybe one day, support a second window that renders on the second screen.
     // this->window.setPosition(sf::Vector2i(0, 0));
 
@@ -141,13 +141,11 @@ int Renderer::thread()
             this->events.push_back(event);
         if (this->running)
             this->setupTasksRun();
-        if(!this->window.isOpen() || !this->running)
+        if (!this->window.isOpen() || !this->running)
             break;
         // this->window.setActive();
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // Set clear color to black
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); // Clear the color buffer, the depth buffer and the stencil buffer
-        if (this->running)
-            this->loopTasksRun();
         if (characterManager->getCharacter() != nullptr) {
             // hold here until the animation and expression threads are ready
             // TODO: replace this with a CountingLatch. This will be cleaner.
@@ -158,6 +156,8 @@ int Renderer::thread()
             characterManager->getCharacter()->draw();
             characterManager->triggerAnimationAndExpressionThreads();
         }
+        if (this->running)
+            this->loopTasksRun();
         for (auto object : this->objects)
             object->draw();
         if (CubeLog::getScreenMessage() != "") {
@@ -166,13 +166,13 @@ int Renderer::thread()
         }
         this->window.display();
     }
-    if(this->window.isOpen()){
+    if (this->window.isOpen()) {
         // this->window.setActive(false);
         this->window.close();
     }
     {
-    std::lock_guard<std::mutex> lock(this->mutex);
-    this->stillRunning = false;
+        std::lock_guard<std::mutex> lock(this->mutex);
+        this->stillRunning = false;
     }
     return 0;
 }

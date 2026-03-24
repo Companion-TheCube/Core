@@ -50,8 +50,8 @@ SOFTWARE.
 #include <logger.h>
 #endif
 #include "build_number.h"
-#include "utils.h"
 #include "main.h"
+#include "utils.h"
 
 bool breakMain = false;
 
@@ -254,19 +254,22 @@ int main(int argc, char* argv[])
         auto api = std::make_shared<API>();
         auto auth = std::make_shared<CubeAuth>();
         auto peripherals = std::make_shared<PeripheralManager>();
+        PeripheralManager::onMmWaveTuningRequested = [peripherals]() {
+            peripherals->startMmWaveTuning();
+        };
         auto decisions = std::make_shared<DecisionEngine::DecisionEngineMain>();
-        
-            API_Builder api_builder(api);
-            gui->registerInterface();
-            cubeDB->registerInterface();
-            logger->registerInterface();
-            audioManager->registerInterface();
-            auth->registerInterface();
-            decisions->registerInterface();
-            // btManager->registerInterface();
-            api_builder.start();
-            decisions->start();
-        
+
+        API_Builder api_builder(api);
+        gui->registerInterface();
+        cubeDB->registerInterface();
+        logger->registerInterface();
+        audioManager->registerInterface();
+        auth->registerInterface();
+        decisions->registerInterface();
+        // btManager->registerInterface();
+        api_builder.start();
+        decisions->start();
+
         CubeLog::info("Entering main loop...");
         std::chrono::milliseconds aSecond(1000);
         while (!breakMain) {
@@ -427,8 +430,6 @@ void printStackTrace()
 
     free(symbols);
 }
-
-
 
 int getTermColors()
 {

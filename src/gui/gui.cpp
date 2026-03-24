@@ -1,9 +1,9 @@
 /*
- ██████╗ ██╗   ██╗██╗    ██████╗██████╗ ██████╗ 
+ ██████╗ ██╗   ██╗██╗    ██████╗██████╗ ██████╗
 ██╔════╝ ██║   ██║██║   ██╔════╝██╔══██╗██╔══██╗
 ██║  ███╗██║   ██║██║   ██║     ██████╔╝██████╔╝
-██║   ██║██║   ██║██║   ██║     ██╔═══╝ ██╔═══╝ 
-╚██████╔╝╚██████╔╝██║██╗╚██████╗██║     ██║     
+██║   ██║██║   ██║██║   ██║     ██╔═══╝ ██╔═══╝
+╚██████╔╝╚██████╔╝██║██╗╚██████╗██║     ██║
  ╚═════╝  ╚═════╝ ╚═╝╚═╝ ╚═════╝╚═╝     ╚═╝
 */
 
@@ -47,6 +47,7 @@ SOFTWARE.
 
 #include "./gui.h"
 #include "../decisionEngine/notificationCenter.h"
+#include "../hardware/peripheralManager.h"
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -67,6 +68,7 @@ GUI* GUI::activeGuiInstance = nullptr;
 namespace {
 
 std::atomic<uint64_t> gNotificationBoxGeneration { 0 };
+std::vector<MENUS::Menu*> gSuspendedMenus;
 
 int clampAndSnapSliderValue(int value, int minValue, int maxValue, int step)
 {
@@ -980,6 +982,18 @@ void GUI::eventLoop()
             },
             [](void*) { return 0; },
             nullptr);
+        ///////// Sensors Menu - Calibrate presence sensor /////////
+        sensorsMenu->addMenuEntry(
+            _("Calibrate Presence Sensor"),
+            "Calibrate Presence Sensor",
+            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
+            [](void* data) {
+                CubeLog::info("Calibrate Presence Sensor clicked");
+                PeripheralManager::startTuning();
+                return 0;
+            },
+            [](void*) { return 0; },
+            nullptr);
         sensorsMenu->setup();
         addToParent(sensorsMenu);
         sensorsMenu->setChildrenClickables_isClickable(false);
@@ -1568,7 +1582,7 @@ void GUI::eventLoop()
             [developerSettingsMenu](void* data) {
                 CubeLog::info("Factory Reset clicked");
                 // TODO: call some method that resets the system to factory settings
-                GUI::showMessageBox(_("Factory Reset"), _("Factory Reset in process.\nSystem will reboot when it is complete."), { 720, 720 }, { 0, 0 }, [developerSettingsMenu]() {});
+                GUI::showMessageBox(_("Factory Reset"), _("Factory Reset in process.\nSystem will reboot when it is complete."), { 720, 720 }, { 0, 0 }, [developerSettingsMenu]() { });
                 developerSettingsMenu->setVisible(false);
                 developerSettingsMenu->setIsClickable(true);
                 return 0;
@@ -1585,7 +1599,7 @@ void GUI::eventLoop()
             [developerSettingsMenu](void* data) {
                 CubeLog::info("Reboot clicked");
                 // TODO: trigger a reboot
-                GUI::showMessageBox(_("Reboot"), _("Rebooting the system."), { 720, 720 }, { 0, 0 }, [developerSettingsMenu]() {});
+                GUI::showMessageBox(_("Reboot"), _("Rebooting the system."), { 720, 720 }, { 0, 0 }, [developerSettingsMenu]() { });
                 developerSettingsMenu->setVisible(false);
                 developerSettingsMenu->setIsClickable(true);
                 return 0;
@@ -1602,7 +1616,7 @@ void GUI::eventLoop()
             [developerSettingsMenu](void* data) {
                 CubeLog::info("Shutdown clicked");
                 // TODO: trigger a shutdown
-                GUI::showMessageBox(_("Shutdown"), _("Shutting down the system."), { 720, 720 }, { 0, 0 }, [developerSettingsMenu]() {});
+                GUI::showMessageBox(_("Shutdown"), _("Shutting down the system."), { 720, 720 }, { 0, 0 }, [developerSettingsMenu]() { });
                 developerSettingsMenu->setVisible(false);
                 developerSettingsMenu->setIsClickable(true);
                 return 0;
@@ -2063,12 +2077,38 @@ void GUI::setVisibleMenuClickablesEnabled(bool enabled)
     }
 }
 
+void GUI::suspendVisibleMenus()
+{
+    if (GUI::activeGuiInstance == nullptr) {
+        return;
+    }
+    gSuspendedMenus.clear();
+    for (auto* menu : GUI::activeGuiInstance->menus) {
+        if (menu != nullptr && menu->getVisible()) {
+            gSuspendedMenus.push_back(menu);
+            menu->setChildrenClickables_isClickable(false);
+            menu->setVisible(false);
+        }
+    }
+}
+
+void GUI::restoreSuspendedMenus()
+{
+    for (auto* menu : gSuspendedMenus) {
+        if (menu != nullptr) {
+            menu->setVisible(true);
+            menu->setChildrenClickables_isClickable(true);
+        }
+    }
+    gSuspendedMenus.clear();
+}
+
 void GUI::showNotification(const std::string& title, const std::string& message, NotificationsManager::NotificationType type)
 {
     // For informational notifications, fall back to message box for now
     try {
-        glm::vec2 pos{ 144, 144 };
-        glm::vec2 size{ 432, 432 };
+        glm::vec2 pos { 144, 144 };
+        glm::vec2 size { 432, 432 };
         GUI::showMessageBox(title, message, size, pos);
     } catch (...) {
         CubeLog::error("Failed to display notification");
@@ -2078,7 +2118,7 @@ void GUI::showNotification(const std::string& title, const std::string& message,
 void GUI::showNotificationWithCallback(const std::string& title, const std::string& message, NotificationsManager::NotificationType type, std::function<void()> callback)
 {
     // Forward to the yes/no variant with only a YES callback.
-    GUI::showNotificationWithCallback(title, message, type, callback, []() {});
+    GUI::showNotificationWithCallback(title, message, type, callback, []() { });
 }
 
 void GUI::showNotificationWithCallback(const std::string& title, const std::string& message, NotificationsManager::NotificationType type, std::function<void()> callbackYes, std::function<void()> cancelNo)
@@ -2089,8 +2129,8 @@ void GUI::showNotificationWithCallback(const std::string& title, const std::stri
             return;
         }
         const uint64_t generation = gNotificationBoxGeneration.fetch_add(1) + 1;
-        glm::vec2 pos{ 144, 144 };
-        glm::vec2 size{ 432, 432 };
+        glm::vec2 pos { 144, 144 };
+        glm::vec2 size { 432, 432 };
         GUI::notificationBox->setPosition(pos);
         GUI::notificationBox->setSize(size);
         GUI::notificationBox->setButtonLabels("Approve", "Deny");
@@ -2124,8 +2164,10 @@ void GUI::showNotificationWithCallback(const std::string& title, const std::stri
             using namespace std::chrono;
             auto start = steady_clock::now();
             while (duration_cast<seconds>(steady_clock::now() - start).count() < 60) {
-                if (gNotificationBoxGeneration.load() != generation) return;
-                if (GUI::notificationBox && !GUI::notificationBox->getVisible()) return;
+                if (gNotificationBoxGeneration.load() != generation)
+                    return;
+                if (GUI::notificationBox && !GUI::notificationBox->getVisible())
+                    return;
                 std::this_thread::sleep_for(milliseconds(50));
             }
             if (gNotificationBoxGeneration.load() == generation && GUI::notificationBox && GUI::notificationBox->getVisible()) {
@@ -2146,8 +2188,8 @@ void GUI::showAlarmModal(const std::string& title, const std::string& message, s
             return;
         }
         const uint64_t generation = gNotificationBoxGeneration.fetch_add(1) + 1;
-        glm::vec2 pos{ 144, 144 };
-        glm::vec2 size{ 432, 432 };
+        glm::vec2 pos { 144, 144 };
+        glm::vec2 size { 432, 432 };
         GUI::notificationBox->setPosition(pos);
         GUI::notificationBox->setSize(size);
         GUI::notificationBox->setButtonLabels("Dismiss", "Snooze");
