@@ -1,27 +1,48 @@
-Given what’s already working now in the voice path, the next big items look like this:
+Given what is already working in the wake/transcribe/intent path, these are the next highest-value items.
 
-- Notifications, reminders, alarms, and Pomodoro. This is the biggest obvious MVP gap after wake/transcribe/intent. It’s explicitly in Phase 1 and ties directly to the event/notification requirements. See roadmap.md (line 14) and software-requirements.md (line 78).
+## Priority stack
 
-- Presence-aware idle mode plus personality behaviors. Right now TheCube can react; the next step is making it feel alive between interactions. That is core Phase 1 product identity work, not just polish. See roadmap.md (line 11) and roadmap.md (line 17).
+- Notifications, reminders, alarms, and Pomodoro.
+    - Biggest remaining Phase 1/MVP gap after voice flow.
+    - Directly tied to event and notification requirements.
+    - References: Planning-Docs/project/roadmap.md (lines 15-16), Planning-Docs/specs/software-requirements.md (lines 78-81).
 
-- Screen UI/navigation and real settings surfaces. The voice flow exists, but users still need discoverable settings, system info, privacy/legal pages, and better on-device control. That gap is called out directly in the Core notes. See roadmap.md (line 18) and core.md (line 66).
+- Presence-aware idle mode plus personality loop.
+    - Core product identity work so TheCube feels alive between interactions.
+    - References: Planning-Docs/project/roadmap.md (line 17), Planning-Docs/project/roadmap.md (line 56).
 
-- Audio robustness and local speech fallback/polish. The docs still flag audio robustness and local TTS/STT as unfinished, and the requirements explicitly prefer local processing where feasible. After the recent voice work, this is the right hardening pass. See core.md (line 67) and software-requirements.md (line 74).
+- Screen UI/navigation and real settings/system/privacy surfaces.
+    - Need discoverable controls for settings, system info, legal/privacy, and day-to-day device operations.
+    - References: Planning-Docs/components/core.md (line 68), Planning-Docs/components/core.md (line 12).
 
-- App platform completeness: install/update/lifecycle, permissions, and SDK/tooling. If you want to move from first-party demo flows to a real platform, this is the next large systems item. See core.md (line 66), software-requirements.md (line 83), and roadmap.md (line 72).
+- Audio robustness and remote voice pipeline hardening.
+    - Focus on streaming reliability, retries, latency, and response playback quality.
+    - Architecture note: speech recognition, intent detection, and TTS are remote-server responsibilities; do not plan local ASR/TTS fallback as a core direction.
+    - References: Planning-Docs/components/core.md (line 67), Planning-Docs/specs/software-requirements.md (lines 74-75), Planning-Docs/components/server.md (line 63).
 
-## Parallel backend track:
+- App platform completeness: install/update/lifecycle, permissions, SDK/tooling.
+    - Needed to move from first-party demos to a real platform.
+    - References: Planning-Docs/components/core.md (line 77), Planning-Docs/specs/software-requirements.md (line 83), Planning-Docs/apps/platform-overview.md (lines 52, 65).
 
-Server hardening: auth/device registration, stable API shape, telemetry/admin cleanup, and replacing prototype paths with production-ready implementations. See roadmap.md (line 75) and server.md (line 101).
-If you want the practical recommendation, I’d tackle them in this order:
+## Recommended execution order
 
-1. notifications/reminders/alarms/Pomodoro
-  a. fix notification modal bugs and polish flows
-  b. have the alarm system remove one shot alarms from the db after they fire. 
-  c. test reminders and alarms more thoroughly, including edge cases like DST changes, time zone changes, and device restarts.
-2. presence-aware idle/personality loop
-3. UI/settings/system pages
-4. audio hardening/local fallback
-5. app lifecycle/permissions
+1. Notifications, reminders, alarms, Pomodoro.
+    - Fix notification modal bugs and polish user flows.
+    - Remove one-shot alarms from DB after firing.
+    - Add thorough tests for reminders/alarms, including DST changes, timezone changes, and device restarts.
+2. Presence-aware idle/personality loop.
+3. UI/settings/system/privacy pages.
+4. Audio hardening for remote pipeline behavior (not local ASR/TTS fallback).
+5. App lifecycle/permissions/tooling.
 
-One meta-item is also overdue: the roadmap dates and MVP definition need a refresh, because the Phase 1 target in the doc is already stale. See roadmap.md (line 87).
+## Parallel backend track
+
+Server hardening in parallel: auth/device registration, stable API shape, telemetry/admin cleanup, and replacing prototype paths with production-ready implementations.
+
+- References: Planning-Docs/project/roadmap.md (lines 77-84), Planning-Docs/components/server.md (lines 101-121), Planning-Docs/specs/api-spec.md (line 13).
+
+## Meta item (overdue)
+
+Refresh roadmap dates and tighten MVP definition, since the current Phase 1 target dates are stale.
+
+- Reference: Planning-Docs/project/roadmap.md (line 87).
