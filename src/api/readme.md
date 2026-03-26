@@ -24,11 +24,15 @@ These values are loaded from `.env` through `Config::loadFromDotEnv()`:
 * `HTTP_ADDRESS`
 * `HTTP_PORT`
 * `IPC_SOCKET_PATH`
+* `AUTH_ALLOW_RETURN_CODE`
+* `AUTH_AUTO_APPROVE_REQUESTS`
 
 Important detail:
 
 * `.env` is loaded from the current working directory of the `CubeCore` process
 * if `IPC_SOCKET_PATH` is relative, `/getCubeSocketPath` resolves it relative to the server process working directory
+* `AUTH_ALLOW_RETURN_CODE` defaults to disabled; when enabled and `return_code` is requested, `/CubeAuth-initCode` includes the one-time code in the response for local dev/test
+* `AUTH_AUTO_APPROVE_REQUESTS` defaults to disabled; when enabled, auth requests are auto-approved for automated tests and local harnesses
 
 ## Discovery Endpoints
 
@@ -70,8 +74,26 @@ Current behavior:
 * public endpoints are available on the HTTP server and the IPC server
 * non-public endpoints are intended to require auth on the HTTP side
 * the IPC server is the intended local transport for trusted on-device clients and apps
+* `GET /CubeAuth-initCode` creates a short-lived pending approval request and triggers device approval UI
+* `GET /CubeAuth-authHeader` only returns a bearer token after the exact `client_id` and one-time code have been approved
+* unapproved, denied, expired, reused, or mismatched approval requests return structured `403` JSON errors such as `approval_pending` or `approval_expired`
+* requesting `return_code=true` does not expose the one-time code unless `AUTH_ALLOW_RETURN_CODE` is explicitly enabled
 
 This area is still evolving, so client code should not assume that every documented interface endpoint is safe to call unauthenticated over HTTP.
+
+## Auth Flow
+
+The current HTTP auth bootstrap is a two-step, approval-gated flow:
+
+1. `GET /CubeAuth-initCode?client_id=...`
+2. approve the request on the device
+3. `GET /CubeAuth-authHeader?client_id=...&initial_code=...`
+
+Notes:
+
+* approval requests are stored internally in a dedicated auth-request table and expire after about 60 seconds
+* the bearer token format returned by `/CubeAuth-authHeader` is unchanged
+* direct code return and auto-approval are intended only for local developer workflows and automated tests
 
 ## Practical Usage
 

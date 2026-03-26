@@ -25,11 +25,10 @@
   <div id="content">
     <section>
       <h2>Endpoints</h2>
-      <p class="endpoint-meta">Use the auth controls above to authenticate. Private endpoints require Authorization: Bearer &lt;token&gt;.</p>
+      <p class="endpoint-meta">Use the auth controls above to request device approval first. Private endpoints require <code>Authorization: Bearer &lt;token&gt;</code> after approval, and the one-time code is only returned directly when dev/test mode enables it.</p>
       <div id="endpoints"></div>
     </section>
   </div>
   <script src="/auth.js"></script>
 </body>
 </html>
-

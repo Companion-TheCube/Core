@@ -30,32 +30,33 @@ clientIdInput.placeholder = "client_id (e.g., webui)";
 clientIdInput.value = clientId;
 toolbar.appendChild(clientIdInput);
 
-const confirmCheckbox = document.createElement("input");
-confirmCheckbox.type = "checkbox";
-confirmCheckbox.id = "confirmCheckbox";
-const confirmLabel = document.createElement("label");
-confirmLabel.htmlFor = "confirmCheckbox";
-confirmLabel.textContent = "Use device confirmation";
-toolbar.appendChild(confirmCheckbox);
-toolbar.appendChild(confirmLabel);
+const returnCodeCheckbox = document.createElement("input");
+returnCodeCheckbox.type = "checkbox";
+returnCodeCheckbox.id = "returnCodeCheckbox";
+const returnCodeLabel = document.createElement("label");
+returnCodeLabel.htmlFor = "returnCodeCheckbox";
+returnCodeLabel.textContent = "Return code directly (dev/test only)";
+toolbar.appendChild(returnCodeCheckbox);
+toolbar.appendChild(returnCodeLabel);
 
 const initBtn = document.createElement("button");
-initBtn.textContent = "Get Initial Code";
+initBtn.textContent = "Request Approval";
 initBtn.addEventListener("click", () => {
     clientId = clientIdInput.value || "webui";
-    const url = `/CubeAuth-initCode?client_id=${encodeURIComponent(clientId)}${confirmCheckbox.checked ? "&return_code=1" : ""}`;
+    const url = `/CubeAuth-initCode?client_id=${encodeURIComponent(clientId)}${returnCodeCheckbox.checked ? "&return_code=1" : ""}`;
     fetch(url)
         .then(r => r.json())
         .then(j => {
             if (j.success) {
                 if (j.initial_code) {
                     pendingCode = j.initial_code;
-                    alert(`Confirm this code on the device: ${pendingCode}`);
+                    alert(`Approval requested. This code is being returned directly because dev/test mode is enabled: ${pendingCode}`);
                 } else {
-                    alert("Initial code generated on the device. Enter that code here to finish authentication.");
+                    pendingCode = null;
+                    alert("Approval requested on the device. Approve it there, then enter the one-time code shown on the device to finish authentication.");
                 }
             } else {
-                alert("Failed to get initial code: " + (j.message || "unknown error"));
+                alert("Failed to request approval: " + (j.message || "unknown error"));
             }
         })
         .catch(e => alert("Error: " + e));
@@ -63,7 +64,7 @@ initBtn.addEventListener("click", () => {
 toolbar.appendChild(initBtn);
 
 const authBtn = document.createElement("button");
-authBtn.textContent = "Authenticate";
+authBtn.textContent = "Exchange Approved Code";
 authBtn.addEventListener("click", () => {
     clientId = clientIdInput.value || "webui";
     let code = pendingCode;
@@ -80,7 +81,8 @@ authBtn.addEventListener("click", () => {
                 pendingCode = null;
                 alert("Authenticated. Private endpoints will include Authorization automatically.");
             } else {
-                alert("Auth failed: " + (j.message || "unknown error"));
+                const reason = j.error ? `${j.error}: ` : "";
+                alert("Auth failed: " + reason + (j.message || "unknown error"));
             }
         })
         .catch(e => alert("Error: " + e));
