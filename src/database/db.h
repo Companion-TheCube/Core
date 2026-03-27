@@ -119,6 +119,7 @@ namespace TableNames {
     const std::string APP_BLOBS = "app_blobs";
     const std::string ACCOUNTS = "accounts";
     const std::string NOTIFICATIONS = "notifications";
+    const std::string TOOL_RESPONSE_HISTORY = "tool_response_history";
 }
 // clang-format off
 const std::vector<DB_NS::Database_T> dbDefs = {
@@ -188,6 +189,17 @@ const std::vector<DB_NS::Database_T> dbDefs = {
                 { true, false, false, false, false, false, false, false, false, false, false, false, false, false, false }
             } 
         } 
+    },
+    {
+        "data/chat_history.db", "chat_history",
+        {
+            {
+                DB_NS::TableNames::TOOL_RESPONSE_HISTORY,
+                { "id", "created_at_ms", "history_key", "intent_name", "capability_name", "request_text", "display_response" },
+                { "INTEGER PRIMARY KEY", "INTEGER", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT" },
+                { true, false, false, false, false, false, false }
+            }
+        }
     }
 };
 // clang-format on

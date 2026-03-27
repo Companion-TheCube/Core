@@ -5,6 +5,7 @@ Copyright (c) 2025 A-McD Technology LLC
 
 #include "decisions.h"
 #include "../audio/audioOutput.h"
+#include "../database/cubeDB.h"
 #include "../gui/gui.h"
 #include "nlohmann/json-schema.hpp"
 
@@ -217,6 +218,26 @@ std::string responseCategoryForTurnResult(const DecisionTurnResult& result)
         return "utility_fact";
     }
     return "confirmation";
+}
+
+bool shouldPersistChatHistory(const DecisionTurnResult& result)
+{
+    return result.executionStatus == "success"
+        && !result.historyKey.empty()
+        && !result.transcript.empty();
+}
+
+nlohmann::json recentToolHistoryToJson(const std::vector<ChatHistoryEntry>& entries)
+{
+    auto history = nlohmann::json::array();
+    for (const auto& entry : entries) {
+        history.push_back({
+            { "requestText", entry.requestText },
+            { "displayResponse", entry.displayResponse },
+            { "createdAtMs", entry.createdAtMs }
+        });
+    }
+    return history;
 }
 
 std::string jsonToParameterString(const nlohmann::json& value)
@@ -682,6 +703,14 @@ DecisionEngineMain::DecisionEngineMain()
     remoteTranscriber->setRemoteServerAPIObject(remoteServerAPI);
     transcriber = remoteTranscriber;
 
+    try {
+        auto dbManager = CubeDB::getDBManager();
+        if (dbManager) {
+            chatHistoryStore = std::make_shared<ChatHistoryStore>(dbManager);
+        }
+    } catch (...) {
+    }
+
     lastDecisionResult.executionStatus = "idle";
     lastDecisionResult.timestampEpochMs = nowEpochMs();
 }
@@ -1098,6 +1127,12 @@ void DecisionEngineMain::presentTurnResult(const DecisionTurnResult& result)
         : (!result.error.empty() ? result.error : "Done.");
     std::string message = sourceMessage;
     const bool remoteVoiceUnavailable = hasRemoteVoiceServiceFailure();
+    nlohmann::json rewriteContext = nlohmann::json::object();
+    if (chatHistoryStore && shouldPersistChatHistory(result)) {
+        const auto recentHistory = chatHistoryStore->getRecentHistory(result.historyKey, 10);
+        rewriteContext["historyKey"] = result.historyKey;
+        rewriteContext["recentToolHistory"] = recentToolHistoryToJson(recentHistory);
+    }
     if (personalityManager
         && remoteServerAPI
         && !message.empty()
@@ -1109,7 +1144,8 @@ void DecisionEngineMain::presentTurnResult(const DecisionTurnResult& result)
             message,
             emotions,
             remoteServerAPI,
-            responseCategory);
+            responseCategory,
+            rewriteContext);
         using namespace std::chrono_literals;
         if (rewriteFuture.wait_for(2500ms) == std::future_status::ready) {
             try {
@@ -1138,6 +1174,20 @@ void DecisionEngineMain::presentTurnResult(const DecisionTurnResult& result)
         + ", displayMessage=" + message);
     presentationController().showResult(message);
     noteResultPresented(result, message);
+
+    if (chatHistoryStore && shouldPersistChatHistory(result)) {
+        const bool stored = chatHistoryStore->appendHistory(ChatHistoryEntry {
+            .createdAtMs = result.timestampEpochMs,
+            .historyKey = result.historyKey,
+            .intentName = result.intentName,
+            .capabilityName = result.capabilityName,
+            .requestText = result.transcript,
+            .displayResponse = message
+        });
+        if (!stored) {
+            CubeLog::warning("DecisionEngine: failed to persist chat history for " + result.historyKey);
+        }
+    }
 
     if (result.speakResult && !message.empty() && functionRegistry) {
         noteSpeechRequested();
@@ -1264,6 +1314,8 @@ DecisionTurnResult DecisionEngineMain::executeIntent(const std::shared_ptr<Inten
     result.intentName = intent->getIntentName();
     const auto parameters = intent->getParameters();
     const auto capabilityName = lookupParameter(parameters, "capability_name");
+    result.capabilityName = capabilityName;
+    result.historyKey = !capabilityName.empty() ? capabilityName : result.intentName;
     result.speakResult = parseBoolString(lookupParameter(parameters, "speak_result"));
 
     if (!capabilityName.empty()) {
@@ -1484,6 +1536,7 @@ std::future<std::string> DecisionEngine::modifyStringUsingAIForEmotionalState(
     const std::vector<Personality::EmotionSimple>& emotions,
     const std::shared_ptr<TheCubeServer::IRemoteConversationClient>& remoteConversationClient,
     const std::string& responseCategory,
+    const nlohmann::json& additionalContext,
     const std::function<void(std::string)>& progressCB)
 {
     if (!remoteConversationClient) {
@@ -1503,5 +1556,10 @@ std::future<std::string> DecisionEngine::modifyStringUsingAIForEmotionalState(
             { "intensityBucket", profile.intensityBucket }
         } }
     };
+    if (additionalContext.is_object()) {
+        for (const auto& [key, value] : additionalContext.items()) {
+            context[key] = value;
+        }
+    }
     return remoteConversationClient->getEmotionalRewriteAsync(input, context, progressCB);
 }

@@ -7,6 +7,7 @@ Copyright (c) 2025 A-McD Technology LLC
 
 #include "../api/autoRegister.h"
 #include "../audio/audioManager.h"
+#include "../database/chatHistoryStore.h"
 #include "../threadsafeQueue.h"
 #include "functionRegistry.h"
 #include "intentRegistry.h"
@@ -31,6 +32,8 @@ namespace DecisionEngine {
 struct DecisionTurnResult {
     std::string transcript;
     std::string intentName;
+    std::string capabilityName;
+    std::string historyKey;
     std::string executionStatus;
     std::string responseText;
     nlohmann::json capabilityResult = nlohmann::json::object();
@@ -42,6 +45,8 @@ struct DecisionTurnResult {
     {
         return nlohmann::json({ { "transcript", transcript },
             { "intentName", intentName },
+            { "capabilityName", capabilityName },
+            { "historyKey", historyKey },
             { "executionStatus", executionStatus },
             { "responseText", responseText },
             { "capabilityResult", capabilityResult },
@@ -125,6 +130,7 @@ private:
     std::shared_ptr<TriggerManager> triggerManager;
     std::shared_ptr<Personality::PersonalityManager> personalityManager;
     std::shared_ptr<TheCubeServer::TheCubeServerAPI> remoteServerAPI;
+    std::shared_ptr<ChatHistoryStore> chatHistoryStore;
 
     std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioQueue;
     std::shared_ptr<ThreadSafeQueue<std::string>> transcription;
@@ -152,6 +158,7 @@ std::future<std::string> modifyStringUsingAIForEmotionalState(
     const std::vector<Personality::EmotionSimple>& emotions,
     const std::shared_ptr<TheCubeServer::IRemoteConversationClient>& remoteConversationClient,
     const std::string& responseCategory = "",
+    const nlohmann::json& additionalContext = nlohmann::json::object(),
     const std::function<void(std::string)>& progressCB = [](std::string) {});
 
 } // namespace DecisionEngine

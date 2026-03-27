@@ -2,6 +2,7 @@
 
 #include "api/autoRegister.h"
 #include "audio/audioManager.h"
+#include "database/cubeDB.h"
 #include "decisionEngine/functionRegistry.h"
 #include "decisionEngine/intentRegistry.h"
 #include "decisionEngine/notificationCenter.h"
@@ -17,6 +18,7 @@
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
+#include <future>
 #include <functional>
 #include <limits>
 #include <memory>
@@ -169,6 +171,90 @@ void pushSpeechChunk(const std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>
     audioQueue->push(std::vector<int16_t>(256, 2000));
 }
 
+class FakeRewriteServerAPI : public TheCubeServer::TheCubeServerAPI {
+public:
+    FakeRewriteServerAPI()
+        : TheCubeServer::TheCubeServerAPI(std::make_shared<ThreadSafeQueue<std::vector<int16_t>>>())
+    {
+    }
+
+    std::future<std::string> getEmotionalRewriteAsync(
+        const std::string& responseText,
+        const nlohmann::json& context = nlohmann::json::object(),
+        const std::function<void(std::string)>& progressCB = [](std::string) {}) override
+    {
+        lastResponseText = responseText;
+        lastContext = context;
+        if (progressCB) {
+            progressCB(rewriteText);
+        }
+        if (throwOnRewrite) {
+            return std::async(std::launch::deferred, []() -> std::string {
+                throw std::runtime_error("rewrite failed");
+            });
+        }
+        return std::async(std::launch::deferred, [text = rewriteText]() { return text; });
+    }
+
+    std::string rewriteText;
+    bool throwOnRewrite = false;
+    std::string lastResponseText;
+    nlohmann::json lastContext = nlohmann::json::object();
+};
+
+class DecisionEngineChatHistoryTest : public ::testing::Test {
+protected:
+    void SetUp() override
+    {
+        resetVoiceConfig();
+        Config::set("DECISION_ENGINE_RESULT_HIDE_MS", "5");
+
+        originalCwd_ = std::filesystem::current_path();
+        tempRoot_ = std::filesystem::temp_directory_path() / ("decision_engine_chat_history_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+        std::filesystem::create_directories(tempRoot_);
+        std::filesystem::current_path(tempRoot_);
+
+        dbManager_ = std::make_shared<CubeDatabaseManager>();
+        blobsManager_ = std::make_shared<BlobsManager>(dbManager_, "data/blobs.db");
+        cubeDb_ = std::make_shared<CubeDB>(dbManager_, blobsManager_);
+    }
+
+    void TearDown() override
+    {
+        CubeDB::setCubeDBManager(nullptr);
+        CubeDB::setBlobsManager(nullptr);
+        cubeDb_.reset();
+        blobsManager_.reset();
+        dbManager_.reset();
+        std::filesystem::current_path(originalCwd_);
+        std::filesystem::remove_all(tempRoot_);
+        resetVoiceConfig();
+    }
+
+    ChatHistoryEntry makeHistoryEntry(
+        std::string historyKey,
+        std::string requestText,
+        std::string displayResponse,
+        int64_t createdAtMs) const
+    {
+        const auto intentKey = historyKey;
+        return ChatHistoryEntry {
+            .createdAtMs = createdAtMs,
+            .historyKey = std::move(historyKey),
+            .intentName = intentKey,
+            .capabilityName = intentKey,
+            .requestText = std::move(requestText),
+            .displayResponse = std::move(displayResponse)
+        };
+    }
+
+    std::filesystem::path originalCwd_;
+    std::filesystem::path tempRoot_;
+    std::shared_ptr<CubeDatabaseManager> dbManager_;
+    std::shared_ptr<BlobsManager> blobsManager_;
+    std::shared_ptr<CubeDB> cubeDb_;
+};
+
 } // namespace
 
 TEST(DecisionEngineMain, WakeWordStartupFailureSurfacesVoiceServiceUnavailable)
@@ -252,4 +338,122 @@ TEST(DecisionEngineMain, VoiceTurnRecoversWhenServerBecomesAvailableAgain)
     EXPECT_EQ(engine.lastDecisionResult.intentName, "apps.list_installed");
     EXPECT_TRUE(engine.lastDecisionResult.error.empty());
     EXPECT_GT(engine.currentTurnTiming.listeningUiShownEpochMs, 0);
+}
+
+TEST_F(DecisionEngineChatHistoryTest, CapabilityBackedTurnsUseCapabilityNameAsHistoryKey)
+{
+    DecisionEngine::DecisionEngineMain engine;
+
+    auto capabilityIntent = engine.intentRegistry->getIntent("core.get_time");
+    ASSERT_NE(capabilityIntent, nullptr);
+    const auto capabilityResult = engine.executeIntent(capabilityIntent, "what time is it?");
+    EXPECT_EQ(capabilityResult.capabilityName, "core.get_time");
+    EXPECT_EQ(capabilityResult.historyKey, "core.get_time");
+
+    auto plainIntent = std::make_shared<DecisionEngine::Intent>(
+        "test.intent",
+        [](const DecisionEngine::Parameters&, DecisionEngine::Intent) {},
+        DecisionEngine::Parameters {},
+        "Test intent",
+        "Done.");
+    const auto plainResult = engine.executeIntent(plainIntent, "run test");
+    EXPECT_TRUE(plainResult.capabilityName.empty());
+    EXPECT_EQ(plainResult.historyKey, "test.intent");
+}
+
+TEST_F(DecisionEngineChatHistoryTest, PresentTurnResultPassesPriorHistoryToRewriteAndStoresFinalDisplayedMessage)
+{
+    DecisionEngine::DecisionEngineMain engine;
+    ASSERT_TRUE(engine.chatHistoryStore);
+
+    auto fakeRemote = std::make_shared<FakeRewriteServerAPI>();
+    fakeRemote->rewriteText = "The clock just hit 5:00 PM.";
+    engine.remoteServerAPI = fakeRemote;
+
+    ASSERT_TRUE(engine.chatHistoryStore->appendHistory(makeHistoryEntry(
+        "core.get_time",
+        "what time is it?",
+        "The clock says 4:45 PM.",
+        1000)));
+    ASSERT_TRUE(engine.chatHistoryStore->appendHistory(makeHistoryEntry(
+        "core.get_time",
+        "what time is it now?",
+        "It's 4:50 PM right now.",
+        2000)));
+
+    DecisionEngine::DecisionTurnResult result;
+    result.transcript = "what time is it right now?";
+    result.intentName = "core.get_time";
+    result.capabilityName = "core.get_time";
+    result.historyKey = "core.get_time";
+    result.executionStatus = "success";
+    result.responseText = "It's 5:00 PM right now.";
+    result.timestampEpochMs = 3000;
+
+    engine.presentTurnResult(result);
+
+    ASSERT_TRUE(waitUntil(
+        [&engine]() { return engine.turnState == DecisionEngine::DecisionEngineMain::TurnState::IDLE; },
+        std::chrono::milliseconds(250)));
+    ASSERT_TRUE(fakeRemote->lastContext.contains("recentToolHistory"));
+    ASSERT_TRUE(fakeRemote->lastContext["recentToolHistory"].is_array());
+    ASSERT_EQ(fakeRemote->lastContext["recentToolHistory"].size(), 2u);
+    EXPECT_EQ(fakeRemote->lastContext["recentToolHistory"][0]["requestText"], "what time is it?");
+    EXPECT_EQ(fakeRemote->lastContext["recentToolHistory"][1]["requestText"], "what time is it now?");
+
+    const auto storedHistory = engine.chatHistoryStore->getRecentHistory("core.get_time", 10);
+    ASSERT_EQ(storedHistory.size(), 3u);
+    EXPECT_EQ(storedHistory.back().requestText, "what time is it right now?");
+    EXPECT_EQ(storedHistory.back().displayResponse, "The clock just hit 5:00 PM.");
+}
+
+TEST_F(DecisionEngineChatHistoryTest, PresentTurnResultStoresOriginalMessageWhenRewriteFails)
+{
+    DecisionEngine::DecisionEngineMain engine;
+    ASSERT_TRUE(engine.chatHistoryStore);
+
+    auto fakeRemote = std::make_shared<FakeRewriteServerAPI>();
+    fakeRemote->throwOnRewrite = true;
+    engine.remoteServerAPI = fakeRemote;
+
+    DecisionEngine::DecisionTurnResult result;
+    result.transcript = "what time is it right now?";
+    result.intentName = "core.get_time";
+    result.capabilityName = "core.get_time";
+    result.historyKey = "core.get_time";
+    result.executionStatus = "success";
+    result.responseText = "It's 5:00 PM right now.";
+    result.timestampEpochMs = 3000;
+
+    engine.presentTurnResult(result);
+
+    ASSERT_TRUE(waitUntil(
+        [&engine]() { return engine.turnState == DecisionEngine::DecisionEngineMain::TurnState::IDLE; },
+        std::chrono::milliseconds(250)));
+    const auto storedHistory = engine.chatHistoryStore->getRecentHistory("core.get_time", 10);
+    ASSERT_EQ(storedHistory.size(), 1u);
+    EXPECT_EQ(storedHistory.back().displayResponse, "It's 5:00 PM right now.");
+}
+
+TEST_F(DecisionEngineChatHistoryTest, PresentTurnResultOnlyPersistsSuccessfulDisplayedTurns)
+{
+    DecisionEngine::DecisionEngineMain engine;
+    ASSERT_TRUE(engine.chatHistoryStore);
+
+    DecisionEngine::DecisionTurnResult failureResult;
+    failureResult.transcript = "what time is it?";
+    failureResult.intentName = "core.get_time";
+    failureResult.capabilityName = "core.get_time";
+    failureResult.historyKey = "core.get_time";
+    failureResult.executionStatus = "voice_service_unavailable";
+    failureResult.responseText = "Voice service is unavailable right now. Please try again shortly.";
+    failureResult.error = "voice_service_unavailable";
+    failureResult.timestampEpochMs = 4000;
+
+    engine.presentTurnResult(failureResult);
+
+    ASSERT_TRUE(waitUntil(
+        [&engine]() { return engine.turnState == DecisionEngine::DecisionEngineMain::TurnState::IDLE; },
+        std::chrono::milliseconds(250)));
+    EXPECT_TRUE(engine.chatHistoryStore->getRecentHistory("core.get_time", 10).empty());
 }

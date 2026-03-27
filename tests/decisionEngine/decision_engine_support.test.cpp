@@ -187,17 +187,31 @@ TEST(DecisionEngine, EmotionalRewriteUsesRemoteConversationClientAndFallsBackWhe
         "Alarm set for 9:00 PM.",
         emotions,
         fakeClient,
-        "intent_result");
+        "intent_result",
+        nlohmann::json({
+            { "historyKey", "core.create_alarm" },
+            { "recentToolHistory", nlohmann::json::array({
+                {
+                    { "requestText", "set an alarm for 8 PM" },
+                    { "displayResponse", "Alarm set for 8 PM." },
+                    { "createdAtMs", 1000 }
+                }
+            }) }
+        }));
 
     ASSERT_EQ(future.wait_for(std::chrono::seconds(2)), std::future_status::ready);
     EXPECT_EQ(future.get(), "Alarm set for 9:00 PM. (rewritten)");
     EXPECT_EQ(fakeClient->lastEmotionText, "Alarm set for 9:00 PM.");
     EXPECT_EQ(fakeClient->lastEmotionContext["responseCategory"], "intent_result");
+    EXPECT_EQ(fakeClient->lastEmotionContext["historyKey"], "core.create_alarm");
     ASSERT_TRUE(fakeClient->lastEmotionContext["emotions"].is_object());
     EXPECT_EQ(fakeClient->lastEmotionContext["emotions"]["curiosity"], 80);
     ASSERT_TRUE(fakeClient->lastEmotionContext["styleProfile"].is_object());
     EXPECT_EQ(fakeClient->lastEmotionContext["styleProfile"]["dominantEmotion"], "Curiosity");
     EXPECT_EQ(fakeClient->lastEmotionContext["styleProfile"]["secondaryEmotion"], "Empathy");
+    ASSERT_TRUE(fakeClient->lastEmotionContext["recentToolHistory"].is_array());
+    ASSERT_EQ(fakeClient->lastEmotionContext["recentToolHistory"].size(), 1u);
+    EXPECT_EQ(fakeClient->lastEmotionContext["recentToolHistory"][0]["displayResponse"], "Alarm set for 8 PM.");
 
     auto fallback = modifyStringUsingAIForEmotionalState(
         "Keep this text.",
