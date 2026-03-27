@@ -41,6 +41,7 @@ SOFTWARE.
 #include <unistd.h>
 #include "api/api.h"
 #include "api/authentication.h"
+#include "apps/appPostgresAccess.h"
 #include "apps/appsManager.h"
 #include "argparse.hpp"
 #include "audio/audioManager.h"

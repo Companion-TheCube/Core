@@ -277,17 +277,6 @@ std::vector<std::string> notificationColumns()
     };
 }
 
-std::string escapeSql(const std::string& input)
-{
-    std::string out;
-    out.reserve(input.size());
-    for (char ch : input) {
-        out.push_back(ch);
-        if (ch == '\'') out.push_back('\'');
-    }
-    return out;
-}
-
 struct ScheduledSpec {
     int64_t scheduledForEpochMs = 0;
     NotificationCenter::RepeatRule repeatRule = NotificationCenter::RepeatRule::NONE;
@@ -301,6 +290,28 @@ struct ParsedClockTime {
     int minute = 0;
     bool matched = false;
 };
+
+int64_t recentSortKey(const NotificationCenter::Item& item)
+{
+    if (item.deliveredAtEpochMs > 0) {
+        return item.deliveredAtEpochMs;
+    }
+    if (item.createdAtEpochMs > 0) {
+        return item.createdAtEpochMs;
+    }
+    return item.timeLegacyEpochMs;
+}
+
+int64_t activeAlarmSortKey(const NotificationCenter::Item& item)
+{
+    if (item.deliveredAtEpochMs > 0) {
+        return item.deliveredAtEpochMs;
+    }
+    if (item.scheduledForEpochMs > 0) {
+        return item.scheduledForEpochMs;
+    }
+    return item.createdAtEpochMs;
+}
 
 int64_t parseRelativeDelayMs(const std::string& text)
 {
@@ -819,14 +830,19 @@ std::vector<NotificationCenter::Item> NotificationCenter::listRecent(size_t limi
     ensureSchema();
     try {
         auto rows = runNotificationDbTask([&](Database* db) {
-            const auto where = "1=1 ORDER BY COALESCE(NULLIF(delivered_at,''), created_at, time) DESC LIMIT " + std::to_string(limit);
-            return db ? db->selectData(DB_NS::TableNames::NOTIFICATIONS, notificationColumns(), where) : std::vector<std::vector<std::string>> {};
+            return db ? db->selectData(DB_NS::TableNames::NOTIFICATIONS, notificationColumns()) : std::vector<std::vector<std::string>> {};
         });
         std::vector<Item> items;
         for (const auto& row : rows) {
             if (auto item = rowToItem(row)) {
                 items.push_back(*item);
             }
+        }
+        std::sort(items.begin(), items.end(), [](const Item& lhs, const Item& rhs) {
+            return recentSortKey(lhs) > recentSortKey(rhs);
+        });
+        if (items.size() > limit) {
+            items.resize(limit);
         }
         return items;
     } catch (...) {
@@ -839,12 +855,23 @@ std::vector<NotificationCenter::Item> NotificationCenter::listUpcomingReminders(
     ensureSchema();
     try {
         auto rows = runNotificationDbTask([&](Database* db) {
-            const auto where = "kind = 'reminder' AND active = 1 AND scheduled_for <> '' ORDER BY scheduled_for ASC LIMIT " + std::to_string(limit);
-            return db ? db->selectData(DB_NS::TableNames::NOTIFICATIONS, notificationColumns(), where) : std::vector<std::vector<std::string>> {};
+            return db ? db->selectData(
+                            DB_NS::TableNames::NOTIFICATIONS,
+                            notificationColumns(),
+                            { DB_NS::Predicate { "kind", "reminder" }, DB_NS::Predicate { "active", "1" } })
+                      : std::vector<std::vector<std::string>> {};
         });
         std::vector<Item> items;
         for (const auto& row : rows) {
-            if (auto item = rowToItem(row)) items.push_back(*item);
+            if (auto item = rowToItem(row); item.has_value() && item->scheduledForEpochMs > 0) {
+                items.push_back(*item);
+            }
+        }
+        std::sort(items.begin(), items.end(), [](const Item& lhs, const Item& rhs) {
+            return lhs.scheduledForEpochMs < rhs.scheduledForEpochMs;
+        });
+        if (items.size() > limit) {
+            items.resize(limit);
         }
         return items;
     } catch (...) {
@@ -857,12 +884,23 @@ std::vector<NotificationCenter::Item> NotificationCenter::listActiveAlarms(size_
     ensureSchema();
     try {
         auto rows = runNotificationDbTask([&](Database* db) {
-            const auto where = "kind = 'alarm' AND active = 1 ORDER BY COALESCE(NULLIF(delivered_at,''), scheduled_for, created_at) ASC LIMIT " + std::to_string(limit);
-            return db ? db->selectData(DB_NS::TableNames::NOTIFICATIONS, notificationColumns(), where) : std::vector<std::vector<std::string>> {};
+            return db ? db->selectData(
+                            DB_NS::TableNames::NOTIFICATIONS,
+                            notificationColumns(),
+                            { DB_NS::Predicate { "kind", "alarm" }, DB_NS::Predicate { "active", "1" } })
+                      : std::vector<std::vector<std::string>> {};
         });
         std::vector<Item> items;
         for (const auto& row : rows) {
-            if (auto item = rowToItem(row)) items.push_back(*item);
+            if (auto item = rowToItem(row)) {
+                items.push_back(*item);
+            }
+        }
+        std::sort(items.begin(), items.end(), [](const Item& lhs, const Item& rhs) {
+            return activeAlarmSortKey(lhs) < activeAlarmSortKey(rhs);
+        });
+        if (items.size() > limit) {
+            items.resize(limit);
         }
         return items;
     } catch (...) {
@@ -875,7 +913,7 @@ std::optional<NotificationCenter::Item> NotificationCenter::getItem(long id) con
     ensureSchema();
     try {
         auto rows = runNotificationDbTask([&](Database* db) {
-            return db ? db->selectData(DB_NS::TableNames::NOTIFICATIONS, notificationColumns(), "id = " + std::to_string(id)) : std::vector<std::vector<std::string>> {};
+            return db ? db->selectData(DB_NS::TableNames::NOTIFICATIONS, notificationColumns(), { DB_NS::Predicate { "id", std::to_string(id) } }) : std::vector<std::vector<std::string>> {};
         });
         if (rows.empty()) {
             return std::nullopt;
@@ -926,7 +964,7 @@ bool NotificationCenter::updateItem(const Item& item)
                     repeatRuleToString(item.repeatRule, item.repeatIntervalSeconds),
                     item.metadata.dump()
                 },
-                "id = " + std::to_string(item.id));
+                { DB_NS::Predicate { "id", std::to_string(item.id) } });
         });
     } catch (...) {
         return false;

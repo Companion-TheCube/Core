@@ -253,6 +253,7 @@ int main(int argc, char* argv[])
         // end testing //////////////////////////////////////////////
         auto api = std::make_shared<API>();
         auto auth = std::make_shared<CubeAuth>();
+        auto appPostgresAccess = std::make_shared<AppPostgresAccess>();
         auto peripherals = std::make_shared<PeripheralManager>();
         PeripheralManager::onMmWaveTuningRequested = [peripherals]() {
             peripherals->startMmWaveTuning();
@@ -265,6 +266,7 @@ int main(int argc, char* argv[])
         logger->registerInterface();
         audioManager->registerInterface();
         auth->registerInterface();
+        appPostgresAccess->registerInterface();
         decisions->registerInterface();
         // btManager->registerInterface();
         api_builder.start();

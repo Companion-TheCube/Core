@@ -27,7 +27,9 @@
         "127.0.0.1:5432:5432"
       ],
       "environment": {
-        "POSTGRES_HOST_AUTH_METHOD": "trust"
+        "POSTGRES_USER": "postgres",
+        "POSTGRES_PASSWORD": "thecube-postgres-admin",
+        "POSTGRES_DB": "postgres"
       },
       "volumes": [
         {

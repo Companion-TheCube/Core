@@ -65,6 +65,7 @@ SOFTWARE.
 #define PRIVATE_ENDPOINT (int)2
 #define GET_ENDPOINT (int)4
 #define POST_ENDPOINT (int)8
+#define IPC_ONLY_ENDPOINT (int)16
 
 struct EndpointError {
     enum class ERROR_TYPES {
@@ -104,6 +105,7 @@ public:
     std::string getPath();
     bool isPublic() const;
     bool isGetType() const;
+    bool isIpcOnly() const;
     void setAction(EndpointAction_t action);
     EndpointError doAction(const httplib::Request& req, httplib::Response& res);
     EndpointAction_t getAction();

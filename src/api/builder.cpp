@@ -122,6 +122,7 @@ void API_Builder::start()
                 endpoint_json["description"] = std::get<4>(endpointData.at(i));
                 endpoint_json["public"] = (std::get<0>(endpointData.at(i)) & PUBLIC_ENDPOINT) == PUBLIC_ENDPOINT ? "true" : "false";
                 endpoint_json["endpoint_type"] = (std::get<0>(endpointData.at(i)) & GET_ENDPOINT) == GET_ENDPOINT ? "GET" : "POST";
+                endpoint_json["ipc_only"] = (std::get<0>(endpointData.at(i)) & IPC_ONLY_ENDPOINT) == IPC_ONLY_ENDPOINT ? "true" : "false";
                 j[name].push_back(endpoint_json);
                 CubeLog::debug("Added endpoint: " + std::get<2>(endpointData.at(i)) + " with params: " + nlohmann::json(std::get<3>(endpointData.at(i))).dump());
             }

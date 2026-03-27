@@ -47,6 +47,31 @@ SOFTWARE.
 #include <vector>
 
 namespace DB_NS {
+enum class CompareOp {
+    Eq,
+    NotEq,
+    Lt,
+    Lte,
+    Gt,
+    Gte
+};
+
+struct Predicate {
+    Predicate() = default;
+    Predicate(std::string columnName, std::string columnValue, CompareOp op = CompareOp::Eq)
+        : columnName(std::move(columnName))
+        , columnValue(std::move(columnValue))
+        , op(op)
+    {
+    }
+
+    std::string columnName;
+    std::string columnValue;
+    CompareOp op = CompareOp::Eq;
+};
+
+using PredicateList = std::vector<Predicate>;
+
 struct Table_Entry {
     Table_Entry(std::string columnName, std::string columnValue, std::string columnType)
         : columnName(columnName)
@@ -182,17 +207,17 @@ public:
     bool createTable(const std::string& tableName, std::vector<std::string> columnNames, std::vector<std::string> columnTypes, std::vector<bool> uniqueColumns);
     long insertData(const std::string& tableName, std::vector<std::string> columnNames, std::vector<std::string> columnValues);
     long insertData(const std::string& tableName, std::vector<DB_NS::Table_Entry> tableEntries);
-    bool updateData(const std::string& tableName, std::vector<std::string> columnNames, std::vector<std::string> columnValues, const std::string& whereClause);
+    bool updateData(const std::string& tableName, std::vector<std::string> columnNames, std::vector<std::string> columnValues, const DB_NS::PredicateList& filters);
     void setUniqueColumns(std::vector<std::string> columnNames, std::vector<bool> uniqueColumns);
-    bool deleteData(const std::string& tableName, const std::string& whereClause);
-    std::vector<std::vector<std::string>> selectData(const std::string& tableName, std::vector<std::string> columnNames, const std::string& whereClause);
+    bool deleteData(const std::string& tableName, const DB_NS::PredicateList& filters);
+    std::vector<std::vector<std::string>> selectData(const std::string& tableName, std::vector<std::string> columnNames, const DB_NS::PredicateList& filters);
     std::vector<std::vector<std::string>> selectData(const std::string& tableName, std::vector<std::string> columnNames);
     std::vector<std::vector<std::string>> selectData(const std::string& tableName);
-    char* selectBlob(const std::string& tableName, const std::string& columnName, const std::string& whereClause, int& size);
-    std::string selectBlobString(const std::string& tableName, const std::string& columnName, const std::string& whereClause);
+    char* selectBlob(const std::string& tableName, const std::string& columnName, const DB_NS::PredicateList& filters, int& size);
+    std::string selectBlobString(const std::string& tableName, const std::string& columnName, const DB_NS::PredicateList& filters);
     bool tableExists(const std::string& tableName);
     bool columnExists(const std::string& tableName, const std::string& columnName);
-    bool rowExists(const std::string& tableName, const std::string& whereClause);
+    bool rowExists(const std::string& tableName, const DB_NS::PredicateList& filters);
     bool execute(const std::string& query);
     bool open();
     bool close();
@@ -244,8 +269,5 @@ public:
     bool updateBlob(const std::string& tableName, char* blob, int size, const std::string& ownerID, int id);
     bool isBlobsManagerReady();
 };
-
-// TODO: make sure all the data is sanitized before being inserted into the database.
-bool sanitizeString(std::string& str);
 
 #endif // DB_H

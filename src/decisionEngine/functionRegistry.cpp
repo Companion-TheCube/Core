@@ -279,12 +279,12 @@ namespace {
             if (!db->columnExists("apps", "socket_location")) {
                 CubeLog::error("Apps database does not have socket_location column");
             } else {
-                auto rows = db->selectData("apps", { "socket_location" }, "app_name = '" + spec.appName + "'");
+                auto rows = db->selectData("apps", { "socket_location" }, { DB_NS::Predicate { "app_name", spec.appName } });
                 if (rows.size() > 0 && rows[0].size() > 0 && !rows[0][0].empty()) {
                     socketPath = rows[0][0];
                 }
                 if (socketPath.empty()) {
-                    rows = db->selectData("apps", { "socket_location" }, "app_id = '" + spec.appName + "'");
+                    rows = db->selectData("apps", { "socket_location" }, { DB_NS::Predicate { "app_id", spec.appName } });
                     if (rows.size() > 0 && rows[0].size() > 0 && !rows[0][0].empty()) {
                         socketPath = rows[0][0];
                     }

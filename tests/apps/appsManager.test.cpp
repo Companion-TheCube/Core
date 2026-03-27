@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include "../src/apps/appPostgresAccess.h"
 #include "../src/apps/appsManager.h"
 #include "../src/database/cubeDB.h"
 
@@ -61,6 +62,34 @@ public:
     }
 };
 
+class FakePostgresAdminClient : public AppPostgresAdminClient {
+public:
+    struct Call {
+        std::string roleName;
+        std::string password;
+        std::vector<std::string> desiredDatabases;
+        std::vector<std::string> removedDatabases;
+    };
+
+    bool shouldSucceed = true;
+    std::vector<Call> calls;
+
+    bool ensureProvisioned(
+        const std::string& roleName,
+        const std::string& password,
+        const std::vector<std::string>& desiredDatabases,
+        const std::vector<std::string>& removedDatabases,
+        std::string& error) override
+    {
+        calls.push_back({ roleName, password, desiredDatabases, removedDatabases });
+        if (!shouldSucceed) {
+            error = "fake postgres provisioning failure";
+            return false;
+        }
+        return true;
+    }
+};
+
 class AppsManagerTest : public ::testing::Test {
 protected:
     fs::path originalCwd;
@@ -102,6 +131,7 @@ protected:
 
     void TearDown() override
     {
+        AppPostgresAccess::clearAdminClientForTests();
         CubeDB::setCubeDBManager(nullptr);
         CubeDB::setBlobsManager(nullptr);
         cubeDb.reset();
@@ -125,7 +155,8 @@ protected:
         bool autostart,
         bool validManifest = true,
         bool createVenv = true,
-        const std::string& packageName = "")
+        const std::string& packageName = "",
+        const std::vector<std::string>& postgresDatabases = {})
     {
         const fs::path appRoot = installRootsDir / appId;
         fs::create_directories(appRoot);
@@ -178,6 +209,12 @@ protected:
               } }
         };
 
+        if (!postgresDatabases.empty()) {
+            manifest["permissions"]["postgresql"] = nlohmann::json {
+                { "databases", postgresDatabases }
+            };
+        }
+
         if (!validManifest) {
             manifest.erase("permissions");
         }
@@ -217,7 +254,9 @@ protected:
                         { "container_name", "thecube-postgresql" },
                         { "published_ports", nlohmann::json::array({ "127.0.0.1:5432:5432" }) },
                         { "environment", {
-                              { "POSTGRES_HOST_AUTH_METHOD", "trust" }
+                              { "POSTGRES_USER", "postgres" },
+                              { "POSTGRES_PASSWORD", "thecube-postgres-admin" },
+                              { "POSTGRES_DB", "postgres" }
                           } },
                         { "volumes", nlohmann::json::array({
                               nlohmann::json {
@@ -284,7 +323,7 @@ protected:
 
     std::vector<std::vector<std::string>> selectAppRow(const std::string& appId, const std::vector<std::string>& columns)
     {
-        return dbManager->getDatabase("apps")->selectData("apps", columns, "app_id = '" + appId + "'");
+        return dbManager->getDatabase("apps")->selectData("apps", columns, { DB_NS::Predicate { "app_id", appId } });
     }
 };
 } // namespace
@@ -518,13 +557,118 @@ TEST_F(AppsManagerTest, InitializeCompilesDockerSystemAppPolicy)
     EXPECT_EQ(policy["app"]["argv"][0], (tempRoot / "bin/docker").string());
     EXPECT_EQ(policy["app"]["argv"][1], "run");
     bool sawImage = false;
+    bool sawAdminPassword = false;
+    bool sawTrustAuth = false;
     for (const auto& arg : policy["app"]["argv"]) {
-        if (arg.is_string() && arg.get<std::string>() == "postgres:16") {
+        if (!arg.is_string()) {
+            continue;
+        }
+        const auto value = arg.get<std::string>();
+        if (value == "postgres:16") {
             sawImage = true;
-            break;
+        }
+        if (value == "POSTGRES_PASSWORD=thecube-postgres-admin") {
+            sawAdminPassword = true;
+        }
+        if (value == "POSTGRES_HOST_AUTH_METHOD=trust") {
+            sawTrustAuth = true;
         }
     }
     EXPECT_TRUE(sawImage);
+    EXPECT_TRUE(sawAdminPassword);
+    EXPECT_FALSE(sawTrustAuth);
+}
+
+TEST_F(AppsManagerTest, InitializeProvisionedPostgresAccessAndInjectsBootstrapToken)
+{
+    createDockerApp("com.thecube.postgresql", true);
+    createPythonApp("com.example.dataapp", false, false, true, true, "", { "main", "analytics" });
+    initializeDatabaseContext();
+
+    auto fakeAdmin = std::make_shared<FakePostgresAdminClient>();
+    AppPostgresAccess::setAdminClientForTests(fakeAdmin);
+
+    auto runtime = std::make_shared<FakeRuntimeController>();
+    AppsManager manager(runtime);
+
+    EXPECT_TRUE(manager.initialize());
+    EXPECT_TRUE(manager.startApp("com.example.dataapp"));
+
+    ASSERT_GE(fakeAdmin->calls.size(), 1u);
+    const auto& lastCall = fakeAdmin->calls.back();
+    EXPECT_FALSE(lastCall.roleName.empty());
+    EXPECT_EQ(lastCall.desiredDatabases.size(), 2u);
+    EXPECT_TRUE(lastCall.removedDatabases.empty());
+
+    const auto accessRows = dbManager->getDatabase("apps")->selectData(
+        "app_postgresql_access",
+        { "app_id", "pg_role_name", "database_mapping_json", "bootstrap_token_hash" },
+        { DB_NS::Predicate { "app_id", "com.example.dataapp" } });
+    ASSERT_EQ(accessRows.size(), 1u);
+    EXPECT_EQ(accessRows[0][0], "com.example.dataapp");
+    EXPECT_EQ(accessRows[0][1], lastCall.roleName);
+    EXPECT_FALSE(accessRows[0][2].empty());
+    EXPECT_FALSE(accessRows[0][3].empty());
+
+    const fs::path policyPath = launchRoot / "com.example.dataapp/launch-policy.json";
+    ASSERT_TRUE(fs::exists(policyPath));
+    std::ifstream input(policyPath);
+    nlohmann::json policy;
+    input >> policy;
+
+    const auto& envSet = policy["environment"]["set"];
+    EXPECT_TRUE(envSet.contains("THECUBE_POSTGRES_BOOTSTRAP_TOKEN"));
+    EXPECT_TRUE(envSet.contains("THECUBE_POSTGRES_CREDENTIALS_ENDPOINT"));
+    EXPECT_EQ(envSet["THECUBE_POSTGRES_CREDENTIALS_ENDPOINT"], "/AppPostgresAccess-fetchCredentials");
+}
+
+TEST_F(AppsManagerTest, InitializeRejectsInvalidPostgresDatabasePermissionNames)
+{
+    const fs::path appRoot = installRootsDir / "com.example.invalidpg";
+    fs::create_directories(appRoot / ".venv/bin");
+    std::ofstream(appRoot / ".venv/bin/python") << "#!/usr/bin/env python3\n";
+    std::ofstream(appRoot / "main.py") << "print('hello')\n";
+    std::ofstream(appRoot / "manifest.json") << nlohmann::json({
+        { "schema_version", "1.0" },
+        { "app", {
+              { "id", "com.example.invalidpg" },
+              { "name", "invalid pg app" },
+              { "version", "0.1.0" },
+              { "type", "service" },
+              { "working_directory", "." },
+              { "autostart", false },
+              { "system_app", false }
+          } },
+        { "runtime", {
+              { "type", "python" },
+              { "distribution", "venv" },
+              { "compatibility", "3.11" },
+              { "python", {
+                    { "entry_script", "main.py" }
+                } }
+          } },
+        { "permissions", {
+              { "filesystem", {
+                    { "read_only", nlohmann::json::array({ "app://install" }) },
+                    { "read_write", nlohmann::json::array({ "app://runtime" }) }
+                } },
+              { "postgresql", {
+                    { "databases", nlohmann::json::array({ "Main" }) }
+                } }
+          } }
+    }).dump(2);
+
+    initializeDatabaseContext();
+
+    auto runtime = std::make_shared<FakeRuntimeController>();
+    AppsManager manager(runtime);
+
+    EXPECT_FALSE(manager.initialize());
+
+    const auto rows = selectAppRow("com.example.invalidpg", { "policy_compile_status", "policy_compile_error" });
+    ASSERT_EQ(rows.size(), 1u);
+    EXPECT_EQ(rows[0][0], "error");
+    EXPECT_NE(rows[0][1].find("permissions.postgresql.databases"), std::string::npos);
 }
 
 TEST_F(AppsManagerTest, LegacyAppsDbIsBackedUpAndRecreated)

@@ -26,22 +26,12 @@ namespace {
 constexpr const char* kAuthRequestsTable = "client_auth_requests";
 constexpr int kApiStartupDelayMs = 200;
 
-std::string quoteSql(const std::string& value)
+DB_NS::PredicateList authRequestFilters(const std::string& clientId, const std::string& initialCode)
 {
-    std::string escaped;
-    escaped.reserve(value.size());
-    for (char ch : value) {
-        escaped.push_back(ch);
-        if (ch == '\'') {
-            escaped.push_back('\'');
-        }
-    }
-    return "'" + escaped + "'";
-}
-
-std::string authRequestWhereClause(const std::string& clientId, const std::string& initialCode)
-{
-    return "client_id = " + quoteSql(clientId) + " AND initial_code = " + quoteSql(initialCode);
+    return {
+        DB_NS::Predicate { "client_id", clientId },
+        DB_NS::Predicate { "initial_code", initialCode }
+    };
 }
 
 class ScopedConfigOverride {
@@ -261,9 +251,9 @@ TEST_F(AuthApiIntegrationTest, AuthHeaderFailsWhenApprovalDenied)
         kAuthRequestsTable,
         { "status", "denied_at_ms" },
         { "denied", "12345" },
-        authRequestWhereClause(clientID, initialCode)));
+        authRequestFilters(clientID, initialCode)));
 
-    const auto rows = db->selectData(kAuthRequestsTable, { "status" }, authRequestWhereClause(clientID, initialCode));
+    const auto rows = db->selectData(kAuthRequestsTable, { "status" }, authRequestFilters(clientID, initialCode));
     ASSERT_EQ(rows.size(), 1u);
     ASSERT_EQ(rows[0][0], "denied");
 
@@ -296,9 +286,9 @@ TEST_F(AuthApiIntegrationTest, AuthHeaderFailsWhenApprovalExpired)
         kAuthRequestsTable,
         { "status", "expires_at_ms" },
         { "expired", "1" },
-        authRequestWhereClause(clientID, initialCode)));
+        authRequestFilters(clientID, initialCode)));
 
-    const auto rows = db->selectData(kAuthRequestsTable, { "status", "expires_at_ms" }, authRequestWhereClause(clientID, initialCode));
+    const auto rows = db->selectData(kAuthRequestsTable, { "status", "expires_at_ms" }, authRequestFilters(clientID, initialCode));
     ASSERT_EQ(rows.size(), 1u);
     ASSERT_EQ(rows[0][0], "expired");
     ASSERT_EQ(rows[0][1], "1");

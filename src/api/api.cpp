@@ -343,7 +343,9 @@ void API::httpApiThreadFn()
                 }
             }
 
-            if (this->endpoints.at(i)->isPublic()) {
+            if (this->endpoints.at(i)->isIpcOnly()) {
+                CubeLog::debugSilly("Skipping HTTP registration for IPC-only endpoint: " + this->endpoints.at(i)->getName());
+            } else if (this->endpoints.at(i)->isPublic()) {
                 CubeLog::debugSilly("Adding public endpoint: " + this->endpoints.at(i)->getName() + " at " + this->endpoints.at(i)->getPath());
                 this->server->addEndpoint(this->endpoints.at(i)->isGetType(), this->endpoints[i]->getPath(), validatedPublicAction);
             } else {
@@ -557,6 +559,11 @@ bool Endpoint::isPublic() const
 bool Endpoint::isGetType() const
 {
     return (this->endpointType & GET_ENDPOINT) == GET_ENDPOINT;
+}
+
+bool Endpoint::isIpcOnly() const
+{
+    return (this->endpointType & IPC_ONLY_ENDPOINT) == IPC_ONLY_ENDPOINT;
 }
 
 /**

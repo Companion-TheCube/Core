@@ -285,20 +285,22 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
     // retrieveBlobBinary - private, get - get a binary blob from the database, returns base64 encoded data
     data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
-            // first we create a buffer to hold the response
-            // TODO: This manual response buffer is unsafe because size bookkeeping, cross-thread writes, and delete[] cleanup all have to stay perfectly aligned; replace it with a std::string/std::vector owned by the waiting scope.
-            char* ret = new char[65535];
-            int size = 0;
             std::mutex m;
             std::condition_variable cv;
             std::string clientOrAppId;
-            std::string blobId;
+            long long blobId = -1;
             bool done = false;
+            bool found = false;
+            std::string blobResult;
             try {
                 clientOrAppId = req.get_param_value("clientOrApp_id");
-                blobId = req.get_param_value("blob_id");
-                if (clientOrAppId.empty() || blobId.empty()) {
+                const auto blobIdRaw = req.get_param_value("blob_id");
+                if (clientOrAppId.empty() || blobIdRaw.empty()) {
                     throw std::runtime_error("ClientOrApp_id and blob_id are required.");
+                }
+                blobId = std::stoll(blobIdRaw);
+                if (blobId < 0) {
+                    throw std::runtime_error("blob_id must be non-negative.");
                 }
             } catch (std::exception& e) {
                 CubeLog::error("retrieveBlobBinary called: failed to retrieve blob," + std::string(e.what()));
@@ -306,29 +308,39 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
                 j["success"] = false;
                 j["message"] = "retrieveBlobBinary called: failed to retrieve blob, " + std::string(e.what());
                 res.set_content(j.dump(), "application/json");
-                delete[] ret;
-                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, e.what());
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, e.what());
             }
             // then we create a lambda function to be executed on the database thread
             auto fn = [&]() {
                 // here we perform the database operation(s)
-                bool isClient = CubeDB::getDBManager()->getDatabase("auth")->rowExists(DB_NS::TableNames::CLIENTS, "client_id = '" + clientOrAppId + "'");
-                bool isApp = CubeDB::getDBManager()->getDatabase("auth")->rowExists(DB_NS::TableNames::APPS, "app_id = '" + clientOrAppId + "'");
+                auto* authDb = CubeDB::getDBManager()->getDatabase("auth");
+                auto* blobsDb = CubeDB::getDBManager()->getDatabase("blobs");
+                bool isClient = authDb->rowExists(DB_NS::TableNames::CLIENTS, { DB_NS::Predicate { "client_id", clientOrAppId } });
+                bool isApp = authDb->rowExists(DB_NS::TableNames::APPS, { DB_NS::Predicate { "app_id", clientOrAppId } });
                 if (!isClient && !isApp) {
                     CubeLog::error("retrieveBlobBinary called: failed to retrieve blob, client_id or app_id not found.");
                     std::unique_lock<std::mutex> lk(m);
-                    size = 0;
                     done = true;
+                    cv.notify_one();
                     return;
                 }
-                std::string blob = CubeDB::getDBManager()->getDatabase("blobs")->selectBlob(
-                    isClient ? DB_NS::TableNames::CLIENT_BLOBS : DB_NS::TableNames::APP_BLOBS,
+                int blobSize = 0;
+                const auto tableName = isClient ? DB_NS::TableNames::CLIENT_BLOBS : DB_NS::TableNames::APP_BLOBS;
+                const auto ownerColumn = isClient ? "owner_client_id" : "owner_app_id";
+                char* blobBytes = blobsDb->selectBlob(
+                    tableName,
                     "blob",
-                    "id = " + blobId + " AND owner_client_id = '" + clientOrAppId + "'",
-                    size);
-                // If the operation returns data, we copy it to the response buffer
+                    {
+                        DB_NS::Predicate { "id", std::to_string(blobId) },
+                        DB_NS::Predicate { ownerColumn, clientOrAppId }
+                    },
+                    blobSize);
                 std::unique_lock<std::mutex> lk(m);
-                blob.copy(ret, size);
+                if (blobBytes != nullptr && blobSize > 0) {
+                    blobResult.assign(blobBytes, blobSize);
+                    found = true;
+                    delete[] blobBytes;
+                }
                 done = true;
                 cv.notify_one();
             };
@@ -338,20 +350,16 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
             // necessary for DB operations that return data.
             std::unique_lock<std::mutex> lk(m);
             cv.wait(lk, [&] { return done; });
-            if (size == 0) {
+            if (!found) {
                 // if sie is 0, then the blob was not found
                 nlohmann::json j;
                 j["success"] = false;
                 j["message"] = "retrieveBlobBinary called: failed to retrieve blob, blob not found.";
                 res.set_content(j.dump(), "application/json");
-                delete[] ret;
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NOT_FOUND, "Blob not found");
             }
-            // We copy the response buffer to a string and delete the buffer
-            std::string retStr(ret, size);
-            delete[] ret;
             // We convert the binary blob to base64
-            std::string base64Blob = base64_encode_cube(std::vector<unsigned char>(retStr.begin(), retStr.end()));
+            std::string base64Blob = base64_encode_cube(std::vector<unsigned char>(blobResult.begin(), blobResult.end()));
             // We return the response string
             res.set_content(base64Blob, "text/plain");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Blob retrieved");
@@ -362,47 +370,56 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
     // retrieveBlobString - private, get - get a string blob from the database, returns string
     data.push_back({ PRIVATE_ENDPOINT | GET_ENDPOINT,
         [&](const httplib::Request& req, httplib::Response& res) {
-            // first we create a buffer to hold the response
-            char* ret = new char[65535];
-            int size = 0;
             std::mutex m;
             std::condition_variable cv;
             std::string clientOrAppId;
-            std::string blobId;
+            long long blobId = -1;
             bool done = false;
+            bool found = false;
+            std::string blobResult;
             try {
                 clientOrAppId = req.get_param_value("clientOrApp_id");
-                blobId = req.get_param_value("blob_id");
-                throw std::runtime_error("ClientOrApp_id and blob_id are required.");
+                const auto blobIdRaw = req.get_param_value("blob_id");
+                if (clientOrAppId.empty() || blobIdRaw.empty()) {
+                    throw std::runtime_error("ClientOrApp_id and blob_id are required.");
+                }
+                blobId = std::stoll(blobIdRaw);
+                if (blobId < 0) {
+                    throw std::runtime_error("blob_id must be non-negative.");
+                }
             } catch (std::exception& e) {
                 CubeLog::error("retrieveBlobString called: failed to retrieve blob," + std::string(e.what()));
                 nlohmann::json j;
                 j["success"] = false;
                 j["message"] = "retrieveBlobString called: failed to retrieve blob, " + std::string(e.what());
                 res.set_content(j.dump(), "application/json");
-                delete[] ret;
-                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, e.what());
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INVALID_PARAMS, e.what());
             }
             // then we create a lambda function to be executed on the database thread
             auto fn = [&]() {
                 // here we perform the database operation(s)
-                bool isClient = CubeDB::getDBManager()->getDatabase("auth")->rowExists(DB_NS::TableNames::CLIENTS, "client_id = '" + clientOrAppId + "'");
-                bool isApp = CubeDB::getDBManager()->getDatabase("auth")->rowExists(DB_NS::TableNames::APPS, "app_id = '" + clientOrAppId + "'");
+                auto* authDb = CubeDB::getDBManager()->getDatabase("auth");
+                auto* blobsDb = CubeDB::getDBManager()->getDatabase("blobs");
+                bool isClient = authDb->rowExists(DB_NS::TableNames::CLIENTS, { DB_NS::Predicate { "client_id", clientOrAppId } });
+                bool isApp = authDb->rowExists(DB_NS::TableNames::APPS, { DB_NS::Predicate { "app_id", clientOrAppId } });
                 if (!isClient && !isApp) {
                     CubeLog::error("retrieveBlobString called: failed to retrieve blob. ClientOrApp_id is neither a client_id nor an app_id.");
                     std::unique_lock<std::mutex> lk(m);
                     done = true;
+                    cv.notify_one();
                     return;
                 }
-                int blobSize = 0;
-                std::string blob = CubeDB::getDBManager()->getDatabase("blobs")->selectBlob(
-                    isClient ? DB_NS::TableNames::CLIENT_BLOBS : DB_NS::TableNames::APP_BLOBS,
+                const auto tableName = isClient ? DB_NS::TableNames::CLIENT_BLOBS : DB_NS::TableNames::APP_BLOBS;
+                const auto ownerColumn = isClient ? "owner_client_id" : "owner_app_id";
+                blobResult = blobsDb->selectBlobString(
+                    tableName,
                     "blob",
-                    "id = " + blobId + " AND owner_client_id = '" + clientOrAppId + "'",
-                    blobSize);
-                // If the operation returns data, we copy it to the response buffer
+                    {
+                        DB_NS::Predicate { "id", std::to_string(blobId) },
+                        DB_NS::Predicate { ownerColumn, clientOrAppId }
+                    });
                 std::unique_lock<std::mutex> lk(m);
-                blob.copy(ret, size);
+                found = !blobResult.empty();
                 done = true;
                 cv.notify_one();
             };
@@ -412,20 +429,16 @@ HttpEndPointData_t CubeDB::getHttpEndpointData()
             // necessary for DB operations that return data.
             std::unique_lock<std::mutex> lk(m);
             cv.wait(lk, [&] { return done; });
-            if (size == 0) {
+            if (!found) {
                 // if sie is 0, then the blob was not found
                 nlohmann::json j;
                 j["success"] = false;
                 j["message"] = "retrieveBlobString called: failed to retrieve blob, blob not found.";
                 res.set_content(j.dump(), "application/json");
-                delete[] ret;
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NOT_FOUND, "Blob not found");
             }
-            // We copy the response buffer to a string and delete the buffer
-            std::string retStr(ret, size);
-            delete[] ret;
             // We return the response string
-            res.set_content(retStr, "text/plain");
+            res.set_content(blobResult, "text/plain");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "Blob retrieved");
         },
         "retrieveBlobString",

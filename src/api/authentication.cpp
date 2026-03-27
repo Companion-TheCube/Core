@@ -61,24 +61,6 @@ struct AuthRequestRecord {
     long long consumedAtMs = 0;
 };
 
-std::string escapeSqlLiteralAuth(const std::string& value)
-{
-    std::string escaped;
-    escaped.reserve(value.size());
-    for (char ch : value) {
-        escaped.push_back(ch);
-        if (ch == '\'') {
-            escaped.push_back('\'');
-        }
-    }
-    return escaped;
-}
-
-std::string sqlLiteral(const std::string& value)
-{
-    return "'" + escapeSqlLiteralAuth(value) + "'";
-}
-
 long long nowEpochMs()
 {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -123,6 +105,29 @@ nlohmann::json authFailureJson(const std::string& code, const std::string& messa
     };
 }
 
+DB_NS::PredicateList clientIdFilter(const std::string& clientID)
+{
+    return { DB_NS::Predicate { "client_id", clientID } };
+}
+
+DB_NS::PredicateList tokenFilter(const std::string& token)
+{
+    return { DB_NS::Predicate { "token", token } };
+}
+
+DB_NS::PredicateList appIdFilter(const std::string& appID)
+{
+    return { DB_NS::Predicate { "app_id", appID } };
+}
+
+DB_NS::PredicateList authRequestKeyFilter(const std::string& clientID, const std::string& initialCode)
+{
+    return {
+        DB_NS::Predicate { "client_id", clientID },
+        DB_NS::Predicate { "initial_code", initialCode }
+    };
+}
+
 bool ensureAuthRequestTable(Database* db)
 {
     if (db == nullptr || !db->isOpen()) {
@@ -144,7 +149,7 @@ std::optional<AuthRequestRecord> getAuthRequest(Database* db, const std::string&
     }
     const auto rows = db->selectData(kClientAuthRequestsTable,
         { "client_id", "initial_code", "status", "requested_at_ms", "expires_at_ms", "approved_at_ms", "denied_at_ms", "consumed_at_ms" },
-        "client_id = " + sqlLiteral(clientID));
+        clientIdFilter(clientID));
     if (rows.empty() || rows.front().size() < 8) {
         return std::nullopt;
     }
@@ -171,7 +176,7 @@ bool upsertPendingAuthRequest(Database* db,
     if (!ensureAuthRequestTable(db)) {
         return false;
     }
-    if (!db->deleteData(kClientAuthRequestsTable, "client_id = " + sqlLiteral(clientID))) {
+    if (!db->deleteData(kClientAuthRequestsTable, clientIdFilter(clientID))) {
         return false;
     }
     return -1 < db->insertData(kClientAuthRequestsTable,
@@ -184,15 +189,15 @@ bool approveAuthRequest(Database* db, const std::string& clientID, const std::st
     if (!ensureAuthRequestTable(db)) {
         return false;
     }
-    const std::string whereClause =
-        "client_id = " + sqlLiteral(clientID)
-        + " AND initial_code = " + sqlLiteral(initialCode)
-        + " AND status = " + sqlLiteral(kAuthRequestStatusPending)
-        + " AND (consumed_at_ms = 0 OR consumed_at_ms = '0')";
     if (!db->updateData(kClientAuthRequestsTable,
             { "status", "approved_at_ms" },
             { kAuthRequestStatusApproved, std::to_string(approvedAtMs) },
-            whereClause)) {
+            {
+                DB_NS::Predicate { "client_id", clientID },
+                DB_NS::Predicate { "initial_code", initialCode },
+                DB_NS::Predicate { "status", kAuthRequestStatusPending },
+                DB_NS::Predicate { "consumed_at_ms", "0" }
+            })) {
         return false;
     }
     const auto request = getAuthRequest(db, clientID);
@@ -206,15 +211,15 @@ bool denyAuthRequest(Database* db, const std::string& clientID, const std::strin
     if (!ensureAuthRequestTable(db)) {
         return false;
     }
-    const std::string whereClause =
-        "client_id = " + sqlLiteral(clientID)
-        + " AND initial_code = " + sqlLiteral(initialCode)
-        + " AND status = " + sqlLiteral(kAuthRequestStatusPending)
-        + " AND (consumed_at_ms = 0 OR consumed_at_ms = '0')";
     if (!db->updateData(kClientAuthRequestsTable,
             { "status", "denied_at_ms" },
             { kAuthRequestStatusDenied, std::to_string(deniedAtMs) },
-            whereClause)) {
+            {
+                DB_NS::Predicate { "client_id", clientID },
+                DB_NS::Predicate { "initial_code", initialCode },
+                DB_NS::Predicate { "status", kAuthRequestStatusPending },
+                DB_NS::Predicate { "consumed_at_ms", "0" }
+            })) {
         return false;
     }
     const auto request = getAuthRequest(db, clientID);
@@ -228,19 +233,28 @@ bool expireAuthRequestIfOutstanding(Database* db, const std::string& clientID, c
     if (!ensureAuthRequestTable(db)) {
         return false;
     }
-    const std::string whereClause =
-        "client_id = " + sqlLiteral(clientID)
-        + " AND initial_code = " + sqlLiteral(initialCode)
-        + " AND (status = " + sqlLiteral(kAuthRequestStatusPending)
-        + " OR status = " + sqlLiteral(kAuthRequestStatusApproved) + ")"
-        + " AND (consumed_at_ms = 0 OR consumed_at_ms = '0')";
-    if (!db->updateData(kClientAuthRequestsTable, { "status" }, { kAuthRequestStatusExpired }, whereClause)) {
+    const auto request = getAuthRequest(db, clientID);
+    if (!request.has_value() || request->initialCode != initialCode || request->consumedAtMs > 0) {
         return false;
     }
-    const auto request = getAuthRequest(db, clientID);
-    return request.has_value()
-        && request->initialCode == initialCode
-        && request->status == kAuthRequestStatusExpired;
+    if (request->status != kAuthRequestStatusPending && request->status != kAuthRequestStatusApproved) {
+        return request->status == kAuthRequestStatusExpired;
+    }
+    if (!db->updateData(kClientAuthRequestsTable,
+            { "status" },
+            { kAuthRequestStatusExpired },
+            {
+                DB_NS::Predicate { "client_id", clientID },
+                DB_NS::Predicate { "initial_code", initialCode },
+                DB_NS::Predicate { "status", request->status },
+                DB_NS::Predicate { "consumed_at_ms", "0" }
+            })) {
+        return false;
+    }
+    const auto updatedRequest = getAuthRequest(db, clientID);
+    return updatedRequest.has_value()
+        && updatedRequest->initialCode == initialCode
+        && updatedRequest->status == kAuthRequestStatusExpired;
 }
 
 bool consumeApprovedAuthRequest(Database* db, const std::string& clientID, const std::string& initialCode, long long consumedAtMs)
@@ -248,15 +262,15 @@ bool consumeApprovedAuthRequest(Database* db, const std::string& clientID, const
     if (!ensureAuthRequestTable(db)) {
         return false;
     }
-    const std::string whereClause =
-        "client_id = " + sqlLiteral(clientID)
-        + " AND initial_code = " + sqlLiteral(initialCode)
-        + " AND status = " + sqlLiteral(kAuthRequestStatusApproved)
-        + " AND (consumed_at_ms = 0 OR consumed_at_ms = '0')";
     if (!db->updateData(kClientAuthRequestsTable,
             { "status", "consumed_at_ms" },
             { kAuthRequestStatusConsumed, std::to_string(consumedAtMs) },
-            whereClause)) {
+            {
+                DB_NS::Predicate { "client_id", clientID },
+                DB_NS::Predicate { "initial_code", initialCode },
+                DB_NS::Predicate { "status", kAuthRequestStatusApproved },
+                DB_NS::Predicate { "consumed_at_ms", "0" }
+            })) {
         return false;
     }
     const auto request = getAuthRequest(db, clientID);
@@ -272,7 +286,7 @@ bool storeClientToken(Database* db, const std::string& clientID, const std::stri
         return false;
     }
 
-    const std::string clientWhere = "client_id = " + sqlLiteral(clientID);
+    const auto clientWhere = clientIdFilter(clientID);
     if (db->rowExists(DB_NS::TableNames::CLIENTS, clientWhere)) {
         if (!db->updateData(DB_NS::TableNames::CLIENTS,
                 { "initial_code", "auth_code" },
@@ -291,7 +305,7 @@ bool storeClientToken(Database* db, const std::string& clientID, const std::stri
     }
 
     const long long expiresAtMs = issuedAtMs + (24ll * 60ll * 60ll * 1000ll);
-    if (!db->deleteData("client_tokens", "client_id = " + sqlLiteral(clientID))) {
+    if (!db->deleteData("client_tokens", clientIdFilter(clientID))) {
         return false;
     }
     return -1 < db->insertData("client_tokens",
@@ -307,9 +321,9 @@ void clearClientToken(Database* db, const std::string& clientID)
     db->updateData(DB_NS::TableNames::CLIENTS,
         { "auth_code" },
         { "" },
-        "client_id = " + sqlLiteral(clientID));
+        clientIdFilter(clientID));
     if (CubeAuth::ensureTokenTable()) {
-        db->deleteData("client_tokens", "client_id = " + sqlLiteral(clientID));
+        db->deleteData("client_tokens", clientIdFilter(clientID));
     }
 }
 } // namespace
@@ -463,15 +477,15 @@ CubeAuth::AUTH_CODE CubeAuth::checkAuth(const std::string &privateKey, const std
         return AUTH_CODE::AUTH_FAIL_DB_NOT_OPEN;
     }
     // check to see if the app_id exists
-    if (!db->rowExists(DB_NS::TableNames::APPS, "app_id = " + sqlLiteral(app_id))) {
+    if (!db->rowExists(DB_NS::TableNames::APPS, appIdFilter(app_id))) {
         CubeLog::error("App id not found.");
         CubeAuth::lastError = "App id not found.";
         return AUTH_CODE::AUTH_FAIL_INVALID_APP_ID;
     }
     // get the public key
-    std::vector<std::vector<std::string>> pub_key = db->selectData(DB_NS::TableNames::APPS, { "public_key" }, "app_id = " + sqlLiteral(app_id));
+    std::vector<std::vector<std::string>> pub_key = db->selectData(DB_NS::TableNames::APPS, { "public_key" }, appIdFilter(app_id));
     // get the auth_code
-    std::vector<std::vector<std::string>> auth_code = db->selectData(DB_NS::TableNames::APPS, { "auth_code" }, "app_id = " + sqlLiteral(app_id));
+    std::vector<std::vector<std::string>> auth_code = db->selectData(DB_NS::TableNames::APPS, { "auth_code" }, appIdFilter(app_id));
     // decrypt the encrypted_auth_code
     unsigned char decrypted_auth_code[crypto_secretbox_MACBYTES + crypto_secretbox_NONCEBYTES + 6];
     unsigned char nonce[crypto_secretbox_NONCEBYTES];
@@ -690,7 +704,7 @@ bool CubeAuth::isAuthorized_authHeader(const std::string& authHeader)
         return false;
     }
     // fast path: token must match an active client's stored token
-    auto auth_code = db->selectData(DB_NS::TableNames::CLIENTS, { "client_id", "auth_code" }, "auth_code = " + sqlLiteral(token));
+    auto auth_code = db->selectData(DB_NS::TableNames::CLIENTS, { "client_id", "auth_code" }, { DB_NS::Predicate { "auth_code", token } });
     if (auth_code.empty()) {
         CubeLog::error("Auth code not found.");
         CubeAuth::lastError = "Auth code not found.";
@@ -702,7 +716,7 @@ bool CubeAuth::isAuthorized_authHeader(const std::string& authHeader)
         return true;
     }
     auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    auto tokenRows = db->selectData("client_tokens", { "revoked", "expires_at_ms" }, "token = " + sqlLiteral(token));
+    auto tokenRows = db->selectData("client_tokens", { "revoked", "expires_at_ms" }, tokenFilter(token));
     if (tokenRows.empty()) {
         CubeLog::error("Token metadata not found");
         return false;
@@ -719,7 +733,7 @@ bool CubeAuth::isAuthorized_authHeader(const std::string& authHeader)
         return false;
     }
     // update last_used
-    db->updateData("client_tokens", { "last_used_ms" }, { std::to_string(nowMs) }, "token = " + sqlLiteral(token));
+    db->updateData("client_tokens", { "last_used_ms" }, { std::to_string(nowMs) }, tokenFilter(token));
     return true;
 }
 
@@ -854,12 +868,12 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
                 ensureTokenTable();
                 auto nowMs = nowEpochMs();
                 if (!token.empty()) {
-                    db->updateData("client_tokens", { "revoked", "revoked_at_ms" }, { "1", std::to_string(nowMs) }, "token = " + sqlLiteral(token));
+                    db->updateData("client_tokens", { "revoked", "revoked_at_ms" }, { "1", std::to_string(nowMs) }, tokenFilter(token));
                 }
                 if (!clientID.empty()) {
                     // clear current client token and mark all tokens for this client revoked
-                    db->updateData(DB_NS::TableNames::CLIENTS, { "auth_code" }, { "" }, "client_id = " + sqlLiteral(clientID));
-                    db->updateData("client_tokens", { "revoked", "revoked_at_ms" }, { "1", std::to_string(nowMs) }, "client_id = " + sqlLiteral(clientID));
+                    db->updateData(DB_NS::TableNames::CLIENTS, { "auth_code" }, { "" }, clientIdFilter(clientID));
+                    db->updateData("client_tokens", { "revoked", "revoked_at_ms" }, { "1", std::to_string(nowMs) }, clientIdFilter(clientID));
                 }
                 nlohmann::json out; out["success"] = true;
                 res.set_content(out.dump(), "application/json");
@@ -886,14 +900,14 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
                 ensureTokenTable();
                 // revoke any existing tokens for this client
                 auto nowMs = nowEpochMs();
-                db->updateData("client_tokens", { "revoked", "revoked_at_ms" }, { "1", std::to_string(nowMs) }, "client_id = " + sqlLiteral(clientID));
+                db->updateData("client_tokens", { "revoked", "revoked_at_ms" }, { "1", std::to_string(nowMs) }, clientIdFilter(clientID));
                 // issue new token
                 std::string randomString = KeyGenerator(40);
                 std::string encryptedString = CubeAuth::encryptData(randomString, CubeAuth::publicKey);
                 std::string token = base64_encode_cube(encryptedString);
                 long long ttlMs = 24ll * 60 * 60 * 1000; // 24 hours
                 long long expMs = nowMs + ttlMs;
-                db->updateData(DB_NS::TableNames::CLIENTS, { "auth_code" }, { token }, "client_id = " + sqlLiteral(clientID));
+                db->updateData(DB_NS::TableNames::CLIENTS, { "auth_code" }, { token }, clientIdFilter(clientID));
                 db->insertData("client_tokens",
                     { "client_id", "token", "issued_at_ms", "expires_at_ms", "last_used_ms", "revoked", "revoked_at_ms" },
                     { clientID, token, std::to_string(nowMs), std::to_string(expMs), std::to_string(nowMs), "0", "0" });

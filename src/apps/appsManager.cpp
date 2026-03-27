@@ -23,6 +23,7 @@ SOFTWARE.
 */
 
 #include "appsManager.h"
+#include "appPostgresAccess.h"
 
 #include <array>
 #include <chrono>
@@ -31,6 +32,7 @@ SOFTWARE.
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <map>
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <regex>
@@ -61,6 +63,7 @@ constexpr const char* kDefaultLocalCacheRoot = "cache/apps";
 constexpr const char* kDefaultCoreSocket = "/run/thecube/core/core.sock";
 constexpr const char* kDefaultLauncherBinaryName = "CubeAppLauncher";
 constexpr const char* kDefaultInstalledLauncherPath = "/opt/thecube/bin/CubeAppLauncher";
+constexpr const char* kDefaultManagedPostgresAppId = "com.thecube.postgresql";
 const std::regex kAppIdPattern("^[a-z0-9.-]+$");
 
 struct ManifestSummary {
@@ -76,6 +79,7 @@ struct ManifestSummary {
     std::string runtimeCompatibility;
     std::string workingDirectory { "." };
     std::vector<std::string> args;
+    std::vector<std::string> postgresqlDatabases;
     bool autostart = false;
     bool systemApp = false;
     nlohmann::json raw;
@@ -104,24 +108,6 @@ struct PythonInstallState {
     std::string packageName;
     std::string venvRoot;
 };
-
-std::string escapeSqlLiteral(const std::string& value)
-{
-    std::string escaped;
-    escaped.reserve(value.size());
-    for (char ch : value) {
-        escaped.push_back(ch);
-        if (ch == '\'') {
-            escaped.push_back('\'');
-        }
-    }
-    return escaped;
-}
-
-std::string quotedSqlLiteral(const std::string& value)
-{
-    return "'" + escapeSqlLiteral(value) + "'";
-}
 
 std::string shellQuote(const std::string& value)
 {
@@ -601,12 +587,12 @@ std::optional<std::string> appIdFromUnitName(const std::string& unitName)
     return unitName.substr(prefix.size(), unitName.size() - prefix.size() - suffix.size());
 }
 
-std::optional<RegistryRow> getRegistryRowByWhereClause(Database* db, const std::string& whereClause)
+std::optional<RegistryRow> getRegistryRowByFilters(Database* db, const DB_NS::PredicateList& filters)
 {
     const auto rows = db->selectData(
         kAppsTableName,
         { "app_id", "app_name", "manifest_path", "install_root", "enabled", "is_system_app", "autostart", "policy_compile_status", "policy_compile_error", "socket_location" },
-        whereClause);
+        filters);
 
     if (rows.empty() || rows[0].size() < 10) {
         return std::nullopt;
@@ -680,6 +666,13 @@ ManifestParseResult loadManifestSummary(const fs::path& manifestPath)
             summary.runtimeType = runtime.value("type", "");
             summary.runtimeDistribution = runtime.value("distribution", "");
             summary.runtimeCompatibility = runtime.value("compatibility", "");
+        }
+
+        std::string postgresValidationError;
+        if (!AppPostgresAccess::parseRequestedDatabases(summary.raw, summary.postgresqlDatabases, postgresValidationError)) {
+            result.manifest = summary;
+            result.error = postgresValidationError;
+            return result;
         }
     } catch (const std::exception& e) {
         result.error = std::string("Failed to parse manifest JSON: ") + e.what();
@@ -756,17 +749,17 @@ bool upsertRegistryEntry(const ManifestSummary& summary, const std::string& poli
         return false;
     }
 
-    const auto whereClause = "app_id = " + quotedSqlLiteral(summary.appId);
+    const DB_NS::PredicateList filters = { DB_NS::Predicate { "app_id", summary.appId } };
     const auto manifestPath = summary.manifestPath.string();
     const auto installRoot = summary.installRoot.string();
     const auto socketLocation = defaultSocketLocation(summary.appId);
 
-    if (db->rowExists(kAppsTableName, whereClause)) {
+    if (db->rowExists(kAppsTableName, filters)) {
         return db->updateData(
             kAppsTableName,
             { "app_name", "manifest_path", "install_root", "schema_version", "app_version", "app_type", "runtime_type", "runtime_distribution", "runtime_compatibility", "is_system_app", "autostart", "policy_compile_status", "policy_compile_error", "socket_location" },
             { summary.appName, manifestPath, installRoot, summary.schemaVersion, summary.appVersion, summary.appType, summary.runtimeType, summary.runtimeDistribution, summary.runtimeCompatibility, boolToDb(summary.systemApp), boolToDb(summary.autostart), policyStatus, policyError, socketLocation },
-            whereClause);
+            filters);
     }
 
     return -1 < db->insertData(
@@ -782,8 +775,8 @@ void markManifestPathError(const fs::path& manifestPath, const std::string& erro
         return;
     }
 
-    const auto whereClause = "manifest_path = " + quotedSqlLiteral(fs::absolute(manifestPath).lexically_normal().string());
-    if (!db->rowExists(kAppsTableName, whereClause)) {
+    const DB_NS::PredicateList filters = { DB_NS::Predicate { "manifest_path", fs::absolute(manifestPath).lexically_normal().string() } };
+    if (!db->rowExists(kAppsTableName, filters)) {
         return;
     }
 
@@ -791,7 +784,7 @@ void markManifestPathError(const fs::path& manifestPath, const std::string& erro
         kAppsTableName,
         { "policy_compile_status", "policy_compile_error" },
         { "error", error },
-        whereClause);
+        filters);
 }
 
 void updateAppStatus(const std::string& appId, const std::string& status, const std::string& error)
@@ -805,7 +798,7 @@ void updateAppStatus(const std::string& appId, const std::string& status, const 
         kAppsTableName,
         { "policy_compile_status", "policy_compile_error" },
         { status, error },
-        "app_id = " + quotedSqlLiteral(appId));
+        { DB_NS::Predicate { "app_id", appId } });
 }
 
 void updateStartFailure(const std::string& appId, const std::string& reason)
@@ -819,7 +812,7 @@ void updateStartFailure(const std::string& appId, const std::string& reason)
         kAppsTableName,
         { "last_failure_reason" },
         { reason },
-        "app_id = " + quotedSqlLiteral(appId));
+        { DB_NS::Predicate { "app_id", appId } });
 }
 
 void updateStartSuccess(const std::string& appId)
@@ -833,7 +826,7 @@ void updateStartSuccess(const std::string& appId)
         kAppsTableName,
         { "last_started_at", "last_failure_reason", "last_exit_code" },
         { isoTimestampUtcNow(), "", "" },
-        "app_id = " + quotedSqlLiteral(appId));
+        { DB_NS::Predicate { "app_id", appId } });
 }
 
 void updateStopSuccess(const std::string& appId)
@@ -847,7 +840,7 @@ void updateStopSuccess(const std::string& appId)
         kAppsTableName,
         { "last_stopped_at", "last_failure_reason" },
         { isoTimestampUtcNow(), "" },
-        "app_id = " + quotedSqlLiteral(appId));
+        { DB_NS::Predicate { "app_id", appId } });
 }
 
 std::optional<RegistryRow> getRegistryRowByAppId(const std::string& appId)
@@ -856,7 +849,7 @@ std::optional<RegistryRow> getRegistryRowByAppId(const std::string& appId)
     if (!db) {
         return std::nullopt;
     }
-    return getRegistryRowByWhereClause(db, "app_id = " + quotedSqlLiteral(appId));
+    return getRegistryRowByFilters(db, { DB_NS::Predicate { "app_id", appId } });
 }
 
 std::string buildUnitName(const std::string& appId)
@@ -1245,13 +1238,25 @@ bool compileLaunchPolicy(const ManifestSummary& summary, nlohmann::json& policyO
                 error = "runtime.docker.environment must be an object";
                 return false;
             }
+            std::map<std::string, std::string> dockerEnvironment;
             for (auto it = docker["environment"].begin(); it != docker["environment"].end(); ++it) {
                 if (!it.value().is_string()) {
                     error = "runtime.docker.environment values must be strings";
                     return false;
                 }
+                dockerEnvironment[it.key()] = it.value().get<std::string>();
+            }
+
+            if (summary.appId == Config::get("APPS_POSTGRES_APP_ID", kDefaultManagedPostgresAppId)) {
+                dockerEnvironment.erase("POSTGRES_HOST_AUTH_METHOD");
+                dockerEnvironment["POSTGRES_USER"] = Config::get("APPS_POSTGRES_ADMIN_USER", "postgres");
+                dockerEnvironment["POSTGRES_PASSWORD"] = Config::get("APPS_POSTGRES_ADMIN_PASSWORD", "thecube-postgres-admin");
+                dockerEnvironment["POSTGRES_DB"] = Config::get("APPS_POSTGRES_ADMIN_DB", "postgres");
+            }
+
+            for (const auto& [key, value] : dockerEnvironment) {
                 argv.push_back("-e");
-                argv.push_back(it.key() + "=" + it.value().get<std::string>());
+                argv.push_back(key + "=" + value);
             }
         }
 
@@ -1339,6 +1344,9 @@ bool compileLaunchPolicy(const ManifestSummary& summary, nlohmann::json& policyO
         { "THECUBE_RUNTIME_DIR", runtimeRunDir(summary.appId) },
         { "THECUBE_CORE_SOCKET", kDefaultCoreSocket }
     };
+    if (!AppPostgresAccess::appendLaunchEnvironment(summary.appId, summary.postgresqlDatabases, environmentSet, error)) {
+        return false;
+    }
     if (summary.raw.contains("environment") && summary.raw["environment"].is_object() && summary.raw["environment"].contains("set")) {
         if (!summary.raw["environment"]["set"].is_object()) {
             error = "environment.set must be an object";
@@ -1696,6 +1704,7 @@ bool AppsManager::syncRegistry()
     const auto manifestPaths = discoverManifestPaths();
     CubeLog::info("AppsManager: manifest discovery found " + std::to_string(manifestPaths.size()) + " manifest(s)");
     std::unordered_set<std::string> seenManifestPaths;
+    std::vector<ManifestSummary> validSummaries;
     bool allSucceeded = true;
 
     for (const auto& manifestPath : manifestPaths) {
@@ -1724,6 +1733,8 @@ bool AppsManager::syncRegistry()
         if (!parsed.error.empty()) {
             CubeLog::warning("AppsManager: manifest validation error for " + summary.appId + ": " + parsed.error);
             allSucceeded = false;
+        } else {
+            validSummaries.push_back(summary);
         }
     }
 
@@ -1734,7 +1745,27 @@ bool AppsManager::syncRegistry()
         }
         if (seenManifestPaths.find(row[1]) == seenManifestPaths.end()) {
             CubeLog::warning("AppsManager: removing stale app registry row for " + row[0] + " because manifest is gone");
-            db->deleteData(kAppsTableName, "app_id = " + quotedSqlLiteral(row[0]));
+            db->deleteData(kAppsTableName, { DB_NS::Predicate { "app_id", row[0] } });
+        }
+    }
+
+    const auto ensureSystemAppRunning = [this](const std::string& systemAppId, std::string& reason) {
+        if (this->isAppRunning(systemAppId)) {
+            return true;
+        }
+        if (this->startApp(systemAppId)) {
+            return true;
+        }
+        reason = "Failed to start PostgreSQL system app: " + systemAppId;
+        return false;
+    };
+
+    for (const auto& summary : validSummaries) {
+        std::string postgresError;
+        if (!AppPostgresAccess::provisionForApp(summary.appId, summary.raw, ensureSystemAppRunning, postgresError)) {
+            CubeLog::error("AppsManager: PostgreSQL provisioning failed for " + summary.appId + ": " + postgresError);
+            updateAppStatus(summary.appId, "error", postgresError);
+            allSucceeded = false;
         }
     }
 
@@ -1851,6 +1882,24 @@ bool AppsManager::startApp(const std::string& appID)
         updateAppStatus(appID, "error", pythonInstallError);
         updateStartFailure(appID, pythonInstallError);
         CubeLog::error("AppsManager: failed to prepare Python runtime for " + appID + ": " + pythonInstallError);
+        return false;
+    }
+
+    const auto ensureSystemAppRunning = [this](const std::string& systemAppId, std::string& reason) {
+        if (this->isAppRunning(systemAppId)) {
+            return true;
+        }
+        if (this->startApp(systemAppId)) {
+            return true;
+        }
+        reason = "Failed to start PostgreSQL system app: " + systemAppId;
+        return false;
+    };
+    std::string postgresProvisionError;
+    if (!AppPostgresAccess::provisionForApp(appID, parsed.manifest->raw, ensureSystemAppRunning, postgresProvisionError)) {
+        updateAppStatus(appID, "error", postgresProvisionError);
+        updateStartFailure(appID, postgresProvisionError);
+        CubeLog::error("AppsManager: failed to provision PostgreSQL access for " + appID + ": " + postgresProvisionError);
         return false;
     }
 

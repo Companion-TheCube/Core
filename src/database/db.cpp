@@ -35,19 +35,76 @@ SOFTWARE.
 
 #include "db.h"
 #include <chrono>
+#include <regex>
 
 namespace {
-std::string escapeSqlLiteral(const std::string& value)
+const std::regex kSqlIdentifierPattern("^[A-Za-z_][A-Za-z0-9_]*$");
+
+bool isSafeSqlIdentifier(const std::string& value)
 {
-    std::string escaped;
-    escaped.reserve(value.size());
-    for (char ch : value) {
-        escaped.push_back(ch);
-        if (ch == '\'') {
-            escaped.push_back('\'');
+    return std::regex_match(value, kSqlIdentifierPattern);
+}
+
+std::string quotedIdentifier(const std::string& value)
+{
+    return "\"" + value + "\"";
+}
+
+std::string compareOpSql(DB_NS::CompareOp op)
+{
+    switch (op) {
+    case DB_NS::CompareOp::Eq:
+        return "=";
+    case DB_NS::CompareOp::NotEq:
+        return "!=";
+    case DB_NS::CompareOp::Lt:
+        return "<";
+    case DB_NS::CompareOp::Lte:
+        return "<=";
+    case DB_NS::CompareOp::Gt:
+        return ">";
+    case DB_NS::CompareOp::Gte:
+        return ">=";
+    }
+    return "=";
+}
+
+std::pair<std::string, std::vector<std::string>> buildWhereClause(const DB_NS::PredicateList& filters)
+{
+    std::vector<std::string> bindValues;
+    if (filters.empty()) {
+        return { "", bindValues };
+    }
+
+    std::string whereClause = " WHERE ";
+    for (size_t i = 0; i < filters.size(); ++i) {
+        const auto& predicate = filters[i];
+        whereClause += quotedIdentifier(predicate.columnName) + " " + compareOpSql(predicate.op) + " ?";
+        bindValues.push_back(predicate.columnValue);
+        if (i + 1 < filters.size()) {
+            whereClause += " AND ";
         }
     }
-    return escaped;
+
+    return { whereClause, bindValues };
+}
+
+void bindValues(SQLite::Statement& stmt, const std::vector<std::string>& values, int startingIndex = 1)
+{
+    for (size_t i = 0; i < values.size(); ++i) {
+        stmt.bind(static_cast<int>(startingIndex + i), values[i]);
+    }
+}
+
+std::string blobOwnerColumnForTable(const std::string& tableName)
+{
+    if (tableName == DB_NS::TableNames::CLIENT_BLOBS) {
+        return "owner_client_id";
+    }
+    if (tableName == DB_NS::TableNames::APP_BLOBS) {
+        return "owner_app_id";
+    }
+    return {};
 }
 
 bool verifyAppsDbSchemaMatchesDefinition(const DB_NS::Database_T& dbDef)
@@ -144,6 +201,17 @@ inline bool isInBlobsTableNames(const std::string& tableName)
     return tableName == DB_NS::TableNames::APP_BLOBS || tableName == DB_NS::TableNames::CLIENT_BLOBS;
 }
 
+inline bool validateIdentifier(Database* db, const std::string& identifier, const std::string& kind)
+{
+    if (isSafeSqlIdentifier(identifier)) {
+        return true;
+    }
+    if (db != nullptr) {
+        CubeLog::error("Invalid " + kind + ": " + identifier);
+    }
+    return false;
+}
+
 /**
  * @brief Construct a new Database object
  *
@@ -194,14 +262,24 @@ bool Database::createTable(const std::string& tableName, std::vector<std::string
         this->lastError = "Database is not open";
         return false;
     }
+    if (!validateIdentifier(this, tableName, "table name")) {
+        this->lastError = "Invalid table name";
+        return false;
+    }
+    for (const auto& columnName : columnNames) {
+        if (!validateIdentifier(this, columnName, "column name")) {
+            this->lastError = "Invalid column name";
+            return false;
+        }
+    }
     CubeLog::info("Creating table: " + tableName);
     // Create a map of column names and unique columns
     for (size_t col = 0; col < columnNames.size(); col++) {
         this->uniqueColumns[columnNames.at(col)] = uniqueColumns[col];
     }
-    std::string query = "CREATE TABLE IF NOT EXISTS " + tableName + " (";
+    std::string query = "CREATE TABLE IF NOT EXISTS " + quotedIdentifier(tableName) + " (";
     for (size_t i = 0; i < columnNames.size(); i++) {
-        query += columnNames[i] + " " + columnTypes[i];
+        query += quotedIdentifier(columnNames[i]) + " " + columnTypes[i];
         if (i < columnNames.size() - 1) {
             query += ", ";
         }
@@ -209,7 +287,7 @@ bool Database::createTable(const std::string& tableName, std::vector<std::string
     query += ");";
     try {
         SQLite::Statement stmt(*this->db, query);
-        stmt.executeStep();
+        stmt.exec();
         CubeLog::info("Table created: " + tableName);
         return true;
     } catch (std::exception& e) {
@@ -254,6 +332,24 @@ long Database::insertData(const std::string& tableName, std::vector<std::string>
         this->lastError = "Sizes of column names and values do not match";
         return -1;
     }
+    if (!validateIdentifier(this, tableName, "table name")) {
+        this->lastError = "Invalid table name";
+        return -1;
+    }
+    if (!this->tableExists(tableName)) {
+        this->lastError = "Table does not exist";
+        return -1;
+    }
+    for (const auto& columnName : columnNames) {
+        if (!validateIdentifier(this, columnName, "column name")) {
+            this->lastError = "Invalid column name";
+            return -1;
+        }
+        if (!this->columnExists(tableName, columnName)) {
+            this->lastError = "Column does not exist";
+            return -1;
+        }
+    }
     // Check if the column is unique
     for (size_t col = 0; col < columnNames.size(); col++) {
         if (columnNames.at(col) == "blob") {
@@ -267,7 +363,7 @@ long Database::insertData(const std::string& tableName, std::vector<std::string>
             if (columnValues.at(col) == "") {
                 CubeLog::debug("Column value is empty. Getting next available value.");
                 int id = 1;
-                while (this->rowExists(tableName, columnNames[col] + " = " + std::to_string(id))) {
+                while (this->rowExists(tableName, { DB_NS::Predicate { columnNames[col], std::to_string(id) } })) {
                     id++;
                     if (id > 1000000) {
                         this->lastError = "Unable to get unique value. Too many rows in the table.";
@@ -278,7 +374,7 @@ long Database::insertData(const std::string& tableName, std::vector<std::string>
                 columnValues[col] = std::to_string(id);
             } else {
                 CubeLog::debug("Column value is not empty. Checking if the value already exists.");
-                if (this->rowExists(tableName, columnNames.at(col) + " = '" + columnValues.at(col) + "'")) {
+                if (this->rowExists(tableName, { DB_NS::Predicate { columnNames.at(col), columnValues.at(col) } })) {
                     this->lastError = "Unique column value already exists";
                     return -1;
                 }
@@ -286,13 +382,13 @@ long Database::insertData(const std::string& tableName, std::vector<std::string>
         }
     }
 
-    std::string query = "INSERT INTO " + tableName + " (";
+    std::string query = "INSERT INTO " + quotedIdentifier(tableName) + " (";
     std::vector<int> blobColumns;
     for (size_t i = 0; i < columnNames.size(); i++) {
         if (columnNames.at(i) == "blob") {
             blobColumns.push_back(i);
         }
-        query += columnNames.at(i);
+        query += quotedIdentifier(columnNames.at(i));
         if (i < columnNames.size() - 1) {
             query += ", ";
         }
@@ -329,11 +425,11 @@ long Database::insertData(const std::string& tableName, std::vector<std::string>
  * @param tableName
  * @param columnNames Size of columnNames and columnValues must be equal
  * @param columnValues
- * @param whereClause
+ * @param filters
  * @return true
  * @return false
  */
-bool Database::updateData(const std::string& tableName, std::vector<std::string> columnNames, std::vector<std::string> columnValues, const std::string& whereClause)
+bool Database::updateData(const std::string& tableName, std::vector<std::string> columnNames, std::vector<std::string> columnValues, const DB_NS::PredicateList& filters)
 {
     if (!this->isOpen()) {
         this->lastError = "Database is not open";
@@ -343,19 +439,43 @@ bool Database::updateData(const std::string& tableName, std::vector<std::string>
         this->lastError = "Column names and values do not match";
         return false;
     }
-    std::string query = "UPDATE " + tableName + " SET ";
+    if (filters.empty()) {
+        this->lastError = "Update filters cannot be empty";
+        return false;
+    }
+    if (!validateIdentifier(this, tableName, "table name")) {
+        this->lastError = "Invalid table name";
+        return false;
+    }
+    if (!this->tableExists(tableName)) {
+        this->lastError = "Table does not exist";
+        return false;
+    }
+    for (const auto& columnName : columnNames) {
+        if (!validateIdentifier(this, columnName, "column name") || !this->columnExists(tableName, columnName)) {
+            this->lastError = "Invalid update column";
+            return false;
+        }
+    }
+    for (const auto& predicate : filters) {
+        if (!validateIdentifier(this, predicate.columnName, "column name") || !this->columnExists(tableName, predicate.columnName)) {
+            this->lastError = "Invalid filter column";
+            return false;
+        }
+    }
+    std::string query = "UPDATE " + quotedIdentifier(tableName) + " SET ";
     for (size_t i = 0; i < columnNames.size(); i++) {
-        query += columnNames[i] + " = ?";
+        query += quotedIdentifier(columnNames[i]) + " = ?";
         if (i < columnNames.size() - 1) {
             query += ", ";
         }
     }
-    query += " WHERE " + whereClause + ";";
+    const auto [whereClause, bindFilterValues] = buildWhereClause(filters);
+    query += whereClause + ";";
     try {
         SQLite::Statement stmt(*this->db, query);
-        for (size_t i = 0; i < columnValues.size(); ++i) {
-            stmt.bind(static_cast<int>(i + 1), columnValues[i]);
-        }
+        bindValues(stmt, columnValues);
+        bindValues(stmt, bindFilterValues, static_cast<int>(columnValues.size() + 1));
         stmt.exec();
         return true;
     } catch (std::exception& e) {
@@ -385,20 +505,40 @@ void Database::setUniqueColumns(std::vector<std::string> columnNames, std::vecto
  * @brief Delete data from a table
  *
  * @param tableName
- * @param whereClause
+ * @param filters
  * @return true
  * @return false
  */
-bool Database::deleteData(const std::string& tableName, const std::string& whereClause)
+bool Database::deleteData(const std::string& tableName, const DB_NS::PredicateList& filters)
 {
     if (!this->isOpen()) {
         this->lastError = "Database is not open";
         return false;
     }
-    std::string query = "DELETE FROM " + tableName + " WHERE " + whereClause + ";";
+    if (filters.empty()) {
+        this->lastError = "Delete filters cannot be empty";
+        return false;
+    }
+    if (!validateIdentifier(this, tableName, "table name")) {
+        this->lastError = "Invalid table name";
+        return false;
+    }
+    if (!this->tableExists(tableName)) {
+        this->lastError = "Table does not exist";
+        return false;
+    }
+    for (const auto& predicate : filters) {
+        if (!validateIdentifier(this, predicate.columnName, "column name") || !this->columnExists(tableName, predicate.columnName)) {
+            this->lastError = "Invalid filter column";
+            return false;
+        }
+    }
+    const auto [whereClause, bindFilterValues] = buildWhereClause(filters);
+    std::string query = "DELETE FROM " + quotedIdentifier(tableName) + whereClause + ";";
     try {
         SQLite::Statement stmt(*this->db, query);
-        stmt.executeStep();
+        bindValues(stmt, bindFilterValues);
+        stmt.exec();
         return true;
     } catch (std::exception& e) {
         this->lastError = e.what();
@@ -411,25 +551,47 @@ bool Database::deleteData(const std::string& tableName, const std::string& where
  *
  * @param tableName
  * @param columnNames
- * @param whereClause
+ * @param filters
  * @return std::vector<std::vector<std::string>>
  */
-std::vector<std::vector<std::string>> Database::selectData(const std::string& tableName, std::vector<std::string> columnNames, const std::string& whereClause)
+std::vector<std::vector<std::string>> Database::selectData(const std::string& tableName, std::vector<std::string> columnNames, const DB_NS::PredicateList& filters)
 {
     if (!this->isOpen()) {
         this->lastError = "Database is not open";
         return {};
     }
+    if (!validateIdentifier(this, tableName, "table name")) {
+        this->lastError = "Invalid table name";
+        return {};
+    }
+    if (!this->tableExists(tableName)) {
+        this->lastError = "Table does not exist";
+        return {};
+    }
+    for (const auto& columnName : columnNames) {
+        if (!validateIdentifier(this, columnName, "column name") || !this->columnExists(tableName, columnName)) {
+            this->lastError = "Invalid select column";
+            return {};
+        }
+    }
+    for (const auto& predicate : filters) {
+        if (!validateIdentifier(this, predicate.columnName, "column name") || !this->columnExists(tableName, predicate.columnName)) {
+            this->lastError = "Invalid filter column";
+            return {};
+        }
+    }
     std::string query = "SELECT ";
     for (size_t i = 0; i < columnNames.size(); i++) {
-        query += columnNames[i];
+        query += quotedIdentifier(columnNames[i]);
         if (i < columnNames.size() - 1) {
             query += ", ";
         }
     }
-    query += " FROM " + tableName + " WHERE " + whereClause + ";";
+    const auto [whereClause, bindFilterValues] = buildWhereClause(filters);
+    query += " FROM " + quotedIdentifier(tableName) + whereClause + ";";
     try {
         SQLite::Statement stmt(*this->db, query);
+        bindValues(stmt, bindFilterValues);
         std::vector<std::vector<std::string>> results;
         while (stmt.executeStep()) {
             std::vector<std::string> row;
@@ -458,14 +620,28 @@ std::vector<std::vector<std::string>> Database::selectData(const std::string& ta
         this->lastError = "Database is not open";
         return {};
     }
+    if (!validateIdentifier(this, tableName, "table name")) {
+        this->lastError = "Invalid table name";
+        return {};
+    }
+    if (!this->tableExists(tableName)) {
+        this->lastError = "Table does not exist";
+        return {};
+    }
+    for (const auto& columnName : columnNames) {
+        if (!validateIdentifier(this, columnName, "column name") || !this->columnExists(tableName, columnName)) {
+            this->lastError = "Invalid select column";
+            return {};
+        }
+    }
     std::string query = "SELECT ";
     for (size_t i = 0; i < columnNames.size(); i++) {
-        query += columnNames[i];
+        query += quotedIdentifier(columnNames[i]);
         if (i < columnNames.size() - 1) {
             query += ", ";
         }
     }
-    query += " FROM " + tableName + ";";
+    query += " FROM " + quotedIdentifier(tableName) + ";";
     try {
         SQLite::Statement stmt(*this->db, query);
         std::vector<std::vector<std::string>> results;
@@ -495,7 +671,15 @@ std::vector<std::vector<std::string>> Database::selectData(const std::string& ta
         this->lastError = "Database is not open";
         return {};
     }
-    std::string query = "SELECT * FROM " + tableName + ";";
+    if (!validateIdentifier(this, tableName, "table name")) {
+        this->lastError = "Invalid table name";
+        return {};
+    }
+    if (!this->tableExists(tableName)) {
+        this->lastError = "Table does not exist";
+        return {};
+    }
+    std::string query = "SELECT * FROM " + quotedIdentifier(tableName) + ";";
     try {
         SQLite::Statement stmt(*this->db, query);
         std::vector<std::vector<std::string>> results;
@@ -526,9 +710,14 @@ bool Database::tableExists(const std::string& tableName)
         this->lastError = "Database is not open";
         return false;
     }
-    std::string query = "SELECT name FROM sqlite_master WHERE type='table' AND name='" + tableName + "';";
+    if (!validateIdentifier(this, tableName, "table name")) {
+        this->lastError = "Invalid table name";
+        return false;
+    }
+    constexpr const char* query = "SELECT name FROM sqlite_master WHERE type='table' AND name=?;";
     try {
         SQLite::Statement stmt(*this->db, query);
+        stmt.bind(1, tableName);
         if (stmt.executeStep()) {
             return true;
         } else {
@@ -554,7 +743,15 @@ bool Database::columnExists(const std::string& tableName, const std::string& col
         this->lastError = "Database is not open";
         return false;
     }
-    std::string query = "PRAGMA table_info(" + tableName + ");";
+    if (!validateIdentifier(this, tableName, "table name") || !validateIdentifier(this, columnName, "column name")) {
+        this->lastError = "Invalid table or column name";
+        return false;
+    }
+    if (!this->tableExists(tableName)) {
+        this->lastError = "Table does not exist";
+        return false;
+    }
+    std::string query = "PRAGMA table_info(" + quotedIdentifier(tableName) + ");";
     try {
         SQLite::Statement stmt(*this->db, query);
         while (stmt.executeStep()) {
@@ -573,19 +770,35 @@ bool Database::columnExists(const std::string& tableName, const std::string& col
  * @brief Check if a row exists in a table
  *
  * @param tableName
- * @param whereClause
+ * @param filters
  * @return true
  * @return false
  */
-bool Database::rowExists(const std::string& tableName, const std::string& whereClause)
+bool Database::rowExists(const std::string& tableName, const DB_NS::PredicateList& filters)
 {
     if (!this->isOpen()) {
         this->lastError = "Database is not open";
         return false;
     }
-    std::string query = "SELECT * FROM " + tableName + " WHERE " + whereClause + ";";
+    if (!validateIdentifier(this, tableName, "table name")) {
+        this->lastError = "Invalid table name";
+        return false;
+    }
+    if (!this->tableExists(tableName)) {
+        this->lastError = "Table does not exist";
+        return false;
+    }
+    for (const auto& predicate : filters) {
+        if (!validateIdentifier(this, predicate.columnName, "column name") || !this->columnExists(tableName, predicate.columnName)) {
+            this->lastError = "Invalid filter column";
+            return false;
+        }
+    }
+    const auto [whereClause, bindFilterValues] = buildWhereClause(filters);
+    std::string query = "SELECT 1 FROM " + quotedIdentifier(tableName) + whereClause + " LIMIT 1;";
     try {
         SQLite::Statement stmt(*this->db, query);
+        bindValues(stmt, bindFilterValues);
         if (stmt.executeStep()) {
             return true;
         } else {
@@ -621,8 +834,7 @@ bool Database::execute(const std::string& query)
 bool Database::open()
 {
     if (this->isOpen()) {
-        this->lastError = "Database is already open";
-        return false;
+        return true;
     }
     try {
         this->db = std::make_shared<SQLite::Database>(this->dbPath, SQLite::OPEN_READWRITE);
@@ -643,11 +855,10 @@ bool Database::open()
 bool Database::close()
 {
     if (!this->isOpen()) {
-        this->lastError = "Database is not open";
-        return false;
+        return true;
     }
     try {
-        // delete this->db;
+        this->db.reset();
         this->openFlag = false;
         return true;
     } catch (std::exception& e) {
@@ -726,19 +937,38 @@ bool Database::createDB(const std::string& dbPath)
  *
  * @param tableName
  * @param columnName
- * @param whereClause
+ * @param filters
  * @param size
  * @return char*
  */
-char* Database::selectBlob(const std::string& tableName, const std::string& columnName, const std::string& whereClause, int& size)
+char* Database::selectBlob(const std::string& tableName, const std::string& columnName, const DB_NS::PredicateList& filters, int& size)
 {
     if (!this->isOpen()) {
         this->lastError = "Database is not open";
         return nullptr;
     }
-    std::string query = "SELECT " + columnName + " FROM " + tableName + " WHERE " + whereClause + ";";
+    if (!validateIdentifier(this, tableName, "table name") || !validateIdentifier(this, columnName, "column name")) {
+        this->lastError = "Invalid table or column name";
+        size = 0;
+        return nullptr;
+    }
+    if (!this->tableExists(tableName) || !this->columnExists(tableName, columnName)) {
+        this->lastError = "Table or column does not exist";
+        size = 0;
+        return nullptr;
+    }
+    for (const auto& predicate : filters) {
+        if (!validateIdentifier(this, predicate.columnName, "column name") || !this->columnExists(tableName, predicate.columnName)) {
+            this->lastError = "Invalid filter column";
+            size = 0;
+            return nullptr;
+        }
+    }
+    const auto [whereClause, bindFilterValues] = buildWhereClause(filters);
+    std::string query = "SELECT " + quotedIdentifier(columnName) + " FROM " + quotedIdentifier(tableName) + whereClause + ";";
     try {
         SQLite::Statement stmt(*this->db, query);
+        bindValues(stmt, bindFilterValues);
         if (stmt.executeStep()) {
             size = stmt.getColumn(0).size();
             // TODO: Returning a raw heap blob makes ownership non-obvious because callers must remember to delete[] it; return a std::vector<std::byte>/std::string so lifetime stays local to the value type.
@@ -762,18 +992,34 @@ char* Database::selectBlob(const std::string& tableName, const std::string& colu
  *
  * @param tableName
  * @param columnName
- * @param whereClause
+ * @param filters
  * @return std::string
  */
-std::string Database::selectBlobString(const std::string& tableName, const std::string& columnName, const std::string& whereClause)
+std::string Database::selectBlobString(const std::string& tableName, const std::string& columnName, const DB_NS::PredicateList& filters)
 {
     if (!this->isOpen()) {
         this->lastError = "Database is not open";
         return "";
     }
-    std::string query = "SELECT " + columnName + " FROM " + tableName + " WHERE " + whereClause + ";";
+    if (!validateIdentifier(this, tableName, "table name") || !validateIdentifier(this, columnName, "column name")) {
+        this->lastError = "Invalid table or column name";
+        return "";
+    }
+    if (!this->tableExists(tableName) || !this->columnExists(tableName, columnName)) {
+        this->lastError = "Table or column does not exist";
+        return "";
+    }
+    for (const auto& predicate : filters) {
+        if (!validateIdentifier(this, predicate.columnName, "column name") || !this->columnExists(tableName, predicate.columnName)) {
+            this->lastError = "Invalid filter column";
+            return "";
+        }
+    }
+    const auto [whereClause, bindFilterValues] = buildWhereClause(filters);
+    std::string query = "SELECT " + quotedIdentifier(columnName) + " FROM " + quotedIdentifier(tableName) + whereClause + ";";
     try {
         SQLite::Statement stmt(*this->db, query);
+        bindValues(stmt, bindFilterValues);
         if (stmt.executeStep()) {
             return stmt.getColumn(0).getText();
         } else {
@@ -1056,9 +1302,10 @@ int BlobsManager::addBlob(const std::string& tableName, const std::string& blob,
         CubeLog::error("Invalid table name: " + tableName);
         return -1;
     }
+    const auto ownerColumn = blobOwnerColumnForTable(tableName);
     Database* db = this->dbManager->getDatabase("blobs");
     if (db->open()) {
-        long id = db->insertData(tableName, { "blob", "owner_id" }, { blob, ownerID });
+        long id = db->insertData(tableName, { "blob", ownerColumn }, { blob, ownerID });
         if (id > -1) {
             db->close();
             return id;
@@ -1092,9 +1339,10 @@ bool BlobsManager::removeBlob(const std::string& tableName, const std::string& o
         CubeLog::error("Invalid table name: " + tableName);
         return false;
     }
-    Database* db = this->dbManager->getDatabase("blobs.db");
+    const auto ownerColumn = blobOwnerColumnForTable(tableName);
+    Database* db = this->dbManager->getDatabase("blobs");
     if (db->open()) {
-        if (db->deleteData(tableName, "id = " + std::to_string(id) + " AND owner_id = '" + ownerID + "'")) {
+        if (db->deleteData(tableName, { { "id", std::to_string(id) }, { ownerColumn, ownerID } })) {
             db->close();
             return true;
         } else {
@@ -1124,9 +1372,10 @@ std::string BlobsManager::getBlobString(const std::string& tableName, const std:
         CubeLog::error("Invalid table name: " + tableName);
         return "";
     }
-    Database* db = this->dbManager->getDatabase("blobs.db");
+    const auto ownerColumn = blobOwnerColumnForTable(tableName);
+    Database* db = this->dbManager->getDatabase("blobs");
     if (db->open()) {
-        std::vector<std::vector<std::string>> result = db->selectData(tableName, { "blob" }, "id = " + std::to_string(id) + " AND owner_id = '" + ownerID + "'");
+        std::vector<std::vector<std::string>> result = db->selectData(tableName, { "blob" }, { { "id", std::to_string(id) }, { ownerColumn, ownerID } });
         db->close();
         if (result.size() > 0) {
             return result[0][0];
@@ -1155,9 +1404,10 @@ char* BlobsManager::getBlobChars(const std::string& tableName, const std::string
         CubeLog::error("Invalid table name: " + tableName);
         return nullptr;
     }
-    Database* db = this->dbManager->getDatabase("blobs.db");
+    const auto ownerColumn = blobOwnerColumnForTable(tableName);
+    Database* db = this->dbManager->getDatabase("blobs");
     if (db->open()) {
-        std::vector<std::vector<std::string>> result = db->selectData(tableName, { "blob" }, "id = " + std::to_string(id) + " AND owner_id = '" + ownerID + "'");
+        std::vector<std::vector<std::string>> result = db->selectData(tableName, { "blob" }, { { "id", std::to_string(id) }, { ownerColumn, ownerID } });
         db->close();
         if (result.size() > 0) {
             size = result[0][0].size();
@@ -1194,9 +1444,10 @@ bool BlobsManager::updateBlob(const std::string& tableName, const std::string& b
         CubeLog::error("Invalid table name: " + tableName);
         return false;
     }
-    Database* db = this->dbManager->getDatabase("blobs.db");
+    const auto ownerColumn = blobOwnerColumnForTable(tableName);
+    Database* db = this->dbManager->getDatabase("blobs");
     if (db->open()) {
-        if (db->updateData(tableName, { "blob" }, { blob }, "id = " + std::to_string(id) + " AND owner_id = '" + ownerID + "'")) {
+        if (db->updateData(tableName, { "blob" }, { blob }, { { "id", std::to_string(id) }, { ownerColumn, ownerID } })) {
             db->close();
             return true;
         } else {
@@ -1227,13 +1478,11 @@ bool BlobsManager::updateBlob(const std::string& tableName, char* blob, int size
         CubeLog::error("Invalid table name: " + tableName);
         return false;
     }
-    Database* db = this->dbManager->getDatabase("blobs.db");
+    const auto ownerColumn = blobOwnerColumnForTable(tableName);
+    Database* db = this->dbManager->getDatabase("blobs");
     if (db->open()) {
-        std::string blobStr = "";
-        for (size_t i = 0; i < size; i++) {
-            blobStr += blob[i];
-        }
-        if (db->updateData(tableName, { "blob" }, { blobStr }, "id = " + std::to_string(id) + " AND owner_id = '" + ownerID + "'")) {
+        std::string blobStr(blob, size);
+        if (db->updateData(tableName, { "blob" }, { blobStr }, { { "id", std::to_string(id) }, { ownerColumn, ownerID } })) {
             db->close();
             return true;
         } else {
@@ -1263,9 +1512,10 @@ int BlobsManager::addBlob(const std::string& tableName, char* blob, int size, co
         CubeLog::error("Invalid table name: " + tableName);
         return -1;
     }
-    Database* db = this->dbManager->getDatabase("blobs.db");
+    const auto ownerColumn = blobOwnerColumnForTable(tableName);
+    Database* db = this->dbManager->getDatabase("blobs");
     if (db->open()) {
-        long id = db->insertData(tableName, { "blob", "owner_id" }, { blob, ownerID });
+        long id = db->insertData(tableName, { "blob", ownerColumn }, { std::string(blob, size), ownerID });
         if (id > -1) {
             db->close();
             return id;
@@ -1289,11 +1539,3 @@ bool BlobsManager::isBlobsManagerReady()
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
-
-bool sanitizeString(std::string& str)
-{
-    if (
-        str.find("'") != std::string::npos || str.find("\"") != std::string::npos || str.find("\\") != std::string::npos || str.find(";") != std::string::npos || str.find("--") != std::string::npos || str.find("/*") != std::string::npos || str.find("*/") != std::string::npos || str.find("DROP") != std::string::npos || str.find("CREATE") != std::string::npos || str.find("ALTER") != std::string::npos || str.find("INSERT") != std::string::npos || str.find("UPDATE") != std::string::npos || str.find("DELETE") != std::string::npos || str.find("SELECT") != std::string::npos || str.find("FROM") != std::string::npos || str.find("WHERE") != std::string::npos || str.find("AND") != std::string::npos || str.find("OR") != std::string::npos || str.find("LIKE") != std::string::npos || str.find("IN") != std::string::npos || str.find("BETWEEN") != std::string::npos || str.find("IS") != std::string::npos || str.find("NULL") != std::string::npos || str.find("ORDER") != std::string::npos || str.find("BY") != std::string::npos || str.find("GROUP") != std::string::npos || str.find("HAVING") != std::string::npos || str.find("LIMIT") != std::string::npos || str.find("OFFSET") != std::string::npos || str.find("JOIN") != std::string::npos || str.find("INNER") != std::string::npos || str.find("LEFT") != std::string::npos || str.find("RIGHT") != std::string::npos || str.find("OUTER") != std::string::npos || str.find("FULL") != std::string::npos || str.find("UNION") != std::string::npos || str.find("INTERSECT") != std::string::npos || str.find("EXCEPT") != std::string::npos)
-        return false;
-    return true;
-}
