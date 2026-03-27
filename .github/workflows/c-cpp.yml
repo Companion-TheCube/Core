@@ -106,5 +106,6 @@ jobs:
         if: always()
         run: ccache -s || true
 
-      - name: Run tests
-        run: ctest --test-dir build -C Debug -j ${JOBS} --output-on-failure
+      - name: Run tests (from runtime dir so assets like ./fonts exist)
+        working-directory: build/bin
+        run: ctest --test-dir .. -C Debug -j ${JOBS} --output-on-failure
