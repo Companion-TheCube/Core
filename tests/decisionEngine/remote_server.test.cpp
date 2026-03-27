@@ -128,17 +128,6 @@ private:
     int port_ = -1;
 };
 
-int reserveUnusedLocalPort()
-{
-    httplib::Server probe;
-    const int port = probe.bind_to_any_port("127.0.0.1");
-    probe.stop();
-    if (port <= 0) {
-        throw std::runtime_error("Failed to reserve local test port");
-    }
-    return port;
-}
-
 void resetRemoteServerConfig()
 {
     Config::erase("REMOTE_SERVER_BASE_URL");
@@ -291,8 +280,7 @@ TEST(TheCubeServerAPI, StartupFailureClassifiesVoiceServiceUnavailable)
 {
     resetRemoteServerConfig();
 
-    const int port = reserveUnusedLocalPort();
-    Config::set("REMOTE_SERVER_BASE_URL", "ws://127.0.0.1:" + std::to_string(port));
+    Config::set("REMOTE_SERVER_BASE_URL", "ws://127.0.0.1:1");
 
     TheCubeServer::TheCubeServerAPI api;
     EXPECT_FALSE(api.startStreamingTranscription());
@@ -334,8 +322,7 @@ TEST(TheCubeServerAPI, ConversationSessionFailureClassifiesVoiceServiceUnavailab
 {
     resetRemoteServerConfig();
 
-    const int port = reserveUnusedLocalPort();
-    Config::set("REMOTE_SERVER_BASE_URL", "http://127.0.0.1:" + std::to_string(port));
+    Config::set("REMOTE_SERVER_BASE_URL", "http://127.0.0.1:1");
     Config::set("REMOTE_SERVER_BEARER_TOKEN", "dev-user");
 
     TheCubeServer::TheCubeServerAPI api;
