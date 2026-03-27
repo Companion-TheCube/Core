@@ -15,6 +15,7 @@ Copyright (c) 2025 A-McD Technology LLC
 
 #include <chrono>
 #include <condition_variable>
+#include <iomanip>
 #include <random>
 #include <sstream>
 #include <thread>
@@ -108,6 +109,14 @@ std::string parseErrorMessage(const nlohmann::json& j)
     auto message = jsonString(j, "message");
     if (!message.empty()) return message;
     return j.dump();
+}
+
+std::string formatDurationMs(const std::chrono::steady_clock::time_point& start, const std::chrono::steady_clock::time_point& end = std::chrono::steady_clock::now())
+{
+    const auto durationMs = std::chrono::duration<double, std::milli>(end - start).count();
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(1) << durationMs;
+    return oss.str();
 }
 
 std::string describeHttpFailure(const httplib::Result& res, const std::string& context)
@@ -675,6 +684,7 @@ void TheCubeServerAPI::clearVoiceFailure()
 
 bool TheCubeServerAPI::openAudioStreamLocked()
 {
+    const auto startupStart = std::chrono::steady_clock::now();
     if (!wsBridge) {
         error = ServerError::SERVER_ERROR_INTERNAL_ERROR;
         setVoiceFailure(VoiceFailureCategory::OTHER_VOICE_FAILURE, "Voice stream bridge is unavailable");
@@ -682,6 +692,7 @@ bool TheCubeServerAPI::openAudioStreamLocked()
     }
 
     const auto headers = buildAuthHeaders(bearerToken, apiKey, serialNumber);
+    const auto connectStart = std::chrono::steady_clock::now();
     if (!wsBridge->connect(websocketUrl, headers, std::chrono::milliseconds(5000))) {
         error = ServerError::SERVER_ERROR_STREAMING_ERROR;
         status = ServerStatus::SERVER_STATUS_ERROR;
@@ -689,18 +700,38 @@ bool TheCubeServerAPI::openAudioStreamLocked()
         setVoiceFailure(
             VoiceFailureCategory::VOICE_SERVICE_UNAVAILABLE,
             "Unable to open remote voice stream: " + wsBridge->debugSummary());
+        CubeLog::error(
+            "TheCubeServerAPI: voice stream websocket connect failed"
+            " session=" + (activeSession.has_value() ? activeSession->sessionId : std::string("<none>"))
+            + ", connectMs=" + formatDurationMs(connectStart)
+            + ", bridge={" + wsBridge->debugSummary() + "}");
         return false;
     }
+    const auto connectedAt = std::chrono::steady_clock::now();
+    CubeLog::info(
+        "TheCubeServerAPI: voice stream websocket connected"
+        " session=" + (activeSession.has_value() ? activeSession->sessionId : std::string("<none>"))
+        + ", connectMs=" + formatDurationMs(connectStart, connectedAt));
 
     std::string sessionId;
     std::string waitError;
+    const auto bootstrapWaitStart = std::chrono::steady_clock::now();
     if (wsBridge->waitForSessionStart(std::chrono::milliseconds(1000), sessionId, waitError)) {
+        const auto bootstrapReadyAt = std::chrono::steady_clock::now();
         if (activeSession.has_value()) {
             activeSession->sessionId = sessionId;
         }
-        CubeLog::info("TheCubeServerAPI: voice turn started session=" + sessionId);
+        CubeLog::info(
+            "TheCubeServerAPI: voice turn bootstrap received"
+            " session=" + sessionId
+            + ", bootstrapWaitMs=" + formatDurationMs(bootstrapWaitStart, bootstrapReadyAt)
+            + ", sinceStartupMs=" + formatDurationMs(startupStart, bootstrapReadyAt));
     } else {
-        CubeLog::warning("TheCubeServerAPI: voice turn bootstrap not received: " + waitError);
+        CubeLog::warning(
+            "TheCubeServerAPI: voice turn bootstrap not received"
+            " session=" + (activeSession.has_value() ? activeSession->sessionId : std::string("<none>"))
+            + ", bootstrapWaitMs=" + formatDurationMs(bootstrapWaitStart)
+            + ", error=" + waitError);
     }
 
     const auto voiceFunctions = pendingVoiceFunctions.is_array() ? pendingVoiceFunctions : nlohmann::json::array();
@@ -711,6 +742,7 @@ bool TheCubeServerAPI::openAudioStreamLocked()
         { "functions", voiceFunctions },
         { "context", voiceContext }
     };
+    const auto initSendStart = std::chrono::steady_clock::now();
     if (!wsBridge->sendText(initPayload.dump())) {
         error = ServerError::SERVER_ERROR_STREAMING_ERROR;
         status = ServerStatus::SERVER_STATUS_ERROR;
@@ -720,11 +752,18 @@ bool TheCubeServerAPI::openAudioStreamLocked()
             "Unable to initialize remote voice turn: " + wsBridge->debugSummary());
         return false;
     }
+    const auto readyAt = std::chrono::steady_clock::now();
     CubeLog::info(
-        "TheCubeServerAPI: voice turn init sent"
+        "TheCubeServerAPI: voice turn stream ready"
         " session=" + (activeSession.has_value() ? activeSession->sessionId : std::string("<none>"))
         + ", toolCount=" + std::to_string(voiceFunctions.is_array() ? voiceFunctions.size() : 0)
         + ", hasContext=" + std::string(voiceContext.is_object() && !voiceContext.empty() ? "true" : "false"));
+    CubeLog::info(
+        "TheCubeServerAPI: voice turn startup timings"
+        " session=" + (activeSession.has_value() ? activeSession->sessionId : std::string("<none>"))
+        + ", connectMs=" + formatDurationMs(connectStart, connectedAt)
+        + ", initSendMs=" + formatDurationMs(initSendStart, readyAt)
+        + ", totalStartupMs=" + formatDurationMs(startupStart, readyAt));
     pendingVoiceFunctions = nlohmann::json::array();
     pendingVoiceContext = nlohmann::json::object();
 
@@ -747,6 +786,7 @@ bool TheCubeServerAPI::startStreamingTranscription()
 bool TheCubeServerAPI::createTranscriptionSession()
 {
     std::lock_guard<std::mutex> lock(transcriptionMutex);
+    const auto sessionCreateStart = std::chrono::steady_clock::now();
     if (status == ServerStatus::SERVER_STATUS_INITIALIZING) {
         initServerConnection();
     }
@@ -776,6 +816,10 @@ bool TheCubeServerAPI::createTranscriptionSession()
         activeSession.reset();
         return false;
     }
+    CubeLog::info(
+        "TheCubeServerAPI: transcription session created"
+        " session=" + (activeSession.has_value() ? activeSession->sessionId : std::string("<none>"))
+        + ", createMs=" + formatDurationMs(sessionCreateStart));
     return true;
 }
 
@@ -858,12 +902,15 @@ std::string TheCubeServerAPI::waitForFinalTranscript(std::chrono::milliseconds t
 {
     std::string transcript;
     std::string waitError;
+    const auto waitStart = std::chrono::steady_clock::now();
+    std::string sessionIdForLog = "<none>";
 
     {
         std::lock_guard<std::mutex> lock(transcriptionMutex);
         if (!activeSession.has_value() || !wsBridge) {
             return {};
         }
+        sessionIdForLog = activeSession->sessionId;
         CubeLog::info(
             "TheCubeServerAPI: waiting for final transcript for session="
             + activeSession->sessionId
@@ -872,7 +919,11 @@ std::string TheCubeServerAPI::waitForFinalTranscript(std::chrono::milliseconds t
     }
 
     if (!wsBridge->waitForFinal(timeout, transcript, waitError)) {
-        CubeLog::error("TheCubeServerAPI: transcription wait failed: " + waitError);
+        CubeLog::error(
+            "TheCubeServerAPI: transcription wait failed"
+            " session=" + sessionIdForLog
+            + ", waitMs=" + formatDurationMs(waitStart)
+            + ", error=" + waitError);
         std::lock_guard<std::mutex> lock(transcriptionMutex);
         error = ServerError::SERVER_ERROR_TRANSCRIPTION_ERROR;
         status = ServerStatus::SERVER_STATUS_ERROR;
@@ -891,6 +942,7 @@ std::string TheCubeServerAPI::waitForFinalTranscript(std::chrono::milliseconds t
                 "TheCubeServerAPI: final transcript ready for session="
                 + activeSession->sessionId
                 + ", transcriptLength=" + std::to_string(transcript.size())
+                + ", waitMs=" + formatDurationMs(waitStart)
                 + ", bridge={" + wsBridge->debugSummary() + "}");
         }
         error = transcript.empty() ? ServerError::SERVER_ERROR_TRANSCRIPTION_ERROR : ServerError::SERVER_ERROR_NONE;
@@ -907,6 +959,8 @@ ResolvedIntentCall TheCubeServerAPI::waitForResolvedIntentCall(std::chrono::mill
 {
     ResolvedIntentCall resolved;
     std::string waitError;
+    const auto waitStart = std::chrono::steady_clock::now();
+    std::string sessionIdForLog = "<none>";
 
     {
         std::lock_guard<std::mutex> lock(transcriptionMutex);
@@ -915,6 +969,7 @@ ResolvedIntentCall TheCubeServerAPI::waitForResolvedIntentCall(std::chrono::mill
             resolved.message = "no_active_voice_turn";
             return resolved;
         }
+        sessionIdForLog = activeSession->sessionId;
         CubeLog::info(
             "TheCubeServerAPI: waiting for resolved intent call for session="
             + activeSession->sessionId
@@ -923,7 +978,11 @@ ResolvedIntentCall TheCubeServerAPI::waitForResolvedIntentCall(std::chrono::mill
     }
 
     if (!wsBridge->waitForIntent(timeout, resolved, waitError)) {
-        CubeLog::error("TheCubeServerAPI: intent wait failed: " + waitError);
+        CubeLog::error(
+            "TheCubeServerAPI: intent wait failed"
+            " session=" + sessionIdForLog
+            + ", waitMs=" + formatDurationMs(waitStart)
+            + ", error=" + waitError);
         std::lock_guard<std::mutex> lock(transcriptionMutex);
         error = ServerError::SERVER_ERROR_INTERNAL_ERROR;
         status = ServerStatus::SERVER_STATUS_ERROR;
@@ -943,6 +1002,12 @@ ResolvedIntentCall TheCubeServerAPI::waitForResolvedIntentCall(std::chrono::mill
         status = ServerStatus::SERVER_STATUS_READY;
         state = ServerState::SERVER_STATE_IDLE;
         clearVoiceFailure();
+        CubeLog::info(
+            "TheCubeServerAPI: resolved intent call ready"
+            " session=" + (activeSession.has_value() ? activeSession->sessionId : std::string("<none>"))
+            + ", waitMs=" + formatDurationMs(waitStart)
+            + ", status=" + resolved.status
+            + ", intentName=" + (resolved.intentName.empty() ? std::string("<none>") : resolved.intentName));
     }
     return resolved;
 }
@@ -977,6 +1042,7 @@ std::optional<TheCubeServerAPI::TranscriptionSessionMeta> TheCubeServerAPI::getA
 
 std::optional<std::string> TheCubeServerAPI::createConversationSession()
 {
+    const auto requestStart = std::chrono::steady_clock::now();
     if (!httpClient) {
         error = ServerError::SERVER_ERROR_INTERNAL_ERROR;
         status = ServerStatus::SERVER_STATUS_ERROR;
@@ -992,6 +1058,10 @@ std::optional<std::string> TheCubeServerAPI::createConversationSession()
         setVoiceFailure(
             VoiceFailureCategory::VOICE_SERVICE_UNAVAILABLE,
             "Unable to create remote conversation session: " + httplib::to_string(res.error()));
+        CubeLog::error(
+            "TheCubeServerAPI: conversation session request failed"
+            " durationMs=" + formatDurationMs(requestStart)
+            + ", error=" + httplib::to_string(res.error()));
         return std::nullopt;
     }
     if (res->status != 200 && res->status != 201) {
@@ -1000,6 +1070,10 @@ std::optional<std::string> TheCubeServerAPI::createConversationSession()
         setVoiceFailure(
             VoiceFailureCategory::VOICE_SERVICE_UNAVAILABLE,
             describeHttpFailure(res, "Remote conversation session"));
+        CubeLog::error(
+            "TheCubeServerAPI: conversation session request returned unexpected status"
+            " durationMs=" + formatDurationMs(requestStart)
+            + ", status=" + std::to_string(res->status));
         return std::nullopt;
     }
 
@@ -1018,6 +1092,10 @@ std::optional<std::string> TheCubeServerAPI::createConversationSession()
         status = ServerStatus::SERVER_STATUS_READY;
         error = ServerError::SERVER_ERROR_NONE;
         clearVoiceFailure();
+        CubeLog::info(
+            "TheCubeServerAPI: conversation session created"
+            " durationMs=" + formatDurationMs(requestStart)
+            + ", sessionId=" + sessionId);
         return sessionId;
     } catch (...) {
         error = ServerError::SERVER_ERROR_INTERNAL_ERROR;
@@ -1025,6 +1103,9 @@ std::optional<std::string> TheCubeServerAPI::createConversationSession()
         setVoiceFailure(
             VoiceFailureCategory::OTHER_VOICE_FAILURE,
             "Remote conversation session response could not be parsed");
+        CubeLog::error(
+            "TheCubeServerAPI: conversation session response parse failed"
+            " durationMs=" + formatDurationMs(requestStart));
         return std::nullopt;
     }
 }
@@ -1077,6 +1158,9 @@ std::future<nlohmann::json> TheCubeServerAPI::postChatRequestAsync(const nlohman
         }
 
         clearVoiceFailure();
+        const auto requestStart = std::chrono::steady_clock::now();
+        const auto mode = jsonString(payload, "mode");
+        const auto sessionId = jsonString(payload, "sessionId");
         auto res = httpClient->client.Post("/API/llm/chat", payload.dump(), "application/json");
         if (!res) {
             error = ServerError::SERVER_ERROR_CONNECTION_ERROR;
@@ -1084,6 +1168,12 @@ std::future<nlohmann::json> TheCubeServerAPI::postChatRequestAsync(const nlohman
             setVoiceFailure(
                 VoiceFailureCategory::VOICE_SERVICE_UNAVAILABLE,
                 "Unable to reach remote voice service: " + httplib::to_string(res.error()));
+            CubeLog::error(
+                "TheCubeServerAPI: chat request failed"
+                " sessionId=" + (sessionId.empty() ? std::string("<none>") : sessionId)
+                + ", mode=" + (mode.empty() ? std::string("<default>") : mode)
+                + ", durationMs=" + formatDurationMs(requestStart)
+                + ", error=" + httplib::to_string(res.error()));
             return nlohmann::json();
         }
         if (res->status != 200) {
@@ -1092,6 +1182,12 @@ std::future<nlohmann::json> TheCubeServerAPI::postChatRequestAsync(const nlohman
             setVoiceFailure(
                 VoiceFailureCategory::VOICE_SERVICE_UNAVAILABLE,
                 describeHttpFailure(res, "Remote voice service"));
+            CubeLog::error(
+                "TheCubeServerAPI: chat request returned unexpected status"
+                " sessionId=" + (sessionId.empty() ? std::string("<none>") : sessionId)
+                + ", mode=" + (mode.empty() ? std::string("<default>") : mode)
+                + ", durationMs=" + formatDurationMs(requestStart)
+                + ", status=" + std::to_string(res->status));
             return nlohmann::json();
         }
 
@@ -1100,6 +1196,11 @@ std::future<nlohmann::json> TheCubeServerAPI::postChatRequestAsync(const nlohman
             error = ServerError::SERVER_ERROR_NONE;
             status = ServerStatus::SERVER_STATUS_READY;
             clearVoiceFailure();
+            CubeLog::info(
+                "TheCubeServerAPI: chat request completed"
+                " sessionId=" + (sessionId.empty() ? std::string("<none>") : sessionId)
+                + ", mode=" + (mode.empty() ? std::string("<default>") : mode)
+                + ", durationMs=" + formatDurationMs(requestStart));
             return j;
         } catch (...) {
             error = ServerError::SERVER_ERROR_INTERNAL_ERROR;
@@ -1107,6 +1208,11 @@ std::future<nlohmann::json> TheCubeServerAPI::postChatRequestAsync(const nlohman
             setVoiceFailure(
                 VoiceFailureCategory::OTHER_VOICE_FAILURE,
                 "Remote voice service returned invalid JSON");
+            CubeLog::error(
+                "TheCubeServerAPI: chat response parse failed"
+                " sessionId=" + (sessionId.empty() ? std::string("<none>") : sessionId)
+                + ", mode=" + (mode.empty() ? std::string("<default>") : mode)
+                + ", durationMs=" + formatDurationMs(requestStart));
             return nlohmann::json();
         }
     });

@@ -37,7 +37,11 @@ SOFTWARE.
 #include "transcriber.h"
 #include "transcriptionEvents.h"
 #include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <iomanip>
+#include <optional>
+#include <sstream>
 #include <type_traits>
 
 namespace {
@@ -56,6 +60,14 @@ T parseNumericConfig(const std::string& key, T fallback)
     } catch (...) {
         return fallback;
     }
+}
+
+std::string formatDurationMs(const std::chrono::steady_clock::time_point& start, const std::chrono::steady_clock::time_point& end = std::chrono::steady_clock::now())
+{
+    const auto durationMs = std::chrono::duration<double, std::milli>(end - start).count();
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(1) << durationMs;
+    return oss.str();
 }
 
 } // namespace
@@ -117,20 +129,33 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
         workerThread.request_stop();
         cancelActiveSession();
     }
+    const auto startupStart = std::chrono::steady_clock::now();
     CubeLog::info("RemoteTranscriber: starting utterance session");
     drainAudioQueue(audioQueue);
 
     if (!initTranscribing()) {
-        CubeLog::error("RemoteTranscriber: failed to create remote transcription session");
+        CubeLog::error(
+            "RemoteTranscriber: failed to create remote transcription session"
+            " startupMs=" + formatDurationMs(startupStart));
         return nullptr;
     }
     sessionActive = true;
+    const auto startupReadyAt = std::chrono::steady_clock::now();
+    CubeLog::info(
+        "RemoteTranscriber: remote transcription session ready"
+        " startupMs=" + formatDurationMs(startupStart, startupReadyAt));
 
-    workerThread = std::jthread([this, audioQueue, textQueue](std::stop_token stoken) {
+    workerThread = std::jthread([this, audioQueue, textQueue, startupMs = formatDurationMs(startupStart, startupReadyAt)](std::stop_token stoken) {
         const auto signalFailure = [&textQueue]() {
             if (textQueue) {
                 textQueue->push(std::string());
             }
+        };
+        const auto maybeElapsedMs = [](const std::optional<std::chrono::steady_clock::time_point>& maybeStart, const std::chrono::steady_clock::time_point& sessionStart) {
+            if (!maybeStart.has_value()) {
+                return std::string("n/a");
+            }
+            return formatDurationMs(sessionStart, *maybeStart);
         };
         const auto silenceTimeout = std::chrono::milliseconds(parseNumericConfig<int>("REMOTE_TRANSCRIPTION_SILENCE_TIMEOUT_MS", 450));
         const auto noSpeechTimeout = std::chrono::milliseconds(parseNumericConfig<int>("REMOTE_TRANSCRIPTION_NO_SPEECH_TIMEOUT_MS", 5000));
@@ -142,21 +167,42 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
         bool heardSpeech = false;
         auto sessionStart = std::chrono::steady_clock::now();
         auto lastSpeechAt = sessionStart;
+        std::optional<std::chrono::steady_clock::time_point> firstChunkAt;
+        std::optional<std::chrono::steady_clock::time_point> firstSpeechAt;
+        std::optional<std::chrono::steady_clock::time_point> finishRequestedAt;
+        std::optional<std::chrono::steady_clock::time_point> finalTranscriptAt;
+        std::string endReason = "unknown";
+        const auto logSessionSummary = [&](const std::string& reason, size_t transcriptLength) {
+            CubeLog::info(
+                "RemoteTranscriber: utterance session summary"
+                " reason=" + reason
+                + ", startupMs=" + startupMs
+                + ", sessionMs=" + formatDurationMs(sessionStart)
+                + ", firstChunkMs=" + maybeElapsedMs(firstChunkAt, sessionStart)
+                + ", firstSpeechMs=" + maybeElapsedMs(firstSpeechAt, sessionStart)
+                + ", finishRequestedMs=" + maybeElapsedMs(finishRequestedAt, sessionStart)
+                + ", finalTranscriptMs=" + maybeElapsedMs(finalTranscriptAt, sessionStart)
+                + ", chunksSent=" + std::to_string(chunksSent)
+                + ", transcriptLength=" + std::to_string(transcriptLength));
+        };
 
         while (!stoken.stop_requested()) {
             const auto now = std::chrono::steady_clock::now();
             if ((now - sessionStart) >= maxSessionDuration) {
                 CubeLog::warning("RemoteTranscriber: max session duration reached, finishing session");
+                endReason = "max_session_duration";
                 break;
             }
 
             if (audioQueue->size() == 0) {
                 if (!heardSpeech && (now - sessionStart) >= noSpeechTimeout) {
                     CubeLog::warning("RemoteTranscriber: no speech detected before timeout, finishing session");
+                    endReason = "no_speech_timeout";
                     break;
                 }
                 if (heardSpeech && (now - lastSpeechAt) >= silenceTimeout) {
                     CubeLog::info("RemoteTranscriber: silence timeout reached, finishing session");
+                    endReason = "silence_timeout";
                     break;
                 }
                 std::this_thread::sleep_for(idlePoll);
@@ -166,24 +212,42 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
             auto audioOpt = audioQueue->pop();
             if (!audioOpt || audioOpt->empty()) continue;
 
+            const auto chunkTime = std::chrono::steady_clock::now();
+            if (!firstChunkAt.has_value()) {
+                firstChunkAt = chunkTime;
+                CubeLog::info(
+                    "RemoteTranscriber: first audio chunk streamed"
+                    " firstChunkMs=" + formatDurationMs(sessionStart, chunkTime)
+                    + ", samples=" + std::to_string(audioOpt->size()));
+            }
             if (!remoteAudioClient->sendAudioChunk(std::span<const int16_t>(audioOpt->data(), audioOpt->size()))) {
                 CubeLog::error("RemoteTranscriber: failed while streaming audio; cancelling session");
                 cancelActiveSession();
                 sessionActive = false;
+                endReason = "stream_send_failed";
+                logSessionSummary(endReason, 0);
                 signalFailure();
                 return;
             }
 
             ++chunksSent;
-            const auto chunkTime = std::chrono::steady_clock::now();
             if (isSpeechChunk(*audioOpt)) {
                 heardSpeech = true;
                 lastSpeechAt = chunkTime;
+                if (!firstSpeechAt.has_value()) {
+                    firstSpeechAt = chunkTime;
+                    CubeLog::info(
+                        "RemoteTranscriber: first speech chunk detected"
+                        " firstSpeechMs=" + formatDurationMs(sessionStart, chunkTime)
+                        + ", chunksSent=" + std::to_string(chunksSent));
+                }
             } else if (heardSpeech && (chunkTime - lastSpeechAt) >= silenceTimeout) {
                 CubeLog::info("RemoteTranscriber: post-speech silence timeout reached, finishing session");
+                endReason = "post_speech_silence_timeout";
                 break;
             } else if (!heardSpeech && (chunkTime - sessionStart) >= noSpeechTimeout) {
                 CubeLog::warning("RemoteTranscriber: no speech detected in session window, finishing session");
+                endReason = "no_speech_window";
                 break;
             }
         }
@@ -193,6 +257,7 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
             cancelActiveSession();
             sessionActive = false;
             drainAudioQueue(audioQueue);
+            logSessionSummary("interrupted", 0);
             signalFailure();
             return;
         }
@@ -200,6 +265,7 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
         if (!sessionActive) {
             CubeLog::warning("RemoteTranscriber: no active session found at finalize step");
             sessionActive = false;
+            logSessionSummary("no_active_session", 0);
             signalFailure();
             return;
         }
@@ -208,15 +274,22 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
             CubeLog::warning("RemoteTranscriber: no audio chunks sent; cancelling session");
             cancelActiveSession();
             sessionActive = false;
+            logSessionSummary("no_audio_chunks", 0);
             signalFailure();
             return;
         }
 
-        CubeLog::info("RemoteTranscriber: finish requested after chunks=" + std::to_string(chunksSent));
+        finishRequestedAt = std::chrono::steady_clock::now();
+        CubeLog::info(
+            "RemoteTranscriber: finish requested"
+            " chunks=" + std::to_string(chunksSent)
+            + ", finishRequestedMs=" + formatDurationMs(sessionStart, *finishRequestedAt)
+            + ", endReason=" + endReason);
         if (!remoteAudioClient->finishStreamingTranscription()) {
             CubeLog::error("RemoteTranscriber: finish failed; cancelling session");
             cancelActiveSession();
             sessionActive = false;
+            logSessionSummary("finish_failed", 0);
             signalFailure();
             return;
         }
@@ -225,11 +298,17 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
         sessionActive = false;
 
         if (!transcription.empty()) {
-            CubeLog::info("RemoteTranscriber: final transcript received: " + transcription);
+            finalTranscriptAt = std::chrono::steady_clock::now();
+            CubeLog::info(
+                "RemoteTranscriber: final transcript received"
+                " transcriptLength=" + std::to_string(transcription.size())
+                + ", finalTranscriptMs=" + formatDurationMs(sessionStart, *finalTranscriptAt));
             TranscriptionEvents::publish({ .fullText = transcription, .appendText = "", .isFinal = true });
             textQueue->push(transcription);
+            logSessionSummary("success", transcription.size());
         } else {
             CubeLog::warning("RemoteTranscriber: final transcript missing or empty");
+            logSessionSummary("final_transcript_missing", 0);
             signalFailure();
         }
 
