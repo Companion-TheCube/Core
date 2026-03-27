@@ -61,6 +61,7 @@ SOFTWARE.
 #include "../api/autoRegister.h"
 #include "../audio/audioManager.h"
 #include "../audio/constants.h"
+#include "../audio/sileroVad.h"
 #include "../threadsafeQueue.h"
 #include "globalSettings.h"
 #include "httplib.h"
@@ -130,10 +131,11 @@ private:
     bool initTranscribing();
     bool streamAudio();
     bool stopTranscribing();
-    bool isSpeechChunk(const std::vector<int16_t>& audioChunk) const;
+    audio::SileroVadChunkResult analyzeSpeechChunk(const std::vector<int16_t>& audioChunk);
     void drainAudioQueue(const std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>>& queue) const;
     void cancelActiveSession() const;
     std::atomic<bool> sessionActive { false };
+    std::unique_ptr<audio::SileroVad> voiceActivityDetector;
     std::jthread workerThread;
 };
 

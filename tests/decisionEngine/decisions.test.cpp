@@ -143,6 +143,12 @@ void resetVoiceConfig()
     Config::erase("DECISION_ENGINE_RESULT_HIDE_MS");
     Config::erase("REMOTE_TRANSCRIPTION_SILENCE_TIMEOUT_MS");
     Config::erase("REMOTE_TRANSCRIPTION_WAIT_FINAL_MS");
+    Config::erase("SILERO_VAD_ENABLED");
+    Config::erase("SILERO_VAD_MODEL_PATH");
+    Config::erase("SILERO_VAD_THRESHOLD");
+    Config::erase("SILERO_VAD_RELEASE_DELTA");
+    Config::erase("SILERO_VAD_WINDOW_MS");
+    Config::erase("SILERO_VAD_MIN_SILENCE_MS");
 }
 
 bool waitUntil(const std::function<bool()>& predicate, std::chrono::milliseconds timeout)

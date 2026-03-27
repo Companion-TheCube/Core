@@ -70,12 +70,27 @@ std::string formatDurationMs(const std::chrono::steady_clock::time_point& start,
     return oss.str();
 }
 
+std::string formatProbability(float probability)
+{
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(2) << probability;
+    return oss.str();
+}
+
 } // namespace
 
 namespace DecisionEngine {
 RemoteTranscriber::RemoteTranscriber()
 {
     sessionActive = false;
+    voiceActivityDetector = std::make_unique<audio::SileroVad>();
+    if (voiceActivityDetector && voiceActivityDetector->available()) {
+        CubeLog::info("RemoteTranscriber: Silero VAD enabled for speech boundary detection");
+    } else if (voiceActivityDetector && !voiceActivityDetector->failureReason().empty()) {
+        CubeLog::warning(
+            "RemoteTranscriber: Silero VAD unavailable, using fallback speech detection reason="
+            + voiceActivityDetector->failureReason());
+    }
 }
 RemoteTranscriber::~RemoteTranscriber()
 {
@@ -140,6 +155,9 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
         return nullptr;
     }
     sessionActive = true;
+    if (voiceActivityDetector) {
+        voiceActivityDetector->reset();
+    }
     const auto startupReadyAt = std::chrono::steady_clock::now();
     CubeLog::info(
         "RemoteTranscriber: remote transcription session ready"
@@ -231,7 +249,8 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
             }
 
             ++chunksSent;
-            if (isSpeechChunk(*audioOpt)) {
+            const auto speechAnalysis = analyzeSpeechChunk(*audioOpt);
+            if (speechAnalysis.speechObserved) {
                 heardSpeech = true;
                 lastSpeechAt = chunkTime;
                 if (!firstSpeechAt.has_value()) {
@@ -239,9 +258,19 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
                     CubeLog::info(
                         "RemoteTranscriber: first speech chunk detected"
                         " firstSpeechMs=" + formatDurationMs(sessionStart, chunkTime)
-                        + ", chunksSent=" + std::to_string(chunksSent));
+                        + ", chunksSent=" + std::to_string(chunksSent)
+                        + ", speechProb=" + formatProbability(speechAnalysis.maxSpeechProbability));
                 }
-            } else if (heardSpeech && (chunkTime - lastSpeechAt) >= silenceTimeout) {
+            }
+
+            if (speechAnalysis.speechEnded) {
+                CubeLog::info(
+                    "RemoteTranscriber: Silero VAD detected end of speech"
+                    " chunksSent=" + std::to_string(chunksSent)
+                    + ", speechProb=" + formatProbability(speechAnalysis.maxSpeechProbability));
+                endReason = "vad_speech_end";
+                break;
+            } else if (heardSpeech && !speechAnalysis.segmentActive && (chunkTime - lastSpeechAt) >= silenceTimeout) {
                 CubeLog::info("RemoteTranscriber: post-speech silence timeout reached, finishing session");
                 endReason = "post_speech_silence_timeout";
                 break;
@@ -355,9 +384,14 @@ bool RemoteTranscriber::stopTranscribing()
     return !finalText.empty();
 }
 
-bool RemoteTranscriber::isSpeechChunk(const std::vector<int16_t>& audioChunk) const
+audio::SileroVadChunkResult RemoteTranscriber::analyzeSpeechChunk(const std::vector<int16_t>& audioChunk)
 {
-    if (audioChunk.empty()) return false;
+    audio::SileroVadChunkResult result;
+    if (audioChunk.empty()) return result;
+
+    if (voiceActivityDetector && voiceActivityDetector->available()) {
+        return voiceActivityDetector->analyzePcm16(audioChunk);
+    }
 
     const double meanAbsThreshold = parseNumericConfig<double>("REMOTE_TRANSCRIPTION_SPEECH_MEAN_ABS_THRESHOLD", 350.0);
     const int peakThreshold = parseNumericConfig<int>("REMOTE_TRANSCRIPTION_SPEECH_PEAK_THRESHOLD", 1200);
@@ -371,7 +405,11 @@ bool RemoteTranscriber::isSpeechChunk(const std::vector<int16_t>& audioChunk) co
     }
 
     const double meanAbs = static_cast<double>(sumAbs) / static_cast<double>(audioChunk.size());
-    return meanAbs >= meanAbsThreshold || peak >= peakThreshold;
+    result.speechObserved = meanAbs >= meanAbsThreshold || peak >= peakThreshold;
+    result.segmentActive = result.speechObserved;
+    result.maxSpeechProbability = result.speechObserved ? 1.0f : 0.0f;
+    result.windowsEvaluated = 1;
+    return result;
 }
 
 void RemoteTranscriber::drainAudioQueue(const std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>>& queue) const

@@ -235,6 +235,98 @@ if(NOT WEBSOCKETPP_PATCH_RESULT EQUAL 0)
     message(FATAL_ERROR "Failed to patch websocketpp for Boost.Asio 1.88 compatibility")
 endif()
 
+FetchContent_Declare(
+    silero_vad
+    GIT_REPOSITORY https://github.com/snakers4/silero-vad.git
+    GIT_TAG master
+    UPDATE_DISCONNECTED FALSE
+)
+FetchContent_GetProperties(silero_vad)
+if(NOT silero_vad_POPULATED)
+    FetchContent_Populate(silero_vad)
+endif()
+
+set(ONNXRUNTIME_VERSION "1.23.1")
+if(WIN32)
+    set(ONNXRUNTIME_PACKAGE_NAME "onnxruntime-win-x64-${ONNXRUNTIME_VERSION}")
+    set(ONNXRUNTIME_PACKAGE_EXT "zip")
+elseif(APPLE)
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)$" OR CMAKE_OSX_ARCHITECTURES MATCHES "arm64")
+        set(ONNXRUNTIME_PACKAGE_NAME "onnxruntime-osx-arm64-${ONNXRUNTIME_VERSION}")
+    else()
+        set(ONNXRUNTIME_PACKAGE_NAME "onnxruntime-osx-x86_64-${ONNXRUNTIME_VERSION}")
+    endif()
+    set(ONNXRUNTIME_PACKAGE_EXT "tgz")
+elseif(UNIX)
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)$")
+        set(ONNXRUNTIME_PACKAGE_NAME "onnxruntime-linux-aarch64-${ONNXRUNTIME_VERSION}")
+    else()
+        set(ONNXRUNTIME_PACKAGE_NAME "onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}")
+    endif()
+    set(ONNXRUNTIME_PACKAGE_EXT "tgz")
+else()
+    message(FATAL_ERROR "Unsupported platform for bundled ONNX Runtime")
+endif()
+
+set(ONNXRUNTIME_URL "https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/${ONNXRUNTIME_PACKAGE_NAME}.${ONNXRUNTIME_PACKAGE_EXT}")
+FetchContent_Declare(
+    onnxruntime_binary
+    URL ${ONNXRUNTIME_URL}
+    DOWNLOAD_EXTRACT_TIMESTAMP FALSE
+)
+FetchContent_GetProperties(onnxruntime_binary)
+if(NOT onnxruntime_binary_POPULATED)
+    FetchContent_Populate(onnxruntime_binary)
+endif()
+
+set(ONNXRUNTIME_ROOT_DIR "${onnxruntime_binary_SOURCE_DIR}/${ONNXRUNTIME_PACKAGE_NAME}")
+if(NOT EXISTS "${ONNXRUNTIME_ROOT_DIR}/include")
+    set(ONNXRUNTIME_ROOT_DIR "${onnxruntime_binary_SOURCE_DIR}")
+endif()
+set(ONNXRUNTIME_INCLUDE_DIR "${ONNXRUNTIME_ROOT_DIR}/include")
+
+if(WIN32)
+    set(ONNXRUNTIME_LIBRARY_PATH "${ONNXRUNTIME_ROOT_DIR}/lib/onnxruntime.lib")
+    set(ONNXRUNTIME_RUNTIME_PATH "${ONNXRUNTIME_ROOT_DIR}/lib/onnxruntime.dll")
+elseif(APPLE)
+    if(EXISTS "${ONNXRUNTIME_ROOT_DIR}/lib/libonnxruntime.dylib")
+        set(ONNXRUNTIME_LIBRARY_PATH "${ONNXRUNTIME_ROOT_DIR}/lib/libonnxruntime.dylib")
+    else()
+        file(GLOB ONNXRUNTIME_APPLE_LIBS "${ONNXRUNTIME_ROOT_DIR}/lib/libonnxruntime*.dylib")
+        if(ONNXRUNTIME_APPLE_LIBS)
+            list(GET ONNXRUNTIME_APPLE_LIBS 0 ONNXRUNTIME_LIBRARY_PATH)
+        endif()
+    endif()
+else()
+    if(EXISTS "${ONNXRUNTIME_ROOT_DIR}/lib/libonnxruntime.so")
+        set(ONNXRUNTIME_LIBRARY_PATH "${ONNXRUNTIME_ROOT_DIR}/lib/libonnxruntime.so")
+    else()
+        file(GLOB ONNXRUNTIME_LINUX_LIBS "${ONNXRUNTIME_ROOT_DIR}/lib/libonnxruntime.so*")
+        if(ONNXRUNTIME_LINUX_LIBS)
+            list(GET ONNXRUNTIME_LINUX_LIBS 0 ONNXRUNTIME_LIBRARY_PATH)
+        endif()
+    endif()
+endif()
+
+if(NOT EXISTS "${ONNXRUNTIME_INCLUDE_DIR}")
+    message(FATAL_ERROR "Bundled ONNX Runtime include directory not found at ${ONNXRUNTIME_INCLUDE_DIR}")
+endif()
+if(NOT EXISTS "${ONNXRUNTIME_LIBRARY_PATH}")
+    message(FATAL_ERROR "Bundled ONNX Runtime library not found at ${ONNXRUNTIME_LIBRARY_PATH}")
+endif()
+
+add_library(onnxruntime::onnxruntime SHARED IMPORTED GLOBAL)
+set_target_properties(onnxruntime::onnxruntime PROPERTIES
+    IMPORTED_LOCATION "${ONNXRUNTIME_LIBRARY_PATH}"
+    INTERFACE_INCLUDE_DIRECTORIES "${ONNXRUNTIME_INCLUDE_DIR}"
+)
+if(WIN32 AND EXISTS "${ONNXRUNTIME_RUNTIME_PATH}")
+    set_target_properties(onnxruntime::onnxruntime PROPERTIES
+        IMPORTED_IMPLIB "${ONNXRUNTIME_LIBRARY_PATH}"
+        IMPORTED_LOCATION "${ONNXRUNTIME_RUNTIME_PATH}"
+    )
+endif()
+
 
 file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/libraries)
 file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/libraries/whisper_models)
@@ -558,11 +650,25 @@ target_link_libraries(CubeCoreLib PUBLIC
     json-rpc-cxx
     msgpack-cxx
     cppcodec
+    onnxruntime::onnxruntime
     SDBusCpp::sdbus-c++
 )
 
 # Executable links the core library
 target_link_libraries(CubeCore PRIVATE CubeCoreLib)
+
+if(APPLE)
+    set(ONNXRUNTIME_RELATIVE_RPATH "@loader_path")
+elseif(UNIX)
+    set(ONNXRUNTIME_RELATIVE_RPATH "$ORIGIN")
+endif()
+
+if(DEFINED ONNXRUNTIME_RELATIVE_RPATH)
+    set_target_properties(CubeCore PROPERTIES
+        BUILD_RPATH "${ONNXRUNTIME_RELATIVE_RPATH}"
+        BUILD_RPATH_USE_ORIGIN TRUE
+    )
+endif()
 
 target_compile_features(CubeCoreLib PUBLIC cxx_std_17)
 
@@ -742,6 +848,39 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E echo "Copying data to output directory"
 )
 
+set(SILERO_VAD_MODEL_SOURCE "${silero_vad_SOURCE_DIR}/src/silero_vad/data/silero_vad.onnx")
+if(EXISTS "${SILERO_VAD_MODEL_SOURCE}")
+    add_custom_command(
+        TARGET CubeCore POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${SILERO_VAD_MODEL_SOURCE}"
+        "${DATA_DEST_DIR}/silero_vad.onnx"
+        COMMENT "Copying Silero VAD model to output directory"
+    )
+else()
+    message(FATAL_ERROR "Silero VAD model not found at ${SILERO_VAD_MODEL_SOURCE}")
+endif()
+
+if(NOT DEFINED ONNXRUNTIME_RUNTIME_PATH AND EXISTS "${ONNXRUNTIME_LIBRARY_PATH}")
+    set(ONNXRUNTIME_RUNTIME_PATH "${ONNXRUNTIME_LIBRARY_PATH}")
+endif()
+
+if(EXISTS "${ONNXRUNTIME_RUNTIME_PATH}")
+    if(WIN32)
+        set(ONNXRUNTIME_RUNTIME_DEST "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>")
+    else()
+        set(ONNXRUNTIME_RUNTIME_DEST "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+    endif()
+    add_custom_command(
+        TARGET CubeCore POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${ONNXRUNTIME_RUNTIME_DEST}"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${ONNXRUNTIME_RUNTIME_PATH}"
+        "${ONNXRUNTIME_RUNTIME_DEST}"
+        COMMENT "Copying ONNX Runtime library to output directory"
+    )
+endif()
+
 # Copy Whisper models directory to runtime output directory
 set(WHISPER_MODELS_SRC_DIR "${CMAKE_SOURCE_DIR}/libraries/whisper_models")
 if(EXISTS ${WHISPER_MODELS_SRC_DIR})
@@ -834,6 +973,27 @@ target_link_libraries(CubeCoreTests PRIVATE
     gmock_main
     CubeCoreLib
 )
+if(DEFINED ONNXRUNTIME_RELATIVE_RPATH)
+    set_target_properties(CubeCoreTests PROPERTIES
+        BUILD_RPATH "${ONNXRUNTIME_RELATIVE_RPATH}"
+        BUILD_RPATH_USE_ORIGIN TRUE
+    )
+endif()
+if(EXISTS "${ONNXRUNTIME_RUNTIME_PATH}")
+    if(WIN32)
+        set(ONNXRUNTIME_TEST_RUNTIME_DEST "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>")
+    else()
+        set(ONNXRUNTIME_TEST_RUNTIME_DEST "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+    endif()
+    add_custom_command(
+        TARGET CubeCoreTests POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${ONNXRUNTIME_TEST_RUNTIME_DEST}"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${ONNXRUNTIME_RUNTIME_PATH}"
+        "${ONNXRUNTIME_TEST_RUNTIME_DEST}"
+        COMMENT "Copying ONNX Runtime library to test output directory"
+    )
+endif()
 
 # Set compiler flags to output assembly
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -save-temps")
@@ -857,6 +1017,12 @@ if(benchmark_FOUND)
         benchmark::benchmark_main
         CubeCoreLib
     )
+    if(DEFINED ONNXRUNTIME_RELATIVE_RPATH)
+        set_target_properties(CubeCoreBenchmarks PROPERTIES
+            BUILD_RPATH "${ONNXRUNTIME_RELATIVE_RPATH}"
+            BUILD_RPATH_USE_ORIGIN TRUE
+        )
+    endif()
 else()
     message(WARNING "Google Benchmark not found, skipping benchmarks.")
     message(WARNING "To build benchmarks, install Google Benchmark and re-run CMake.")
