@@ -96,6 +96,125 @@ std::string formatDurationMsOrNa(int64_t startEpochMs, int64_t endEpochMs)
     return std::to_string(endEpochMs - startEpochMs);
 }
 
+std::vector<uint32_t> decodeUtf8ToCodepoints(const std::string& text)
+{
+    std::vector<uint32_t> codepoints;
+    codepoints.reserve(text.size());
+
+    const auto* bytes = reinterpret_cast<const unsigned char*>(text.data());
+    size_t index = 0;
+    while (index < text.size()) {
+        const unsigned char lead = bytes[index];
+        if (lead < 0x80) {
+            codepoints.push_back(static_cast<uint32_t>(lead));
+            ++index;
+            continue;
+        }
+
+        uint32_t codepoint = 0;
+        size_t sequenceLength = 0;
+        uint32_t minValue = 0;
+        if ((lead & 0xE0) == 0xC0) {
+            codepoint = lead & 0x1F;
+            sequenceLength = 2;
+            minValue = 0x80;
+        } else if ((lead & 0xF0) == 0xE0) {
+            codepoint = lead & 0x0F;
+            sequenceLength = 3;
+            minValue = 0x800;
+        } else if ((lead & 0xF8) == 0xF0) {
+            codepoint = lead & 0x07;
+            sequenceLength = 4;
+            minValue = 0x10000;
+        } else {
+            ++index;
+            continue;
+        }
+
+        if (index + sequenceLength > text.size()) {
+            ++index;
+            continue;
+        }
+
+        bool valid = true;
+        for (size_t offset = 1; offset < sequenceLength; ++offset) {
+            const unsigned char continuation = bytes[index + offset];
+            if ((continuation & 0xC0) != 0x80) {
+                valid = false;
+                break;
+            }
+            codepoint = (codepoint << 6) | static_cast<uint32_t>(continuation & 0x3F);
+        }
+
+        if (!valid
+            || codepoint < minValue
+            || codepoint > 0x10FFFF
+            || (codepoint >= 0xD800 && codepoint <= 0xDFFF)) {
+            ++index;
+            continue;
+        }
+
+        codepoints.push_back(codepoint);
+        index += sequenceLength;
+    }
+
+    return codepoints;
+}
+
+void appendUtf8Codepoint(std::string& out, uint32_t codepoint)
+{
+    if (codepoint <= 0x7F) {
+        out.push_back(static_cast<char>(codepoint));
+        return;
+    }
+    if (codepoint <= 0x7FF) {
+        out.push_back(static_cast<char>(0xC0 | ((codepoint >> 6) & 0x1F)));
+        out.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
+        return;
+    }
+    if (codepoint <= 0xFFFF) {
+        out.push_back(static_cast<char>(0xE0 | ((codepoint >> 12) & 0x0F)));
+        out.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F)));
+        out.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
+        return;
+    }
+    out.push_back(static_cast<char>(0xF0 | ((codepoint >> 18) & 0x07)));
+    out.push_back(static_cast<char>(0x80 | ((codepoint >> 12) & 0x3F)));
+    out.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F)));
+    out.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
+}
+
+bool isEmojiLikeCodepoint(uint32_t codepoint)
+{
+    return (codepoint >= 0x1F000 && codepoint <= 0x1FAFF)
+        || (codepoint >= 0x2300 && codepoint <= 0x23FF)
+        || (codepoint >= 0x2600 && codepoint <= 0x27BF)
+        || codepoint == 0x00A9
+        || codepoint == 0x00AE
+        || codepoint == 0x203C
+        || codepoint == 0x2049
+        || codepoint == 0x2122
+        || codepoint == 0x2139;
+}
+
+std::string stripEmojiLikeCodepoints(const std::string& input)
+{
+    auto codepoints = decodeUtf8ToCodepoints(input);
+    std::string out;
+    out.reserve(input.size());
+    for (uint32_t codepoint : codepoints) {
+        if (isEmojiLikeCodepoint(codepoint)
+            || codepoint == 0xFE0E
+            || codepoint == 0xFE0F
+            || codepoint == 0x200D
+            || (codepoint >= 0x1F3FB && codepoint <= 0x1F3FF)) {
+            continue;
+        }
+        appendUtf8Codepoint(out, codepoint);
+    }
+    return out;
+}
+
 std::chrono::milliseconds resultPresentationDuration()
 {
     try {
@@ -1125,7 +1244,7 @@ void DecisionEngineMain::presentTurnResult(const DecisionTurnResult& result)
     const std::string sourceMessage = !result.responseText.empty()
         ? result.responseText
         : (!result.error.empty() ? result.error : "Done.");
-    std::string message = sourceMessage;
+    std::string message = stripEmojiLikeCodepoints(sourceMessage);
     const bool remoteVoiceUnavailable = hasRemoteVoiceServiceFailure();
     nlohmann::json rewriteContext = nlohmann::json::object();
     if (chatHistoryStore && shouldPersistChatHistory(result)) {
@@ -1151,7 +1270,7 @@ void DecisionEngineMain::presentTurnResult(const DecisionTurnResult& result)
             try {
                 const auto rewritten = rewriteFuture.get();
                 if (!rewritten.empty()) {
-                    message = rewritten;
+                    message = stripEmojiLikeCodepoints(rewritten);
                 }
             } catch (const std::exception& e) {
                 CubeLog::warning(

@@ -39,6 +39,23 @@ SOFTWARE.
 
 namespace {
 
+bool isRenderableTextCodepoint(uint32_t codepoint)
+{
+    if (codepoint == 0 || codepoint == 0xFEFF || codepoint == 0xFFFD) {
+        return false;
+    }
+    if (codepoint < 0x20 || (codepoint >= 0x7F && codepoint <= 0x9F)) {
+        return false;
+    }
+    if ((codepoint >= 0x200B && codepoint <= 0x200F)
+        || (codepoint >= 0x202A && codepoint <= 0x202E)
+        || (codepoint >= 0x2060 && codepoint <= 0x206F)
+        || (codepoint >= 0xFE00 && codepoint <= 0xFE0F)) {
+        return false;
+    }
+    return true;
+}
+
 std::vector<uint32_t> decodeUtf8Codepoints(const std::string& text)
 {
     std::vector<uint32_t> codepoints;
@@ -189,6 +206,14 @@ void M_Text::buildText()
 
     clearGlyphTextures();
     this->glyphCodepoints = decodeUtf8Codepoints(this->text);
+    this->glyphCodepoints.erase(
+        std::remove_if(
+            this->glyphCodepoints.begin(),
+            this->glyphCodepoints.end(),
+            [](uint32_t codepoint) {
+                return !isRenderableTextCodepoint(codepoint);
+            }),
+        this->glyphCodepoints.end());
     this->width = 0.f;
     for (uint32_t codepoint : this->glyphCodepoints) {
         if (!loadGlyph(codepoint) && codepoint != static_cast<uint32_t>('?')) {
