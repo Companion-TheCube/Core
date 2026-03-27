@@ -85,6 +85,12 @@ public:
         SERVER_STATE_STREAMING
     } state = ServerState::SERVER_STATE_IDLE;
 
+    enum class VoiceFailureCategory {
+        NONE,
+        VOICE_SERVICE_UNAVAILABLE,
+        OTHER_VOICE_FAILURE
+    };
+
     enum class AvailableServices {
         AVAILABLE_SERVICE_NONE = 0,
         AVAILABLE_SERVICE_OPENAI = 1,
@@ -152,6 +158,8 @@ public:
     ServerStatus getServerStatus();
     ServerError getServerError();
     ServerState getServerState();
+    VoiceFailureCategory getLastVoiceFailureCategory() const;
+    std::string getLastVoiceFailureMessage() const;
     FourBit getAvailableServices();
 
     FourBit services = 0;
@@ -161,10 +169,13 @@ private:
 
     std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioBuffer;
     mutable std::mutex transcriptionMutex;
+    mutable std::mutex voiceFailureMutex;
     std::optional<TranscriptionSessionMeta> activeSession;
     std::unique_ptr<WsBridge> wsBridge;
     nlohmann::json pendingVoiceFunctions = nlohmann::json::array();
     nlohmann::json pendingVoiceContext = nlohmann::json::object();
+    VoiceFailureCategory lastVoiceFailureCategory = VoiceFailureCategory::NONE;
+    std::string lastVoiceFailureMessage;
 
     std::string baseUrl;
     std::string websocketUrl;
@@ -177,6 +188,8 @@ private:
 
     bool openAudioStreamLocked();
     void resetActiveSessionLocked();
+    void setVoiceFailure(VoiceFailureCategory category, std::string message);
+    void clearVoiceFailure();
     std::future<std::string> getChatResponseWithModeAsync(
         const std::string& sessionId,
         const std::string& message,

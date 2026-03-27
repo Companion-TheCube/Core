@@ -110,6 +110,27 @@ std::string parseErrorMessage(const nlohmann::json& j)
     return j.dump();
 }
 
+std::string describeHttpFailure(const httplib::Result& res, const std::string& context)
+{
+    if (!res) {
+        return context + " request failed";
+    }
+
+    std::string description = context + " returned HTTP " + std::to_string(res->status);
+    if (!res->body.empty()) {
+        try {
+            const auto parsed = nlohmann::json::parse(res->body);
+            const auto message = parseErrorMessage(parsed);
+            if (!message.empty()) {
+                description += ": " + message;
+            }
+        } catch (...) {
+            description += ": " + res->body;
+        }
+    }
+    return description;
+}
+
 std::vector<std::pair<std::string, std::string>> buildAuthHeaders(
     const std::string& bearerToken,
     const std::string& apiKey,
@@ -638,10 +659,25 @@ TheCubeServerAPI::~TheCubeServerAPI()
     cancelStreamingTranscription();
 }
 
+void TheCubeServerAPI::setVoiceFailure(VoiceFailureCategory category, std::string message)
+{
+    std::lock_guard<std::mutex> lock(voiceFailureMutex);
+    lastVoiceFailureCategory = category;
+    lastVoiceFailureMessage = std::move(message);
+}
+
+void TheCubeServerAPI::clearVoiceFailure()
+{
+    std::lock_guard<std::mutex> lock(voiceFailureMutex);
+    lastVoiceFailureCategory = VoiceFailureCategory::NONE;
+    lastVoiceFailureMessage.clear();
+}
+
 bool TheCubeServerAPI::openAudioStreamLocked()
 {
     if (!wsBridge) {
         error = ServerError::SERVER_ERROR_INTERNAL_ERROR;
+        setVoiceFailure(VoiceFailureCategory::OTHER_VOICE_FAILURE, "Voice stream bridge is unavailable");
         return false;
     }
 
@@ -650,6 +686,9 @@ bool TheCubeServerAPI::openAudioStreamLocked()
         error = ServerError::SERVER_ERROR_STREAMING_ERROR;
         status = ServerStatus::SERVER_STATUS_ERROR;
         state = ServerState::SERVER_STATE_IDLE;
+        setVoiceFailure(
+            VoiceFailureCategory::VOICE_SERVICE_UNAVAILABLE,
+            "Unable to open remote voice stream: " + wsBridge->debugSummary());
         return false;
     }
 
@@ -676,6 +715,9 @@ bool TheCubeServerAPI::openAudioStreamLocked()
         error = ServerError::SERVER_ERROR_STREAMING_ERROR;
         status = ServerStatus::SERVER_STATUS_ERROR;
         state = ServerState::SERVER_STATE_IDLE;
+        setVoiceFailure(
+            VoiceFailureCategory::VOICE_SERVICE_UNAVAILABLE,
+            "Unable to initialize remote voice turn: " + wsBridge->debugSummary());
         return false;
     }
     CubeLog::info(
@@ -728,6 +770,7 @@ bool TheCubeServerAPI::createTranscriptionSession()
     status = ServerStatus::SERVER_STATUS_BUSY;
     state = ServerState::SERVER_STATE_TRANSCRIBING;
     error = ServerError::SERVER_ERROR_NONE;
+    clearVoiceFailure();
 
     if (!openAudioStreamLocked()) {
         activeSession.reset();
@@ -744,6 +787,12 @@ bool TheCubeServerAPI::sendAudioChunk(std::span<const int16_t> audio)
     }
     const bool sent = wsBridge->sendBinary(audio.data(), audio.size_bytes());
     if (!sent) {
+        error = ServerError::SERVER_ERROR_STREAMING_ERROR;
+        status = ServerStatus::SERVER_STATUS_ERROR;
+        state = ServerState::SERVER_STATE_IDLE;
+        setVoiceFailure(
+            VoiceFailureCategory::VOICE_SERVICE_UNAVAILABLE,
+            "Failed while streaming audio chunk: " + wsBridge->debugSummary());
         CubeLog::error(
             "TheCubeServerAPI: sendAudioChunk failed for session="
             + activeSession->sessionId
@@ -780,6 +829,12 @@ bool TheCubeServerAPI::finishTranscriptionSession()
     state = ServerState::SERVER_STATE_TRANSCRIBING;
     const bool sent = wsBridge->sendText("__END__");
     if (!sent) {
+        error = ServerError::SERVER_ERROR_STREAMING_ERROR;
+        status = ServerStatus::SERVER_STATUS_ERROR;
+        state = ServerState::SERVER_STATE_IDLE;
+        setVoiceFailure(
+            VoiceFailureCategory::VOICE_SERVICE_UNAVAILABLE,
+            "Failed while finalizing remote voice stream: " + wsBridge->debugSummary());
         CubeLog::error(
             "TheCubeServerAPI: finishTranscriptionSession failed for session="
             + activeSession->sessionId
@@ -821,6 +876,9 @@ std::string TheCubeServerAPI::waitForFinalTranscript(std::chrono::milliseconds t
         std::lock_guard<std::mutex> lock(transcriptionMutex);
         error = ServerError::SERVER_ERROR_TRANSCRIPTION_ERROR;
         status = ServerStatus::SERVER_STATUS_ERROR;
+        setVoiceFailure(
+            VoiceFailureCategory::VOICE_SERVICE_UNAVAILABLE,
+            waitError.empty() ? "Remote voice service did not produce a transcript" : waitError);
         if (wsBridge) wsBridge->close();
         resetActiveSessionLocked();
         return {};
@@ -838,6 +896,9 @@ std::string TheCubeServerAPI::waitForFinalTranscript(std::chrono::milliseconds t
         error = transcript.empty() ? ServerError::SERVER_ERROR_TRANSCRIPTION_ERROR : ServerError::SERVER_ERROR_NONE;
         status = transcript.empty() ? ServerStatus::SERVER_STATUS_ERROR : ServerStatus::SERVER_STATUS_BUSY;
         state = ServerState::SERVER_STATE_TRANSCRIBING;
+        if (!transcript.empty()) {
+            clearVoiceFailure();
+        }
     }
     return transcript;
 }
@@ -866,6 +927,9 @@ ResolvedIntentCall TheCubeServerAPI::waitForResolvedIntentCall(std::chrono::mill
         std::lock_guard<std::mutex> lock(transcriptionMutex);
         error = ServerError::SERVER_ERROR_INTERNAL_ERROR;
         status = ServerStatus::SERVER_STATUS_ERROR;
+        setVoiceFailure(
+            VoiceFailureCategory::VOICE_SERVICE_UNAVAILABLE,
+            waitError.empty() ? "Remote voice service did not resolve the intent call" : waitError);
         if (wsBridge) wsBridge->close();
         resetActiveSessionLocked();
         resolved.status = "error";
@@ -878,6 +942,7 @@ ResolvedIntentCall TheCubeServerAPI::waitForResolvedIntentCall(std::chrono::mill
         error = ServerError::SERVER_ERROR_NONE;
         status = ServerStatus::SERVER_STATUS_READY;
         state = ServerState::SERVER_STATE_IDLE;
+        clearVoiceFailure();
     }
     return resolved;
 }
@@ -915,18 +980,26 @@ std::optional<std::string> TheCubeServerAPI::createConversationSession()
     if (!httpClient) {
         error = ServerError::SERVER_ERROR_INTERNAL_ERROR;
         status = ServerStatus::SERVER_STATUS_ERROR;
+        setVoiceFailure(VoiceFailureCategory::OTHER_VOICE_FAILURE, "Remote HTTP client is unavailable");
         return std::nullopt;
     }
 
+    clearVoiceFailure();
     auto res = httpClient->client.Post("/API/llm/session", "{}", "application/json");
     if (!res) {
         error = ServerError::SERVER_ERROR_CONNECTION_ERROR;
         status = ServerStatus::SERVER_STATUS_ERROR;
+        setVoiceFailure(
+            VoiceFailureCategory::VOICE_SERVICE_UNAVAILABLE,
+            "Unable to create remote conversation session: " + httplib::to_string(res.error()));
         return std::nullopt;
     }
     if (res->status != 200 && res->status != 201) {
         error = ServerError::SERVER_ERROR_AUTHENTICATION_ERROR;
         status = ServerStatus::SERVER_STATUS_ERROR;
+        setVoiceFailure(
+            VoiceFailureCategory::VOICE_SERVICE_UNAVAILABLE,
+            describeHttpFailure(res, "Remote conversation session"));
         return std::nullopt;
     }
 
@@ -937,14 +1010,21 @@ std::optional<std::string> TheCubeServerAPI::createConversationSession()
             sessionId = jsonString(j, "session_id");
         }
         if (sessionId.empty()) {
+            setVoiceFailure(
+                VoiceFailureCategory::OTHER_VOICE_FAILURE,
+                "Remote conversation session response did not include a session identifier");
             return std::nullopt;
         }
         status = ServerStatus::SERVER_STATUS_READY;
         error = ServerError::SERVER_ERROR_NONE;
+        clearVoiceFailure();
         return sessionId;
     } catch (...) {
         error = ServerError::SERVER_ERROR_INTERNAL_ERROR;
         status = ServerStatus::SERVER_STATUS_ERROR;
+        setVoiceFailure(
+            VoiceFailureCategory::OTHER_VOICE_FAILURE,
+            "Remote conversation session response could not be parsed");
         return std::nullopt;
     }
 }
@@ -988,18 +1068,30 @@ std::future<nlohmann::json> TheCubeServerAPI::postChatRequestAsync(const nlohman
 {
     return std::async(std::launch::async, [this, payload]() {
         if (!httpClient || !payload.contains("sessionId") || jsonString(payload, "sessionId").empty()) {
+            if (!httpClient) {
+                error = ServerError::SERVER_ERROR_INTERNAL_ERROR;
+                status = ServerStatus::SERVER_STATUS_ERROR;
+                setVoiceFailure(VoiceFailureCategory::OTHER_VOICE_FAILURE, "Remote HTTP client is unavailable");
+            }
             return nlohmann::json();
         }
 
+        clearVoiceFailure();
         auto res = httpClient->client.Post("/API/llm/chat", payload.dump(), "application/json");
         if (!res) {
             error = ServerError::SERVER_ERROR_CONNECTION_ERROR;
             status = ServerStatus::SERVER_STATUS_ERROR;
+            setVoiceFailure(
+                VoiceFailureCategory::VOICE_SERVICE_UNAVAILABLE,
+                "Unable to reach remote voice service: " + httplib::to_string(res.error()));
             return nlohmann::json();
         }
         if (res->status != 200) {
             error = ServerError::SERVER_ERROR_AUTHENTICATION_ERROR;
             status = ServerStatus::SERVER_STATUS_ERROR;
+            setVoiceFailure(
+                VoiceFailureCategory::VOICE_SERVICE_UNAVAILABLE,
+                describeHttpFailure(res, "Remote voice service"));
             return nlohmann::json();
         }
 
@@ -1007,10 +1099,14 @@ std::future<nlohmann::json> TheCubeServerAPI::postChatRequestAsync(const nlohman
             auto j = nlohmann::json::parse(res->body);
             error = ServerError::SERVER_ERROR_NONE;
             status = ServerStatus::SERVER_STATUS_READY;
+            clearVoiceFailure();
             return j;
         } catch (...) {
             error = ServerError::SERVER_ERROR_INTERNAL_ERROR;
             status = ServerStatus::SERVER_STATUS_ERROR;
+            setVoiceFailure(
+                VoiceFailureCategory::OTHER_VOICE_FAILURE,
+                "Remote voice service returned invalid JSON");
             return nlohmann::json();
         }
     });
@@ -1154,6 +1250,7 @@ bool TheCubeServerAPI::initServerConnection()
     if (baseUrl.empty()) {
         status = ServerStatus::SERVER_STATUS_ERROR;
         error = ServerError::SERVER_ERROR_INTERNAL_ERROR;
+        setVoiceFailure(VoiceFailureCategory::OTHER_VOICE_FAILURE, "Remote server base URL is empty");
         return false;
     }
 
@@ -1164,6 +1261,7 @@ bool TheCubeServerAPI::initServerConnection()
     status = ServerStatus::SERVER_STATUS_READY;
     error = ServerError::SERVER_ERROR_NONE;
     state = ServerState::SERVER_STATE_IDLE;
+    clearVoiceFailure();
     return true;
 }
 
@@ -1189,6 +1287,18 @@ TheCubeServerAPI::ServerError TheCubeServerAPI::getServerError()
 TheCubeServerAPI::ServerState TheCubeServerAPI::getServerState()
 {
     return state;
+}
+
+TheCubeServerAPI::VoiceFailureCategory TheCubeServerAPI::getLastVoiceFailureCategory() const
+{
+    std::lock_guard<std::mutex> lock(voiceFailureMutex);
+    return lastVoiceFailureCategory;
+}
+
+std::string TheCubeServerAPI::getLastVoiceFailureMessage() const
+{
+    std::lock_guard<std::mutex> lock(voiceFailureMutex);
+    return lastVoiceFailureMessage;
 }
 
 TheCubeServerAPI::FourBit TheCubeServerAPI::getAvailableServices()

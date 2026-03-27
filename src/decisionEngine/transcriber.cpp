@@ -117,6 +117,15 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
         workerThread.request_stop();
         cancelActiveSession();
     }
+    CubeLog::info("RemoteTranscriber: starting utterance session");
+    drainAudioQueue(audioQueue);
+
+    if (!initTranscribing()) {
+        CubeLog::error("RemoteTranscriber: failed to create remote transcription session");
+        return nullptr;
+    }
+    sessionActive = true;
+
     workerThread = std::jthread([this, audioQueue, textQueue](std::stop_token stoken) {
         const auto signalFailure = [&textQueue]() {
             if (textQueue) {
@@ -128,16 +137,6 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
         const auto maxSessionDuration = std::chrono::milliseconds(parseNumericConfig<int>("REMOTE_TRANSCRIPTION_MAX_SESSION_MS", 15000));
         const auto finalWait = std::chrono::milliseconds(parseNumericConfig<int>("REMOTE_TRANSCRIPTION_WAIT_FINAL_MS", 15000));
         const auto idlePoll = std::chrono::milliseconds(10);
-
-        CubeLog::info("RemoteTranscriber: starting utterance session");
-        drainAudioQueue(audioQueue);
-
-        if (!initTranscribing()) {
-            CubeLog::error("RemoteTranscriber: failed to create remote transcription session");
-            signalFailure();
-            return;
-        }
-        sessionActive = true;
 
         size_t chunksSent = 0;
         bool heardSpeech = false;

@@ -47,9 +47,14 @@ class ScopedTranscriptWebSocketServer {
 public:
     using Server = websocketpp::server<websocketpp::config::asio>;
 
-    explicit ScopedTranscriptWebSocketServer(std::string transcriptPayload, std::string resolvedPayload = {})
+    explicit ScopedTranscriptWebSocketServer(
+        std::string transcriptPayload,
+        std::string resolvedPayload = {},
+        int requestedPort = 0,
+        bool closeOnEnd = false)
         : transcriptPayload_(std::move(transcriptPayload))
         , resolvedPayload_(std::move(resolvedPayload))
+        , closeOnEnd_(closeOnEnd)
     {
         server_.clear_access_channels(websocketpp::log::alevel::all);
         server_.clear_error_channels(websocketpp::log::elevel::all);
@@ -66,6 +71,10 @@ public:
 
             if (msg->get_payload() == "__END__") {
                 websocketpp::lib::error_code ec;
+                if (closeOnEnd_) {
+                    server_.close(hdl, websocketpp::close::status::normal, "closing", ec);
+                    return;
+                }
                 server_.send(hdl, transcriptPayload_, websocketpp::frame::opcode::text, ec);
                 if (!resolvedPayload_.empty()) {
                     server_.send(hdl, resolvedPayload_, websocketpp::frame::opcode::text, ec);
@@ -79,7 +88,7 @@ public:
         server_.listen(
             websocketpp::lib::asio::ip::tcp::endpoint(
                 websocketpp::lib::asio::ip::address_v4::loopback(),
-                0),
+                static_cast<uint16_t>(requestedPort)),
             ec);
         if (ec) {
             throw std::runtime_error("Failed to bind WebSocket test server: " + ec.message());
@@ -114,9 +123,21 @@ private:
     std::thread thread_;
     std::string transcriptPayload_;
     std::string resolvedPayload_;
+    bool closeOnEnd_ = false;
     std::string lastTextMessage_;
     int port_ = -1;
 };
+
+int reserveUnusedLocalPort()
+{
+    httplib::Server probe;
+    const int port = probe.bind_to_any_port("127.0.0.1");
+    probe.stop();
+    if (port <= 0) {
+        throw std::runtime_error("Failed to reserve local test port");
+    }
+    return port;
+}
 
 void resetRemoteServerConfig()
 {
@@ -266,6 +287,21 @@ TEST(TheCubeServerAPI, WaitForResolvedIntentCallUsesAudioStreamSession)
     api.cancelStreamingTranscription();
 }
 
+TEST(TheCubeServerAPI, StartupFailureClassifiesVoiceServiceUnavailable)
+{
+    resetRemoteServerConfig();
+
+    const int port = reserveUnusedLocalPort();
+    Config::set("REMOTE_SERVER_BASE_URL", "ws://127.0.0.1:" + std::to_string(port));
+
+    TheCubeServer::TheCubeServerAPI api;
+    EXPECT_FALSE(api.startStreamingTranscription());
+    EXPECT_EQ(
+        api.getLastVoiceFailureCategory(),
+        TheCubeServer::TheCubeServerAPI::VoiceFailureCategory::VOICE_SERVICE_UNAVAILABLE);
+    EXPECT_FALSE(api.getLastVoiceFailureMessage().empty());
+}
+
 TEST(TheCubeServerAPI, GeneralAnswerRequestsUseDedicatedChatMode)
 {
     resetRemoteServerConfig();
@@ -292,6 +328,24 @@ TEST(TheCubeServerAPI, GeneralAnswerRequestsUseDedicatedChatMode)
     EXPECT_EQ(seenMode, "general_answer");
     EXPECT_EQ(seenMessage, "Why is the sky blue?");
     EXPECT_EQ(answer, "Because shorter wavelengths scatter more strongly.");
+}
+
+TEST(TheCubeServerAPI, ConversationSessionFailureClassifiesVoiceServiceUnavailable)
+{
+    resetRemoteServerConfig();
+
+    const int port = reserveUnusedLocalPort();
+    Config::set("REMOTE_SERVER_BASE_URL", "http://127.0.0.1:" + std::to_string(port));
+    Config::set("REMOTE_SERVER_BEARER_TOKEN", "dev-user");
+
+    TheCubeServer::TheCubeServerAPI api;
+    const auto sessionId = api.createConversationSession();
+
+    EXPECT_FALSE(sessionId.has_value());
+    EXPECT_EQ(
+        api.getLastVoiceFailureCategory(),
+        TheCubeServer::TheCubeServerAPI::VoiceFailureCategory::VOICE_SERVICE_UNAVAILABLE);
+    EXPECT_FALSE(api.getLastVoiceFailureMessage().empty());
 }
 
 TEST(TheCubeServerAPI, ResolvedIntentCallRequestsUseIntentCallModeAndParseArguments)
@@ -355,4 +409,34 @@ TEST(TheCubeServerAPI, ResolvedIntentCallRequestsUseIntentCallModeAndParseArgume
     EXPECT_EQ(resolved.intentName, "core.create_alarm");
     EXPECT_EQ(resolved.arguments["scheduledForEpochMs"].get<long long>(), 1742517660000LL);
     EXPECT_EQ(resolved.arguments["title"].get<std::string>(), "Alarm");
+}
+
+TEST(TheCubeServerAPI, ResolvedIntentCallHttpFailureClassifiesVoiceServiceUnavailable)
+{
+    resetRemoteServerConfig();
+
+    ScopedHttpServer server;
+    server.server().Post("/API/llm/session", [&](const httplib::Request&, httplib::Response& res) {
+        res.set_content(R"({"sessionId":"intent-call-session"})", "application/json");
+    });
+    server.server().Post("/API/llm/chat", [&](const httplib::Request&, httplib::Response& res) {
+        res.status = 503;
+        res.set_content(R"({"error":"voice service offline"})", "application/json");
+    });
+
+    Config::set("REMOTE_SERVER_BASE_URL", "http://127.0.0.1:" + std::to_string(server.port()));
+    Config::set("REMOTE_SERVER_BEARER_TOKEN", "dev-user");
+
+    TheCubeServer::TheCubeServerAPI api;
+    const auto resolved = api.getResolvedIntentCallAsync(
+        "what apps are installed",
+        nlohmann::json::array(),
+        nlohmann::json::object())
+                              .get();
+
+    EXPECT_EQ(resolved.status, "error");
+    EXPECT_EQ(
+        api.getLastVoiceFailureCategory(),
+        TheCubeServer::TheCubeServerAPI::VoiceFailureCategory::VOICE_SERVICE_UNAVAILABLE);
+    EXPECT_FALSE(api.getLastVoiceFailureMessage().empty());
 }

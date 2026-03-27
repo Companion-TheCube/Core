@@ -95,6 +95,30 @@ std::string formatDurationMsOrNa(int64_t startEpochMs, int64_t endEpochMs)
     return std::to_string(endEpochMs - startEpochMs);
 }
 
+std::chrono::milliseconds resultPresentationDuration()
+{
+    try {
+        const auto raw = Config::get("DECISION_ENGINE_RESULT_HIDE_MS", "4000");
+        const auto value = std::max<long long>(0, std::stoll(raw));
+        return std::chrono::milliseconds(value);
+    } catch (...) {
+        return std::chrono::milliseconds(4000);
+    }
+}
+
+std::string voiceFailureCategoryName(TheCubeServer::TheCubeServerAPI::VoiceFailureCategory category)
+{
+    switch (category) {
+    case TheCubeServer::TheCubeServerAPI::VoiceFailureCategory::NONE:
+        return "none";
+    case TheCubeServer::TheCubeServerAPI::VoiceFailureCategory::VOICE_SERVICE_UNAVAILABLE:
+        return "voice_service_unavailable";
+    case TheCubeServer::TheCubeServerAPI::VoiceFailureCategory::OTHER_VOICE_FAILURE:
+        return "other_voice_failure";
+    }
+    return "unknown";
+}
+
 std::string valueOrNone(const std::string& value)
 {
     return value.empty() ? "<none>" : value;
@@ -182,6 +206,7 @@ std::string responseCategoryForTurnResult(const DecisionTurnResult& result)
         || result.executionStatus == "error"
         || result.executionStatus == "capability_error"
         || result.executionStatus == "capability_validation_error"
+        || result.executionStatus == "voice_service_unavailable"
         || result.executionStatus == "transcription_failed") {
         return "error";
     }
@@ -990,6 +1015,42 @@ void DecisionEngineMain::showListeningUi()
     presentationController().showListening();
 }
 
+DecisionTurnResult DecisionEngineMain::makeVoiceServiceUnavailableResult(const std::string& transcript) const
+{
+    return DecisionTurnResult {
+        .transcript = transcript,
+        .intentName = "",
+        .executionStatus = "voice_service_unavailable",
+        .responseText = "Voice service is unavailable right now. Please try again shortly.",
+        .capabilityResult = nlohmann::json::object(),
+        .error = "voice_service_unavailable",
+        .speakResult = false,
+        .timestampEpochMs = nowEpochMs()
+    };
+}
+
+bool DecisionEngineMain::hasRemoteVoiceServiceFailure() const
+{
+    return remoteServerAPI
+        && remoteServerAPI->getLastVoiceFailureCategory()
+            == TheCubeServer::TheCubeServerAPI::VoiceFailureCategory::VOICE_SERVICE_UNAVAILABLE;
+}
+
+void DecisionEngineMain::scheduleReturnToIdle(std::chrono::milliseconds delay)
+{
+    const auto generation = resultPresentationGeneration.fetch_add(1, std::memory_order_relaxed) + 1;
+    std::thread([this, delay, generation]() {
+        std::this_thread::sleep_for(delay);
+        if (resultPresentationGeneration.load(std::memory_order_relaxed) != generation) {
+            return;
+        }
+        std::scoped_lock lock(stateMutex);
+        if (turnState == TurnState::RESULT_PRESENTED) {
+            turnState = TurnState::IDLE;
+        }
+    }).detach();
+}
+
 void DecisionEngineMain::handleTranscriptEvent(const TranscriptionEvent& event)
 {
     if (event.fullText.empty() && event.appendText.empty()) {
@@ -1031,11 +1092,17 @@ void DecisionEngineMain::handleTranscriptEvent(const TranscriptionEvent& event)
 
 void DecisionEngineMain::presentTurnResult(const DecisionTurnResult& result)
 {
+    const auto hideDelay = resultPresentationDuration();
     const std::string sourceMessage = !result.responseText.empty()
         ? result.responseText
         : (!result.error.empty() ? result.error : "Done.");
     std::string message = sourceMessage;
-    if (personalityManager && remoteServerAPI && !message.empty()) {
+    const bool remoteVoiceUnavailable = hasRemoteVoiceServiceFailure();
+    if (personalityManager
+        && remoteServerAPI
+        && !message.empty()
+        && result.error != "voice_service_unavailable"
+        && !remoteVoiceUnavailable) {
         const auto emotions = personalityManager->getAllEmotionsCurrent();
         const auto responseCategory = responseCategoryForTurnResult(result);
         auto rewriteFuture = modifyStringUsingAIForEmotionalState(
@@ -1081,7 +1148,8 @@ void DecisionEngineMain::presentTurnResult(const DecisionTurnResult& result)
     }
 
     setTurnState(TurnState::RESULT_PRESENTED);
-    presentationController().scheduleHide(std::chrono::milliseconds(4000));
+    presentationController().scheduleHide(hideDelay);
+    scheduleReturnToIdle(hideDelay);
     finalizeTurnTiming("result_presented", &result);
 }
 
@@ -1102,10 +1170,11 @@ void DecisionEngineMain::onWakeWordDetected()
         latestTranscriptEvent.clear();
     }
     AudioOutput::playFileAsync(wakeSoundPath());
-    showListeningUi();
-    CubeLog::info("DecisionEngine: listening UI shown");
-    noteListeningUiShown();
-    setTurnState(TurnState::LISTENING);
+    if (remoteServerAPI
+        && (remoteServerAPI->getServerStatus() == TheCubeServer::TheCubeServerAPI::ServerStatus::SERVER_STATUS_ERROR
+            || remoteServerAPI->getLastVoiceFailureCategory() != TheCubeServer::TheCubeServerAPI::VoiceFailureCategory::NONE)) {
+        remoteServerAPI->resetServerConnection();
+    }
     if (remoteServerAPI && intentRegistry && functionRegistry) {
         remoteServerAPI->prepareVoiceTurn(
             buildVoiceToolCatalogue(intentRegistry, functionRegistry),
@@ -1116,11 +1185,21 @@ void DecisionEngineMain::onWakeWordDetected()
     transcription = transcriber ? transcriber->transcribeQueue(audioQueue) : nullptr;
     if (!transcription) {
         CubeLog::error("DecisionEngine: transcription queue was not created");
-        hideTurnUi();
-        setTurnState(TurnState::IDLE);
-        finalizeTurnTiming("transcription_queue_creation_failed");
+        if (hasRemoteVoiceServiceFailure()) {
+            const auto failedTurn = makeVoiceServiceUnavailableResult("");
+            recordTurnResult(failedTurn);
+            presentTurnResult(failedTurn);
+        } else {
+            hideTurnUi();
+            setTurnState(TurnState::IDLE);
+            finalizeTurnTiming("transcription_queue_creation_failed");
+        }
         return;
     }
+    showListeningUi();
+    CubeLog::info("DecisionEngine: listening UI shown");
+    noteListeningUiShown();
+    setTurnState(TurnState::LISTENING);
 
     transcriptionConsumerThread = std::jthread([this](std::stop_token st) {
         using namespace std::chrono_literals;
@@ -1136,6 +1215,12 @@ void DecisionEngineMain::onWakeWordDetected()
             }
             if (result->empty()) {
                 CubeLog::warning("DecisionEngine: transcription session ended without a final transcript");
+                if (hasRemoteVoiceServiceFailure()) {
+                    const auto failedTurn = makeVoiceServiceUnavailableResult("");
+                    recordTurnResult(failedTurn);
+                    presentTurnResult(failedTurn);
+                    break;
+                }
                 const DecisionTurnResult failedTurn {
                     .transcript = "",
                     .intentName = "",
@@ -1293,7 +1378,9 @@ DecisionTurnResult DecisionEngineMain::processTranscript(const std::string& tran
 
     if (resolved.status == "error") {
         CubeLog::warning("DecisionEngine: intent resolution returned error: " + resolved.message);
-        auto result = makeIntentResolutionErrorResult(transcript, resolved.message);
+        auto result = hasRemoteVoiceServiceFailure()
+            ? makeVoiceServiceUnavailableResult(transcript)
+            : makeIntentResolutionErrorResult(transcript, resolved.message);
         cleanupVoiceTurn();
         return result;
     }
@@ -1327,6 +1414,8 @@ nlohmann::json DecisionEngineMain::statusJson() const
         { "activeTranscriptPreview", activeTranscriptPreview },
         { "remoteServerStatus", static_cast<int>(remoteServerAPI ? remoteServerAPI->getServerStatus() : TheCubeServer::TheCubeServerAPI::ServerStatus::SERVER_STATUS_ERROR) },
         { "remoteServerError", static_cast<int>(remoteServerAPI ? remoteServerAPI->getServerError() : TheCubeServer::TheCubeServerAPI::ServerError::SERVER_ERROR_INTERNAL_ERROR) },
+        { "remoteVoiceFailureCategory", remoteServerAPI ? voiceFailureCategoryName(remoteServerAPI->getLastVoiceFailureCategory()) : "other_voice_failure" },
+        { "remoteVoiceFailureMessage", remoteServerAPI ? remoteServerAPI->getLastVoiceFailureMessage() : "decision_engine_remote_server_unavailable" },
         { "lastDecisionResult", lastDecisionResult.toJson() } });
 }
 

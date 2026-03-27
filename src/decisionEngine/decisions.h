@@ -101,6 +101,9 @@ private:
     void showListeningUi();
     void presentTurnResult(const DecisionTurnResult& result);
     void hideTurnUi();
+    DecisionTurnResult makeVoiceServiceUnavailableResult(const std::string& transcript) const;
+    bool hasRemoteVoiceServiceFailure() const;
+    void scheduleReturnToIdle(std::chrono::milliseconds delay);
     void setTurnState(TurnState newState);
     void beginTurnTiming();
     void noteListeningUiShown();
@@ -135,6 +138,7 @@ private:
     TurnState turnState = TurnState::IDLE;
     std::string activeTranscriptPreview;
     bool started = false;
+    std::atomic<uint64_t> resultPresentationGeneration { 0 };
     size_t wakeWordCallbackHandle = std::numeric_limits<size_t>::max();
     size_t wakeAudioQueueHandle = std::numeric_limits<size_t>::max();
     size_t transcriptionEventHandle = std::numeric_limits<size_t>::max();
