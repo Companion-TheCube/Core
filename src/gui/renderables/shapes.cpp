@@ -34,6 +34,87 @@ SOFTWARE.
 // TODO: the font is being loaded for each instance of an M_Text object and should be made static so that it only gets loaded once and is shared between all instances of M_Text
 
 #include "shapes.h"
+#include <iomanip>
+#include <sstream>
+
+namespace {
+
+std::vector<uint32_t> decodeUtf8Codepoints(const std::string& text)
+{
+    std::vector<uint32_t> codepoints;
+    codepoints.reserve(text.size());
+
+    const auto* bytes = reinterpret_cast<const unsigned char*>(text.data());
+    size_t index = 0;
+    while (index < text.size()) {
+        const unsigned char lead = bytes[index];
+        if (lead < 0x80) {
+            codepoints.push_back(static_cast<uint32_t>(lead));
+            ++index;
+            continue;
+        }
+
+        uint32_t codepoint = 0;
+        size_t sequenceLength = 0;
+        uint32_t minValue = 0;
+        if ((lead & 0xE0) == 0xC0) {
+            codepoint = lead & 0x1F;
+            sequenceLength = 2;
+            minValue = 0x80;
+        } else if ((lead & 0xF0) == 0xE0) {
+            codepoint = lead & 0x0F;
+            sequenceLength = 3;
+            minValue = 0x800;
+        } else if ((lead & 0xF8) == 0xF0) {
+            codepoint = lead & 0x07;
+            sequenceLength = 4;
+            minValue = 0x10000;
+        } else {
+            codepoints.push_back(static_cast<uint32_t>('?'));
+            ++index;
+            continue;
+        }
+
+        if (index + sequenceLength > text.size()) {
+            codepoints.push_back(static_cast<uint32_t>('?'));
+            ++index;
+            continue;
+        }
+
+        bool valid = true;
+        for (size_t offset = 1; offset < sequenceLength; ++offset) {
+            const unsigned char continuation = bytes[index + offset];
+            if ((continuation & 0xC0) != 0x80) {
+                valid = false;
+                break;
+            }
+            codepoint = (codepoint << 6) | static_cast<uint32_t>(continuation & 0x3F);
+        }
+
+        if (!valid
+            || codepoint < minValue
+            || codepoint > 0x10FFFF
+            || (codepoint >= 0xD800 && codepoint <= 0xDFFF)) {
+            codepoints.push_back(static_cast<uint32_t>('?'));
+            ++index;
+            continue;
+        }
+
+        codepoints.push_back(codepoint);
+        index += sequenceLength;
+    }
+
+    return codepoints;
+}
+
+std::string formatCodepoint(uint32_t codepoint)
+{
+    std::ostringstream stream;
+    stream << "U+" << std::uppercase << std::hex << std::setw(4) << std::setfill('0') << codepoint;
+    return stream.str();
+}
+
+} // namespace
 
 void checkGLError(const std::string& location)
 {
@@ -66,8 +147,10 @@ M_Text::M_Text(Shader* sh, const std::string& text, float fontSize, glm::vec3 co
 void M_Text::reloadFont()
 {
     CubeLog::debug("Reloading font");
-    FT_Done_Face(M_Text::face);
-    this->characters.clear();
+    if (M_Text::faceInitialized) {
+        FT_Done_Face(M_Text::face);
+    }
+    clearGlyphTextures();
     this->vertexData.clear();
     this->vertexData.shrink_to_fit();
     this->width = 0;
@@ -82,6 +165,7 @@ void M_Text::buildText()
     if (!M_Text::faceInitialized) {
         if (FT_Init_FreeType(&M_Text::ft)) {
             CubeLog::error("ERROR::FREETYPE: Could not init FreeType Library");
+            return;
         }
         std::string fontPath = GlobalSettings::getSettingOfType<std::string>(GlobalSettings::SettingType::SELECTED_FONT_PATH);
         if (!std::filesystem::exists(fontPath)) {
@@ -90,6 +174,10 @@ void M_Text::buildText()
         }
         if (FT_New_Face(M_Text::ft, fontPath.c_str(), 0, &M_Text::face)) {
             CubeLog::error("ERROR::FREETYPE: Failed to load font");
+            return;
+        }
+        if (FT_Select_Charmap(M_Text::face, FT_ENCODING_UNICODE)) {
+            CubeLog::warning("ERROR::FREETYPE: Failed to select unicode charmap");
         }
         M_Text::faceInitialized = true;
     }
@@ -99,48 +187,17 @@ void M_Text::buildText()
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     checkGLError("0.1");
 
-    for (unsigned char c = 0; c < 128; c++) {
-        if (FT_Load_Char(M_Text::face, c, FT_LOAD_RENDER)) {
-            CubeLog::error("ERROR::FREETYPE: Failed to load Glyph");
-            continue;
+    clearGlyphTextures();
+    this->glyphCodepoints = decodeUtf8Codepoints(this->text);
+    this->width = 0.f;
+    for (uint32_t codepoint : this->glyphCodepoints) {
+        if (!loadGlyph(codepoint) && codepoint != static_cast<uint32_t>('?')) {
+            loadGlyph(static_cast<uint32_t>('?'));
         }
-
-        GLuint texture;
-        glGenTextures(1, &texture);
-        checkGLError("0.2");
-        glBindTexture(GL_TEXTURE_2D, texture);
-        checkGLError("0.3");
-        glTexImage2D(
-            GL_TEXTURE_2D,
-            0,
-            GL_RED,
-            M_Text::face->glyph->bitmap.width,
-            M_Text::face->glyph->bitmap.rows,
-            0,
-            GL_RED,
-            GL_UNSIGNED_BYTE,
-            M_Text::face->glyph->bitmap.buffer);
-        if (M_Text::face->glyph->bitmap.buffer != nullptr) {
-            // std::cout << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX sample glyph buffer value: " + std::to_string(M_Text::face->glyph->bitmap.buffer[0]);
+        const Character* character = findCharacterForCodepoint(codepoint);
+        if (character != nullptr) {
+            this->width += (character->advance >> 6); // Bitshift by 6 to get value in pixels (2^6 = 64)
         }
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        checkGLError("0.4");
-        Character newCharacter = {
-            texture,
-            glm::ivec2(M_Text::face->glyph->bitmap.width, M_Text::face->glyph->bitmap.rows),
-            glm::ivec2(M_Text::face->glyph->bitmap_left, M_Text::face->glyph->bitmap_top),
-            M_Text::face->glyph->advance.x
-        };
-        this->characters.insert(std::pair<char, Character>(c, newCharacter));
-    }
-    // This loop adds up the widths of each character in the text
-    std::string::const_iterator c;
-    for (c = this->text.begin(); c != this->text.end(); c++) {
-        Character ch = this->characters[*c]; // Get the character from the map
-        this->width += (ch.advance >> 6); // Bitshift by 6 to get value in pixels (2^6 = 64)
     }
 
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -168,9 +225,7 @@ M_Text::~M_Text()
     // delete all the openGl stuff
     glDeleteVertexArrays(1, &this->VAO);
     glDeleteBuffers(1, &this->VBO);
-    for (unsigned char c = 0; c < 128; c++) {
-        glDeleteTextures(1, &this->characters[c].textureID);
-    }
+    clearGlyphTextures();
     // CubeLog::info("Destroyed Text");
 }
 
@@ -191,14 +246,21 @@ void M_Text::draw()
     shader->setFloat("bg_alpha", 0.0f);
     glActiveTexture(GL_TEXTURE0);
     glBindVertexArray(this->VAO);
-    std::string::const_iterator c;
     float xTemp = this->position.x;
-    for (c = this->text.begin(); c != this->text.end(); c++) {
-        Character ch = this->characters[*c];
+    for (uint32_t codepoint : this->glyphCodepoints) {
+        const Character* character = findCharacterForCodepoint(codepoint);
+        if (character == nullptr) {
+            continue;
+        }
+        const Character& ch = *character;
         float xpos = xTemp + ch.bearing.x;
         float ypos = this->position.y - (ch.size.y - ch.bearing.y);
         float w = ch.size.x;
         float h = ch.size.y;
+        if (ch.textureID == 0 || w <= 0.0f || h <= 0.0f) {
+            xTemp += (ch.advance >> 6);
+            continue;
+        }
         float vertices[6][4] = {
             // Positions            // Texture Coords
             { xpos, ypos + h, 0.0f, 0.0f }, // Top-left
@@ -302,10 +364,6 @@ void M_Text::setPosition(glm::vec2 position)
 
 void M_Text::setText(const std::string& text)
 {
-    for (unsigned char c = 0; c < 128; c++) {
-        glDeleteTextures(1, &this->characters[c].textureID);
-    }
-    this->width = 0;
     this->text = text;
     this->buildText();
 }
@@ -348,6 +406,79 @@ void M_Text::getRestorePositionDiff(glm::mat4* modelMatrix, glm::mat4* viewMatri
     *viewMatrix = this->capturedViewMatrix - this->viewMatrix;
     *projectionMatrix = this->capturedProjectionMatrix - this->projectionMatrix;
     this->mutex.unlock();
+}
+
+bool M_Text::loadGlyph(uint32_t codepoint)
+{
+    if (!M_Text::faceInitialized) {
+        return false;
+    }
+    if (this->characters.find(codepoint) != this->characters.end()) {
+        return true;
+    }
+    if (FT_Load_Char(M_Text::face, static_cast<FT_ULong>(codepoint), FT_LOAD_RENDER)) {
+        CubeLog::warning("ERROR::FREETYPE: Failed to load glyph for codepoint " + formatCodepoint(codepoint));
+        return false;
+    }
+
+    GLuint texture = 0;
+    const auto width = static_cast<int>(M_Text::face->glyph->bitmap.width);
+    const auto height = static_cast<int>(M_Text::face->glyph->bitmap.rows);
+    if (width > 0 && height > 0 && M_Text::face->glyph->bitmap.buffer != nullptr) {
+        glGenTextures(1, &texture);
+        checkGLError("0.2");
+        glBindTexture(GL_TEXTURE_2D, texture);
+        checkGLError("0.3");
+        glTexImage2D(
+            GL_TEXTURE_2D,
+            0,
+            GL_RED,
+            width,
+            height,
+            0,
+            GL_RED,
+            GL_UNSIGNED_BYTE,
+            M_Text::face->glyph->bitmap.buffer);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        checkGLError("0.4");
+    }
+
+    Character newCharacter = {
+        texture,
+        glm::ivec2(width, height),
+        glm::ivec2(M_Text::face->glyph->bitmap_left, M_Text::face->glyph->bitmap_top),
+        M_Text::face->glyph->advance.x
+    };
+    this->characters.emplace(codepoint, newCharacter);
+    return true;
+}
+
+const Character* M_Text::findCharacterForCodepoint(uint32_t codepoint) const
+{
+    const auto it = this->characters.find(codepoint);
+    if (it != this->characters.end()) {
+        return &it->second;
+    }
+    const auto fallback = this->characters.find(static_cast<uint32_t>('?'));
+    if (fallback != this->characters.end()) {
+        return &fallback->second;
+    }
+    return nullptr;
+}
+
+void M_Text::clearGlyphTextures()
+{
+    for (auto& [codepoint, character] : this->characters) {
+        (void)codepoint;
+        if (character.textureID != 0) {
+            glDeleteTextures(1, &character.textureID);
+        }
+    }
+    this->characters.clear();
+    this->glyphCodepoints.clear();
 }
 
 glm::mat4 M_Text::getModelMatrix()

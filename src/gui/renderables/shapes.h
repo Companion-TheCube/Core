@@ -41,6 +41,8 @@ SOFTWARE.
 #endif // GLOBAL_SETTINGS_H
 #include <ft2build.h>
 #include FT_FREETYPE_H
+#include <cstdint>
+#include <map>
 
 #define STENCIL_INSET_PX 10
 
@@ -65,9 +67,13 @@ private:
     glm::vec3 centerPoint;
     glm::vec2 position;
     float scale_;
-    std::map<char, Character> characters;
+    std::map<uint32_t, Character> characters;
+    std::vector<uint32_t> glyphCodepoints;
     float width = 0.f;
     void buildText();
+    bool loadGlyph(uint32_t codepoint);
+    const Character* findCharacterForCodepoint(uint32_t codepoint) const;
+    void clearGlyphTextures();
     static FT_Library ft;
     static FT_Face face;
     static bool faceInitialized;
