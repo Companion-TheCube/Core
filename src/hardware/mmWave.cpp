@@ -32,7 +32,9 @@ SOFTWARE.
 */
 
 #include "mmWave.h"
+#include "mmWaveSerialLifecycle.h"
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <sstream>
 #ifdef __linux__
@@ -47,74 +49,24 @@ namespace {
 constexpr int MMWAVE_BAUD_PREFERRED = 115200;
 constexpr int MMWAVE_BAUD_MANUAL_FALLBACK = 256000;
 constexpr int MMWAVE_BAUD_ANALYZER_MEASURED = 263157;
-constexpr const char* MMWAVE_SERIAL_PATH = "/dev/ttyUSB0";
+constexpr std::array<const char*, 4> MMWAVE_SERIAL_PATH_CANDIDATES = {
+    "/dev/ttyUSB0",
+    "/dev/ttyUSB1",
+    "/dev/ttyACM0",
+    "/dev/ttyACM1"
+};
 
-constexpr float PRESENCE_WEIGHT_TARGET_STATE = 0.45f;
-constexpr float PRESENCE_WEIGHT_ENERGY = 0.35f;
-constexpr float PRESENCE_WEIGHT_DISTANCE = 0.20f;
-constexpr float PRESENCE_ALPHA_PRESENT = 0.30f;
-constexpr float PRESENCE_ALPHA_ABSENT = 0.55f;
-constexpr float PRESENCE_MAX_DISTANCE_CM = 300.0f;
-constexpr float PRESENCE_MAX_ENERGY = 100.0f;
-constexpr float PRESENCE_HYSTERESIS_ENTER_THRESHOLD = 0.60f;
-constexpr float PRESENCE_HYSTERESIS_EXIT_THRESHOLD = 0.35f;
-constexpr auto PRESENCE_ABSENT_DWELL = std::chrono::seconds(3);
+constexpr std::array<int, 7> MMWAVE_BAUD_CANDIDATES = {
+    MMWAVE_BAUD_PREFERRED,
+    MMWAVE_BAUD_MANUAL_FALLBACK,
+    MMWAVE_BAUD_ANALYZER_MEASURED,
+    230400,
+    460800,
+    57600,
+    38400
+};
 
-float normalizeEnergy(uint8_t energy)
-{
-    return std::clamp(static_cast<float>(energy) / PRESENCE_MAX_ENERGY, 0.0f, 1.0f);
-}
-
-float targetStateScore(uint8_t targetState)
-{
-    switch (targetState) {
-    case 0:
-        return 0.0f; // no target
-    case 1:
-        return 0.70f; // moving target
-    case 2:
-        return 0.80f; // stationary target
-    case 3:
-        return 1.00f; // moving + stationary
-    default:
-        return 0.0f;
-    }
-}
-
-float computeRawPresenceScore(const MmWaveReading& reading)
-{
-    if (reading.targetState == 0) {
-        return 0.0f;
-    }
-
-    const float stateScore = targetStateScore(reading.targetState);
-
-    float energySum = 0.0f;
-    float energyCount = 0.0f;
-    if ((reading.targetState & 0x01u) != 0u) {
-        energySum += normalizeEnergy(reading.movingTargetEnergy);
-        energyCount += 1.0f;
-    }
-    if ((reading.targetState & 0x02u) != 0u) {
-        energySum += normalizeEnergy(reading.stationaryTargetEnergy);
-        energyCount += 1.0f;
-    }
-    const float energyScore = (energyCount > 0.0f) ? (energySum / energyCount) : 0.0f;
-
-    const float clampedDistance = std::clamp(static_cast<float>(reading.detectionDistance), 0.0f, PRESENCE_MAX_DISTANCE_CM);
-    const float distanceScore = 1.0f - (clampedDistance / PRESENCE_MAX_DISTANCE_CM);
-
-    const float raw = (PRESENCE_WEIGHT_TARGET_STATE * stateScore)
-        + (PRESENCE_WEIGHT_ENERGY * energyScore)
-        + (PRESENCE_WEIGHT_DISTANCE * distanceScore);
-    return std::clamp(raw, 0.0f, 1.0f);
-}
-
-float smoothPresenceScore(float previous, float raw, uint8_t targetState)
-{
-    const float alpha = (targetState == 0) ? PRESENCE_ALPHA_ABSENT : PRESENCE_ALPHA_PRESENT;
-    return std::clamp((alpha * raw) + ((1.0f - alpha) * previous), 0.0f, 1.0f);
-}
+constexpr auto MMWAVE_RECONNECT_DELAY = std::chrono::milliseconds(500);
 
 std::string bytesToHexPreview(const std::vector<uint8_t>& bytes, size_t maxBytes = 64)
 {
@@ -236,6 +188,10 @@ static void serialWrite(int fd, const uint8_t* data, size_t len)
 {
     ::write(fd, data, len);
 }
+static void serialClose(int fd)
+{
+    ::close(fd);
+}
 static unsigned long millis()
 {
     using namespace std::chrono;
@@ -247,92 +203,203 @@ static int serialOpen(const char*, int) { return -1; }
 static int serialDataAvail(int) { return 0; }
 static uint8_t serialGetchar(int) { return 0; }
 static void serialWrite(int, const uint8_t*, size_t) { }
+static void serialClose(int) { }
 static unsigned long millis() { return 0; }
 #endif
 
+namespace {
+MmWaveSerialBackend makeRealSerialBackend()
+{
+    return {
+        .open = [](const std::string& path, int baud) {
+            return serialOpen(path.c_str(), baud);
+        },
+        .close = [](int fd) {
+            serialClose(fd);
+        },
+        .probeSignature = [](int fd, int timeoutMs) {
+            return probeSerialStreamSignature(fd, timeoutMs);
+        }
+    };
+}
+}
+
+void mmWave::readerLoop(std::stop_token stopToken)
+{
+    unsigned long lastPrintTime = millis();
+
+    while (!stopToken.stop_requested()) {
+        bool newlyReady = false;
+        bool hasConnection = false;
+        {
+            std::lock_guard<std::mutex> serialLock(serialMutex);
+            if (serialPort_h < 0) {
+                const std::vector<std::string> paths(
+                    MMWAVE_SERIAL_PATH_CANDIDATES.begin(), MMWAVE_SERIAL_PATH_CANDIDATES.end());
+                const std::vector<int> bauds(
+                    MMWAVE_BAUD_CANDIDATES.begin(), MMWAVE_BAUD_CANDIDATES.end());
+                newlyReady = connectWithCandidatesLocked(paths, bauds, 500);
+            }
+            hasConnection = (serialPort_h >= 0);
+        }
+
+        if (newlyReady) {
+            invokeOnReadyCallback();
+            lastPrintTime = millis();
+            continue;
+        }
+
+        if (!hasConnection) {
+            genericSleep(static_cast<int>(MMWAVE_RECONNECT_DELAY.count()));
+            continue;
+        }
+
+        Response response = readDataFrame();
+        if (!response.success) {
+            markDisconnected("read-loop comms failure: " + response.errorReason);
+            genericSleep(static_cast<int>(MMWAVE_RECONNECT_DELAY.count()));
+            continue;
+        }
+
+        decodeDataFrame(response);
+
+        if (millis() - lastPrintTime > 2000) {
+            MmWaveReading r = getReading();
+            float score = getPresenceConfidence();
+            CubeLog::info("Target State: " + std::to_string(r.targetState));
+            CubeLog::info("Moving Target Distance: " + std::to_string(r.movingTargetDistance));
+            CubeLog::info("Moving Target Energy: " + std::to_string(r.movingTargetEnergy));
+            CubeLog::info("Stationary Target Distance: " + std::to_string(r.stationaryTargetDistance));
+            CubeLog::info("Stationary Target Energy: " + std::to_string(r.stationaryTargetEnergy));
+            CubeLog::info("Detection Distance: " + std::to_string(r.detectionDistance));
+            CubeLog::info("Presence Confidence: " + std::to_string(score));
+            lastPrintTime = millis();
+            CubeLog::debugSilly("Detected: " + std::string(isPresent() ? "PRESENT" : "ABSENT"));
+        }
+
+        genericSleep(10);
+    }
+}
+
+void mmWave::closeSerialPortLocked()
+{
+    if (serialPort_h >= 0) {
+        serialClose(serialPort_h);
+        serialPort_h = -1;
+    }
+    connectedSerialPath_.clear();
+    connectedBaud_ = -1;
+}
+
+bool mmWave::connectWithCandidatesLocked(const std::vector<std::string>& paths, const std::vector<int>& baudCandidates, int probeTimeoutMs)
+{
+    closeSerialPortLocked();
+
+    CubeLog::info("mmWave: probing for sensor.");
+    const MmWaveSerialConnectResult result = connectMmWaveWithCandidates(
+        makeRealSerialBackend(), paths, baudCandidates, probeTimeoutMs);
+
+    for (const MmWaveSerialConnectionAttempt& attempt : result.attempts) {
+        if (!attempt.openSucceeded) {
+            CubeLog::info("mmWave probe: open failed path=" + attempt.path
+                + " baud=" + std::to_string(attempt.baud));
+            continue;
+        }
+
+        CubeLog::info("mmWave probe: opened path=" + attempt.path
+            + " baud=" + std::to_string(attempt.baud));
+        if (attempt.signatureMatched) {
+            CubeLog::info("mmWave probe: valid frame signature found path=" + attempt.path
+                + " baud=" + std::to_string(attempt.baud));
+        } else {
+            CubeLog::info("mmWave probe: no valid frame signature path=" + attempt.path
+                + " baud=" + std::to_string(attempt.baud));
+        }
+    }
+
+    if (result.fd < 0) {
+        isReady_.store(false);
+        CubeLog::warning("mmWave: sensor probe failed across all configured paths/bauds.");
+        return false;
+    }
+
+    serialPort_h = result.fd;
+    connectedSerialPath_ = result.path;
+    connectedBaud_ = result.baud;
+    configModeEnabled = false;
+    isReady_.store(true);
+    CubeLog::info("mmWave serial ready path=" + connectedSerialPath_
+        + " baud=" + std::to_string(connectedBaud_));
+    return true;
+}
+
+void mmWave::markDisconnected(const std::string& reason)
+{
+    std::lock_guard<std::mutex> serialLock(serialMutex);
+    if (isReady_.exchange(false)) {
+        CubeLog::warning("mmWave: connection lost. reason=" + reason);
+    } else {
+        CubeLog::warning("mmWave: still disconnected. reason=" + reason);
+    }
+    configModeEnabled = false;
+    closeSerialPortLocked();
+
+    std::lock_guard<std::mutex> readingLock(readingMutex);
+    resetPresenceStateLocked();
+}
+
+void mmWave::resetPresenceStateLocked()
+{
+    currentReading = {};
+    presenceEstimator_.reset();
+}
+
+void mmWave::invokeOnReadyCallback()
+{
+    std::function<void()> callback;
+    {
+        std::lock_guard<std::mutex> callbackLock(callbackMutex);
+        callback = onReadyCallback;
+    }
+    if (callback) {
+        callback();
+    }
+}
+
 mmWave::mmWave()
 {
-    this->readerThread = std::make_unique<std::jthread>([&](std::stop_token st) {
-        // this->serialPort_h = serialOpen("/dev/ttyAMA4", MMWAVE_BAUD_PREFERRED);
-        // Required startup probe order:
-        // 1) Preferred 115200
-        // 2) Manual fallback (256000)
-        // 3) Analyzer measured fallback (263157)
-        // then additional defensive fallbacks.
-        const std::vector<int> baudCandidates = {
-            MMWAVE_BAUD_PREFERRED,
-            MMWAVE_BAUD_MANUAL_FALLBACK,
-            MMWAVE_BAUD_ANALYZER_MEASURED,
-            230400,
-            460800,
-            57600,
-            38400
-        };
-        this->serialPort_h = -1;
-        int selectedBaud = -1;
-
-        for (int baud : baudCandidates) {
-            int fd = serialOpen(MMWAVE_SERIAL_PATH, baud);
-            if (fd < 0) {
-                CubeLog::debugSilly("mmWave probe: open failed at baud " + std::to_string(baud));
-                continue;
-            }
-
-            CubeLog::info("mmWave probe: opened " + std::string(MMWAVE_SERIAL_PATH)
-                + " at baud " + std::to_string(baud));
-            const bool hasSignature = probeSerialStreamSignature(fd, 500);
-            if (hasSignature) {
-                this->serialPort_h = fd;
-                selectedBaud = baud;
-                break;
-            }
-
-            CubeLog::info("mmWave probe: no valid frame signature at baud " + std::to_string(baud));
-            ::close(fd);
-        }
-
-        if (serialPort_h < 0) {
-            CubeLog::error("Failed to open serial port.");
-            while (!st.stop_requested()) {
-                genericSleep(1000);
-                CubeLog::info("Failure.");
-            }
-        }
-        CubeLog::info("mmWave serial ready at baud " + std::to_string(selectedBaud));
-        this->isReady_.store(true);
-        if (this->onReadyCallback) {
-            this->onReadyCallback();
-        }
-        unsigned long lastPrintTime = millis();
-        while (!st.stop_requested()) {
-            Response response = readDataFrame();
-            if (response.success) {
-                decodeDataFrame(response);
-            }
-            if (millis() - lastPrintTime > 2000) {
-                MmWaveReading r = getReading();
-                float score = getPresenceConfidence();
-                CubeLog::info("Target State: " + std::to_string(r.targetState));
-                CubeLog::info("Moving Target Distance: " + std::to_string(r.movingTargetDistance));
-                CubeLog::info("Moving Target Energy: " + std::to_string(r.movingTargetEnergy));
-                CubeLog::info("Stationary Target Distance: " + std::to_string(r.stationaryTargetDistance));
-                CubeLog::info("Stationary Target Energy: " + std::to_string(r.stationaryTargetEnergy));
-                CubeLog::info("Detection Distance: " + std::to_string(r.detectionDistance));
-                CubeLog::info("Presence Confidence: " + std::to_string(score));
-                lastPrintTime = millis();
-                CubeLog::debugSilly("Detected: " + std::string(isPresent() ? "PRESENT" : "ABSENT"));
-            }
-            genericSleep(10);
-        }
-    });
+    this->readerThread = std::make_unique<std::jthread>(
+        [this](std::stop_token stopToken) {
+            readerLoop(stopToken);
+        });
 }
 
 mmWave::~mmWave()
 {
+    if (readerThread) {
+        readerThread->request_stop();
+        readerThread.reset();
+    }
+
+    std::lock_guard<std::mutex> serialLock(serialMutex);
+    closeSerialPortLocked();
+    configModeEnabled = false;
+    isReady_.store(false);
+
+    std::lock_guard<std::mutex> readingLock(readingMutex);
+    resetPresenceStateLocked();
 }
 
 Response mmWave::sendCommand(std::vector<uint8_t> command)
 {
+    Response response;
+    if (this->serialPort_h < 0) {
+        response.success = false;
+        response.errorReason = "serial port unavailable";
+        CubeLog::error("mmWave::sendCommand: serial port unavailable.");
+        return response;
+    }
+
     std::vector<uint8_t> dataToSend = COMMAND_HEADER;
     dataToSend.push_back(command.size() & 0xFF);
     dataToSend.push_back((command.size() >> 8) & 0xFF);
@@ -344,7 +411,6 @@ Response mmWave::sendCommand(std::vector<uint8_t> command)
         + ", port=" + std::to_string(this->serialPort_h));
 
     serialWrite(this->serialPort_h, dataToSend.data(), dataToSend.size());
-    Response response;
     uint16_t waitTime = 0;
     while (serialDataAvail(this->serialPort_h) == 0 && waitTime < 1000) {
         genericSleep(10);
@@ -355,6 +421,7 @@ Response mmWave::sendCommand(std::vector<uint8_t> command)
             + ", waitedMs=" + std::to_string(waitTime)
             + ", availNow=" + std::to_string(serialDataAvail(this->serialPort_h)));
         response = false;
+        response.errorReason = "command response timeout";
         return response;
     }
     // These nested loops get the data fast, but if we read faster than the data arrives, give  the source
@@ -379,6 +446,9 @@ Response mmWave::sendCommand(std::vector<uint8_t> command, std::vector<uint8_t> 
             + ", actualRx=" + bytesToHexPreview(response.data)
             + ", rxBytes=" + std::to_string(response.data.size()));
         response = false;
+        if (response.errorReason.empty()) {
+            response.errorReason = "unexpected command acknowledgement";
+        }
         return response;
     }
     return response;
@@ -456,6 +526,11 @@ Response mmWave::readDataFrame()
 {
     std::lock_guard<std::mutex> lock(serialMutex);
     Response response;
+    if (this->serialPort_h < 0) {
+        response.success = false;
+        response.errorReason = "serial port unavailable";
+        return response;
+    }
     response.data = REPORT_HEADER;
     response = true;
     int headerSize = response.size();
@@ -463,6 +538,7 @@ Response mmWave::readDataFrame()
         CubeLog::error("Command mode enabled. readDataFrame blocked, avail="
             + std::to_string(serialDataAvail(this->serialPort_h)));
         response = false;
+        response.errorReason = "config mode enabled";
         return response;
     }
     uint16_t waitTime = 0;
@@ -474,12 +550,14 @@ Response mmWave::readDataFrame()
         CubeLog::error("Timeout trying to get data frame. waitedMs=" + std::to_string(waitTime)
             + ", availNow=" + std::to_string(serialDataAvail(this->serialPort_h)));
         response = false;
+        response.errorReason = "data frame timeout";
         return response;
     }
     genericSleep(1);
     if (serialDataAvail(this->serialPort_h) == 0) {
         CubeLog::error("No data available.");
         response = false;
+        response.errorReason = "no data available";
         return response;
     }
     int headerIndex = 0;
@@ -504,6 +582,7 @@ Response mmWave::readDataFrame()
         CubeLog::error("Failed to find report header. scannedPrefix=" + bytesToHexPreview(headerScanPreview)
             + ", availAfterScan=" + std::to_string(serialDataAvail(this->serialPort_h)));
         response = false;
+        response.errorReason = "missing report header";
         return response;
     }
 
@@ -519,6 +598,7 @@ Response mmWave::readDataFrame()
         CubeLog::error("Report size does not match data available. reportSize=" + std::to_string(reportSize)
             + ", avail=" + std::to_string(serialDataAvail(this->serialPort_h)));
         response = false;
+        response.errorReason = "report size mismatch";
         return response;
     }
 
@@ -534,6 +614,7 @@ Response mmWave::readDataFrame()
             + ", actualBytes=" + std::to_string(response.size())
             + ", framePrefix=" + bytesToHexPreview(response.data));
         response = false;
+        response.errorReason = "short report";
         return response;
     }
 
@@ -543,6 +624,7 @@ Response mmWave::readDataFrame()
                 + ", frameSuffix="
                 + bytesToHexPreview(std::vector<uint8_t>(response.data.end() - tail.size(), response.data.end())));
             response = false;
+            response.errorReason = "invalid report tail";
             return response;
         }
     }
@@ -607,13 +689,7 @@ void mmWave::decodeDataFrame(Response response)
         currentReading.stationaryTargetEnergy = data[10];
         // Detection Distance, 2 byte, cm
         currentReading.detectionDistance = data[11] | data[12] << 8;
-        const float raw = computeRawPresenceScore(currentReading);
-        if (!presenceConfidenceInitialized) {
-            cachedPresenceConfidence = raw;
-            presenceConfidenceInitialized = true;
-        } else {
-            cachedPresenceConfidence = smoothPresenceScore(cachedPresenceConfidence, raw, currentReading.targetState);
-        }
+        presenceEstimator_.update(currentReading, std::chrono::steady_clock::now());
     } else if (dataType == 0x01) {
         CubeLog::info("Engineering data frame.");
         // Need at least 15 bytes to safely read gate counts at data[13] and data[14]
@@ -636,13 +712,7 @@ void mmWave::decodeDataFrame(Response response)
             currentReading.stationaryTargetEnergy = data[10];
             // Detection Distance, 2 byte, cm
             currentReading.detectionDistance = data[11] | data[12] << 8;
-            const float raw = computeRawPresenceScore(currentReading);
-            if (!presenceConfidenceInitialized) {
-                cachedPresenceConfidence = raw;
-                presenceConfidenceInitialized = true;
-            } else {
-                cachedPresenceConfidence = smoothPresenceScore(cachedPresenceConfidence, raw, currentReading.targetState);
-            }
+            presenceEstimator_.update(currentReading, std::chrono::steady_clock::now());
         }
         // Max moving/stationary gate INDEX N means gates 0..N (N+1 energy values each)
         uint8_t maxMovingDistanceGateNumber = data[13];
@@ -686,51 +756,31 @@ MmWaveReading mmWave::getReading()
 float mmWave::getPresenceConfidence()
 {
     std::lock_guard<std::mutex> lock(readingMutex);
-    return cachedPresenceConfidence;
+    return presenceEstimator_.confidence();
 }
 
 bool mmWave::isPresent()
 {
     std::lock_guard<std::mutex> lock(readingMutex);
-    if (!presenceConfidenceInitialized) {
-        cachedPresenceState = false;
-        absenceExitTimerActive = false;
-        return false;
-    }
-
-    // Entry remains responsive: once confidence rises above the enter threshold, become present.
-    if (!cachedPresenceState) {
-        absenceExitTimerActive = false;
-        if (cachedPresenceConfidence >= PRESENCE_HYSTERESIS_ENTER_THRESHOLD) {
-            cachedPresenceState = true;
-        }
-        return cachedPresenceState;
-    }
-
-    // Already present: only transition to absent if confidence stays low for dwell period.
-    if (cachedPresenceConfidence > PRESENCE_HYSTERESIS_EXIT_THRESHOLD) {
-        absenceExitTimerActive = false;
-        return true;
-    }
-
-    const auto now = std::chrono::steady_clock::now();
-    if (!absenceExitTimerActive) {
-        absenceExitTimerActive = true;
-        absenceExitTimerStart = now;
-        return true;
-    }
-
-    if ((now - absenceExitTimerStart) >= PRESENCE_ABSENT_DWELL) {
-        cachedPresenceState = false;
-        absenceExitTimerActive = false;
-    }
-
-    return cachedPresenceState;
+    return presenceEstimator_.isOccupied();
 }
 
 void mmWave::setOnReadyCallback(std::function<void()> callback)
 {
-    this->onReadyCallback = std::move(callback);
+    {
+        std::lock_guard<std::mutex> callbackLock(callbackMutex);
+        this->onReadyCallback = std::move(callback);
+    }
+
+    if (isReady_.load()) {
+        invokeOnReadyCallback();
+    }
+}
+
+void mmWave::setPresenceParams(const MmWavePresenceParams& params)
+{
+    std::lock_guard<std::mutex> lock(readingMutex);
+    presenceEstimator_.setParams(params);
 }
 
 // ---------------------------------------------------------------------------
@@ -906,57 +956,34 @@ bool mmWave::resetToDefaults()
     disableConfigMode();
     restartModule();
 
-    // After reboot, perform robust baud recovery:
-    // 1) Temporary recovery path: try measured/manual rates first.
-    // 2) Then settle to preferred 115200 if available.
-    auto reconnectWithOrder = [&](const std::vector<int>& baudCandidates, int probeMs) -> int {
-        if (this->serialPort_h >= 0) {
-            ::close(this->serialPort_h);
-            this->serialPort_h = -1;
-        }
+    const std::vector<std::string> paths(
+        MMWAVE_SERIAL_PATH_CANDIDATES.begin(), MMWAVE_SERIAL_PATH_CANDIDATES.end());
 
-        for (int baud : baudCandidates) {
-            int fd = serialOpen(MMWAVE_SERIAL_PATH, baud);
-            if (fd < 0) {
-                continue;
-            }
-
-            CubeLog::info("mmWave reset reconnect: opened " + std::string(MMWAVE_SERIAL_PATH)
-                + " at baud " + std::to_string(baud));
-
-            if (probeSerialStreamSignature(fd, probeMs)) {
-                this->serialPort_h = fd;
-                return baud;
-            }
-
-            ::close(fd);
-        }
-
-        return -1;
-    };
-
-    const int recoveryBaud = reconnectWithOrder(
-        { MMWAVE_BAUD_ANALYZER_MEASURED, MMWAVE_BAUD_MANUAL_FALLBACK, MMWAVE_BAUD_PREFERRED }, 700);
-
-    if (recoveryBaud < 0) {
+    if (!connectWithCandidatesLocked(
+            paths,
+            { MMWAVE_BAUD_ANALYZER_MEASURED, MMWAVE_BAUD_MANUAL_FALLBACK, MMWAVE_BAUD_PREFERRED },
+            700)) {
         CubeLog::error("mmWave::resetToDefaults: unable to reconnect after restart.");
         return false;
     }
 
+    const int recoveryBaud = connectedBaud_;
     if (recoveryBaud != MMWAVE_BAUD_PREFERRED) {
-        const int preferredBaud = reconnectWithOrder({ MMWAVE_BAUD_PREFERRED }, 700);
-        if (preferredBaud == MMWAVE_BAUD_PREFERRED) {
+        if (connectWithCandidatesLocked(paths, { MMWAVE_BAUD_PREFERRED }, 700)) {
             CubeLog::info("mmWave::resetToDefaults: comms settled at preferred baud 115200.");
         } else {
             CubeLog::error("mmWave::resetToDefaults: preferred baud 115200 unavailable; staying at "
                 + std::to_string(recoveryBaud));
-            // Re-open at the recovered baud so comms remain usable.
-            const int fallbackBaud = reconnectWithOrder({ recoveryBaud }, 700);
-            if (fallbackBaud < 0) {
+            if (!connectWithCandidatesLocked(paths, { recoveryBaud }, 700)) {
                 CubeLog::error("mmWave::resetToDefaults: failed to restore fallback comms after preferred-baud attempt.");
                 return false;
             }
         }
+    }
+
+    {
+        std::lock_guard<std::mutex> readingLock(readingMutex);
+        resetPresenceStateLocked();
     }
 
     return true;

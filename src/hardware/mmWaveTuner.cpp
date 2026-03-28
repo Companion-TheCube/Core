@@ -54,12 +54,12 @@ void MmWaveTuner::startPhase(int phaseIndex, int durationMs, std::function<void(
         auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(durationMs);
         while (!st.stop_requested() && std::chrono::steady_clock::now() < deadline) {
             MmWaveReading reading = sensor_->getReading();
-            if (reading.targetState != 0) {
-                if (phaseIndex == 1) {
-                    movingDistances_.push_back(reading.movingTargetDistance);
-                } else if (phaseIndex == 2) {
-                    restingDistances_.push_back(reading.stationaryTargetDistance);
-                }
+            if (phaseIndex == 0) {
+                collectedSamples_.emptySamples.push_back(reading);
+            } else if (phaseIndex == 1) {
+                collectedSamples_.movingSamples.push_back(reading);
+            } else if (phaseIndex == 2) {
+                collectedSamples_.restingSamples.push_back(reading);
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
@@ -81,20 +81,5 @@ void MmWaveTuner::cancel()
 
 MmWaveTuner::CalibrationResult MmWaveTuner::analyze() const
 {
-    CalibrationResult result;
-
-    if (!movingDistances_.empty()) {
-        uint16_t maxDist = *std::max_element(movingDistances_.begin(), movingDistances_.end());
-        // ceil(distance / gate_width), clamped to [1, 8]
-        int gate = (static_cast<int>(maxDist) + GATE_WIDTH_CM - 1) / GATE_WIDTH_CM;
-        result.maxMovingGate = std::clamp(gate, 1, 8);
-    }
-
-    if (!restingDistances_.empty()) {
-        uint16_t maxDist = *std::max_element(restingDistances_.begin(), restingDistances_.end());
-        int gate = (static_cast<int>(maxDist) + GATE_WIDTH_CM - 1) / GATE_WIDTH_CM;
-        result.maxRestingGate = std::clamp(gate, 1, 8);
-    }
-
-    return result;
+    return analyzeMmWaveCalibrationSamples(collectedSamples_);
 }

@@ -82,6 +82,17 @@ std::unordered_map<GlobalSettings::SettingType, std::string> GlobalSettings::set
     { SettingType::MMWAVE_UNMANNED_DURATION_SECS, "mmwaveUnmannedDurationSecs" },
     { SettingType::MMWAVE_MOTION_SENSITIVITY, "mmwaveMotionSensitivity" },
     { SettingType::MMWAVE_RESTING_SENSITIVITY, "mmwaveRestingSensitivity" },
+    { SettingType::MMWAVE_DESK_DISTANCE_CM, "mmwaveDeskDistanceCm" },
+    { SettingType::MMWAVE_DESK_INNER_RADIUS_CM, "mmwaveDeskInnerRadiusCm" },
+    { SettingType::MMWAVE_DESK_OUTER_RADIUS_CM, "mmwaveDeskOuterRadiusCm" },
+    { SettingType::MMWAVE_MOVING_ENERGY_FLOOR, "mmwaveMovingEnergyFloor" },
+    { SettingType::MMWAVE_MOVING_ENERGY_SAT, "mmwaveMovingEnergySat" },
+    { SettingType::MMWAVE_STATIONARY_ENERGY_FLOOR, "mmwaveStationaryEnergyFloor" },
+    { SettingType::MMWAVE_STATIONARY_ENERGY_SAT, "mmwaveStationaryEnergySat" },
+    { SettingType::MMWAVE_PRESENCE_ATTACK_MS, "mmwavePresenceAttackMs" },
+    { SettingType::MMWAVE_PRESENCE_RELEASE_MS, "mmwavePresenceReleaseMs" },
+    { SettingType::MMWAVE_PRESENCE_OCCUPIED_THRESHOLD, "mmwavePresenceOccupiedThreshold" },
+    { SettingType::MMWAVE_PRESENCE_VACANT_THRESHOLD, "mmwavePresenceVacantThreshold" },
     { SettingType::MMWAVE_IS_CALIBRATED, "mmwaveIsCalibrated" }
 };
 std::unordered_map<std::string, GlobalSettings::SettingType> GlobalSettings::stringSettingTypeMap = {
@@ -130,5 +141,16 @@ std::unordered_map<std::string, GlobalSettings::SettingType> GlobalSettings::str
     { "mmwaveUnmannedDurationSecs", SettingType::MMWAVE_UNMANNED_DURATION_SECS },
     { "mmwaveMotionSensitivity", SettingType::MMWAVE_MOTION_SENSITIVITY },
     { "mmwaveRestingSensitivity", SettingType::MMWAVE_RESTING_SENSITIVITY },
+    { "mmwaveDeskDistanceCm", SettingType::MMWAVE_DESK_DISTANCE_CM },
+    { "mmwaveDeskInnerRadiusCm", SettingType::MMWAVE_DESK_INNER_RADIUS_CM },
+    { "mmwaveDeskOuterRadiusCm", SettingType::MMWAVE_DESK_OUTER_RADIUS_CM },
+    { "mmwaveMovingEnergyFloor", SettingType::MMWAVE_MOVING_ENERGY_FLOOR },
+    { "mmwaveMovingEnergySat", SettingType::MMWAVE_MOVING_ENERGY_SAT },
+    { "mmwaveStationaryEnergyFloor", SettingType::MMWAVE_STATIONARY_ENERGY_FLOOR },
+    { "mmwaveStationaryEnergySat", SettingType::MMWAVE_STATIONARY_ENERGY_SAT },
+    { "mmwavePresenceAttackMs", SettingType::MMWAVE_PRESENCE_ATTACK_MS },
+    { "mmwavePresenceReleaseMs", SettingType::MMWAVE_PRESENCE_RELEASE_MS },
+    { "mmwavePresenceOccupiedThreshold", SettingType::MMWAVE_PRESENCE_OCCUPIED_THRESHOLD },
+    { "mmwavePresenceVacantThreshold", SettingType::MMWAVE_PRESENCE_VACANT_THRESHOLD },
     { "mmwaveIsCalibrated", SettingType::MMWAVE_IS_CALIBRATED }
 };

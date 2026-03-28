@@ -32,6 +32,7 @@ SOFTWARE.
 */
 
 #pragma once
+#include "mmWaveCalibration.h"
 #include "mmWave.h"
 #include <functional>
 #include <memory>
@@ -41,20 +42,14 @@ SOFTWARE.
 // MmWaveTuner drives a three-phase sensor calibration procedure.
 //
 // Phase indices:
-//   0 — Baseline: room should be empty.  Readings are discarded; we just wait.
-//   1 — Movement: user moves around normally.  movingTargetDistance samples collected.
-//   2 — Stationary: user sits/stands still.  stationaryTargetDistance samples collected.
+//   0 — Baseline: room should be empty. Samples are used to derive noise floors.
+//   1 — Movement: user moves around normally. Samples are used to size the moving zone.
+//   2 — Stationary: user sits/stands still. Samples are used to learn desk distance and resting tuning.
 //
-// After all phases finish, call analyze() to obtain recommended configuration values,
-// then pass them (along with a user-selected unmanned duration) to mmWave::configure().
+// After all phases finish, call analyze() to obtain recommended hardware + software values.
 class MmWaveTuner {
 public:
-    struct CalibrationResult {
-        int maxMovingGate = 5; // gate index 1–8
-        int maxRestingGate = 5; // gate index 1–8
-        int motionSensitivity = 50; // 0–100
-        int restingSensitivity = 50; // 0–100
-    };
+    using CalibrationResult = MmWaveCalibrationResult;
 
     explicit MmWaveTuner(mmWave* sensor);
     ~MmWaveTuner();
@@ -75,9 +70,5 @@ private:
     mmWave* sensor_;
     std::unique_ptr<std::jthread> collectionThread_;
 
-    std::vector<uint16_t> movingDistances_; // phase 1 samples (cm)
-    std::vector<uint16_t> restingDistances_; // phase 2 samples (cm)
-
-    // LD2410B gate width in centimetres
-    static constexpr int GATE_WIDTH_CM = 75;
+    MmWaveCalibrationSamples collectedSamples_;
 };

@@ -34,6 +34,7 @@ SOFTWARE.
 // TODO: Need to tune detection. Currently, it just stays at "detected".
 
 #pragma once
+#include "mmWavePresenceEstimator.h"
 #include <atomic>
 #include <chrono>
 #include <functional>
@@ -74,6 +75,7 @@ public:
     bool success = false;
     std::vector<uint8_t> data = {};
     std::string hexStr = "";
+    std::string errorReason = "";
 
     std::vector<uint8_t> getHeader()
     {
@@ -215,14 +217,11 @@ class mmWave {
     // Current reading protected by readingMutex
     std::mutex readingMutex;
     MmWaveReading currentReading;
-    float cachedPresenceConfidence = 0.0f;
-    bool presenceConfidenceInitialized = false;
-    bool cachedPresenceState = false;
-    bool absenceExitTimerActive = false;
-    std::chrono::steady_clock::time_point absenceExitTimerStart;
+    MmWavePresenceEstimator presenceEstimator_;
 
     // Serialises all serial-port access (commands vs. reader loop)
     std::mutex serialMutex;
+    std::mutex callbackMutex;
 
     // Stored config state — each setter updates these and sends the combined command
     int cfgMovingGate = 5;
@@ -237,6 +236,8 @@ class mmWave {
     std::atomic<bool> isReady_ { false };
     std::function<void()> onReadyCallback;
     std::unique_ptr<std::jthread> readerThread;
+    std::string connectedSerialPath_;
+    int connectedBaud_ = -1;
 
     Response sendCommand(std::vector<uint8_t> command);
     Response sendCommand(std::vector<uint8_t> command, std::vector<uint8_t> ack);
@@ -255,6 +256,12 @@ class mmWave {
     void restartModule();
     Response readDataFrame();
     void decodeDataFrame(Response response);
+    void readerLoop(std::stop_token stopToken);
+    void closeSerialPortLocked();
+    bool connectWithCandidatesLocked(const std::vector<std::string>& paths, const std::vector<int>& baudCandidates, int probeTimeoutMs);
+    void markDisconnected(const std::string& reason);
+    void resetPresenceStateLocked();
+    void invokeOnReadyCallback();
 
 public:
     mmWave();
@@ -268,6 +275,8 @@ public:
 
     // Thread-safe hysteresis-based binary presence state.
     bool isPresent();
+
+    void setPresenceParams(const MmWavePresenceParams& params);
 
     // Atomically configure the sensor: set distance gates, unmanned duration, and sensitivity.
     // Handles enable/disable config mode and module restart internally.

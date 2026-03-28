@@ -550,7 +550,8 @@ set(MACRO_REGEX "public AutoRegisterAPI<([a-zA-Z_][a-zA-Z0-9_:]*)>")
 
 
 # Add the executable
-file(GLOB_RECURSE ALL_SOURCES "src/*.cpp" "src/**/*.cpp" "src/**/**/*.cpp")
+file(GLOB_RECURSE ALL_SOURCES CONFIGURE_DEPENDS
+    "src/*.cpp" "src/**/*.cpp" "src/**/**/*.cpp")
 # Split main from library sources
 set(MAIN_SOURCE "${CMAKE_SOURCE_DIR}/src/main.cpp")
 set(LIB_SOURCES ${ALL_SOURCES})
@@ -848,8 +849,24 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E echo "Copying data to output directory"
 )
 
-set(SILERO_VAD_MODEL_SOURCE "${silero_vad_SOURCE_DIR}/src/silero_vad/data/silero_vad.onnx")
-if(EXISTS "${SILERO_VAD_MODEL_SOURCE}")
+set(SILERO_VAD_MODEL_SOURCE "")
+set(SILERO_VAD_MODEL_CANDIDATES
+    "${silero_vad_SOURCE_DIR}/src/silero_vad/data/silero_vad.onnx"
+    "${silero_vad_SOURCE_DIR}/silero_vad.onnx"
+)
+file(GLOB_RECURSE OPENWAKEWORD_SILERO_MODELS
+    "${CMAKE_SOURCE_DIR}/openwakeword/**/silero_vad.onnx")
+list(APPEND SILERO_VAD_MODEL_CANDIDATES ${OPENWAKEWORD_SILERO_MODELS})
+list(APPEND SILERO_VAD_MODEL_CANDIDATES "${CMAKE_SOURCE_DIR}/data/silero_vad.onnx")
+
+foreach(SILERO_CANDIDATE ${SILERO_VAD_MODEL_CANDIDATES})
+    if(EXISTS "${SILERO_CANDIDATE}")
+        set(SILERO_VAD_MODEL_SOURCE "${SILERO_CANDIDATE}")
+        break()
+    endif()
+endforeach()
+
+if(SILERO_VAD_MODEL_SOURCE)
     add_custom_command(
         TARGET CubeCore POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -963,7 +980,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest)
 
 # Add test executable (tests only)
-file(GLOB_RECURSE TEST_SOURCES
+file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS
     "tests/*.cpp" "tests/**/*.cpp")
 add_executable(CubeCoreTests ${TEST_SOURCES})
 target_link_libraries(CubeCoreTests PRIVATE

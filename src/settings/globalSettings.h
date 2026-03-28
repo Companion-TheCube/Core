@@ -106,6 +106,17 @@ struct GlobalSettings {
         MMWAVE_UNMANNED_DURATION_SECS,
         MMWAVE_MOTION_SENSITIVITY,
         MMWAVE_RESTING_SENSITIVITY,
+        MMWAVE_DESK_DISTANCE_CM,
+        MMWAVE_DESK_INNER_RADIUS_CM,
+        MMWAVE_DESK_OUTER_RADIUS_CM,
+        MMWAVE_MOVING_ENERGY_FLOOR,
+        MMWAVE_MOVING_ENERGY_SAT,
+        MMWAVE_STATIONARY_ENERGY_FLOOR,
+        MMWAVE_STATIONARY_ENERGY_SAT,
+        MMWAVE_PRESENCE_ATTACK_MS,
+        MMWAVE_PRESENCE_RELEASE_MS,
+        MMWAVE_PRESENCE_OCCUPIED_THRESHOLD,
+        MMWAVE_PRESENCE_VACANT_THRESHOLD,
         MMWAVE_IS_CALIBRATED,
 
         SETTING_TYPE_COUNT
@@ -207,6 +218,17 @@ struct GlobalSettings {
         GlobalSettings::setSetting(SettingType::MMWAVE_UNMANNED_DURATION_SECS, 5);
         GlobalSettings::setSetting(SettingType::MMWAVE_MOTION_SENSITIVITY, 50);
         GlobalSettings::setSetting(SettingType::MMWAVE_RESTING_SENSITIVITY, 50);
+        GlobalSettings::setSetting(SettingType::MMWAVE_DESK_DISTANCE_CM, 90.0f);
+        GlobalSettings::setSetting(SettingType::MMWAVE_DESK_INNER_RADIUS_CM, 35.0f);
+        GlobalSettings::setSetting(SettingType::MMWAVE_DESK_OUTER_RADIUS_CM, 90.0f);
+        GlobalSettings::setSetting(SettingType::MMWAVE_MOVING_ENERGY_FLOOR, 10.0f);
+        GlobalSettings::setSetting(SettingType::MMWAVE_MOVING_ENERGY_SAT, 80.0f);
+        GlobalSettings::setSetting(SettingType::MMWAVE_STATIONARY_ENERGY_FLOOR, 8.0f);
+        GlobalSettings::setSetting(SettingType::MMWAVE_STATIONARY_ENERGY_SAT, 70.0f);
+        GlobalSettings::setSetting(SettingType::MMWAVE_PRESENCE_ATTACK_MS, 500.0f);
+        GlobalSettings::setSetting(SettingType::MMWAVE_PRESENCE_RELEASE_MS, 8000.0f);
+        GlobalSettings::setSetting(SettingType::MMWAVE_PRESENCE_OCCUPIED_THRESHOLD, 0.65f);
+        GlobalSettings::setSetting(SettingType::MMWAVE_PRESENCE_VACANT_THRESHOLD, 0.35f);
         GlobalSettings::setSetting(SettingType::MMWAVE_IS_CALIBRATED, false);
     }
 

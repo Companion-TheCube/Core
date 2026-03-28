@@ -37,11 +37,31 @@ SOFTWARE.
 #include <chrono>
 #include <thread>
 
+namespace {
+MmWavePresenceParams loadPresenceParamsFromSettings()
+{
+    MmWavePresenceParams params;
+    params.deskDistanceCm = GlobalSettings::getSettingOfType<float>(GlobalSettings::SettingType::MMWAVE_DESK_DISTANCE_CM);
+    params.innerRadiusCm = GlobalSettings::getSettingOfType<float>(GlobalSettings::SettingType::MMWAVE_DESK_INNER_RADIUS_CM);
+    params.outerRadiusCm = GlobalSettings::getSettingOfType<float>(GlobalSettings::SettingType::MMWAVE_DESK_OUTER_RADIUS_CM);
+    params.movingFloor = GlobalSettings::getSettingOfType<float>(GlobalSettings::SettingType::MMWAVE_MOVING_ENERGY_FLOOR);
+    params.movingSat = GlobalSettings::getSettingOfType<float>(GlobalSettings::SettingType::MMWAVE_MOVING_ENERGY_SAT);
+    params.stationaryFloor = GlobalSettings::getSettingOfType<float>(GlobalSettings::SettingType::MMWAVE_STATIONARY_ENERGY_FLOOR);
+    params.stationarySat = GlobalSettings::getSettingOfType<float>(GlobalSettings::SettingType::MMWAVE_STATIONARY_ENERGY_SAT);
+    params.tauAttackMs = GlobalSettings::getSettingOfType<float>(GlobalSettings::SettingType::MMWAVE_PRESENCE_ATTACK_MS);
+    params.tauReleaseMs = GlobalSettings::getSettingOfType<float>(GlobalSettings::SettingType::MMWAVE_PRESENCE_RELEASE_MS);
+    params.occupiedThreshold = GlobalSettings::getSettingOfType<float>(GlobalSettings::SettingType::MMWAVE_PRESENCE_OCCUPIED_THRESHOLD);
+    params.vacantThreshold = GlobalSettings::getSettingOfType<float>(GlobalSettings::SettingType::MMWAVE_PRESENCE_VACANT_THRESHOLD);
+    return params;
+}
+}
+
 std::function<void()> PeripheralManager::onMmWaveTuningRequested;
 
 PeripheralManager::PeripheralManager()
 {
     this->mmWaveSensor = std::make_unique<mmWave>();
+    this->mmWaveSensor->setPresenceParams(loadPresenceParamsFromSettings());
 
     // Once the serial port opens, re-apply any saved calibration automatically.
     this->mmWaveSensor->setOnReadyCallback([this]() {
@@ -51,6 +71,7 @@ PeripheralManager::PeripheralManager()
             int unmanned = GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::MMWAVE_UNMANNED_DURATION_SECS);
             int motSens = GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::MMWAVE_MOTION_SENSITIVITY);
             int restSens = GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::MMWAVE_RESTING_SENSITIVITY);
+            this->mmWaveSensor->setPresenceParams(loadPresenceParamsFromSettings());
             this->mmWaveSensor->configure(movGate, restGate, unmanned, motSens, restSens);
         }
     });
@@ -96,8 +117,20 @@ void PeripheralManager::applyCalibration(int unmannedSecs)
     GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_UNMANNED_DURATION_SECS, unmannedSecs);
     GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_MOTION_SENSITIVITY, result.motionSensitivity);
     GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_RESTING_SENSITIVITY, result.restingSensitivity);
+    GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_DESK_DISTANCE_CM, result.presenceParams.deskDistanceCm);
+    GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_DESK_INNER_RADIUS_CM, result.presenceParams.innerRadiusCm);
+    GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_DESK_OUTER_RADIUS_CM, result.presenceParams.outerRadiusCm);
+    GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_MOVING_ENERGY_FLOOR, result.presenceParams.movingFloor);
+    GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_MOVING_ENERGY_SAT, result.presenceParams.movingSat);
+    GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_STATIONARY_ENERGY_FLOOR, result.presenceParams.stationaryFloor);
+    GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_STATIONARY_ENERGY_SAT, result.presenceParams.stationarySat);
+    GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_PRESENCE_ATTACK_MS, result.presenceParams.tauAttackMs);
+    GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_PRESENCE_RELEASE_MS, result.presenceParams.tauReleaseMs);
+    GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_PRESENCE_OCCUPIED_THRESHOLD, result.presenceParams.occupiedThreshold);
+    GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_PRESENCE_VACANT_THRESHOLD, result.presenceParams.vacantThreshold);
     GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_IS_CALIBRATED, true);
 
+    mmWaveSensor->setPresenceParams(result.presenceParams);
     mmWaveSensor->configure(result.maxMovingGate, result.maxRestingGate, unmannedSecs,
         result.motionSensitivity, result.restingSensitivity);
 }
