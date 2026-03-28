@@ -179,17 +179,42 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
         const auto noSpeechTimeout = std::chrono::milliseconds(parseNumericConfig<int>("REMOTE_TRANSCRIPTION_NO_SPEECH_TIMEOUT_MS", 5000));
         const auto maxSessionDuration = std::chrono::milliseconds(parseNumericConfig<int>("REMOTE_TRANSCRIPTION_MAX_SESSION_MS", 15000));
         const auto finalWait = std::chrono::milliseconds(parseNumericConfig<int>("REMOTE_TRANSCRIPTION_WAIT_FINAL_MS", 15000));
+        const auto wakewordVadDelay = std::chrono::milliseconds(parseNumericConfig<int>("REMOTE_TRANSCRIPTION_WAKEWORD_VAD_DELAY_MS", 600));
         const auto idlePoll = std::chrono::milliseconds(10);
 
         size_t chunksSent = 0;
         bool heardSpeech = false;
         auto sessionStart = std::chrono::steady_clock::now();
+        auto speechDetectionWindowStart = sessionStart;
         auto lastSpeechAt = sessionStart;
         std::optional<std::chrono::steady_clock::time_point> firstChunkAt;
         std::optional<std::chrono::steady_clock::time_point> firstSpeechAt;
         std::optional<std::chrono::steady_clock::time_point> finishRequestedAt;
         std::optional<std::chrono::steady_clock::time_point> finalTranscriptAt;
         std::string endReason = "unknown";
+        bool speechDetectionActive = wakewordVadDelay.count() <= 0;
+        const auto speechDetectionStartsAt = sessionStart + wakewordVadDelay;
+        if (!speechDetectionActive) {
+            CubeLog::info(
+                "RemoteTranscriber: delaying speech boundary detection after wake word"
+                " delayMs=" + std::to_string(wakewordVadDelay.count()));
+        }
+        const auto activateSpeechDetectionIfNeeded = [&](const std::chrono::steady_clock::time_point& now) {
+            if (speechDetectionActive || now < speechDetectionStartsAt) {
+                return;
+            }
+            speechDetectionActive = true;
+            heardSpeech = false;
+            speechDetectionWindowStart = now;
+            lastSpeechAt = now;
+            firstSpeechAt.reset();
+            if (voiceActivityDetector) {
+                voiceActivityDetector->reset();
+            }
+            CubeLog::info(
+                "RemoteTranscriber: speech boundary detection active"
+                " activationMs=" + formatDurationMs(sessionStart, now));
+        };
         const auto logSessionSummary = [&](const std::string& reason, size_t transcriptLength) {
             CubeLog::info(
                 "RemoteTranscriber: utterance session summary"
@@ -206,6 +231,7 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
 
         while (!stoken.stop_requested()) {
             const auto now = std::chrono::steady_clock::now();
+            activateSpeechDetectionIfNeeded(now);
             if ((now - sessionStart) >= maxSessionDuration) {
                 CubeLog::warning("RemoteTranscriber: max session duration reached, finishing session");
                 endReason = "max_session_duration";
@@ -213,7 +239,11 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
             }
 
             if (audioQueue->size() == 0) {
-                if (!heardSpeech && (now - sessionStart) >= noSpeechTimeout) {
+                if (!speechDetectionActive) {
+                    std::this_thread::sleep_for(idlePoll);
+                    continue;
+                }
+                if (!heardSpeech && (now - speechDetectionWindowStart) >= noSpeechTimeout) {
                     CubeLog::warning("RemoteTranscriber: no speech detected before timeout, finishing session");
                     endReason = "no_speech_timeout";
                     break;
@@ -231,6 +261,7 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
             if (!audioOpt || audioOpt->empty()) continue;
 
             const auto chunkTime = std::chrono::steady_clock::now();
+            activateSpeechDetectionIfNeeded(chunkTime);
             if (!firstChunkAt.has_value()) {
                 firstChunkAt = chunkTime;
                 CubeLog::info(
@@ -249,6 +280,9 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
             }
 
             ++chunksSent;
+            if (!speechDetectionActive) {
+                continue;
+            }
             const auto speechAnalysis = analyzeSpeechChunk(*audioOpt);
             if (speechAnalysis.speechObserved) {
                 heardSpeech = true;
@@ -274,7 +308,7 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
                 CubeLog::info("RemoteTranscriber: post-speech silence timeout reached, finishing session");
                 endReason = "post_speech_silence_timeout";
                 break;
-            } else if (!heardSpeech && (chunkTime - sessionStart) >= noSpeechTimeout) {
+            } else if (!heardSpeech && (chunkTime - speechDetectionWindowStart) >= noSpeechTimeout) {
                 CubeLog::warning("RemoteTranscriber: no speech detected in session window, finishing session");
                 endReason = "no_speech_window";
                 break;

@@ -145,6 +145,7 @@ void resetVoiceConfig()
     Config::erase("DECISION_ENGINE_RESULT_HIDE_MS");
     Config::erase("REMOTE_TRANSCRIPTION_SILENCE_TIMEOUT_MS");
     Config::erase("REMOTE_TRANSCRIPTION_WAIT_FINAL_MS");
+    Config::erase("REMOTE_TRANSCRIPTION_WAKEWORD_VAD_DELAY_MS");
     Config::erase("SILERO_VAD_ENABLED");
     Config::erase("SILERO_VAD_MODEL_PATH");
     Config::erase("SILERO_VAD_THRESHOLD");
