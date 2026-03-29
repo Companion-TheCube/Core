@@ -1,9 +1,9 @@
 /*
- █████╗ ██╗   ██╗██████╗ ██╗ ██████╗  ██████╗ ██╗   ██╗████████╗██████╗ ██╗   ██╗████████╗ ██████╗██████╗ ██████╗ 
+ █████╗ ██╗   ██╗██████╗ ██╗ ██████╗  ██████╗ ██╗   ██╗████████╗██████╗ ██╗   ██╗████████╗ ██████╗██████╗ ██████╗
 ██╔══██╗██║   ██║██╔══██╗██║██╔═══██╗██╔═══██╗██║   ██║╚══██╔══╝██╔══██╗██║   ██║╚══██╔══╝██╔════╝██╔══██╗██╔══██╗
 ███████║██║   ██║██║  ██║██║██║   ██║██║   ██║██║   ██║   ██║   ██████╔╝██║   ██║   ██║   ██║     ██████╔╝██████╔╝
-██╔══██║██║   ██║██║  ██║██║██║   ██║██║   ██║██║   ██║   ██║   ██╔═══╝ ██║   ██║   ██║   ██║     ██╔═══╝ ██╔═══╝ 
-██║  ██║╚██████╔╝██████╔╝██║╚██████╔╝╚██████╔╝╚██████╔╝   ██║   ██║     ╚██████╔╝   ██║██╗╚██████╗██║     ██║     
+██╔══██║██║   ██║██║  ██║██║██║   ██║██║   ██║██║   ██║   ██║   ██╔═══╝ ██║   ██║   ██║   ██║     ██╔═══╝ ██╔═══╝
+██║  ██║╚██████╔╝██████╔╝██║╚██████╔╝╚██████╔╝╚██████╔╝   ██║   ██║     ╚██████╔╝   ██║██╗╚██████╗██║     ██║
 ╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ╚═╝ ╚═════╝  ╚═════╝  ╚═════╝    ╚═╝   ╚═╝      ╚═════╝    ╚═╝╚═╝ ╚═════╝╚═╝     ╚═╝
 */
 
@@ -34,11 +34,12 @@ SOFTWARE.
 #ifndef LOGGER_H
 #include <logger.h>
 #endif
-#include "audioOutput.h"
 #include "../decisionEngine/remoteServer.h"
+#include "audioOutput.h"
 #include "httplib.h"
 
-#include <SFML/Audio.hpp>
+#define DR_WAV_IMPLEMENTATION
+#include "dr_wav.h"
 #include <algorithm>
 #include <cctype>
 #include <cstring>
@@ -63,61 +64,20 @@ std::unique_ptr<RtAudio> AudioOutput::dac = nullptr;
 
 namespace {
 
-struct PlaybackState {
-    std::vector<std::shared_ptr<sf::SoundBuffer>> buffers;
-    std::vector<std::shared_ptr<sf::Sound>> sounds;
+// Decoded audio clip ready to be mixed into the RtAudio output stream.
+// Samples are float64, stereo interleaved (L, R, L, R, …), 48 kHz.
+// Volume is pre-applied during decoding so the callback only needs to add.
+struct PlaybackClip {
+    std::vector<double> samples;
+    size_t pos = 0; // advances by 2 per frame (L + R)
+};
+
+struct AudioMixer {
+    std::vector<PlaybackClip> clips;
     std::mutex mutex;
 };
 
-PlaybackState& playbackState()
-{
-    static PlaybackState state;
-    return state;
-}
-
-void cleanupFinishedSounds()
-{
-    auto& state = playbackState();
-    std::lock_guard<std::mutex> lock(state.mutex);
-
-    std::vector<std::shared_ptr<sf::SoundBuffer>> liveBuffers;
-    std::vector<std::shared_ptr<sf::Sound>> liveSounds;
-    liveBuffers.reserve(state.buffers.size());
-    liveSounds.reserve(state.sounds.size());
-
-    for (size_t i = 0; i < state.sounds.size(); ++i) {
-        const auto& sound = state.sounds[i];
-        if (sound && sound->getStatus() == sf::SoundSource::Playing) {
-            liveSounds.push_back(sound);
-            if (i < state.buffers.size()) {
-                liveBuffers.push_back(state.buffers[i]);
-            }
-        }
-    }
-
-    state.buffers = std::move(liveBuffers);
-    state.sounds = std::move(liveSounds);
-}
-
-bool startPlayback(const std::shared_ptr<sf::SoundBuffer>& buffer, float volume)
-{
-    if (!buffer) {
-        return false;
-    }
-
-    cleanupFinishedSounds();
-
-    auto sound = std::make_shared<sf::Sound>();
-    sound->setBuffer(*buffer);
-    sound->setVolume(std::clamp(volume, 0.0f, 100.0f));
-    sound->play();
-
-    auto& state = playbackState();
-    std::lock_guard<std::mutex> lock(state.mutex);
-    state.buffers.push_back(buffer);
-    state.sounds.push_back(sound);
-    return true;
-}
+static AudioMixer g_mixer;
 
 std::string trimTrailingSlash(std::string url)
 {
@@ -318,12 +278,54 @@ bool AudioOutput::playFileAsync(const std::filesystem::path& filePath, float vol
     const auto resolvedPath = resolveAssetPath(filePath);
     std::thread([resolvedPath, volume]() {
         try {
-            auto buffer = std::make_shared<sf::SoundBuffer>();
-            if (!buffer->loadFromFile(resolvedPath.string())) {
-                CubeLog::error("AudioOutput: failed to load audio file: " + resolvedPath.string());
+            drwav wav;
+            if (!drwav_init_file(&wav, resolvedPath.string().c_str(), nullptr)) {
+                CubeLog::error("AudioOutput: failed to open audio file: " + resolvedPath.string());
                 return;
             }
-            startPlayback(buffer, volume);
+
+            const drwav_uint64 totalFrames = wav.totalPCMFrameCount;
+            const unsigned int channels = wav.channels;
+            const unsigned int srcRate = wav.sampleRate;
+
+            std::vector<float> raw(static_cast<size_t>(totalFrames) * channels);
+            const drwav_uint64 framesRead = drwav_read_pcm_frames_f32(&wav, totalFrames, raw.data());
+            drwav_uninit(&wav);
+
+            if (framesRead == 0) {
+                CubeLog::error("AudioOutput: no frames read from: " + resolvedPath.string());
+                return;
+            }
+
+            // Resample to float64 stereo 48 kHz using linear interpolation
+            constexpr unsigned int dstRate = 48000;
+            const double ratio = static_cast<double>(srcRate) / static_cast<double>(dstRate);
+            const size_t outFrames = static_cast<size_t>(static_cast<double>(framesRead) / ratio) + 1;
+            const double vol = std::clamp(static_cast<double>(volume) / 100.0, 0.0, 1.0);
+
+            std::vector<double> samples;
+            samples.reserve(outFrames * 2);
+
+            for (size_t i = 0; i < outFrames; i++) {
+                const double srcPos = static_cast<double>(i) * ratio;
+                const size_t f0 = static_cast<size_t>(srcPos);
+                const size_t f1 = std::min(f0 + 1, static_cast<size_t>(framesRead) - 1);
+                const double frac = srcPos - static_cast<double>(f0);
+
+                double L, R;
+                if (channels == 1) {
+                    const double s = raw[f0] + (raw[f1] - raw[f0]) * frac;
+                    L = R = s * vol;
+                } else {
+                    L = (raw[f0 * channels + 0] + (raw[f1 * channels + 0] - raw[f0 * channels + 0]) * frac) * vol;
+                    R = (raw[f0 * channels + 1] + (raw[f1 * channels + 1] - raw[f0 * channels + 1]) * frac) * vol;
+                }
+                samples.push_back(L);
+                samples.push_back(R);
+            }
+
+            std::lock_guard<std::mutex> lock(g_mixer.mutex);
+            g_mixer.clips.push_back({ std::move(samples), 0 });
         } catch (const std::exception& e) {
             CubeLog::error(std::string("AudioOutput: playFileAsync exception: ") + e.what());
         } catch (...) {
@@ -341,12 +343,31 @@ bool AudioOutput::playPcm16MonoAsync(const std::vector<int16_t>& samples, unsign
 
     std::thread([samples, sampleRateHz, volume]() {
         try {
-            auto buffer = std::make_shared<sf::SoundBuffer>();
-            if (!buffer->loadFromSamples(samples.data(), samples.size(), 1, sampleRateHz)) {
-                CubeLog::error("AudioOutput: failed to load PCM samples into sound buffer");
-                return;
+            // Resample int16 mono → float64 stereo 48 kHz with linear interpolation
+            constexpr unsigned int dstRate = 48000;
+            const double ratio = static_cast<double>(sampleRateHz) / static_cast<double>(dstRate);
+            const size_t srcFrames = samples.size();
+            const size_t outFrames = static_cast<size_t>(static_cast<double>(srcFrames) / ratio) + 1;
+            const double vol = std::clamp(static_cast<double>(volume) / 100.0, 0.0, 1.0);
+            constexpr double scale = 1.0 / 32768.0;
+
+            std::vector<double> out;
+            out.reserve(outFrames * 2);
+
+            for (size_t i = 0; i < outFrames; i++) {
+                const double srcPos = static_cast<double>(i) * ratio;
+                const size_t idx0 = static_cast<size_t>(srcPos);
+                const size_t idx1 = std::min(idx0 + 1, srcFrames - 1);
+                const double frac = srcPos - static_cast<double>(idx0);
+                const double val = (static_cast<double>(samples[idx0])
+                                       + (static_cast<double>(samples[idx1]) - static_cast<double>(samples[idx0])) * frac)
+                    * scale * vol;
+                out.push_back(val); // L
+                out.push_back(val); // R (mono → stereo)
             }
-            startPlayback(buffer, volume);
+
+            std::lock_guard<std::mutex> lock(g_mixer.mutex);
+            g_mixer.clips.push_back({ std::move(out), 0 });
         } catch (const std::exception& e) {
             CubeLog::error(std::string("AudioOutput: playPcm16MonoAsync exception: ") + e.what());
         } catch (...) {
@@ -447,28 +468,48 @@ bool AudioOutput::speakTextAsync(const std::string& text, float volume)
 // TODO: create a function that the output can use to stream data from a ThreadSafeQueue<> to the audio output.
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// Two-channel sawtooth wave generator.
+// RtAudio output callback: fills the buffer with the HDMI-keepalive sawtooth
+// (or silence) and additively mixes in any active one-shot playback clips.
 int saw(void* outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void* userData)
 {
-    unsigned int i, j;
     double* buffer = (double*)outputBuffer;
     UserData* data = (UserData*)userData;
 
     if (status)
         CubeLog::error("Stream underflow detected!");
 
-    // Write interleaved audio data.
-    for (i = 0; i < nBufferFrames; i++) {
-        for (j = 0; j < 2; j++) {
-            if (!data->soundOn)
-                *buffer++ = 0.0;
-            else
-                *buffer++ = data->data[j];
-
-            data->data[j] += 0.005 * (j + 1 + (j * 0.1));
-            if (data->data[j] >= 1.0)
-                data->data[j] -= 2.0;
+    // Fill with sawtooth or silence (keeps HDMI audio clock alive)
+    for (unsigned int i = 0; i < nBufferFrames; i++) {
+        for (unsigned int j = 0; j < 2; j++) {
+            if (!data->soundOn) {
+                buffer[i * 2 + j] = 0.0;
+            } else {
+                buffer[i * 2 + j] = data->data[j];
+                data->data[j] += 0.005 * (j + 1 + (j * 0.1));
+                if (data->data[j] >= 1.0)
+                    data->data[j] -= 2.0;
+            }
         }
     }
+
+    // Additively mix active playback clips into the output buffer
+    {
+        std::lock_guard<std::mutex> lock(g_mixer.mutex);
+        for (auto& clip : g_mixer.clips) {
+            const size_t toMix = std::min(
+                static_cast<size_t>(nBufferFrames),
+                (clip.samples.size() - clip.pos) / 2);
+            for (size_t i = 0; i < toMix; i++) {
+                buffer[i * 2 + 0] = std::clamp(buffer[i * 2 + 0] + clip.samples[clip.pos + i * 2], -1.0, 1.0);
+                buffer[i * 2 + 1] = std::clamp(buffer[i * 2 + 1] + clip.samples[clip.pos + i * 2 + 1], -1.0, 1.0);
+            }
+            clip.pos += toMix * 2;
+        }
+        g_mixer.clips.erase(
+            std::remove_if(g_mixer.clips.begin(), g_mixer.clips.end(),
+                [](const PlaybackClip& c) { return c.pos >= c.samples.size(); }),
+            g_mixer.clips.end());
+    }
+
     return 0;
 }

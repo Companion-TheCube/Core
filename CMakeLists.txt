@@ -423,6 +423,15 @@ if(NOT EXISTS ${TINY_OBJ_LOADER_HEADER})
     )
 endif()
 
+set(DR_WAV_HEADER ${CMAKE_SOURCE_DIR}/libraries/dr_wav.h)
+
+if(NOT EXISTS ${DR_WAV_HEADER})
+    file(DOWNLOAD
+        https://raw.githubusercontent.com/mackron/dr_libs/master/dr_wav.h
+        ${DR_WAV_HEADER}
+    )
+endif()
+
 # Add libsodium
 # add_definitions(-DSODIUM_STATIC)
 if(WIN32)
@@ -626,8 +635,6 @@ endif()
 # Link libraries to the core library so consumers inherit them
 target_link_libraries(CubeCoreLib PUBLIC
     sfml-graphics
-    sfml-audio
-    sfml-network
     rtaudio
     ${ALSA_LIBRARIES}
     ${FREETYPE_LIBRARY}
