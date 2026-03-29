@@ -55,6 +55,7 @@ SOFTWARE.
 #include <chrono>
 #include <cmath>
 #include <csignal>
+#include <filesystem>
 #include <functional>
 #include <future>
 #include <iostream>

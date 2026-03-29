@@ -31,77 +31,231 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-// TODO: migrate from SFML to GLFW since we aren't using any SFML specific features
-//  Path: src/gui/renderer.h
 #include "renderer.h"
-// #define PRODUCTION_BUILD 1
-/**
- * @brief Construct a new Renderer object
- *
- * @param latch - a latch to synchronize the setup of the renderer
- */
-Renderer::Renderer(std::latch& latch)
+
+#include <GLFW/glfw3.h>
+
+#include <chrono>
+#include <cmath>
+#include <cstdlib>
+#include <iostream>
+
+namespace {
+
+constexpr auto kTargetFrameDuration = std::chrono::duration<double>(1.0 / 30.0);
+
+void glfwErrorCallback(int error, const char* description)
 {
-    this->t = std::thread(&Renderer::thread, this);
-    this->latch = &latch;
+    CubeLog::error("GLFW error " + std::to_string(error) + ": " + (description != nullptr ? description : "unknown"));
 }
 
-/**
- * @brief Destroy the Renderer object. Stops the renderer thread and waits for it to join.
- *
- */
+}
+
+Renderer::Renderer(std::latch& latch)
+{
+    this->latch = &latch;
+    this->t = std::thread(&Renderer::thread, this);
+}
+
 Renderer::~Renderer()
 {
     this->ready = false;
-    {
-        std::lock_guard<std::mutex> lock(this->mutex);
-        this->stop();
+    stop();
+    closeEventQueue();
+    if (this->t.joinable()) {
+        this->t.join();
     }
-    while (true) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        std::lock_guard<std::mutex> lock(this->mutex);
-        if (!this->stillRunning)
-            break;
-    }
-    this->t.join();
     CubeLog::info("Renderer destroyed");
 }
 
-/**
- * @brief Stop the renderer thread
- *
- */
 void Renderer::stop()
 {
     this->running = false;
 }
 
-/**
- * @brief The main renderer thread. the thread will call all the setup tasks and loop tasks in the queue, along with drawing all objects.
- *
- * @return int
- */
+void Renderer::closeEventQueue()
+{
+    this->eventQueue.close();
+}
+
+std::optional<CubeEvent> Renderer::popEvent()
+{
+    return this->eventQueue.pop();
+}
+
+void Renderer::pushEvent(const CubeEvent& event)
+{
+    this->eventQueue.push(event);
+}
+
+void Renderer::framebufferSizeCallback(GLFWwindow* window, int width, int height)
+{
+    auto* renderer = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
+    if (renderer == nullptr) {
+        return;
+    }
+
+    renderer->framebufferWidth = width;
+    renderer->framebufferHeight = height;
+    glViewport(0, 0, width, height);
+}
+
+void Renderer::windowCloseCallback(GLFWwindow* window)
+{
+    auto* renderer = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
+    if (renderer == nullptr) {
+        return;
+    }
+
+    CubeEvent event;
+    event.type = CubeEventType::WindowClosed;
+    renderer->pushEvent(event);
+}
+
+void Renderer::keyCallback(GLFWwindow* window, int key, int, int action, int)
+{
+    auto* renderer = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
+    if (renderer == nullptr) {
+        return;
+    }
+    if (action != GLFW_PRESS && action != GLFW_RELEASE && action != GLFW_REPEAT) {
+        return;
+    }
+
+    CubeEvent event;
+    event.type = action == GLFW_RELEASE ? CubeEventType::KeyReleased : CubeEventType::KeyPressed;
+    event.key = cubeKeyFromGlfwKey(key);
+    event.isRepeat = action == GLFW_REPEAT;
+    renderer->pushEvent(event);
+}
+
+void Renderer::cursorPositionCallback(GLFWwindow* window, double xpos, double ypos)
+{
+    auto* renderer = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
+    if (renderer == nullptr) {
+        return;
+    }
+
+    CubeEvent event;
+    event.type = CubeEventType::MouseMoved;
+    event.x = static_cast<int>(std::lround(xpos));
+    event.y = static_cast<int>(std::lround(ypos));
+    renderer->pushEvent(event);
+}
+
+void Renderer::mouseButtonCallback(GLFWwindow* window, int button, int action, int)
+{
+    auto* renderer = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
+    if (renderer == nullptr) {
+        return;
+    }
+    if (action != GLFW_PRESS && action != GLFW_RELEASE) {
+        return;
+    }
+
+    double xpos = 0.0;
+    double ypos = 0.0;
+    glfwGetCursorPos(window, &xpos, &ypos);
+
+    CubeEvent event;
+    event.type = action == GLFW_PRESS ? CubeEventType::MouseButtonPressed : CubeEventType::MouseButtonReleased;
+    event.mouseButton = cubeMouseButtonFromGlfwButton(button);
+    event.x = static_cast<int>(std::lround(xpos));
+    event.y = static_cast<int>(std::lround(ypos));
+    renderer->pushEvent(event);
+}
+
+void Renderer::scrollCallback(GLFWwindow* window, double xoffset, double yoffset)
+{
+    auto* renderer = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
+    if (renderer == nullptr) {
+        return;
+    }
+
+    double xpos = 0.0;
+    double ypos = 0.0;
+    glfwGetCursorPos(window, &xpos, &ypos);
+
+    CubeEvent event;
+    event.type = CubeEventType::MouseWheelScrolled;
+    event.x = static_cast<int>(std::lround(xpos));
+    event.y = static_cast<int>(std::lround(ypos));
+    event.scrollX = xoffset;
+    event.scrollY = yoffset;
+    renderer->pushEvent(event);
+}
+
 int Renderer::thread()
 {
-    sf::ContextSettings settings;
-    settings.antialiasingLevel = 4.0;
-    settings.depthBits = 24;
-    settings.stencilBits = 8;
-    settings.antialiasingLevel = 4;
-    this->window.create(sf::VideoMode(720, 720), "TheCube", sf::Style::None, settings);
-    this->window.setVerticalSyncEnabled(true);
-    this->window.setFramerateLimit(30);
+#ifdef __linux__
+    glfwSetErrorCallback(glfwErrorCallback);
+    glfwInitHint(GLFW_WAYLAND_LIBDECOR, GLFW_WAYLAND_DISABLE_LIBDECOR);
+    if (std::getenv("DISPLAY") != nullptr) {
+        glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
+    }
+#else
+    glfwSetErrorCallback(glfwErrorCallback);
+#endif
+    if (!glfwInit()) {
+        CubeLog::error("Failed to initialize GLFW");
+        this->stillRunning = false;
+        this->eventQueue.close();
+        if (this->latch != nullptr) {
+            this->latch->count_down();
+        }
+        return EXIT_FAILURE;
+    }
 
-    // TODO: maybe one day, support a second window that renders on the second screen.
-    // this->window.setPosition(sf::Vector2i(0, 0));
+    glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+    glfwWindowHint(GLFW_DEPTH_BITS, 24);
+    glfwWindowHint(GLFW_STENCIL_BITS, 8);
+    glfwWindowHint(GLFW_SAMPLES, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
 
-    // TODO: figure out how to pause rendering and close the window when the emulator starts up.
-    glewExperimental = GL_TRUE; // Enable full GLEW functionality
+    this->window = glfwCreateWindow(720, 720, "TheCube", nullptr, nullptr);
+    if (this->window == nullptr) {
+        CubeLog::error("Failed to create GLFW window");
+        glfwTerminate();
+        this->stillRunning = false;
+        this->eventQueue.close();
+        if (this->latch != nullptr) {
+            this->latch->count_down();
+        }
+        return EXIT_FAILURE;
+    }
+
+    glfwMakeContextCurrent(this->window);
+    glfwSwapInterval(1);
+    glfwSetWindowUserPointer(this->window, this);
+    glfwSetFramebufferSizeCallback(this->window, &Renderer::framebufferSizeCallback);
+    glfwSetWindowCloseCallback(this->window, &Renderer::windowCloseCallback);
+    glfwSetKeyCallback(this->window, &Renderer::keyCallback);
+    glfwSetCursorPosCallback(this->window, &Renderer::cursorPositionCallback);
+    glfwSetMouseButtonCallback(this->window, &Renderer::mouseButtonCallback);
+    glfwSetScrollCallback(this->window, &Renderer::scrollCallback);
+
+    bool mpVisible = Config::get("SHOW_MOUSE_POINTER", "false") == "true";
+    glfwSetInputMode(this->window, GLFW_CURSOR, mpVisible ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_HIDDEN);
+
+    glewExperimental = GL_TRUE;
     if (GLEW_OK != glewInit()) {
         CubeLog::error("Failed to initialize GLEW");
-        exit(EXIT_FAILURE);
+        glfwDestroyWindow(this->window);
+        this->window = nullptr;
+        glfwTerminate();
+        this->stillRunning = false;
+        this->eventQueue.close();
+        if (this->latch != nullptr) {
+            this->latch->count_down();
+        }
+        return EXIT_FAILURE;
     }
-    CubeLog::info("OpenGL Version: " + std::string((char*)glGetString(GL_VERSION)));
+
+    glfwGetFramebufferSize(this->window, &this->framebufferWidth, &this->framebufferHeight);
+    glViewport(0, 0, this->framebufferWidth, this->framebufferHeight);
+
+    CubeLog::info("OpenGL Version: " + std::string(reinterpret_cast<const char*>(glGetString(GL_VERSION))));
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_STENCIL_TEST);
     glEnable(GL_CULL_FACE);
@@ -110,13 +264,9 @@ int Renderer::thread()
     glDepthRange(0.f, 1.f);
     glClearDepth(1.f);
     glMatrixMode(GL_PROJECTION);
-    glViewport(0, 0, window.getSize().x, window.getSize().y);
     glDepthFunc(GL_LESS);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    bool mp_visible = Config::get("SHOW_MOUSE_POINTER", "false") == "true";
-    this->window.setMouseCursorVisible(mp_visible);
 
     Shader edgesShader("./shaders/edges.vs", "./shaders/edges.fs");
     Shader textureShader("./shaders/text.vs", "./shaders/text.fs");
@@ -124,172 +274,131 @@ int Renderer::thread()
     this->meshShader = &edgesShader;
     this->textShader = &textureShader;
     this->stencilShader = &stencilShader;
+
     auto characterManager = std::make_shared<CharacterManager>(&edgesShader);
     characterManager->registerInterface();
-    Character_generic* character = characterManager->getCharacterByName("TheCube"); // TODO: this call should return a nullptr if the character is not found. Then we should throw an error.
-    // Character_generic* character = characterManager->getCharacterByName("LilFlame");
+    Character_generic* character = characterManager->getCharacterByName("TheCube");
     characterManager->setCharacter(character);
+
     this->setupTasksRun();
     CubeLog::info("Renderer initialized. Starting Loop...");
     this->ready = true;
-    this->latch->count_down(); // Send a signal to the GUI that the renderer is ready
-    auto screenMessage = new M_Text(this->textShader, "", 12, { 0, 1, 0 }, { 2, 2 }); // Logger output for CubeLog::screen()
-    while (running) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        std::lock_guard<std::mutex> lock(this->mutex);
-        for (auto event = sf::Event {}; this->window.pollEvent(event);)
-            this->events.push_back(event);
-        if (this->running)
-            this->setupTasksRun();
-        if (!this->window.isOpen() || !this->running)
+    if (this->latch != nullptr) {
+        this->latch->count_down();
+    }
+
+    auto screenMessage = new M_Text(this->textShader, "", 12, { 0, 1, 0 }, { 2, 2 });
+
+    while (this->running.load()) {
+        const auto frameStart = std::chrono::steady_clock::now();
+        glfwPollEvents();
+
+        if (!this->running.load() || glfwWindowShouldClose(this->window)) {
             break;
-        // this->window.setActive();
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // Set clear color to black
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); // Clear the color buffer, the depth buffer and the stencil buffer
+        }
+
+        this->setupTasksRun();
+
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
         if (characterManager->getCharacter() != nullptr) {
-            // hold here until the animation and expression threads are ready
-            // TODO: replace this with a CountingLatch. This will be cleaner.
-            std::unique_lock<std::mutex> lock2(characterManager->animationMutex);
-            std::unique_lock<std::mutex> lock3(characterManager->expressionMutex);
-            lock2.unlock();
-            lock3.unlock();
+            std::unique_lock<std::mutex> animationLock(characterManager->animationMutex);
+            std::unique_lock<std::mutex> expressionLock(characterManager->expressionMutex);
+            animationLock.unlock();
+            expressionLock.unlock();
             characterManager->getCharacter()->draw();
             characterManager->triggerAnimationAndExpressionThreads();
         }
-        if (this->running)
+
+        if (this->running.load()) {
             this->loopTasksRun();
-        for (auto object : this->objects)
-            object->draw();
+        }
+
+        {
+            std::lock_guard<std::mutex> lock(this->mutex);
+            for (auto object : this->objects) {
+                object->draw();
+            }
+        }
+
         if (CubeLog::getScreenMessage() != "") {
             screenMessage->setText(CubeLog::getScreenMessage());
             screenMessage->draw();
         }
-        this->window.display();
+
+        glfwSwapBuffers(this->window);
+        std::this_thread::sleep_until(frameStart + kTargetFrameDuration);
     }
-    if (this->window.isOpen()) {
-        // this->window.setActive(false);
-        this->window.close();
+
+    delete screenMessage;
+
+    if (this->window != nullptr) {
+        glfwMakeContextCurrent(this->window);
+        glfwDestroyWindow(this->window);
+        this->window = nullptr;
     }
-    {
-        std::lock_guard<std::mutex> lock(this->mutex);
-        this->stillRunning = false;
-    }
-    return 0;
+    glfwTerminate();
+
+    this->stillRunning = false;
+    this->eventQueue.close();
+    return EXIT_SUCCESS;
 }
 
-/**
- * @brief Get the events from the event queue
- *
- * @return std::vector<sf::Event>
- */
-std::vector<sf::Event> Renderer::getEvents()
-{
-    std::vector<sf::Event> events;
-    for (auto event : this->events) {
-        events.push_back(event);
-    }
-    this->events.clear();
-    return events;
-}
-
-/**
- * @brief Get the running status of the renderer
- *
- * @return bool
- */
 bool Renderer::getIsRunning()
 {
-    return this->running && this->stillRunning;
+    return this->running.load() && this->stillRunning.load();
 }
 
-/**
- * @brief Add an object to the renderer
- *
- * @param object - the object to add
- */
 void Renderer::addObject(Object* object)
 {
+    std::lock_guard<std::mutex> lock(this->mutex);
     this->objects.push_back(object);
 }
 
-/**
- * @brief Get the general shader object
- *
- * @return Shader*
- */
 Shader* Renderer::getMeshShader()
 {
     return this->meshShader;
 }
 
-/**
- * @brief Get the stencil shader object
- *
- * @return Shader*
- */
 Shader* Renderer::getStencilShader()
 {
     return this->stencilShader;
 }
 
-/**
- * @brief Get the text shader object
- *
- * @return Shader*
- */
 Shader* Renderer::getTextShader()
 {
     return this->textShader;
 }
 
-/**
- * @brief Add a task to the loop queue
- *
- * @param task - the task to add
- */
 void Renderer::addLoopTask(std::function<void()> task)
 {
     this->loopQueue.push(task);
 }
 
-/**
- * @brief Add a task to the setup queue
- *
- * @param task - the task to add
- */
 void Renderer::addSetupTask(std::function<void()> task)
 {
     this->setupQueue.push(task);
 }
 
-/**
- * @brief Run all the setup tasks in the queue
- *
- */
 void Renderer::setupTasksRun()
 {
-    while (this->setupQueue.size() > 0)
+    while (this->setupQueue.size() > 0) {
         this->setupQueue.shift()();
+    }
 }
 
-/**
- * @brief Run all the loop tasks in the queue
- *
- */
 void Renderer::loopTasksRun()
 {
-    if (this->loopQueue.size() == 0)
+    if (this->loopQueue.size() == 0) {
         return;
-    for (size_t i = 0; i < this->loopQueue.size(); i++)
-        this->loopQueue.peek(i)(); // Run the task
+    }
+    for (size_t i = 0; i < this->loopQueue.size(); i++) {
+        this->loopQueue.peek(i)();
+    }
 }
 
-/**
- * @brief Check if the renderer is ready
- *
- * @return bool - true if the renderer is ready
- */
 bool Renderer::isReady()
 {
-    return this->ready;
+    return this->ready.load();
 }

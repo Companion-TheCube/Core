@@ -89,14 +89,38 @@ if(WIN32)
 else()
     find_package(GLEW REQUIRED)
 endif()
+find_package(OpenGL REQUIRED)
+include(FetchContent)
+if(WIN32)
+    find_package(glfw3 CONFIG REQUIRED)
+    set(GLFW_LINK_TARGET glfw)
+else()
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(GLFW QUIET IMPORTED_TARGET glfw3)
+    if(GLFW_FOUND)
+        set(GLFW_LINK_TARGET PkgConfig::GLFW)
+    else()
+        message(WARNING "glfw3 development package not found via pkg-config; falling back to bundled GLFW")
+        set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+        set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+        set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+        set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
+        FetchContent_Declare(
+            glfw
+            GIT_REPOSITORY https://github.com/glfw/glfw.git
+            GIT_TAG 3.4
+            UPDATE_DISCONNECTED FALSE
+        )
+        FetchContent_MakeAvailable(glfw)
+        set(GLFW_LINK_TARGET glfw)
+    endif()
+endif()
 
 if(UNIX)
     find_package(Gettext REQUIRED)
 endif()
 
 find_package(Freetype REQUIRED)
-
-include(FetchContent)
 FetchContent_Declare(
     stduuid
     GIT_REPOSITORY https://github.com/mariusbancila/stduuid.git
@@ -144,14 +168,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(pqxx)
 
-
-FetchContent_Declare(
-    SFML
-    GIT_REPOSITORY https://github.com/SFML/SFML.git
-    GIT_TAG 2.6.x
-    UPDATE_DISCONNECTED FALSE
-)
-FetchContent_MakeAvailable(SFML)
 
 set(WHISPER_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(WHISPER_BUILD_SERVER   OFF CACHE BOOL "" FORCE)
@@ -442,7 +458,6 @@ if(WIN32)
         message(FATAL_ERROR "libsodium library not found")
     endif()
 else()
-    find_package(PkgConfig REQUIRED)
     pkg_check_modules(SODIUM REQUIRED libsodium)
     include_directories(${SODIUM_INCLUDE_DIRS})
 endif()
@@ -634,7 +649,7 @@ endif()
 
 # Link libraries to the core library so consumers inherit them
 target_link_libraries(CubeCoreLib PUBLIC
-    sfml-graphics
+    ${GLFW_LINK_TARGET}
     rtaudio
     ${ALSA_LIBRARIES}
     ${FREETYPE_LIBRARY}
@@ -688,7 +703,6 @@ if(WIN32)
         ${FREETYPE_INCLUDE_DIRS}
         ${OPENGL_INCLUDE_DIRS}
         ${GLEW_INCLUDE_DIRS}
-        ${SFML_INCLUDE_DIR}
         "C:/Users/Andrew/Documents/glm-1.0.1-light"
         ${whispercpp_SOURCE_DIR}
         ${websocketpp_SOURCE_DIR}
@@ -699,7 +713,6 @@ else()
         ${FREETYPE_INCLUDE_DIRS}
         ${OPENGL_INCLUDE_DIRS}
         ${GLEW_INCLUDE_DIRS}
-        ${SFML_INCLUDE_DIR}
         ${whispercpp_SOURCE_DIR}
         ${PQXX_INCLUDE_DIRS}
         ${websocketpp_SOURCE_DIR}

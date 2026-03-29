@@ -340,20 +340,20 @@ void Menu::setup()
  *
  * @param data the data to pass to the action
  */
-void Menu::onClick(void* data)
+void Menu::onClick(const CubeEvent&)
 {
     if (this->action != nullptr && this->onClickEnabled) {
-        this->action(data);
+        this->action(nullptr);
     }
 }
 
-void Menu::onRelease(void* data)
+void Menu::onRelease(const CubeEvent&)
 {
     // CubeLog::info("Menu released");
     // noop
 }
 
-void Menu::onMouseDown(void* data)
+void Menu::onMouseDown(const CubeEvent&)
 {
     CubeLog::info("Menu mouse down");
 }
@@ -363,11 +363,11 @@ void Menu::onMouseDown(void* data)
  *
  * @param data the data to pass to the action
  */
-void Menu::onRightClick(void* data)
+void Menu::onRightClick(const CubeEvent&)
 {
     CubeLog::info("Menu right clicked");
     if (this->rightAction != nullptr && this->getVisible()) {
-        this->rightAction(data);
+        this->rightAction(nullptr);
     }
 }
 
@@ -765,7 +765,7 @@ MenuEntry::~MenuEntry()
  *
  * @param data the data to pass to the action
  */
-void MenuEntry::onClick(void* data)
+void MenuEntry::onClick(const CubeEvent&)
 {
     if (!this->isClickable)
         return;
@@ -773,30 +773,30 @@ void MenuEntry::onClick(void* data)
     if (this->actions.size() == 0)
         return;
     if (this->actions.size() == 1) {
-        this->clickReturnData = this->actions.at(0)(data) & 0x00ff;
+        this->clickReturnData = this->actions.at(0)(nullptr) & 0x00ff;
     } else if (this->actions.size() == 2) {
-        this->clickReturnData = this->actions.at(0)(data) & 0x00ff;
+        this->clickReturnData = this->actions.at(0)(nullptr) & 0x00ff;
         this->statusReturnData = this->actions.at(1)(this->statusActionArg);
     }
 }
 
-void MenuEntry::onRelease(void* data)
+void MenuEntry::onRelease(const CubeEvent&)
 {
     // CubeLog::debugSilly("MenuEntry released");
     this->textObject->setColor({ 1.f, 1.f, 1.f });
 }
 
-void MenuEntry::onMouseDown(void* data)
+void MenuEntry::onMouseDown(const CubeEvent&)
 {
     CubeLog::debugSilly("MenuEntry mouse down");
     this->textObject->setColor(MENU_ENTRY_DIM_COLOR);
 }
 
-void MenuEntry::onRightClick(void* data)
+void MenuEntry::onRightClick(const CubeEvent&)
 {
     CubeLog::info("MenuEntry right clicked");
     if (this->rightAction != nullptr && this->visible) {
-        this->clickReturnData = this->rightAction(data) & 0xFF00;
+        this->clickReturnData = this->rightAction(nullptr) & 0xFF00;
     }
 }
 
@@ -1248,23 +1248,23 @@ bool MenuHorizontalRule::getVisible()
     return this->visible;
 }
 
-void MenuHorizontalRule::onClick(void* data)
+void MenuHorizontalRule::onClick(const CubeEvent&)
 {
     CubeLog::info("MenuHorizontalRule clicked");
 }
 
-void MenuHorizontalRule::onRelease(void* data)
+void MenuHorizontalRule::onRelease(const CubeEvent&)
 {
     // CubeLog::info("MenuHorizontalRule released");
     // noop
 }
 
-void MenuHorizontalRule::onMouseDown(void* data)
+void MenuHorizontalRule::onMouseDown(const CubeEvent&)
 {
     CubeLog::info("MenuHorizontalRule mouse down");
 }
 
-void MenuHorizontalRule::onRightClick(void* data)
+void MenuHorizontalRule::onRightClick(const CubeEvent&)
 {
     CubeLog::info("MenuHorizontalRule right clicked");
 }

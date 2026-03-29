@@ -62,6 +62,21 @@ int main(int argc, char* argv[])
 #endif
     // Load configuration from .env once (available globally via Config::get())
     Config::loadFromDotEnv(".env");
+    {
+        std::error_code execEc;
+        const auto executablePath = std::filesystem::read_symlink("/proc/self/exe", execEc);
+        if (!execEc && !executablePath.empty()) {
+            const auto executableDir = executablePath.parent_path();
+            std::error_code shadersEc;
+            if (std::filesystem::exists(executableDir / "shaders", shadersEc)) {
+                std::error_code chdirEc;
+                std::filesystem::current_path(executableDir, chdirEc);
+                if (chdirEc) {
+                    std::cerr << "Failed to change working directory to executable directory: " << chdirEc.message() << std::endl;
+                }
+            }
+        }
+    }
     // std::signal(SIGINT, signalHandler);
     // std::signal(SIGTERM, signalHandler);
     std::signal(SIGABRT, signalHandler);
@@ -80,9 +95,11 @@ int main(int argc, char* argv[])
 
     // TODO: rather than set this environment variable in this application, set it in the manager application. The manager app
     // should also verify if a symbolic link is needed and create it if necessary.
-    if (setenv("DISPLAY", ":0", 1) != 0) {
-        std::cout << "Error setting DISPLAY=:0 environment variable. Exiting." << std::endl;
-        return 1;
+    if (std::getenv("DISPLAY") == nullptr && std::getenv("WAYLAND_DISPLAY") == nullptr) {
+        if (setenv("DISPLAY", ":0", 1) != 0) {
+            std::cout << "Error setting DISPLAY=:0 environment variable. Exiting." << std::endl;
+            return 1;
+        }
     }
 
     /////////////////////////////////////////////////////////////////

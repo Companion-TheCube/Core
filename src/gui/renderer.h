@@ -38,16 +38,10 @@ SOFTWARE.
 #include "GL/glew.h"
 #endif
 #include <thread>
-#include "SFML/Graphics.hpp"
-#include <iostream>
-#include <cmath>
 #include <vector>
 #ifndef OBJECTS_H
 #include "objects.h"
 #endif
-#include <mutex>
-#include <SFML/OpenGL.hpp>
-#include <SFML/Window.hpp>
 #ifndef SHADER_H
 #include "shader.h"
 #endif
@@ -55,47 +49,60 @@ SOFTWARE.
 #include "characterManager.h"
 #endif
 #include <atomic>
-#include <queue>
 #include <functional>
-#include <condition_variable>
-#include <mutex>
 #include <latch>
+#include <optional>
 #include <utils.h>
 
-class Renderer{
-    private:
-        int thread();
-        std::mutex mutex;
-        sf::Font font;
-        std::thread t;
-        bool running = true;
-        bool stillRunning = true;
-        sf::RenderWindow window;
-        std::vector<sf::Event> events;
-        std::vector<Object*> objects;
-        Shader* meshShader;
-        Shader* textShader;
-        Shader* stencilShader;
-        TaskQueue<std::function<void()>> setupQueue;
-        TaskQueue<std::function<void()>> loopQueue;
-        std::atomic<bool> ready = false;
-        std::latch* latch;
-    public:
-        Renderer(){}; // Default constructor
-        Renderer(std::latch& latch);
-        ~Renderer();
-        void stop();
-        std::vector<sf::Event> getEvents();
-        bool getIsRunning();
-        void addObject(Object *object);
-        Shader* getMeshShader();
-        Shader* getTextShader();
-        Shader* getStencilShader();
-        void addSetupTask(std::function<void()> task);
-        void addLoopTask(std::function<void()> task);
-        void setupTasksRun();
-        void loopTasksRun();
-        bool isReady();
+#include "../threadsafeQueue.h"
+#include "eventHandler/cubeEvent.h"
+
+struct GLFWwindow;
+
+class Renderer {
+private:
+    static void framebufferSizeCallback(GLFWwindow* window, int width, int height);
+    static void windowCloseCallback(GLFWwindow* window);
+    static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+    static void cursorPositionCallback(GLFWwindow* window, double xpos, double ypos);
+    static void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
+    static void scrollCallback(GLFWwindow* window, double xoffset, double yoffset);
+    void pushEvent(const CubeEvent& event);
+    int thread();
+    std::mutex mutex;
+    std::thread t;
+    std::atomic<bool> running = true;
+    std::atomic<bool> stillRunning = true;
+    GLFWwindow* window = nullptr;
+    ThreadSafeQueue<CubeEvent> eventQueue;
+    std::vector<Object*> objects;
+    Shader* meshShader = nullptr;
+    Shader* textShader = nullptr;
+    Shader* stencilShader = nullptr;
+    TaskQueue<std::function<void()>> setupQueue;
+    TaskQueue<std::function<void()>> loopQueue;
+    std::atomic<bool> ready = false;
+    std::latch* latch = nullptr;
+    int framebufferWidth = 720;
+    int framebufferHeight = 720;
+
+public:
+    Renderer() { };
+    Renderer(std::latch& latch);
+    ~Renderer();
+    void stop();
+    void closeEventQueue();
+    std::optional<CubeEvent> popEvent();
+    bool getIsRunning();
+    void addObject(Object* object);
+    Shader* getMeshShader();
+    Shader* getTextShader();
+    Shader* getStencilShader();
+    void addSetupTask(std::function<void()> task);
+    void addLoopTask(std::function<void()> task);
+    void setupTasksRun();
+    void loopTasksRun();
+    bool isReady();
 };
 
-#endif// RENDERER_H
+#endif // RENDERER_H

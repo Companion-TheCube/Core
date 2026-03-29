@@ -34,9 +34,6 @@ SOFTWARE.
 #ifndef OBJECTS_H
 #define OBJECTS_H
 #include "GL/glew.h"
-#include <SFML/Graphics.hpp>
-#include <SFML/OpenGL.hpp>
-#include <SFML/Window.hpp>
 #include <functional>
 #include <glm/glm.hpp>
 #ifndef LOGGER_H
@@ -45,6 +42,7 @@ SOFTWARE.
 #include <vector>
 
 class Clickable;
+struct CubeEvent;
 
 struct Vertex {
     float x, y, z;
@@ -119,10 +117,10 @@ class Clickable : public Object {
 public:
     virtual ~Clickable() {};
     ClickableArea clickArea;
-    virtual void onClick(void*) = 0;
-    virtual void onRelease(void*) = 0;
-    virtual void onMouseDown(void*) = 0;
-    virtual void onRightClick(void*) = 0;
+    virtual void onClick(const CubeEvent& event) = 0;
+    virtual void onRelease(const CubeEvent& event) = 0;
+    virtual void onMouseDown(const CubeEvent& event) = 0;
+    virtual void onRightClick(const CubeEvent& event) = 0;
     virtual std::vector<MeshObject*> getObjects() = 0;
     virtual void setOnClick(std::function<unsigned int(void*)> action) = 0;
     virtual void setOnRightClick(std::function<unsigned int(void*)> action) = 0;

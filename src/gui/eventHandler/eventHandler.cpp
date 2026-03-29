@@ -1,9 +1,9 @@
 /*
-███████╗██╗   ██╗███████╗███╗   ██╗████████╗██╗  ██╗ █████╗ ███╗   ██╗██████╗ ██╗     ███████╗██████╗     ██████╗██████╗ ██████╗ 
+███████╗██╗   ██╗███████╗███╗   ██╗████████╗██╗  ██╗ █████╗ ███╗   ██╗██████╗ ██╗     ███████╗██████╗     ██████╗██████╗ ██████╗
 ██╔════╝██║   ██║██╔════╝████╗  ██║╚══██╔══╝██║  ██║██╔══██╗████╗  ██║██╔══██╗██║     ██╔════╝██╔══██╗   ██╔════╝██╔══██╗██╔══██╗
 █████╗  ██║   ██║█████╗  ██╔██╗ ██║   ██║   ███████║███████║██╔██╗ ██║██║  ██║██║     █████╗  ██████╔╝   ██║     ██████╔╝██████╔╝
-██╔══╝  ╚██╗ ██╔╝██╔══╝  ██║╚██╗██║   ██║   ██╔══██║██╔══██║██║╚██╗██║██║  ██║██║     ██╔══╝  ██╔══██╗   ██║     ██╔═══╝ ██╔═══╝ 
-███████╗ ╚████╔╝ ███████╗██║ ╚████║   ██║   ██║  ██║██║  ██║██║ ╚████║██████╔╝███████╗███████╗██║  ██║██╗╚██████╗██║     ██║     
+██╔══╝  ╚██╗ ██╔╝██╔══╝  ██║╚██╗██║   ██║   ██╔══██║██╔══██║██║╚██╗██║██║  ██║██║     ██╔══╝  ██╔══██╗   ██║     ██╔═══╝ ██╔═══╝
+███████╗ ╚████╔╝ ███████╗██║ ╚████║   ██║   ██║  ██║██║  ██║██║ ╚████║██████╔╝███████╗███████╗██║  ██║██╗╚██████╗██║     ██║
 ╚══════╝  ╚═══╝  ╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═════╝ ╚══════╝╚══════╝╚═╝  ╚═╝╚═╝ ╚═════╝╚═╝     ╚═╝
 */
 
@@ -33,139 +33,75 @@ SOFTWARE.
 
 #include "eventHandler.h"
 
-// TODO: Need to refactor so that the functions that take in "void* data" also take
-// in "sf::Event eventData". As it is, "void* data" is being used to pass sf::Event
-// to the triggerEvent function and there is not a good way to pass any actual data
-// to the final action.
+#include <cmath>
 
-/**
- * @brief Construct a new Event Handler:: Event Handler object
- *
- * @param logger CubeLog object
- */
 EventHandler::EventHandler()
 {
     CubeLog::info("Event handler created with default values.");
     this->name = "";
-    this->eventType = sf::Event::EventType::Count;
+    this->eventType = CubeEventType::None;
     this->specificEventType = SpecificEventTypes::NULL_EVENT;
     this->action = nullptr;
 }
 
-/**
- * @brief Destroy the Event Handler:: Event Handler object
- *
- */
 EventHandler::~EventHandler()
 {
     CubeLog::info("Event handler destroyed");
-    // if(this->clickableArea != nullptr){
-    //     delete this->clickableArea;
-    // }
 }
 
-/**
- * @brief Trigger the event
- *
- */
-bool EventHandler::triggerEvent(void* data)
+bool EventHandler::triggerEvent(const CubeEvent& event)
 {
     if (this->action == nullptr) {
         CubeLog::error("No action set for event: " + this->name);
         return false;
     }
-    // CubeLog::debug("Event triggered: " + this->name);
-    this->action(data);
+    this->action(event);
     return true;
 }
 
-/**
- * @brief Set the action to be performed when the event is triggered
- *
- * @param action std::function<void(void*)> action
- */
-void EventHandler::setAction(std::function<void(void*)> action)
+void EventHandler::setAction(std::function<void(const CubeEvent&)> action)
 {
     CubeLog::info("Action set for event: " + this->name);
     this->action = action;
 }
 
-/**
- * @brief Get the name of the event
- *
- * @return std::string
- */
 std::string EventHandler::getName()
 {
     return this->name;
 }
 
-/**
- * @brief Set the name of the event
- *
- * @param name std::string
- */
 void EventHandler::setName(const std::string& name)
 {
     this->name = name;
 }
 
-/**
- * @brief Get the event type
- *
- * @return sf::Event::EventType
- */
-sf::Event::EventType EventHandler::getEventType()
+CubeEventType EventHandler::getEventType()
 {
     return this->eventType;
 }
 
-/**
- * @brief Set the event type
- *
- * @param eventType sf::Event::EventType
- */
-void EventHandler::setEventType(sf::Event::EventType eventType)
+void EventHandler::setEventType(CubeEventType eventType)
 {
     this->eventType = eventType;
 }
 
-/**
- * @brief Set the specific event type
- *
- * @param specificEventType SpecificEventTypes
- */
 void EventHandler::setSpecificEventType(SpecificEventTypes specificEventType)
 {
     this->specificEventType = specificEventType;
 }
 
-/**
- * @brief Get the specific event type
- *
- * @return SpecificEventTypes
- */
 SpecificEventTypes EventHandler::getSpecificEventType()
 {
     return this->specificEventType;
 }
 
-/////////////////////////////////////////////////////////////////////////////////
-
-/**
- * @brief Construct a new Event Manager:: Event Manager object
- *
- * @param logger CubeLog object
- */
 EventManager::EventManager()
+    : mouseDownPosition { 0, 0 }
+    , lastPointerPosition { 0, 0 }
 {
     CubeLog::info("Event manager created with default values.");
 }
 
-/**
- * @brief Destroy the Event Manager:: Event Manager object
- *
- */
 EventManager::~EventManager()
 {
     for (size_t i = 0; i < this->events.size(); i++) {
@@ -174,42 +110,26 @@ EventManager::~EventManager()
     CubeLog::info("Event manager destroyed");
 }
 
-/**
- * @brief Create a new event
- *
- * @param eventName std::string
- * @return int index of the event
- */
 int EventManager::createEvent(const std::string& eventName)
 {
     EventHandler* event = new EventHandler();
     event->setName(eventName);
     this->events.push_back(event);
-    return this->events.size() - 1;
+    return static_cast<int>(this->events.size() - 1);
 }
 
-/**
- * @brief Remove an event
- *
- * @param event EventHandler*
- */
 bool EventManager::removeEvent(EventHandler* event)
 {
     for (size_t i = 0; i < this->events.size(); i++) {
         if (this->events[i] == event) {
             delete this->events[i];
-            this->events.erase(this->events.begin() + i);
+            this->events.erase(this->events.begin() + static_cast<long>(i));
             return true;
         }
     }
     return false;
 }
 
-/**
- * @brief Remove an event
- *
- * @param index int, index of the event to remove, returned from createEvent
- */
 bool EventManager::removeEvent(int index)
 {
     if (index < 0 || index >= static_cast<int>(this->events.size())) {
@@ -226,40 +146,23 @@ bool EventManager::removeEvent(const std::string& eventName)
     for (size_t i = 0; i < this->events.size(); i++) {
         if (this->events[i]->getName() == eventName) {
             delete this->events[i];
-            this->events.erase(this->events.begin() + i);
+            this->events.erase(this->events.begin() + static_cast<long>(i));
             return true;
         }
     }
     return false;
 }
 
-/**
- * @brief get the event by index as returned from createEvent
- *
- * @param index
- * @return EventHandler*
- */
 EventHandler* EventManager::getEvent(int index)
 {
     return this->events[index];
 }
 
-/**
- * @brief Get all the events
- *
- * @return std::vector<EventHandler*>
- */
 std::vector<EventHandler*> EventManager::getEvents()
 {
     return this->events;
 }
 
-/**
- * @brief Get the event by name
- *
- * @param eventName
- * @return EventHandler*
- */
 EventHandler* EventManager::getEvent(const std::string& eventName)
 {
     for (size_t i = 0; i < this->events.size(); i++) {
@@ -270,203 +173,170 @@ EventHandler* EventManager::getEvent(const std::string& eventName)
     return nullptr;
 }
 
-/**
- * @brief Trigger an event by sf::Event
- *
- * @param event
- * @return true if event was triggered
- * @return false if event was not triggered
- */
-bool EventManager::triggerEvent(sf::Event event, void* data)
+bool EventManager::triggerEvent(const CubeEvent& event)
 {
-    if (checkClickableAreas(*((sf::Event*)data))) {
+    bool anyTriggered = false;
+    if (checkClickableAreas(event)) {
         return true;
     }
-    for (size_t i = 0; i < this->events.size(); i++) {
-        if (this->events[i]->getEventType() == event.type) {
-            this->events[i]->triggerEvent(data);
-            return true;
-        }
+
+    anyTriggered = triggerEvent(event.type, event) || anyTriggered;
+
+    const SpecificEventTypes keySpecificType = specificEventTypeFromCubeKey(event.key);
+    if (keySpecificType != SpecificEventTypes::NULL_EVENT) {
+        anyTriggered = triggerEvent(keySpecificType, event.type, event) || anyTriggered;
     }
-    return false;
+
+    const SpecificEventTypes mouseSpecificType = specificEventTypeFromCubeMouseButton(event.mouseButton, event.type);
+    if (mouseSpecificType != SpecificEventTypes::NULL_EVENT) {
+        anyTriggered = triggerEvent(mouseSpecificType, event.type, event) || anyTriggered;
+    }
+
+    return anyTriggered;
 }
 
-/**
- * @brief Trigger an event by index
- *
- * @param index
- * @return true if event was triggered
- * @return false if event was not triggered
- */
-bool EventManager::triggerEvent(int index, void* data)
+bool EventManager::triggerEvent(int index, const CubeEvent& event)
 {
-    if (checkClickableAreas(*((sf::Event*)data))) {
-        return true;
-    }
-    if (index >= this->events.size()) {
+    if (index < 0 || index >= static_cast<int>(this->events.size())) {
         CubeLog::error("Index out of range");
         return false;
     }
-    this->events[index]->triggerEvent(data);
-    return true;
+    return this->events[index]->triggerEvent(event);
 }
 
-/**
- * @brief Trigger an event by name
- *
- * @param eventName
- * @return true if event was triggered
- * @return false if event was not triggered
- */
-bool EventManager::triggerEvent(const std::string& eventName, void* data)
+bool EventManager::triggerEvent(const std::string& eventName, const CubeEvent& event)
 {
-    if (checkClickableAreas(*((sf::Event*)data))) {
-        return true;
-    }
+    bool anyTriggered = false;
     for (size_t i = 0; i < this->events.size(); i++) {
         if (this->events[i]->getName() == eventName) {
-            this->events[i]->triggerEvent(data);
-            return true;
+            anyTriggered = this->events[i]->triggerEvent(event) || anyTriggered;
         }
     }
-    return false;
+    return anyTriggered;
 }
 
-/**
- * @brief Trigger an event by sf::Event::EventType
- *
- * @param eventType
- * @return true if event was triggered
- * @return false if event was not triggered
- */
-bool EventManager::triggerEvent(sf::Event::EventType eventType, void* data)
+bool EventManager::triggerEvent(CubeEventType eventType, const CubeEvent& event)
 {
-    if (checkClickableAreas(*((sf::Event*)data))) {
-        return true;
-    }
+    bool anyTriggered = false;
     for (size_t i = 0; i < this->events.size(); i++) {
-        if (this->events[i]->getEventType() == eventType && this->events[i]->getSpecificEventType() == SpecificEventTypes::NULL_EVENT) {
-            this->events[i]->triggerEvent(data);
-            return true;
+        if (this->events[i]->getEventType() == eventType
+            && this->events[i]->getSpecificEventType() == SpecificEventTypes::NULL_EVENT) {
+            anyTriggered = this->events[i]->triggerEvent(event) || anyTriggered;
         }
     }
-    return false;
+    return anyTriggered;
 }
 
-/**
- * @brief Trigger an event by SpecificEventTypes
- *
- * @param specificEventType
- * @return true if event was triggered
- * @return false if event was not triggered
- */
-bool EventManager::triggerEvent(SpecificEventTypes specificEventType, void* data)
+bool EventManager::triggerEvent(SpecificEventTypes specificEventType, const CubeEvent& event)
 {
-    // if(checkClickableAreas(*((sf::Event*)data))){
-    //     return true;
-    // }
+    if (specificEventType == SpecificEventTypes::NULL_EVENT) {
+        return false;
+    }
+
+    bool anyTriggered = false;
     for (size_t i = 0; i < this->events.size(); i++) {
-        if (this->events[i]->getSpecificEventType() == specificEventType && this->events[i]->getEventType() == sf::Event::Count) {
-            this->events[i]->triggerEvent(data);
-            return true;
+        if (this->events[i]->getSpecificEventType() == specificEventType
+            && this->events[i]->getEventType() == CubeEventType::None) {
+            anyTriggered = this->events[i]->triggerEvent(event) || anyTriggered;
         }
     }
-    return false;
+    return anyTriggered;
 }
 
-bool EventManager::triggerEvent(SpecificEventTypes specificEventType, sf::Event::EventType eventType, void* data)
+bool EventManager::triggerEvent(SpecificEventTypes specificEventType, CubeEventType eventType, const CubeEvent& event)
 {
-    // if(checkClickableAreas(*((sf::Event*)data))){
-    //     return true;
-    // }
+    if (specificEventType == SpecificEventTypes::NULL_EVENT) {
+        return false;
+    }
+
+    bool anyTriggered = false;
     for (size_t i = 0; i < this->events.size(); i++) {
-        if (this->events[i]->getEventType() == eventType && this->events[i]->getSpecificEventType() == specificEventType) {
-            this->events[i]->triggerEvent(data);
-            return true;
+        if (this->events[i]->getEventType() == eventType
+            && this->events[i]->getSpecificEventType() == specificEventType) {
+            anyTriggered = this->events[i]->triggerEvent(event) || anyTriggered;
         }
     }
-    return false;
+    return anyTriggered;
 }
 
-/**
- * @brief Add a clickable area to the event manager
- *
- * @param clickableArea
- */
 void EventManager::addClickableArea(ClickableArea* clickableArea)
 {
     this->clickableAreas.push_back(clickableArea);
 }
 
-/**
- * @brief Check the clickable areas for events
- *
- * @param event
- * @param data
- */
-bool EventManager::checkClickableAreas(sf::Event event)
+bool EventManager::checkClickableAreas(const CubeEvent& event)
 {
-    if (sf::Event::MouseButtonPressed == event.type) {
-        this->mouseDownPosition = { event.mouseButton.x, event.mouseButton.y };
+    const bool isPointerEvent = event.type == CubeEventType::MouseButtonPressed
+        || event.type == CubeEventType::MouseButtonReleased
+        || event.type == CubeEventType::MouseMoved
+        || event.type == CubeEventType::MouseWheelScrolled;
+    const int lastPointerX = std::get<0>(this->lastPointerPosition);
+    const int lastPointerY = std::get<1>(this->lastPointerPosition);
+
+    if (event.type == CubeEventType::MouseButtonPressed) {
+        this->mouseDownPosition = { event.x, event.y };
+        if (event.mouseButton == CubeMouseButton::Left) {
+            this->primaryPointerDown = true;
+        }
     }
-    // if (event.type != sf::Event::MouseButtonReleased) {
-    //     return false;
-    // }
-    int xChange = event.mouseButton.x - std::get<0>(this->mouseDownPosition);
-    int yChange = event.mouseButton.y - std::get<1>(this->mouseDownPosition);
-    float distance = sqrt(pow(xChange, 2) + pow(yChange, 2));
-    if (distance < 5) {
-        CubeLog::info("Distance is less than 5");
+
+    const int mouseDownX = std::get<0>(this->mouseDownPosition);
+    const int mouseDownY = std::get<1>(this->mouseDownPosition);
+    const int xChange = event.x - mouseDownX;
+    const int yChange = event.y - mouseDownY;
+    const float distance = std::sqrt(static_cast<float>((xChange * xChange) + (yChange * yChange)));
+
+    if ((event.type == CubeEventType::MouseButtonPressed || event.type == CubeEventType::MouseButtonReleased) && distance < CLICK_THRESHOLD_PX) {
         for (ClickableArea* area : this->clickableAreas) {
-            if (!area->clickableObject->getIsClickable())
+            if (area == nullptr || area->clickableObject == nullptr || !area->clickableObject->getIsClickable()) {
                 continue;
-            // get the x and y from the event
-            int x = event.mouseButton.x;
-            int y = event.mouseButton.y;
-            // check if the x and y are within the area
-            CubeLog::debugSilly("Checking clickable area: x:" + std::to_string(x) + " y:" + std::to_string(y) + " area: xMin:" + std::to_string(area->xMin) + " xMax:" + std::to_string(area->xMax) + " yMin:" + std::to_string(area->yMin) + " yMax:" + std::to_string(area->yMax));
-            if (x < area->xMax && x > area->xMin && y < area->yMax && y > area->yMin) {
-                if (event.type == sf::Event::MouseButtonReleased)
-                    area->clickableObject->onRelease(&event);
-                if (event.mouseButton.button == sf::Mouse::Left && event.type == sf::Event::MouseButtonReleased) {
-                    area->clickableObject->onClick(&event);
+            }
+
+            if (event.x < area->xMax && event.x > area->xMin && event.y < area->yMax && event.y > area->yMin) {
+                if (event.type == CubeEventType::MouseButtonReleased) {
+                    area->clickableObject->onRelease(event);
+                }
+                if (event.mouseButton == CubeMouseButton::Left && event.type == CubeEventType::MouseButtonReleased) {
+                    area->clickableObject->onClick(event);
+                    this->primaryPointerDown = false;
                     return true;
                 }
-                if (event.mouseButton.button == sf::Mouse::Right && event.type == sf::Event::MouseButtonReleased) {
-                    area->clickableObject->onRightClick(&event);
+                if (event.mouseButton == CubeMouseButton::Right && event.type == CubeEventType::MouseButtonReleased) {
+                    area->clickableObject->onRightClick(event);
                     return true;
                 }
-                if (event.type == sf::Event::MouseButtonPressed) {
-                    area->clickableObject->onMouseDown(&event);
+                if (event.type == CubeEventType::MouseButtonPressed) {
+                    area->clickableObject->onMouseDown(event);
                     return true;
                 }
             }
         }
-    } else if ((sf::Mouse::isButtonPressed(sf::Mouse::Left) || sf::Mouse::isButtonPressed(sf::Mouse::Right) || sf::Touch::isDown(0))) {
-        if (std::abs(float(yChange)) * (0.5f) > std::abs(float(xChange))) {
-            // CubeLog::info("Dragged Y");
-            sf::Event ev;
-            ev.type = sf::Event::MouseWheelScrolled;
-            ev.mouseWheelScroll.delta = -yChange;
-            triggerEvent(SpecificEventTypes::DRAG_Y, &ev);
-        } else if (std::abs(float(xChange) * (0.5f)) > std::abs(float(yChange))) {
-            // CubeLog::info("Dragged X");
-            sf::Event ev;
-            ev.type = sf::Event::MouseWheelScrolled;
-            ev.mouseWheelScroll.delta = xChange;
-            triggerEvent(SpecificEventTypes::DRAG_X, &ev);
-        }
-    } else {
-        for (ClickableArea* area : this->clickableAreas) {
-            if (!area->clickableObject->getIsClickable())
-                continue;
-            if (event.type == sf::Event::MouseButtonReleased) {
-                area->clickableObject->onRelease(&event);
+    } else if (event.type == CubeEventType::MouseMoved && this->primaryPointerDown) {
+        if (std::abs(yChange) > CLICK_THRESHOLD_PX || std::abs(xChange) > CLICK_THRESHOLD_PX) {
+            CubeEvent dragEvent = event;
+            dragEvent.deltaX = event.x - lastPointerX;
+            dragEvent.deltaY = event.y - lastPointerY;
+            if (std::abs(static_cast<float>(yChange)) * 0.5f > std::abs(static_cast<float>(xChange))) {
+                triggerEvent(SpecificEventTypes::DRAG_Y, CubeEventType::MouseMoved, dragEvent);
+            } else if (std::abs(static_cast<float>(xChange)) * 0.5f > std::abs(static_cast<float>(yChange))) {
+                triggerEvent(SpecificEventTypes::DRAG_X, CubeEventType::MouseMoved, dragEvent);
             }
         }
+    } else if (event.type == CubeEventType::MouseButtonReleased) {
+        for (ClickableArea* area : this->clickableAreas) {
+            if (area == nullptr || area->clickableObject == nullptr || !area->clickableObject->getIsClickable()) {
+                continue;
+            }
+            area->clickableObject->onRelease(event);
+        }
+    }
+
+    if (event.type == CubeEventType::MouseButtonReleased && event.mouseButton == CubeMouseButton::Left) {
+        this->primaryPointerDown = false;
+    }
+
+    if (isPointerEvent) {
+        this->lastPointerPosition = { event.x, event.y };
     }
     return false;
 }
-
-/////////////////////////////////////////////////////////////////////////////////
-// Path src/gui/eventHandler/eventHandler.cpp

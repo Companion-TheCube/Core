@@ -45,6 +45,7 @@ SOFTWARE.
 #include <string>
 #include <typeinfo>
 #include <vector>
+#include "./../eventHandler/cubeEvent.h"
 #ifndef SHAPES_H
 #include "./../renderables/shapes.h"
 #endif
@@ -376,10 +377,10 @@ public:
         clickAreaPtr->yMin = object->getClickableArea_().yMin;
         clickAreaPtr->yMax = object->getClickableArea_().yMax;
     };
-    void onClick(void* data) override { object->setVisible(!object->getVisible()); };
-    void onRelease(void* data) override { };
-    void onMouseDown(void* data) override { };
-    void onRightClick(void* data) override { };
+    void onClick(const CubeEvent&) override { object->setVisible(!object->getVisible()); };
+    void onRelease(const CubeEvent&) override { };
+    void onMouseDown(const CubeEvent&) override { };
+    void onRightClick(const CubeEvent&) override { };
     ClickableArea* getClickableArea() override
     {
 
@@ -416,13 +417,12 @@ public:
         clickAreaPtr->clickableObject = this;
     }
     ~NotificationBoxClickable() override { delete clickAreaPtr; }
-    void onClick(void* data) override
+    void onClick(const CubeEvent& event) override
     {
         if (!box_->getVisible())
             return;
-        auto* ev = static_cast<sf::Event*>(data);
-        unsigned int x = ev ? static_cast<unsigned int>(ev->mouseButton.x) : 0;
-        unsigned int y = ev ? static_cast<unsigned int>(ev->mouseButton.y) : 0;
+        const unsigned int x = static_cast<unsigned int>(std::max(event.x, 0));
+        const unsigned int y = static_cast<unsigned int>(std::max(event.y, 0));
         if (box_->isInsideYes(x, y)) {
             box_->setVisible(false);
             box_->triggerYes();
@@ -431,9 +431,9 @@ public:
             box_->triggerNo();
         }
     }
-    void onRelease(void* /*data*/) override { }
-    void onMouseDown(void* /*data*/) override { }
-    void onRightClick(void* /*data*/) override { }
+    void onRelease(const CubeEvent& /*event*/) override { }
+    void onMouseDown(const CubeEvent& /*event*/) override { }
+    void onRightClick(const CubeEvent& /*event*/) override { }
     ClickableArea* getClickableArea() override
     {
         // Sync area with box bounds
@@ -473,13 +473,12 @@ public:
         clickAreaPtr->clickableObject = this;
     }
     ~SliderBoxClickable() override { delete clickAreaPtr; }
-    void onClick(void* data) override
+    void onClick(const CubeEvent& event) override
     {
         if (!box_->getVisible())
             return;
-        auto* ev = static_cast<sf::Event*>(data);
-        unsigned int x = ev ? static_cast<unsigned int>(ev->mouseButton.x) : 0;
-        unsigned int y = ev ? static_cast<unsigned int>(ev->mouseButton.y) : 0;
+        const unsigned int x = static_cast<unsigned int>(std::max(event.x, 0));
+        const unsigned int y = static_cast<unsigned int>(std::max(event.y, 0));
         if (box_->isInsideOk(x, y)) {
             box_->confirmSelection();
             return;
@@ -492,20 +491,19 @@ public:
             box_->handleTrackInteraction(x);
         }
     }
-    void onRelease(void* /*data*/) override
+    void onRelease(const CubeEvent& /*event*/) override
     {
         box_->endDrag();
     }
-    void onMouseDown(void* data) override
+    void onMouseDown(const CubeEvent& event) override
     {
         if (!box_->getVisible())
             return;
-        auto* ev = static_cast<sf::Event*>(data);
-        unsigned int x = ev ? static_cast<unsigned int>(ev->mouseButton.x) : 0;
-        unsigned int y = ev ? static_cast<unsigned int>(ev->mouseButton.y) : 0;
+        const unsigned int x = static_cast<unsigned int>(std::max(event.x, 0));
+        const unsigned int y = static_cast<unsigned int>(std::max(event.y, 0));
         box_->beginDrag(x, y);
     }
-    void onRightClick(void* /*data*/) override { }
+    void onRightClick(const CubeEvent& /*event*/) override { }
     ClickableArea* getClickableArea() override
     {
         auto area = box_->getClickableArea_();
@@ -544,16 +542,16 @@ public:
         clickAreaPtr->clickableObject = this;
     }
     ~NotificationYesClickable() override { delete clickAreaPtr; }
-    void onClick(void* /*data*/) override
+    void onClick(const CubeEvent& /*event*/) override
     {
         if (!box_->getVisible())
             return;
         box_->setVisible(false);
         box_->triggerYes();
     }
-    void onRelease(void* /*data*/) override { }
-    void onMouseDown(void* /*data*/) override { }
-    void onRightClick(void* /*data*/) override { }
+    void onRelease(const CubeEvent& /*event*/) override { }
+    void onMouseDown(const CubeEvent& /*event*/) override { }
+    void onRightClick(const CubeEvent& /*event*/) override { }
     ClickableArea* getClickableArea() override
     {
         auto r = box_->getYesRect();
@@ -592,16 +590,16 @@ public:
         clickAreaPtr->clickableObject = this;
     }
     ~NotificationNoClickable() override { delete clickAreaPtr; }
-    void onClick(void* /*data*/) override
+    void onClick(const CubeEvent& /*event*/) override
     {
         if (!box_->getVisible())
             return;
         box_->setVisible(false);
         box_->triggerNo();
     }
-    void onRelease(void* /*data*/) override { }
-    void onMouseDown(void* /*data*/) override { }
-    void onRightClick(void* /*data*/) override { }
+    void onRelease(const CubeEvent& /*event*/) override { }
+    void onMouseDown(const CubeEvent& /*event*/) override { }
+    void onRightClick(const CubeEvent& /*event*/) override { }
     ClickableArea* getClickableArea() override { return clickAreaPtr; }
     ClickableArea* getClickableArea() const { return clickAreaPtr; }
     void setOnClick(std::function<unsigned int(void*)> /*action*/) override { }

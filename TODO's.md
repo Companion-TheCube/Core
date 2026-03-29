@@ -217,7 +217,6 @@
 - [src/gui/renderables/shapes.h:568] : create a generic object class that can utilize vertex and face data loaded from a file
 - [src/gui/renderer.cpp:129] : this call should return a nullptr if the character is not found. Then we should throw an error.
 - [src/gui/renderer.cpp:153] : replace this with a CountingLatch. This will be cleaner.
-- [src/gui/renderer.cpp:34] : migrate from SFML to GLFW since we aren't using any SFML specific features
 - [src/gui/renderer.cpp:95] : maybe one day, support a second window that renders on the second screen.
 - [src/gui/renderer.cpp:98] : figure out how to pause rendering and close the window when the emulator starts up.
 - [src/gui/statusBar.cpp:36] : Implement StatusBar

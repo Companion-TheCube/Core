@@ -129,7 +129,7 @@ class GUI : public AutoRegisterAPI<GUI> {
 public:
     GUI();
     ~GUI();
-    void eventLoop();
+    void eventLoop(std::stop_token stopToken);
     void stop();
     static void showMessageBox(const std::string& title, const std::string& message);
     static void showMessageBox(const std::string& title, const std::string& message, glm::vec2 size, glm::vec2 position);

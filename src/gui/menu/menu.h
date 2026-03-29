@@ -45,6 +45,7 @@ SOFTWARE.
 #include <string>
 #include <typeinfo>
 #include <vector>
+#include "../eventHandler/cubeEvent.h"
 #ifndef MESHOBJECT_H
 #include "./../renderables/meshObject.h"
 #endif
@@ -162,10 +163,10 @@ private:
 public:
     MenuEntry(Shader* t_shader, Shader* m_shader, const std::string& text, glm::vec2 position, float size, float visibleWidth, EntryType type, std::function<unsigned int(void*)> statusAction, void* statusActionArg);
     ~MenuEntry();
-    void onClick(void*);
-    void onRelease(void*);
-    void onMouseDown(void*);
-    void onRightClick(void*);
+    void onClick(const CubeEvent&);
+    void onRelease(const CubeEvent&);
+    void onMouseDown(const CubeEvent&);
+    void onRightClick(const CubeEvent&);
     std::vector<MeshObject*> getObjects();
     bool setVisible(bool visible);
     bool getVisible();
@@ -200,8 +201,8 @@ public:
 class Menu : public Clickable {
 private:
     bool visible = false;
-    std::function<void(void*)> action;
-    std::function<void(void*)> rightAction;
+    std::function<unsigned int(void*)> action;
+    std::function<unsigned int(void*)> rightAction;
     std::string name;
     std::vector<Object*> objects;
     Renderer* renderer;
@@ -232,10 +233,10 @@ public:
     Menu(Renderer* renderer, CountingLatch& latch, unsigned int xMin, unsigned int xMax, unsigned int yMin, unsigned int yMax);
     ~Menu();
     void setup();
-    void onClick(void*);
-    void onRelease(void*);
-    void onMouseDown(void*);
-    void onRightClick(void*);
+    void onClick(const CubeEvent&);
+    void onRelease(const CubeEvent&);
+    void onMouseDown(const CubeEvent&);
+    void onRightClick(const CubeEvent&);
     bool setVisible(bool visible);
     bool getVisible();
     void setOnClick(std::function<unsigned int(void*)> action);
@@ -308,10 +309,10 @@ public:
     bool getVisible();
     bool setIsClickable(bool isClickable) { return false; }
     bool getIsClickable() { return false; }
-    void onClick(void*);
-    void onRelease(void*);
-    void onMouseDown(void*);
-    void onRightClick(void*);
+    void onClick(const CubeEvent&);
+    void onRelease(const CubeEvent&);
+    void onMouseDown(const CubeEvent&);
+    void onRightClick(const CubeEvent&);
     std::vector<MeshObject*> getObjects();
     void setOnClick(std::function<unsigned int(void*)> action);
     void setOnRightClick(std::function<unsigned int(void*)> action);

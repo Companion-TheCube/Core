@@ -34,9 +34,6 @@ SOFTWARE.
 #ifndef SHADER_H
 #define SHADER_H
 #include "GL/glew.h"
-#include "SFML/Graphics.hpp"
-#include <SFML/OpenGL.hpp>
-#include <SFML/Window.hpp>
 #include <filesystem>
 #include <fstream>
 #include <glm/glm.hpp>

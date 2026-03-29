@@ -242,9 +242,16 @@ GUI::~GUI()
     if (GUI::activeGuiInstance == this) {
         GUI::activeGuiInstance = nullptr;
     }
-    delete this->renderer;
+    if (this->renderer != nullptr) {
+        this->renderer->stop();
+        this->renderer->closeEventQueue();
+    }
     this->eventLoopThread.request_stop();
-    this->eventLoopThread.join();
+    if (this->eventLoopThread.joinable()) {
+        this->eventLoopThread.join();
+    }
+    delete this->eventManager;
+    delete this->renderer;
     CubeLog::info("GUI destroyed");
 }
 
@@ -252,33 +259,24 @@ GUI::~GUI()
  * @brief Start the event loop. This method will run until the renderer is no longer running or stop() is called
  *
  */
-void GUI::eventLoop()
+void GUI::eventLoop(std::stop_token stopToken)
 {
     /////////////////////////////////
     /// Test events TODO: remove this
     /////////////////////////////////
     int keyPressIndex = this->eventManager->createEvent("KeyPressed");
     EventHandler* keyPressHandler = this->eventManager->getEvent(keyPressIndex);
-    keyPressHandler->setAction([&](void* data) {
-        sf::Event* event = (sf::Event*)data;
-        if (event != nullptr)
-            CubeLog::info("Key pressed: " + std::to_string(event->key.code));
-        else
-            CubeLog::info("Key pressed: nullptr");
+    keyPressHandler->setAction([&](const CubeEvent& event) {
+        CubeLog::info("Key pressed: " + std::to_string(static_cast<int>(event.key)));
     });
-    keyPressHandler->setEventType(sf::Event::KeyPressed);
+    keyPressHandler->setEventType(CubeEventType::KeyPressed);
 
     int keyAPressedIndex = this->eventManager->createEvent("KeyAPressed");
     EventHandler* keyAPressedHandler = this->eventManager->getEvent(keyAPressedIndex);
-    keyAPressedHandler->setAction([&](void* data) {
-        sf::Event* event = (sf::Event*)data;
-        if (event != nullptr)
-            CubeLog::info("Key A pressed");
-        else
-            CubeLog::info("Key A pressed: nullptr");
+    keyAPressedHandler->setAction([&](const CubeEvent&) {
+        CubeLog::info("Key A pressed");
     });
-    // keyAPressedHandler->setName("KeyAPressed");
-    keyAPressedHandler->setEventType(sf::Event::KeyPressed);
+    keyAPressedHandler->setEventType(CubeEventType::KeyPressed);
     keyAPressedHandler->setSpecificEventType(SpecificEventTypes::KEYPRESS_A);
 
     ////////////////////////////////////////
@@ -1666,41 +1664,31 @@ void GUI::eventLoop()
     /// Set up the event handlers
     ////////////////////////////////////////
 
-    int lastMouseY = INT_MIN;
-    bool last_isButtonPressed = false;
-    int drag_y_HandlerIndex = this->eventManager->createEvent("DRAG_Y");
-    EventHandler* drag_y_Handler = this->eventManager->getEvent(drag_y_HandlerIndex);
-    drag_y_Handler->setAction([&](void* data) {
-        sf::Event* event = (sf::Event*)data;
-        if (event == nullptr) {
-            CubeLog::error("Drag Y: nullptr");
-            return;
-        }
+    int mouseMoveHandlerIndex = this->eventManager->createEvent("MouseMoved");
+    EventHandler* mouseMoveHandler = this->eventManager->getEvent(mouseMoveHandlerIndex);
+    mouseMoveHandler->setAction([&](const CubeEvent& event) {
         if (GUI::sliderBox != nullptr && GUI::sliderBox->getVisible()) {
             GUI::sliderBox->handlePointerMove(
-                static_cast<unsigned int>(event->mouseMove.x),
-                static_cast<unsigned int>(event->mouseMove.y));
+                static_cast<unsigned int>(std::max(event.x, 0)),
+                static_cast<unsigned int>(std::max(event.y, 0)));
+        }
+    });
+    mouseMoveHandler->setEventType(CubeEventType::MouseMoved);
+
+    int drag_y_HandlerIndex = this->eventManager->createEvent("DRAG_Y");
+    EventHandler* drag_y_Handler = this->eventManager->getEvent(drag_y_HandlerIndex);
+    drag_y_Handler->setAction([&](const CubeEvent& event) {
+        if (GUI::sliderBox != nullptr && GUI::sliderBox->getVisible()) {
             return;
         }
-        bool touchChange = false;
-        // touch event edge detection
-        if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left) && !last_isButtonPressed) {
-            last_isButtonPressed = true;
-            touchChange = true;
-        } else if (!sf::Mouse::isButtonPressed(sf::Mouse::Button::Left) && last_isButtonPressed) {
-            last_isButtonPressed = false;
-            touchChange = true;
-        }
-        if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left) && lastMouseY > INT_MIN) {
-            for (auto& [isVisible, action] : drag_y_actions) {
-                if (isVisible() && !touchChange) {
-                    action(-(event->mouseMove.y - lastMouseY));
-                }
+        for (auto& [isVisible, action] : drag_y_actions) {
+            if (isVisible()) {
+                action(-event.deltaY);
             }
         }
-        lastMouseY = event->mouseMove.y;
     });
-    drag_y_Handler->setEventType(sf::Event::MouseMoved);
+    drag_y_Handler->setEventType(CubeEventType::MouseMoved);
+    drag_y_Handler->setSpecificEventType(SpecificEventTypes::DRAG_Y);
 
     ////////////////////////////////////////
     /// Set up the popup message box
@@ -1776,14 +1764,15 @@ void GUI::eventLoop()
     }
 
     CubeLog::info("Starting event handler loop...");
-    while (this->renderer->getIsRunning()) {
-        std::vector<sf::Event> events = this->renderer->getEvents(); // TODO: change this to be a reference
-        for (size_t i = 0; i < events.size(); i++) {
-            this->eventManager->triggerEvent(events[i].type, &events[i]);
-            this->eventManager->triggerEvent(static_cast<SpecificEventTypes>(events[i].key.code), &events[i]);
-            this->eventManager->triggerEvent(static_cast<SpecificEventTypes>(events[i].key.code), events[i].type, &events[i]);
+    while (!stopToken.stop_requested()) {
+        std::optional<CubeEvent> event = this->renderer->popEvent();
+        if (!event.has_value()) {
+            break;
         }
-        genericSleep(5);
+        this->eventManager->triggerEvent(*event);
+        if (event->type == CubeEventType::WindowClosed) {
+            break;
+        }
     }
     CubeLog::info("Event handler loop stopped");
     for (auto menu : menus) {
@@ -1938,6 +1927,7 @@ GUI_Error GUI::addMenu(const std::string& menuName, const std::string& thisUniqu
 void GUI::stop()
 {
     this->renderer->stop();
+    this->renderer->closeEventQueue();
 }
 
 /**
