@@ -32,7 +32,6 @@
 #include "decisionEngine/decisions.h"
 #undef private
 
-#include "httplib.h"
 #include "utils.h"
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp>
@@ -119,17 +118,6 @@ private:
     bool closeOnEnd_ = false;
     int port_ = -1;
 };
-
-int reserveUnusedLocalPort()
-{
-    httplib::Server probe;
-    const int port = probe.bind_to_any_port("127.0.0.1");
-    probe.stop();
-    if (port <= 0) {
-        throw std::runtime_error("Failed to reserve local test port");
-    }
-    return port;
-}
 
 void resetVoiceConfig()
 {
@@ -262,8 +250,7 @@ TEST(DecisionEngineMain, WakeWordStartupFailureSurfacesVoiceServiceUnavailable)
 {
     resetVoiceConfig();
 
-    const int port = reserveUnusedLocalPort();
-    Config::set("REMOTE_SERVER_BASE_URL", "ws://127.0.0.1:" + std::to_string(port));
+    Config::set("REMOTE_SERVER_BASE_URL", "ws://127.0.0.1:1");
     Config::set("DECISION_ENGINE_RESULT_HIDE_MS", "25");
 
     DecisionEngine::DecisionEngineMain engine;
@@ -310,8 +297,7 @@ TEST(DecisionEngineMain, VoiceTurnRecoversWhenServerBecomesAvailableAgain)
 {
     resetVoiceConfig();
 
-    const int port = reserveUnusedLocalPort();
-    Config::set("REMOTE_SERVER_BASE_URL", "ws://127.0.0.1:" + std::to_string(port));
+    Config::set("REMOTE_SERVER_BASE_URL", "ws://127.0.0.1:1");
     Config::set("DECISION_ENGINE_RESULT_HIDE_MS", "25");
     Config::set("REMOTE_TRANSCRIPTION_SILENCE_TIMEOUT_MS", "40");
     Config::set("REMOTE_TRANSCRIPTION_WAIT_FINAL_MS", "200");
@@ -327,8 +313,8 @@ TEST(DecisionEngineMain, VoiceTurnRecoversWhenServerBecomesAvailableAgain)
 
     ScopedTranscriptWebSocketServer wsServer(
         R"({"type":"transcript_final","transcript":"what apps are installed"})",
-        R"({"type":"intent_call_resolved","sessionId":"voice-turn-session","status":"matched","intentName":"apps.list_installed","arguments":{},"message":""})",
-        port);
+        R"({"type":"intent_call_resolved","sessionId":"voice-turn-session","status":"matched","intentName":"apps.list_installed","arguments":{},"message":""})");
+    Config::set("REMOTE_SERVER_BASE_URL", "ws://127.0.0.1:" + std::to_string(wsServer.port()));
 
     engine.onWakeWordDetected();
     pushSpeechChunk(engine.audioQueue);
