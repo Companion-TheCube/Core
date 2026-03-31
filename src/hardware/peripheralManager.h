@@ -37,34 +37,22 @@ SOFTWARE.
 
 #include "io_bridge/ioBridge.h"
 #include "mmWave.h"
-#include "mmWaveTuner.h"
 #include "nfc.h"
-#include <functional>
 #include <memory>
 
 class PeripheralManager {
 private:
     std::unique_ptr<mmWave> mmWaveSensor;
-    std::unique_ptr<MmWaveTuner> mmWaveTuner_;
     // NFC nfcSensor;
     // IMU imuSensor;
 
-    void applyCalibration(int unmannedSecs);
+    void syncPresenceConfigFromSettings();
 
 public:
     PeripheralManager();
     ~PeripheralManager();
 
-    float getMmWavePresenceConfidence();
     bool isMmWavePresent();
-
-    // Launch the three-phase GUI calibration wizard.
-    void startMmWaveTuning();
-
-    // Static callback invoked by the sensors menu "Calibrate" button.
-    // Register this in main.cpp after both GUI and PeripheralManager are created.
-    static std::function<void()> onMmWaveTuningRequested;
-    static void startTuning();
 };
 
 #endif // PERIPHERALMANAGER_H

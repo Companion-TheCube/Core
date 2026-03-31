@@ -47,7 +47,6 @@ SOFTWARE.
 
 #include "./gui.h"
 #include "../decisionEngine/notificationCenter.h"
-#include "../hardware/peripheralManager.h"
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -95,6 +94,22 @@ int getClampedGlobalVolumeSetting(GlobalSettings::SettingType key)
 void setGlobalVolumeSetting(GlobalSettings::SettingType key, int value, const std::string& label)
 {
     const int clampedValue = clampAndSnapSliderValue(value, 0, 100, 1);
+    GlobalSettings::setSetting(key, clampedValue);
+    CubeLog::info(label + " set to " + std::to_string(clampedValue));
+}
+
+int getClampedMmWaveAverageWindowSetting(GlobalSettings::SettingType key)
+{
+    return clampAndSnapSliderValue(
+        GlobalSettings::getSettingOfType<int>(key),
+        1,
+        30,
+        1);
+}
+
+void setMmWaveAverageWindowSetting(GlobalSettings::SettingType key, int value, const std::string& label)
+{
+    const int clampedValue = clampAndSnapSliderValue(value, 1, 30, 1);
     GlobalSettings::setSetting(key, clampedValue);
     CubeLog::info(label + " set to " + std::to_string(clampedValue));
 }
@@ -980,21 +995,88 @@ void GUI::eventLoop(std::stop_token stopToken)
             },
             [](void*) { return 0; },
             nullptr);
-        ///////// Sensors Menu - Calibrate presence sensor /////////
-        sensorsMenu->addMenuEntry(
-            _("Calibrate Presence Sensor"),
-            "Calibrate Presence Sensor",
-            MENUS::EntryType::MENUENTRY_TYPE_ACTION,
-            [](void* data) {
-                CubeLog::info("Calibrate Presence Sensor clicked");
-                PeripheralManager::startTuning();
-                return 0;
-            },
-            [](void*) { return 0; },
-            nullptr);
         sensorsMenu->setup();
         addToParent(sensorsMenu);
         sensorsMenu->setChildrenClickables_isClickable(false);
+    });
+
+    auto sensorsMenu_PresenceAveragingWindows = createANewSubMenu(
+        _("Presence Averaging Windows"),
+        "Presence Averaging Windows",
+        sensorsMenu);
+    this->renderer->addSetupTask([&, sensorsMenu_PresenceAveragingWindows, addBackButton, addToParent]() {
+        addBackButton(sensorsMenu_PresenceAveragingWindows);
+        this->addPopupSliderMenuEntry(
+            sensorsMenu_PresenceAveragingWindows,
+            _("Detection Distance Window"),
+            "Detection Distance Window",
+            1,
+            30,
+            1,
+            []() {
+                return getClampedMmWaveAverageWindowSetting(
+                    GlobalSettings::SettingType::MMWAVE_DETECTION_DISTANCE_AVERAGE_WINDOW_SECS);
+            },
+            [](int value) {
+                setMmWaveAverageWindowSetting(
+                    GlobalSettings::SettingType::MMWAVE_DETECTION_DISTANCE_AVERAGE_WINDOW_SECS,
+                    value,
+                    "Detection Distance Window");
+            });
+        this->addPopupSliderMenuEntry(
+            sensorsMenu_PresenceAveragingWindows,
+            _("Moving Distance Window"),
+            "Moving Distance Window",
+            1,
+            30,
+            1,
+            []() {
+                return getClampedMmWaveAverageWindowSetting(
+                    GlobalSettings::SettingType::MMWAVE_MOVING_DISTANCE_AVERAGE_WINDOW_SECS);
+            },
+            [](int value) {
+                setMmWaveAverageWindowSetting(
+                    GlobalSettings::SettingType::MMWAVE_MOVING_DISTANCE_AVERAGE_WINDOW_SECS,
+                    value,
+                    "Moving Distance Window");
+            });
+        this->addPopupSliderMenuEntry(
+            sensorsMenu_PresenceAveragingWindows,
+            _("Stationary Distance Window"),
+            "Stationary Distance Window",
+            1,
+            30,
+            1,
+            []() {
+                return getClampedMmWaveAverageWindowSetting(
+                    GlobalSettings::SettingType::MMWAVE_STATIONARY_DISTANCE_AVERAGE_WINDOW_SECS);
+            },
+            [](int value) {
+                setMmWaveAverageWindowSetting(
+                    GlobalSettings::SettingType::MMWAVE_STATIONARY_DISTANCE_AVERAGE_WINDOW_SECS,
+                    value,
+                    "Stationary Distance Window");
+            });
+        this->addPopupSliderMenuEntry(
+            sensorsMenu_PresenceAveragingWindows,
+            _("Stationary Energy Window"),
+            "Stationary Energy Window",
+            1,
+            30,
+            1,
+            []() {
+                return getClampedMmWaveAverageWindowSetting(
+                    GlobalSettings::SettingType::MMWAVE_STATIONARY_ENERGY_AVERAGE_WINDOW_SECS);
+            },
+            [](int value) {
+                setMmWaveAverageWindowSetting(
+                    GlobalSettings::SettingType::MMWAVE_STATIONARY_ENERGY_AVERAGE_WINDOW_SECS,
+                    value,
+                    "Stationary Energy Window");
+            });
+        sensorsMenu_PresenceAveragingWindows->setup();
+        addToParent(sensorsMenu_PresenceAveragingWindows);
+        sensorsMenu_PresenceAveragingWindows->setChildrenClickables_isClickable(false);
     });
 
     ///////// Sound Menu /////////

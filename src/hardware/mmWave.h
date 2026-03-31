@@ -31,15 +31,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-// TODO: Need to tune detection. Currently, it just stays at "detected".
-
 #pragma once
 #include "mmWavePresenceEstimator.h"
 #include <atomic>
 #include <chrono>
 #include <functional>
+#include <iomanip>
 #include <memory>
 #include <mutex>
+#include <sstream>
 #include <string>
 #include <vector>
 #ifndef LOGGER_H
@@ -55,20 +55,8 @@ SOFTWARE.
 // TODO: add ifdefs for Windows so that this will compile on Windows
 // For windows, we should just mock the mmWave sensor.
 
-#define COMMAND_HEADER { 0xFD, 0xFC, 0xFB, 0xFA }
-#define COMMAND_TAIL { 0x04, 0x03, 0x02, 0x01 }
 #define REPORT_HEADER { 0xF4, 0xF3, 0xF2, 0xF1 }
 #define REPORT_TAIL { 0xF8, 0xF7, 0xF6, 0xF5 }
-
-#define ENABLE_CONFIG_MODE { 0xff, 0x00, 0x01, 0x00 }
-#define ENABLE_CONFIG_MODE_ACK { 0xff, 0x01, 0x00, 0x00, 0x01, 0x00, 0x40, 0x00 }
-#define DISABLE_CONFIG_MODE { 0xFE, 0x00 }
-#define DISABLE_CONFIG_MODE_ACK { 0xFE, 0x01, 0x00, 0x00 }
-
-#define ENABLE_ENGINEERING_MODE { 0x62, 0x00 }
-#define ENABLE_ENGINEERING_MODE_ACK { 0x62, 0x01, 0x00, 0x00 }
-#define DISABLE_ENGINEERING_MODE { 0x63, 0x00 }
-#define DISABLE_ENGINEERING_MODE_ACK { 0x63, 0x01, 0x00, 0x00 }
 
 class Response {
 public:
@@ -219,41 +207,16 @@ class mmWave {
     MmWaveReading currentReading;
     MmWavePresenceEstimator presenceEstimator_;
 
-    // Serialises all serial-port access (commands vs. reader loop)
     std::mutex serialMutex;
     std::mutex callbackMutex;
 
-    // Stored config state — each setter updates these and sends the combined command
-    int cfgMovingGate = 5;
-    int cfgRestingGate = 5;
-    int cfgUnmannedSecs = 5;
-    int cfgGateNum = 0xFFFF; // 0xFFFF = all gates
-    int cfgMotionSens = 50;
-    int cfgRestingSens = 50;
-
     int serialPort_h = -1;
-    bool configModeEnabled = false;
     std::atomic<bool> isReady_ { false };
     std::function<void()> onReadyCallback;
     std::unique_ptr<std::jthread> readerThread;
     std::string connectedSerialPath_;
     int connectedBaud_ = -1;
 
-    Response sendCommand(std::vector<uint8_t> command);
-    Response sendCommand(std::vector<uint8_t> command, std::vector<uint8_t> ack);
-    bool enableConfigMode();
-    bool disableConfigMode();
-    bool enableEngineeringMode();
-    bool disableEngineeringMode();
-    // The following private setters assume config mode is already active.
-    // They update the respective stored cfg field and send the appropriate hardware command.
-    bool setMaxMovingDistanceGate(int gate);
-    bool setMaxRestingDistanceGate(int gate);
-    bool setUnmannedDuration(int seconds);
-    bool setDistanceGateSensitivity(int gateNum); // gateNum: 0-8, or 0xFFFF for all gates
-    bool setMotionSensitivity(int sensitivity);
-    bool setRestingSensitivity(int sensitivity);
-    void restartModule();
     Response readDataFrame();
     void decodeDataFrame(Response response);
     void readerLoop(std::stop_token stopToken);
@@ -270,20 +233,12 @@ public:
     // Thread-safe snapshot of the latest decoded sensor reading.
     MmWaveReading getReading();
 
-    // Thread-safe smoothed presence confidence score in [0.0, 1.0].
-    float getPresenceConfidence();
-
-    // Thread-safe hysteresis-based binary presence state.
+    // Thread-safe presence state derived from the rolling-window classifier.
     bool isPresent();
+    MmWavePresenceState getPresenceState();
+    MmWavePresenceDecision getPresenceDecision();
 
-    void setPresenceParams(const MmWavePresenceParams& params);
-
-    // Atomically configure the sensor: set distance gates, unmanned duration, and sensitivity.
-    // Handles enable/disable config mode and module restart internally.
-    bool configure(int maxMovingGate, int maxRestingGate, int unmannedSecs, int motionSens, int restingSens);
-
-    // Reset module configuration to sensor defaults, then restart the module.
-    bool resetToDefaults();
+    void setPresenceConfig(const MmWavePresenceConfig& config);
 
     // Register a callback invoked once the serial port opens successfully.
     void setOnReadyCallback(std::function<void()> callback);

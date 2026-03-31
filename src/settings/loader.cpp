@@ -32,6 +32,38 @@ SOFTWARE.
 */
 
 #include "loader.h"
+#include <algorithm>
+#include <array>
+#include <string_view>
+
+namespace {
+
+bool isIgnoredLegacySettingKey(const std::string& key)
+{
+    static constexpr std::array<std::string_view, 17> legacyMmWaveKeys = {
+        "mmwaveMaxMovingGate",
+        "mmwaveMaxRestingGate",
+        "mmwaveUnmannedDurationSecs",
+        "mmwaveMotionSensitivity",
+        "mmwaveRestingSensitivity",
+        "mmwaveDeskDistanceCm",
+        "mmwaveDeskInnerRadiusCm",
+        "mmwaveDeskOuterRadiusCm",
+        "mmwaveMovingEnergyFloor",
+        "mmwaveMovingEnergySat",
+        "mmwaveStationaryEnergyFloor",
+        "mmwaveStationaryEnergySat",
+        "mmwavePresenceAttackMs",
+        "mmwavePresenceReleaseMs",
+        "mmwavePresenceOccupiedThreshold",
+        "mmwavePresenceVacantThreshold",
+        "mmwaveIsCalibrated"
+    };
+
+    return std::find(legacyMmWaveKeys.begin(), legacyMmWaveKeys.end(), key) != legacyMmWaveKeys.end();
+}
+
+} // namespace
 
 SettingsLoader::SettingsLoader(GlobalSettings* settings)
 {
@@ -72,6 +104,10 @@ bool SettingsLoader::loadSettings()
         CubeLog::info("Setting " + it.key() + " to " + it.value().dump());
         auto mapIt = GlobalSettings::stringSettingTypeMap.find(it.key());
         if (mapIt == GlobalSettings::stringSettingTypeMap.end()) {
+            if (isIgnoredLegacySettingKey(it.key())) {
+                CubeLog::info("Ignoring legacy setting key: " + it.key());
+                continue;
+            }
             CubeLog::warning("Unknown setting key: " + it.key());
             continue;
         }

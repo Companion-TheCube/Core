@@ -1,134 +1,279 @@
 #include "mmWavePresenceEstimator.h"
 #include "mmWave.h"
 #include <algorithm>
-#include <cmath>
+#include <optional>
+#include <vector>
 
-MmWavePresenceEstimator::MmWavePresenceEstimator(const MmWavePresenceParams& params)
-    : params_(params)
+namespace {
+
+constexpr int MMWAVE_MIN_AVERAGE_WINDOW_SECS = 1;
+constexpr int MMWAVE_MAX_AVERAGE_WINDOW_SECS = 30;
+
+constexpr float MMWAVE_PRESENT_DISTANCE_CM = 100.0f;
+constexpr float MMWAVE_BASE_ABSENT_DETECTION_DISTANCE_CM = 150.0f;
+constexpr float MMWAVE_BASE_ABSENT_MOVING_DISTANCE_CM = 200.0f;
+constexpr float MMWAVE_BASE_ABSENT_STATIONARY_DISTANCE_CM = 200.0f;
+constexpr float MMWAVE_TARGET_STATE_NONE_ABSENT_REDUCTION = 0.15f;
+constexpr float MMWAVE_LOW_STATIONARY_ENERGY_ABSENT_REDUCTION = 0.10f;
+constexpr float MMWAVE_LOW_STATIONARY_ENERGY_THRESHOLD = 75.0f;
+constexpr float MMWAVE_MIN_ABSENT_THRESHOLD_MULTIPLIER = 0.5f;
+
+template <typename Accessor>
+std::optional<float> averageMetric(
+    const auto& samples,
+    std::chrono::steady_clock::time_point latestTimestamp,
+    int windowSeconds,
+    Accessor accessor)
+{
+    if (samples.empty()) {
+        return std::nullopt;
+    }
+
+    const auto cutoff = latestTimestamp - std::chrono::seconds(windowSeconds);
+    float total = 0.0f;
+    size_t count = 0;
+
+    for (const auto& sample : samples) {
+        if (sample.timestamp < cutoff) {
+            continue;
+        }
+
+        total += accessor(sample);
+        ++count;
+    }
+
+    if (count == 0) {
+        return std::nullopt;
+    }
+
+    return total / static_cast<float>(count);
+}
+
+struct MetricComparison {
+    std::optional<float> average;
+    float absentThreshold = 0.0f;
+    float presentThreshold = MMWAVE_PRESENT_DISTANCE_CM;
+};
+
+MmWavePresenceConfig normalizeConfig(const MmWavePresenceConfig& config)
+{
+    MmWavePresenceConfig normalized = config;
+    normalized.detectionDistanceAverageWindowSecs = std::clamp(
+        normalized.detectionDistanceAverageWindowSecs,
+        MMWAVE_MIN_AVERAGE_WINDOW_SECS,
+        MMWAVE_MAX_AVERAGE_WINDOW_SECS);
+    normalized.movingDistanceAverageWindowSecs = std::clamp(
+        normalized.movingDistanceAverageWindowSecs,
+        MMWAVE_MIN_AVERAGE_WINDOW_SECS,
+        MMWAVE_MAX_AVERAGE_WINDOW_SECS);
+    normalized.stationaryDistanceAverageWindowSecs = std::clamp(
+        normalized.stationaryDistanceAverageWindowSecs,
+        MMWAVE_MIN_AVERAGE_WINDOW_SECS,
+        MMWAVE_MAX_AVERAGE_WINDOW_SECS);
+    normalized.stationaryEnergyAverageWindowSecs = std::clamp(
+        normalized.stationaryEnergyAverageWindowSecs,
+        MMWAVE_MIN_AVERAGE_WINDOW_SECS,
+        MMWAVE_MAX_AVERAGE_WINDOW_SECS);
+    return normalized;
+}
+
+} // namespace
+
+MmWavePresenceEstimator::MmWavePresenceEstimator(const MmWavePresenceConfig& config)
+    : config_(normalizeConfig(config))
 {
 }
 
-void MmWavePresenceEstimator::setParams(const MmWavePresenceParams& params)
+void MmWavePresenceEstimator::setConfig(const MmWavePresenceConfig& config)
 {
-    params_ = params;
-    reset();
+    config_ = normalizeConfig(config);
+
+    if (!samples_.empty()) {
+        const auto latestTimestamp = samples_.back().timestamp;
+        pruneSamples(latestTimestamp);
+        recomputeDecision(latestTimestamp);
+    }
 }
 
-const MmWavePresenceParams& MmWavePresenceEstimator::getParams() const
+const MmWavePresenceConfig& MmWavePresenceEstimator::getConfig() const
 {
-    return params_;
+    return config_;
 }
 
 void MmWavePresenceEstimator::reset()
 {
-    confidence_ = 0.0f;
-    occupied_ = false;
-    initialized_ = false;
-    lastUpdate_ = {};
+    samples_.clear();
+    state_ = MmWavePresenceState::Unknown;
+    lastDecision_ = {};
 }
 
-float MmWavePresenceEstimator::update(const MmWaveReading& reading, std::chrono::steady_clock::time_point now)
+MmWavePresenceDecision MmWavePresenceEstimator::update(
+    const MmWaveReading& reading,
+    std::chrono::steady_clock::time_point now)
 {
-    const bool hasMoving = (reading.targetState & 0x01u) != 0u;
-    const bool hasStationary = (reading.targetState & 0x02u) != 0u;
-
-    const float movingStrength = normalize(static_cast<float>(reading.movingTargetEnergy), params_.movingFloor, params_.movingSat);
-    const float stationaryStrength = normalize(static_cast<float>(reading.stationaryTargetEnergy), params_.stationaryFloor, params_.stationarySat);
-
-    const float movingComponent = (0.75f * movingStrength) + (0.25f * (hasMoving ? 1.0f : 0.0f));
-    const float stationaryComponent = (0.85f * stationaryStrength) + (0.15f * (hasStationary ? 1.0f : 0.0f));
-    const float combinedEvidence = 1.0f - ((1.0f - movingComponent) * (1.0f - stationaryComponent));
-
-    const float chosenDistanceCm = chooseDistanceCm(reading);
-    const float zoneScore = computeZoneScore(chosenDistanceCm);
-    const float rawPresence = clamp01(zoneScore * combinedEvidence);
-
-    if (!initialized_) {
-        confidence_ = rawPresence;
-        occupied_ = (confidence_ >= params_.occupiedThreshold);
-        initialized_ = true;
-        lastUpdate_ = now;
-        return confidence_;
-    }
-
-    const float dtSeconds = std::max(0.0f,
-        std::chrono::duration<float>(now - lastUpdate_).count());
-    lastUpdate_ = now;
-
-    const float tauAttackSeconds = std::max(params_.tauAttackMs, 1.0f) / 1000.0f;
-    const float tauReleaseSeconds = std::max(params_.tauReleaseMs, 1.0f) / 1000.0f;
-    const float alphaAttack = 1.0f - std::exp(-dtSeconds / tauAttackSeconds);
-    const float alphaRelease = 1.0f - std::exp(-dtSeconds / tauReleaseSeconds);
-    const float alpha = (rawPresence > confidence_) ? alphaAttack : alphaRelease;
-
-    confidence_ += alpha * (rawPresence - confidence_);
-    confidence_ = clamp01(confidence_);
-
-    if (!occupied_ && confidence_ >= params_.occupiedThreshold) {
-        occupied_ = true;
-    } else if (occupied_ && confidence_ <= params_.vacantThreshold) {
-        occupied_ = false;
-    }
-
-    return confidence_;
+    samples_.push_back({
+        reading.targetState,
+        reading.movingTargetDistance,
+        reading.movingTargetEnergy,
+        reading.stationaryTargetDistance,
+        reading.stationaryTargetEnergy,
+        reading.detectionDistance,
+        now
+    });
+    pruneSamples(now);
+    recomputeDecision(now);
+    return lastDecision_;
 }
 
-float MmWavePresenceEstimator::confidence() const
+MmWavePresenceState MmWavePresenceEstimator::state() const
 {
-    return confidence_;
+    return state_;
 }
 
-bool MmWavePresenceEstimator::isOccupied() const
+MmWavePresenceDecision MmWavePresenceEstimator::decision() const
 {
-    return occupied_;
+    return lastDecision_;
 }
 
-bool MmWavePresenceEstimator::isInitialized() const
+bool MmWavePresenceEstimator::isPresent() const
 {
-    return initialized_;
+    return state_ == MmWavePresenceState::Present;
 }
 
-float MmWavePresenceEstimator::clamp01(float value)
+int MmWavePresenceEstimator::clampWindowSeconds(int value)
 {
-    return std::clamp(value, 0.0f, 1.0f);
+    return std::clamp(value, MMWAVE_MIN_AVERAGE_WINDOW_SECS, MMWAVE_MAX_AVERAGE_WINDOW_SECS);
 }
 
-float MmWavePresenceEstimator::normalize(float value, float floor, float saturation)
+void MmWavePresenceEstimator::pruneSamples(std::chrono::steady_clock::time_point latestTimestamp)
 {
-    if (saturation <= floor) {
-        return 0.0f;
+    if (samples_.empty()) {
+        return;
     }
-    return clamp01((value - floor) / (saturation - floor));
+
+    const auto cutoff = latestTimestamp - std::chrono::seconds(maxAverageWindowSeconds());
+    while (!samples_.empty() && samples_.front().timestamp < cutoff) {
+        samples_.pop_front();
+    }
 }
 
-float MmWavePresenceEstimator::chooseDistanceCm(const MmWaveReading& reading) const
+void MmWavePresenceEstimator::recomputeDecision(std::chrono::steady_clock::time_point latestTimestamp)
 {
-    const bool hasMoving = (reading.targetState & 0x01u) != 0u;
-    const bool hasStationary = (reading.targetState & 0x02u) != 0u;
+    MmWavePresenceDecision nextDecision;
+    nextDecision.state = state_;
+    nextDecision.timestamp = latestTimestamp;
 
-    if (hasStationary && reading.stationaryTargetDistance > 0) {
-        return static_cast<float>(reading.stationaryTargetDistance);
+    if (samples_.empty()) {
+        lastDecision_ = nextDecision;
+        return;
     }
-    if (hasMoving && reading.movingTargetDistance > 0) {
-        return static_cast<float>(reading.movingTargetDistance);
+
+    const BufferedReading& latestReading = samples_.back();
+    const uint8_t latestTargetState = latestReading.targetState & 0x03u;
+    nextDecision.latestTargetState = latestTargetState;
+
+    nextDecision.detectionDistanceAverageCm = averageMetric(
+        samples_,
+        latestTimestamp,
+        config_.detectionDistanceAverageWindowSecs,
+        [](const BufferedReading& reading) {
+            return static_cast<float>(reading.detectionDistance);
+        });
+    nextDecision.movingTargetDistanceAverageCm = averageMetric(
+        samples_,
+        latestTimestamp,
+        config_.movingDistanceAverageWindowSecs,
+        [](const BufferedReading& reading) {
+            return static_cast<float>(reading.movingTargetDistance);
+        });
+    nextDecision.stationaryTargetDistanceAverageCm = averageMetric(
+        samples_,
+        latestTimestamp,
+        config_.stationaryDistanceAverageWindowSecs,
+        [](const BufferedReading& reading) {
+            return static_cast<float>(reading.stationaryTargetDistance);
+        });
+    nextDecision.stationaryTargetEnergyAverage = averageMetric(
+        samples_,
+        latestTimestamp,
+        config_.stationaryEnergyAverageWindowSecs,
+        [](const BufferedReading& reading) {
+            return static_cast<float>(reading.stationaryTargetEnergy);
+        });
+
+    float reduction = 0.0f;
+    if (latestTargetState == 0u) {
+        reduction += MMWAVE_TARGET_STATE_NONE_ABSENT_REDUCTION;
     }
-    return static_cast<float>(reading.detectionDistance);
+    if (nextDecision.stationaryTargetEnergyAverage.has_value()
+        && *nextDecision.stationaryTargetEnergyAverage < MMWAVE_LOW_STATIONARY_ENERGY_THRESHOLD) {
+        reduction += MMWAVE_LOW_STATIONARY_ENERGY_ABSENT_REDUCTION;
+    }
+
+    const float multiplier = std::max(MMWAVE_MIN_ABSENT_THRESHOLD_MULTIPLIER, 1.0f - reduction);
+    nextDecision.absentDetectionDistanceThresholdCm = MMWAVE_BASE_ABSENT_DETECTION_DISTANCE_CM * multiplier;
+    nextDecision.absentMovingDistanceThresholdCm = MMWAVE_BASE_ABSENT_MOVING_DISTANCE_CM * multiplier;
+    nextDecision.absentStationaryDistanceThresholdCm = MMWAVE_BASE_ABSENT_STATIONARY_DISTANCE_CM * multiplier;
+
+    std::vector<MetricComparison> activeMetrics;
+    activeMetrics.reserve(3);
+    activeMetrics.push_back({
+        nextDecision.detectionDistanceAverageCm,
+        nextDecision.absentDetectionDistanceThresholdCm,
+        MMWAVE_PRESENT_DISTANCE_CM
+    });
+
+    if (latestTargetState == 1u || latestTargetState == 3u) {
+        activeMetrics.push_back({
+            nextDecision.movingTargetDistanceAverageCm,
+            nextDecision.absentMovingDistanceThresholdCm,
+            MMWAVE_PRESENT_DISTANCE_CM
+        });
+    }
+
+    if (latestTargetState == 2u || latestTargetState == 3u) {
+        activeMetrics.push_back({
+            nextDecision.stationaryTargetDistanceAverageCm,
+            nextDecision.absentStationaryDistanceThresholdCm,
+            MMWAVE_PRESENT_DISTANCE_CM
+        });
+    }
+
+    const bool hasAllAverages = std::all_of(
+        activeMetrics.begin(),
+        activeMetrics.end(),
+        [](const MetricComparison& metric) {
+            return metric.average.has_value();
+        });
+
+    if (hasAllAverages
+        && std::all_of(
+            activeMetrics.begin(),
+            activeMetrics.end(),
+            [](const MetricComparison& metric) {
+                return metric.average.has_value() && *metric.average < metric.presentThreshold;
+            })) {
+        state_ = MmWavePresenceState::Present;
+    } else if (hasAllAverages
+        && std::all_of(
+            activeMetrics.begin(),
+            activeMetrics.end(),
+            [](const MetricComparison& metric) {
+                return metric.average.has_value() && *metric.average > metric.absentThreshold;
+            })) {
+        state_ = MmWavePresenceState::Absent;
+    }
+
+    nextDecision.state = state_;
+    lastDecision_ = nextDecision;
 }
 
-float MmWavePresenceEstimator::computeZoneScore(float distanceCm) const
+int MmWavePresenceEstimator::maxAverageWindowSeconds() const
 {
-    const float delta = std::fabs(distanceCm - params_.deskDistanceCm);
-
-    if (delta <= params_.innerRadiusCm) {
-        return 1.0f;
-    }
-    if (delta >= params_.outerRadiusCm) {
-        return 0.0f;
-    }
-    if (params_.outerRadiusCm <= params_.innerRadiusCm) {
-        return 0.0f;
-    }
-
-    const float t = (delta - params_.innerRadiusCm) / (params_.outerRadiusCm - params_.innerRadiusCm);
-    return clamp01(1.0f - t);
+    return std::max({
+        clampWindowSeconds(config_.detectionDistanceAverageWindowSecs),
+        clampWindowSeconds(config_.movingDistanceAverageWindowSecs),
+        clampWindowSeconds(config_.stationaryDistanceAverageWindowSecs),
+        clampWindowSeconds(config_.stationaryEnergyAverageWindowSecs)
+    });
 }

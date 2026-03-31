@@ -32,61 +32,60 @@ SOFTWARE.
 */
 
 #include "peripheralManager.h"
-#include "../gui/gui.h"
 #include "../settings/globalSettings.h"
-#include <chrono>
-#include <thread>
+#include <algorithm>
 
 namespace {
-MmWavePresenceParams loadPresenceParamsFromSettings()
+
+int clampAverageWindowSeconds(int value)
 {
-    MmWavePresenceParams params;
-    params.deskDistanceCm = GlobalSettings::getSettingOfType<float>(GlobalSettings::SettingType::MMWAVE_DESK_DISTANCE_CM);
-    params.innerRadiusCm = GlobalSettings::getSettingOfType<float>(GlobalSettings::SettingType::MMWAVE_DESK_INNER_RADIUS_CM);
-    params.outerRadiusCm = GlobalSettings::getSettingOfType<float>(GlobalSettings::SettingType::MMWAVE_DESK_OUTER_RADIUS_CM);
-    params.movingFloor = GlobalSettings::getSettingOfType<float>(GlobalSettings::SettingType::MMWAVE_MOVING_ENERGY_FLOOR);
-    params.movingSat = GlobalSettings::getSettingOfType<float>(GlobalSettings::SettingType::MMWAVE_MOVING_ENERGY_SAT);
-    params.stationaryFloor = GlobalSettings::getSettingOfType<float>(GlobalSettings::SettingType::MMWAVE_STATIONARY_ENERGY_FLOOR);
-    params.stationarySat = GlobalSettings::getSettingOfType<float>(GlobalSettings::SettingType::MMWAVE_STATIONARY_ENERGY_SAT);
-    params.tauAttackMs = GlobalSettings::getSettingOfType<float>(GlobalSettings::SettingType::MMWAVE_PRESENCE_ATTACK_MS);
-    params.tauReleaseMs = GlobalSettings::getSettingOfType<float>(GlobalSettings::SettingType::MMWAVE_PRESENCE_RELEASE_MS);
-    params.occupiedThreshold = GlobalSettings::getSettingOfType<float>(GlobalSettings::SettingType::MMWAVE_PRESENCE_OCCUPIED_THRESHOLD);
-    params.vacantThreshold = GlobalSettings::getSettingOfType<float>(GlobalSettings::SettingType::MMWAVE_PRESENCE_VACANT_THRESHOLD);
-    return params;
-}
+    return std::clamp(value, 1, 30);
 }
 
-std::function<void()> PeripheralManager::onMmWaveTuningRequested;
+MmWavePresenceConfig loadPresenceConfigFromSettings()
+{
+    MmWavePresenceConfig config;
+    config.detectionDistanceAverageWindowSecs = clampAverageWindowSeconds(
+        GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::MMWAVE_DETECTION_DISTANCE_AVERAGE_WINDOW_SECS));
+    config.movingDistanceAverageWindowSecs = clampAverageWindowSeconds(
+        GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::MMWAVE_MOVING_DISTANCE_AVERAGE_WINDOW_SECS));
+    config.stationaryDistanceAverageWindowSecs = clampAverageWindowSeconds(
+        GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::MMWAVE_STATIONARY_DISTANCE_AVERAGE_WINDOW_SECS));
+    config.stationaryEnergyAverageWindowSecs = clampAverageWindowSeconds(
+        GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::MMWAVE_STATIONARY_ENERGY_AVERAGE_WINDOW_SECS));
+    return config;
+}
+
+} // namespace
 
 PeripheralManager::PeripheralManager()
 {
     this->mmWaveSensor = std::make_unique<mmWave>();
-    this->mmWaveSensor->setPresenceParams(loadPresenceParamsFromSettings());
+    syncPresenceConfigFromSettings();
 
-    // Once the serial port opens, re-apply any saved calibration automatically.
-    this->mmWaveSensor->setOnReadyCallback([this]() {
-        if (GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::MMWAVE_IS_CALIBRATED)) {
-            int movGate = GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::MMWAVE_MAX_MOVING_GATE);
-            int restGate = GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::MMWAVE_MAX_RESTING_GATE);
-            int unmanned = GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::MMWAVE_UNMANNED_DURATION_SECS);
-            int motSens = GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::MMWAVE_MOTION_SENSITIVITY);
-            int restSens = GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::MMWAVE_RESTING_SENSITIVITY);
-            this->mmWaveSensor->setPresenceParams(loadPresenceParamsFromSettings());
-            this->mmWaveSensor->configure(movGate, restGate, unmanned, motSens, restSens);
-        }
-    });
+    const auto registerConfigCallback = [this](GlobalSettings::SettingType settingType) {
+        GlobalSettings::setSettingCB(settingType, [this]() {
+            syncPresenceConfigFromSettings();
+        });
+    };
+
+    registerConfigCallback(GlobalSettings::SettingType::MMWAVE_DETECTION_DISTANCE_AVERAGE_WINDOW_SECS);
+    registerConfigCallback(GlobalSettings::SettingType::MMWAVE_MOVING_DISTANCE_AVERAGE_WINDOW_SECS);
+    registerConfigCallback(GlobalSettings::SettingType::MMWAVE_STATIONARY_DISTANCE_AVERAGE_WINDOW_SECS);
+    registerConfigCallback(GlobalSettings::SettingType::MMWAVE_STATIONARY_ENERGY_AVERAGE_WINDOW_SECS);
 }
 
 PeripheralManager::~PeripheralManager()
 {
 }
 
-float PeripheralManager::getMmWavePresenceConfidence()
+void PeripheralManager::syncPresenceConfigFromSettings()
 {
     if (!mmWaveSensor) {
-        return 0.0f;
+        return;
     }
-    return mmWaveSensor->getPresenceConfidence();
+
+    mmWaveSensor->setPresenceConfig(loadPresenceConfigFromSettings());
 }
 
 bool PeripheralManager::isMmWavePresent()
@@ -95,156 +94,4 @@ bool PeripheralManager::isMmWavePresent()
         return false;
     }
     return mmWaveSensor->isPresent();
-}
-
-void PeripheralManager::startTuning()
-{
-    if (onMmWaveTuningRequested) {
-        onMmWaveTuningRequested();
-    }
-}
-
-void PeripheralManager::applyCalibration(int unmannedSecs)
-{
-    if (!mmWaveTuner_ || !mmWaveSensor) {
-        return;
-    }
-
-    MmWaveTuner::CalibrationResult result = mmWaveTuner_->analyze();
-
-    GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_MAX_MOVING_GATE, result.maxMovingGate);
-    GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_MAX_RESTING_GATE, result.maxRestingGate);
-    GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_UNMANNED_DURATION_SECS, unmannedSecs);
-    GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_MOTION_SENSITIVITY, result.motionSensitivity);
-    GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_RESTING_SENSITIVITY, result.restingSensitivity);
-    GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_DESK_DISTANCE_CM, result.presenceParams.deskDistanceCm);
-    GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_DESK_INNER_RADIUS_CM, result.presenceParams.innerRadiusCm);
-    GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_DESK_OUTER_RADIUS_CM, result.presenceParams.outerRadiusCm);
-    GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_MOVING_ENERGY_FLOOR, result.presenceParams.movingFloor);
-    GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_MOVING_ENERGY_SAT, result.presenceParams.movingSat);
-    GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_STATIONARY_ENERGY_FLOOR, result.presenceParams.stationaryFloor);
-    GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_STATIONARY_ENERGY_SAT, result.presenceParams.stationarySat);
-    GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_PRESENCE_ATTACK_MS, result.presenceParams.tauAttackMs);
-    GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_PRESENCE_RELEASE_MS, result.presenceParams.tauReleaseMs);
-    GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_PRESENCE_OCCUPIED_THRESHOLD, result.presenceParams.occupiedThreshold);
-    GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_PRESENCE_VACANT_THRESHOLD, result.presenceParams.vacantThreshold);
-    GlobalSettings::setSetting(GlobalSettings::SettingType::MMWAVE_IS_CALIBRATED, true);
-
-    mmWaveSensor->setPresenceParams(result.presenceParams);
-    mmWaveSensor->configure(result.maxMovingGate, result.maxRestingGate, unmannedSecs,
-        result.motionSensitivity, result.restingSensitivity);
-}
-
-void PeripheralManager::startMmWaveTuning()
-{
-    if (!mmWaveSensor) {
-        CubeLog::error("PeripheralManager: mmWave sensor not initialised.");
-        return;
-    }
-
-    // Allocate a fresh tuner for this session.
-    mmWaveTuner_ = std::make_unique<MmWaveTuner>(mmWaveSensor.get());
-
-    GUI::showNotificationWithCallback(
-        "Presence Sensor Calibration",
-        "Would you like to calibrate the presence sensor?\n\nThe wizard takes about 1 minute.",
-        NotificationsManager::NotificationType::NOTIFICATION_OKAY,
-        // ── YES ──────────────────────────────────────────────────────────────
-        [this]() {
-            GUI::suspendVisibleMenus();
-
-            if (!mmWaveSensor->resetToDefaults()) {
-                CubeLog::warning("Calibration: failed to reset sensor to defaults; continuing with current sensor configuration.");
-            }
-
-            auto showCountdownThen = std::make_shared<std::function<void(
-                const std::string&, const std::string&, int, std::function<void()>)>>();
-
-            *showCountdownThen = [showCountdownThen](
-                                     const std::string& title,
-                                     const std::string& instructions,
-                                     int seconds,
-                                     std::function<void()> onComplete) {
-                auto tick = std::make_shared<std::function<void(int)>>();
-                *tick = [title, instructions, onComplete, tick](int remaining) {
-                    std::string message = instructions + "\n\nStarting in " + std::to_string(std::max(remaining, 0)) + "...";
-                    GUI::showMessageBox(title, message, { 720, 720 }, { 0, 0 }, []() { });
-                    if (remaining <= 0) {
-                        if (onComplete) {
-                            onComplete();
-                        }
-                        return;
-                    }
-                    std::thread([tick, remaining]() {
-                        std::this_thread::sleep_for(std::chrono::seconds(1));
-                        (*tick)(remaining - 1);
-                    }).detach();
-                };
-                (*tick)(seconds);
-            };
-
-            (*showCountdownThen)(
-                "Step 1 of 3 — Prepare Empty Workspace",
-                "Step 1 requires an empty room/workspace for 15 seconds.",
-                10,
-                [this, showCountdownThen]() {
-                    GUI::showMessageBox(
-                        "Step 1 of 3 — Analyzing Empty Workspace",
-                        "Analyzing an empty room/workspace for 15 seconds...",
-                        { 720, 720 }, { 0, 0 }, []() { });
-
-                    mmWaveTuner_->startPhase(0, 15000, [this, showCountdownThen]() {
-                        (*showCountdownThen)(
-                            "Step 2 of 3 — Prepare Movement",
-                            "Step 2 requires 15 seconds of movement around the room/workspace.",
-                            10,
-                            [this, showCountdownThen]() {
-                                GUI::showMessageBox(
-                                    "Step 2 of 3 — Analyzing Movement",
-                                    "Analyzing movement around the room/workspace for 15 seconds...",
-                                    { 720, 720 }, { 0, 0 }, []() { });
-
-                                mmWaveTuner_->startPhase(1, 15000, [this, showCountdownThen]() {
-                                    (*showCountdownThen)(
-                                        "Step 3 of 3 — Prepare Seated Position",
-                                        "Step 3 requires you to sit at your workspace in your normal work position for 15 seconds.",
-                                        10,
-                                        [this]() {
-                                            GUI::showMessageBox(
-                                                "Step 3 of 3 — Analyzing Seated Position",
-                                                "Analyzing your seated workspace position for 15 seconds...",
-                                                { 720, 720 }, { 0, 0 }, []() { });
-
-                                            mmWaveTuner_->startPhase(2, 15000, [this]() {
-                                                GUI::hideMessageBox();
-
-                                                GUI::showSliderBox(
-                                                    "Time Until Workspace Marked Vacant (seconds)",
-                                                    5, 0, 300, 5,
-                                                    [this](int secs) {
-                                                        applyCalibration(secs);
-                                                        GUI::showNotificationWithCallback(
-                                                            "Calibration Complete",
-                                                            "Presence sensor calibration is complete.\nSelect Approve to return to the menu.",
-                                                            NotificationsManager::NotificationType::NOTIFICATION_OKAY,
-                                                            []() { GUI::restoreSuspendedMenus(); },
-                                                            []() { GUI::restoreSuspendedMenus(); });
-                                                    },
-                                                    []() {
-                                                        GUI::showNotificationWithCallback(
-                                                            "Calibration Cancelled",
-                                                            "Sensor calibration was cancelled. Previous settings are unchanged.\nSelect Approve to return to the menu.",
-                                                            NotificationsManager::NotificationType::NOTIFICATION_WARNING,
-                                                            []() { GUI::restoreSuspendedMenus(); },
-                                                            []() { GUI::restoreSuspendedMenus(); });
-                                                    });
-                                            });
-                                        });
-                                });
-                            });
-                    });
-                });
-        },
-        // ── NO ───────────────────────────────────────────────────────────────
-        []() {});
 }

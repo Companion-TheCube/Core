@@ -272,9 +272,6 @@ int main(int argc, char* argv[])
         auto auth = std::make_shared<CubeAuth>();
         auto appPostgresAccess = std::make_shared<AppPostgresAccess>();
         auto peripherals = std::make_shared<PeripheralManager>();
-        PeripheralManager::onMmWaveTuningRequested = [peripherals]() {
-            peripherals->startMmWaveTuning();
-        };
         auto decisions = std::make_shared<DecisionEngine::DecisionEngineMain>();
 
         API_Builder api_builder(api);

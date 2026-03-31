@@ -1,50 +1,71 @@
 #pragma once
 
 #include <chrono>
+#include <cstdint>
+#include <deque>
+#include <optional>
 
 struct MmWaveReading;
 
-struct MmWavePresenceParams {
-    float deskDistanceCm = 90.0f;
-    float innerRadiusCm = 35.0f;
-    float outerRadiusCm = 90.0f;
+struct MmWavePresenceConfig {
+    int detectionDistanceAverageWindowSecs = 10;
+    int movingDistanceAverageWindowSecs = 10;
+    int stationaryDistanceAverageWindowSecs = 10;
+    int stationaryEnergyAverageWindowSecs = 10;
+};
 
-    float movingFloor = 10.0f;
-    float movingSat = 80.0f;
-    float stationaryFloor = 8.0f;
-    float stationarySat = 70.0f;
+enum class MmWavePresenceState : uint8_t {
+    Unknown = 0,
+    Present,
+    Absent
+};
 
-    float tauAttackMs = 500.0f;
-    float tauReleaseMs = 8000.0f;
-
-    float occupiedThreshold = 0.65f;
-    float vacantThreshold = 0.35f;
+struct MmWavePresenceDecision {
+    MmWavePresenceState state = MmWavePresenceState::Unknown;
+    std::chrono::steady_clock::time_point timestamp {};
+    std::optional<float> detectionDistanceAverageCm;
+    std::optional<float> movingTargetDistanceAverageCm;
+    std::optional<float> stationaryTargetDistanceAverageCm;
+    std::optional<float> stationaryTargetEnergyAverage;
+    std::optional<uint8_t> latestTargetState;
+    float absentDetectionDistanceThresholdCm = 150.0f;
+    float absentMovingDistanceThresholdCm = 200.0f;
+    float absentStationaryDistanceThresholdCm = 200.0f;
 };
 
 class MmWavePresenceEstimator {
 public:
-    explicit MmWavePresenceEstimator(const MmWavePresenceParams& params = {});
+    explicit MmWavePresenceEstimator(const MmWavePresenceConfig& config = {});
 
-    void setParams(const MmWavePresenceParams& params);
-    const MmWavePresenceParams& getParams() const;
+    void setConfig(const MmWavePresenceConfig& config);
+    const MmWavePresenceConfig& getConfig() const;
 
     void reset();
-    float update(const MmWaveReading& reading, std::chrono::steady_clock::time_point now);
+    MmWavePresenceDecision update(const MmWaveReading& reading, std::chrono::steady_clock::time_point now);
 
-    float confidence() const;
-    bool isOccupied() const;
-    bool isInitialized() const;
+    MmWavePresenceState state() const;
+    MmWavePresenceDecision decision() const;
+    bool isPresent() const;
 
 private:
-    static float clamp01(float value);
-    static float normalize(float value, float floor, float saturation);
+    struct BufferedReading {
+        uint8_t targetState = 0;
+        uint16_t movingTargetDistance = 0;
+        uint8_t movingTargetEnergy = 0;
+        uint16_t stationaryTargetDistance = 0;
+        uint8_t stationaryTargetEnergy = 0;
+        uint16_t detectionDistance = 0;
+        std::chrono::steady_clock::time_point timestamp {};
+    };
 
-    float chooseDistanceCm(const MmWaveReading& reading) const;
-    float computeZoneScore(float distanceCm) const;
+    static int clampWindowSeconds(int value);
 
-    MmWavePresenceParams params_;
-    float confidence_ = 0.0f;
-    bool occupied_ = false;
-    bool initialized_ = false;
-    std::chrono::steady_clock::time_point lastUpdate_ {};
+    void pruneSamples(std::chrono::steady_clock::time_point latestTimestamp);
+    void recomputeDecision(std::chrono::steady_clock::time_point latestTimestamp);
+    int maxAverageWindowSeconds() const;
+
+    MmWavePresenceConfig config_ {};
+    std::deque<BufferedReading> samples_;
+    MmWavePresenceState state_ = MmWavePresenceState::Unknown;
+    MmWavePresenceDecision lastDecision_ {};
 };

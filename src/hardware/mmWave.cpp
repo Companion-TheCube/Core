@@ -106,8 +106,7 @@ bool containsSubsequence(const std::vector<uint8_t>& haystack, const std::vector
 bool hasLikelyFrameSignature(const std::vector<uint8_t>& stream)
 {
     const std::vector<uint8_t> reportHeader = REPORT_HEADER;
-    const std::vector<uint8_t> commandHeader = COMMAND_HEADER;
-    return containsSubsequence(stream, reportHeader) || containsSubsequence(stream, commandHeader);
+    return containsSubsequence(stream, reportHeader);
 }
 
 bool probeSerialStreamSignature(int fd, int timeoutMs)
@@ -146,7 +145,7 @@ static int serialOpen(const char* port, int baud)
         return -1;
     }
 
-    struct termios2 options {};
+    struct termios2 options { };
     if (ioctl(fd, TCGETS2, &options) != 0) {
         ::close(fd);
         return -1;
@@ -211,15 +210,9 @@ namespace {
 MmWaveSerialBackend makeRealSerialBackend()
 {
     return {
-        .open = [](const std::string& path, int baud) {
-            return serialOpen(path.c_str(), baud);
-        },
-        .close = [](int fd) {
-            serialClose(fd);
-        },
-        .probeSignature = [](int fd, int timeoutMs) {
-            return probeSerialStreamSignature(fd, timeoutMs);
-        }
+        .open = [](const std::string& path, int baud) { return serialOpen(path.c_str(), baud); },
+        .close = [](int fd) { serialClose(fd); },
+        .probeSignature = [](int fd, int timeoutMs) { return probeSerialStreamSignature(fd, timeoutMs); }
     };
 }
 }
@@ -265,16 +258,37 @@ void mmWave::readerLoop(std::stop_token stopToken)
 
         if (millis() - lastPrintTime > 2000) {
             MmWaveReading r = getReading();
-            float score = getPresenceConfidence();
-            CubeLog::info("Target State: " + std::to_string(r.targetState));
-            CubeLog::info("Moving Target Distance: " + std::to_string(r.movingTargetDistance));
-            CubeLog::info("Moving Target Energy: " + std::to_string(r.movingTargetEnergy));
-            CubeLog::info("Stationary Target Distance: " + std::to_string(r.stationaryTargetDistance));
-            CubeLog::info("Stationary Target Energy: " + std::to_string(r.stationaryTargetEnergy));
-            CubeLog::info("Detection Distance: " + std::to_string(r.detectionDistance));
-            CubeLog::info("Presence Confidence: " + std::to_string(score));
+            MmWavePresenceDecision decision = getPresenceDecision();
+            CubeLog::debugSilly("Target State: " + std::to_string(r.targetState));
+            CubeLog::debugSilly("Moving Target Distance: " + std::to_string(r.movingTargetDistance));
+            CubeLog::debugSilly("Moving Target Energy: " + std::to_string(r.movingTargetEnergy));
+            CubeLog::debugSilly("Stationary Target Distance: " + std::to_string(r.stationaryTargetDistance));
+            CubeLog::debugSilly("Stationary Target Energy: " + std::to_string(r.stationaryTargetEnergy));
+            CubeLog::debugSilly("Detection Distance: " + std::to_string(r.detectionDistance));
+
+            decision.state == MmWavePresenceState::Present ? CubeLog::moreInfo("Presence State: PRESENT")
+                : decision.state == MmWavePresenceState::Absent     ?  CubeLog::error("Presence State: ABSENT")
+                                                        : CubeLog::warning("Presence State: UNKNOWN");
+            CubeLog::debugSilly("Averaged Detection Distance: "
+                + (decision.detectionDistanceAverageCm.has_value()
+                        ? std::to_string(*decision.detectionDistanceAverageCm)
+                        : std::string("n/a")));
+            CubeLog::debugSilly("Averaged Moving Distance: "
+                + (decision.movingTargetDistanceAverageCm.has_value()
+                        ? std::to_string(*decision.movingTargetDistanceAverageCm)
+                        : std::string("n/a")));
+            CubeLog::debugSilly("Averaged Stationary Distance: "
+                + (decision.stationaryTargetDistanceAverageCm.has_value()
+                        ? std::to_string(*decision.stationaryTargetDistanceAverageCm)
+                        : std::string("n/a")));
+            CubeLog::debugSilly("Averaged Stationary Energy: "
+                + (decision.stationaryTargetEnergyAverage.has_value()
+                        ? std::to_string(*decision.stationaryTargetEnergyAverage)
+                        : std::string("n/a")));
+            CubeLog::debugSilly("Absent Thresholds: detection=" + std::to_string(decision.absentDetectionDistanceThresholdCm)
+                + " moving=" + std::to_string(decision.absentMovingDistanceThresholdCm)
+                + " stationary=" + std::to_string(decision.absentStationaryDistanceThresholdCm));
             lastPrintTime = millis();
-            CubeLog::debugSilly("Detected: " + std::string(isPresent() ? "PRESENT" : "ABSENT"));
         }
 
         genericSleep(10);
@@ -326,7 +340,6 @@ bool mmWave::connectWithCandidatesLocked(const std::vector<std::string>& paths, 
     serialPort_h = result.fd;
     connectedSerialPath_ = result.path;
     connectedBaud_ = result.baud;
-    configModeEnabled = false;
     isReady_.store(true);
     CubeLog::info("mmWave serial ready path=" + connectedSerialPath_
         + " baud=" + std::to_string(connectedBaud_));
@@ -341,7 +354,6 @@ void mmWave::markDisconnected(const std::string& reason)
     } else {
         CubeLog::warning("mmWave: still disconnected. reason=" + reason);
     }
-    configModeEnabled = false;
     closeSerialPortLocked();
 
     std::lock_guard<std::mutex> readingLock(readingMutex);
@@ -350,7 +362,7 @@ void mmWave::markDisconnected(const std::string& reason)
 
 void mmWave::resetPresenceStateLocked()
 {
-    currentReading = {};
+    currentReading = { };
     presenceEstimator_.reset();
 }
 
@@ -383,143 +395,10 @@ mmWave::~mmWave()
 
     std::lock_guard<std::mutex> serialLock(serialMutex);
     closeSerialPortLocked();
-    configModeEnabled = false;
     isReady_.store(false);
 
     std::lock_guard<std::mutex> readingLock(readingMutex);
     resetPresenceStateLocked();
-}
-
-Response mmWave::sendCommand(std::vector<uint8_t> command)
-{
-    Response response;
-    if (this->serialPort_h < 0) {
-        response.success = false;
-        response.errorReason = "serial port unavailable";
-        CubeLog::error("mmWave::sendCommand: serial port unavailable.");
-        return response;
-    }
-
-    std::vector<uint8_t> dataToSend = COMMAND_HEADER;
-    dataToSend.push_back(command.size() & 0xFF);
-    dataToSend.push_back((command.size() >> 8) & 0xFF);
-    dataToSend.insert(dataToSend.end(), command.begin(), command.end());
-    dataToSend.insert(dataToSend.end(), COMMAND_TAIL);
-
-    CubeLog::debugSilly("mmWave::sendCommand: tx payload=" + bytesToHexPreview(command)
-        + ", framed=" + bytesToHexPreview(dataToSend)
-        + ", port=" + std::to_string(this->serialPort_h));
-
-    serialWrite(this->serialPort_h, dataToSend.data(), dataToSend.size());
-    uint16_t waitTime = 0;
-    while (serialDataAvail(this->serialPort_h) == 0 && waitTime < 1000) {
-        genericSleep(10);
-        waitTime += 10;
-    }
-    if (waitTime >= 1000) {
-        CubeLog::error("Timeout trying to get response. cmd=" + bytesToHexPreview(command)
-            + ", waitedMs=" + std::to_string(waitTime)
-            + ", availNow=" + std::to_string(serialDataAvail(this->serialPort_h)));
-        response = false;
-        response.errorReason = "command response timeout";
-        return response;
-    }
-    // These nested loops get the data fast, but if we read faster than the data arrives, give  the source
-    // time to catch up.
-    while (serialDataAvail(this->serialPort_h) > 0) {
-        while (serialDataAvail(this->serialPort_h) > 0) {
-            response += serialGetchar(this->serialPort_h);
-        }
-        genericSleep(10);
-    }
-    response.success = true;
-    CubeLog::debugSilly("mmWave::sendCommand: rx=" + bytesToHexPreview(response.data));
-    return response;
-}
-
-Response mmWave::sendCommand(std::vector<uint8_t> command, std::vector<uint8_t> ack)
-{
-    Response response = this->sendCommand(command);
-    if (!response.success || !containsSubsequence(response.data, ack)) {
-        CubeLog::error("Failed to get expected response. cmd=" + bytesToHexPreview(command)
-            + ", expectedAck=" + bytesToHexPreview(ack)
-            + ", actualRx=" + bytesToHexPreview(response.data)
-            + ", rxBytes=" + std::to_string(response.data.size()));
-        response = false;
-        if (response.errorReason.empty()) {
-            response.errorReason = "unexpected command acknowledgement";
-        }
-        return response;
-    }
-    return response;
-}
-
-bool mmWave::enableConfigMode()
-{
-    std::vector<uint8_t> commandData = ENABLE_CONFIG_MODE;
-
-    std::vector<uint8_t> ack = COMMAND_HEADER;
-    std::vector<uint8_t> ackData = ENABLE_CONFIG_MODE_ACK;
-    ack.push_back(ackData.size() & 0xFF);
-    ack.push_back((ackData.size() >> 8) & 0xFF);
-    ack.insert(ack.end(), ackData.begin(), ackData.end());
-    ack.insert(ack.end(), COMMAND_TAIL);
-
-    Response response = this->sendCommand(commandData, ack);
-    if (response.success) {
-        this->configModeEnabled = true;
-    } else {
-        CubeLog::error("Failed to enable command mode.");
-        this->configModeEnabled = false;
-    }
-    return response.success;
-}
-
-bool mmWave::disableConfigMode()
-{
-    const std::vector<uint8_t> commandData = DISABLE_CONFIG_MODE;
-
-    std::vector<uint8_t> ack = COMMAND_HEADER;
-    const std::vector<uint8_t> ackData = DISABLE_CONFIG_MODE_ACK;
-    ack.push_back(ackData.size() & 0xFF);
-    ack.push_back((ackData.size() >> 8) & 0xFF);
-    ack.insert(ack.end(), ackData.begin(), ackData.end());
-    ack.insert(ack.end(), COMMAND_TAIL);
-
-    Response response = this->sendCommand(commandData, ack);
-    // Always clear the flag, even on failure — the sensor may already have exited config mode
-    this->configModeEnabled = false;
-    return response.success;
-}
-
-bool mmWave::enableEngineeringMode()
-{
-    std::vector<uint8_t> commandData = ENABLE_ENGINEERING_MODE;
-
-    std::vector<uint8_t> ack = COMMAND_HEADER;
-    std::vector<uint8_t> ackData = ENABLE_ENGINEERING_MODE_ACK;
-    ack.push_back(ackData.size() & 0xFF);
-    ack.push_back((ackData.size() >> 8) & 0xFF);
-    ack.insert(ack.end(), ackData.begin(), ackData.end());
-    ack.insert(ack.end(), COMMAND_TAIL);
-
-    Response response = this->sendCommand(commandData, ack);
-    return response.success;
-}
-
-bool mmWave::disableEngineeringMode()
-{
-    std::vector<uint8_t> commandData = DISABLE_ENGINEERING_MODE;
-
-    std::vector<uint8_t> ack = COMMAND_HEADER;
-    std::vector<uint8_t> ackData = DISABLE_ENGINEERING_MODE_ACK;
-    ack.push_back(ackData.size() & 0xFF);
-    ack.push_back((ackData.size() >> 8) & 0xFF);
-    ack.insert(ack.end(), ackData.begin(), ackData.end());
-    ack.insert(ack.end(), COMMAND_TAIL);
-
-    Response response = this->sendCommand(commandData, ack);
-    return response.success;
 }
 
 Response mmWave::readDataFrame()
@@ -533,14 +412,7 @@ Response mmWave::readDataFrame()
     }
     response.data = REPORT_HEADER;
     response = true;
-    int headerSize = response.size();
-    if (this->configModeEnabled) {
-        CubeLog::error("Command mode enabled. readDataFrame blocked, avail="
-            + std::to_string(serialDataAvail(this->serialPort_h)));
-        response = false;
-        response.errorReason = "config mode enabled";
-        return response;
-    }
+    const size_t headerSize = response.size();
     uint16_t waitTime = 0;
     while (serialDataAvail(this->serialPort_h) == 0 && waitTime < 1000) {
         genericSleep(10);
@@ -753,16 +625,22 @@ MmWaveReading mmWave::getReading()
     return currentReading;
 }
 
-float mmWave::getPresenceConfidence()
-{
-    std::lock_guard<std::mutex> lock(readingMutex);
-    return presenceEstimator_.confidence();
-}
-
 bool mmWave::isPresent()
 {
     std::lock_guard<std::mutex> lock(readingMutex);
-    return presenceEstimator_.isOccupied();
+    return presenceEstimator_.isPresent();
+}
+
+MmWavePresenceState mmWave::getPresenceState()
+{
+    std::lock_guard<std::mutex> lock(readingMutex);
+    return presenceEstimator_.state();
+}
+
+MmWavePresenceDecision mmWave::getPresenceDecision()
+{
+    std::lock_guard<std::mutex> lock(readingMutex);
+    return presenceEstimator_.decision();
 }
 
 void mmWave::setOnReadyCallback(std::function<void()> callback)
@@ -777,216 +655,10 @@ void mmWave::setOnReadyCallback(std::function<void()> callback)
     }
 }
 
-void mmWave::setPresenceParams(const MmWavePresenceParams& params)
+void mmWave::setPresenceConfig(const MmWavePresenceConfig& config)
 {
     std::lock_guard<std::mutex> lock(readingMutex);
-    presenceEstimator_.setParams(params);
-}
-
-// ---------------------------------------------------------------------------
-// Private helpers — all assume config mode is already active.
-// They update the stored config field and send the relevant hardware command.
-// ---------------------------------------------------------------------------
-
-// Build a complete ACK frame (COMMAND_HEADER + len(2) + ackData + COMMAND_TAIL)
-static std::vector<uint8_t> buildCommandAck(std::vector<uint8_t> ackData)
-{
-    std::vector<uint8_t> ack = COMMAND_HEADER;
-    ack.push_back(static_cast<uint8_t>(ackData.size() & 0xFF));
-    ack.push_back(static_cast<uint8_t>((ackData.size() >> 8) & 0xFF));
-    ack.insert(ack.end(), ackData.begin(), ackData.end());
-    const std::vector<uint8_t> tail = COMMAND_TAIL;
-    ack.insert(ack.end(), tail.begin(), tail.end());
-    return ack;
-}
-
-// Command 0x0060: set distance gate range and unmanned duration (all three params in one frame)
-static std::vector<uint8_t> buildDistCmd(int movingGate, int restingGate, int unmannedSecs)
-{
-    return {
-        0x60, 0x00,
-        0x00, 0x00, static_cast<uint8_t>(movingGate), 0, 0, 0,
-        0x01, 0x00, static_cast<uint8_t>(restingGate), 0, 0, 0,
-        0x02, 0x00, static_cast<uint8_t>(unmannedSecs & 0xFF),
-        static_cast<uint8_t>((unmannedSecs >> 8) & 0xFF), 0, 0
-    };
-}
-
-// Command 0x0064: set sensitivity for a gate (0xFFFF = all gates)
-static std::vector<uint8_t> buildSensCmd(int gateNum, int motionSens, int restingSens)
-{
-    return {
-        0x64, 0x00,
-        0x00, 0x00, static_cast<uint8_t>(gateNum & 0xFF),
-        static_cast<uint8_t>((gateNum >> 8) & 0xFF), 0, 0,
-        0x01, 0x00, static_cast<uint8_t>(motionSens), 0, 0, 0,
-        0x02, 0x00, static_cast<uint8_t>(restingSens), 0, 0, 0
-    };
-}
-
-bool mmWave::setMaxMovingDistanceGate(int gate)
-{
-    cfgMovingGate = gate;
-    return sendCommand(buildDistCmd(cfgMovingGate, cfgRestingGate, cfgUnmannedSecs),
-        buildCommandAck({ 0x60, 0x01, 0x00, 0x00 }))
-        .success;
-}
-
-bool mmWave::setMaxRestingDistanceGate(int gate)
-{
-    cfgRestingGate = gate;
-    return sendCommand(buildDistCmd(cfgMovingGate, cfgRestingGate, cfgUnmannedSecs),
-        buildCommandAck({ 0x60, 0x01, 0x00, 0x00 }))
-        .success;
-}
-
-bool mmWave::setUnmannedDuration(int seconds)
-{
-    cfgUnmannedSecs = seconds;
-    return sendCommand(buildDistCmd(cfgMovingGate, cfgRestingGate, cfgUnmannedSecs),
-        buildCommandAck({ 0x60, 0x01, 0x00, 0x00 }))
-        .success;
-}
-
-bool mmWave::setDistanceGateSensitivity(int gateNum)
-{
-    cfgGateNum = gateNum;
-    return sendCommand(buildSensCmd(cfgGateNum, cfgMotionSens, cfgRestingSens),
-        buildCommandAck({ 0x64, 0x01, 0x00, 0x00 }))
-        .success;
-}
-
-bool mmWave::setMotionSensitivity(int sensitivity)
-{
-    cfgMotionSens = sensitivity;
-    return sendCommand(buildSensCmd(cfgGateNum, cfgMotionSens, cfgRestingSens),
-        buildCommandAck({ 0x64, 0x01, 0x00, 0x00 }))
-        .success;
-}
-
-bool mmWave::setRestingSensitivity(int sensitivity)
-{
-    cfgRestingSens = sensitivity;
-    return sendCommand(buildSensCmd(cfgGateNum, cfgMotionSens, cfgRestingSens),
-        buildCommandAck({ 0x64, 0x01, 0x00, 0x00 }))
-        .success;
-}
-
-void mmWave::restartModule()
-{
-    const std::vector<uint8_t> cmd = { 0xA3, 0x00 };
-    sendCommand(cmd, buildCommandAck({ 0xA3, 0x01, 0x00, 0x00 }));
-    // The sensor restarts after this command; give it time to come back up.
-    genericSleep(1000);
-}
-
-bool mmWave::configure(int maxMovingGate, int maxRestingGate, int unmannedSecs, int motionSens, int restingSens)
-{
-    std::lock_guard<std::mutex> lock(serialMutex);
-    if (!enableConfigMode()) {
-        return false;
-    }
-
-    // Cache the new config state
-    cfgMovingGate = maxMovingGate;
-    cfgRestingGate = maxRestingGate;
-    cfgUnmannedSecs = unmannedSecs;
-    cfgGateNum = 0xFFFF; // apply to all gates
-    cfgMotionSens = motionSens;
-    cfgRestingSens = restingSens;
-
-    // One 0x0060 command for distance gates + unmanned duration
-    if (!sendCommand(buildDistCmd(maxMovingGate, maxRestingGate, unmannedSecs),
-            buildCommandAck({ 0x60, 0x01, 0x00, 0x00 }))
-            .success) {
-        CubeLog::error("mmWave::configure: failed to set distance gate config.");
-        disableConfigMode();
-        return false;
-    }
-
-    // One 0x0064 command for all-gate sensitivity
-    if (!sendCommand(buildSensCmd(0xFFFF, motionSens, restingSens),
-            buildCommandAck({ 0x64, 0x01, 0x00, 0x00 }))
-            .success) {
-        CubeLog::error("mmWave::configure: failed to set sensitivity config.");
-        disableConfigMode();
-        return false;
-    }
-
-    disableConfigMode();
-    restartModule();
-    return true;
-}
-
-bool mmWave::resetToDefaults()
-{
-    std::lock_guard<std::mutex> lock(serialMutex);
-    if (!enableConfigMode()) {
-        CubeLog::error("mmWave::resetToDefaults: failed to enter config mode.");
-        return false;
-    }
-
-    // Avoid hardware factory reset (0xA2): on some modules it restores UART defaults,
-    // which can break this session's serial link. Re-apply software defaults instead.
-    cfgMovingGate = 5;
-    cfgRestingGate = 5;
-    cfgUnmannedSecs = 5;
-    cfgGateNum = 0xFFFF;
-    cfgMotionSens = 50;
-    cfgRestingSens = 50;
-
-    const bool distOk = sendCommand(buildDistCmd(cfgMovingGate, cfgRestingGate, cfgUnmannedSecs),
-        buildCommandAck({ 0x60, 0x01, 0x00, 0x00 }))
-                            .success;
-    if (!distOk) {
-        CubeLog::error("mmWave::resetToDefaults: failed to apply default distance settings.");
-        disableConfigMode();
-        return false;
-    }
-
-    const bool sensOk = sendCommand(buildSensCmd(cfgGateNum, cfgMotionSens, cfgRestingSens),
-        buildCommandAck({ 0x64, 0x01, 0x00, 0x00 }))
-                            .success;
-    if (!sensOk) {
-        CubeLog::error("mmWave::resetToDefaults: failed to apply default sensitivity settings.");
-        disableConfigMode();
-        return false;
-    }
-
-    disableConfigMode();
-    restartModule();
-
-    const std::vector<std::string> paths(
-        MMWAVE_SERIAL_PATH_CANDIDATES.begin(), MMWAVE_SERIAL_PATH_CANDIDATES.end());
-
-    if (!connectWithCandidatesLocked(
-            paths,
-            { MMWAVE_BAUD_ANALYZER_MEASURED, MMWAVE_BAUD_MANUAL_FALLBACK, MMWAVE_BAUD_PREFERRED },
-            700)) {
-        CubeLog::error("mmWave::resetToDefaults: unable to reconnect after restart.");
-        return false;
-    }
-
-    const int recoveryBaud = connectedBaud_;
-    if (recoveryBaud != MMWAVE_BAUD_PREFERRED) {
-        if (connectWithCandidatesLocked(paths, { MMWAVE_BAUD_PREFERRED }, 700)) {
-            CubeLog::info("mmWave::resetToDefaults: comms settled at preferred baud 115200.");
-        } else {
-            CubeLog::error("mmWave::resetToDefaults: preferred baud 115200 unavailable; staying at "
-                + std::to_string(recoveryBaud));
-            if (!connectWithCandidatesLocked(paths, { recoveryBaud }, 700)) {
-                CubeLog::error("mmWave::resetToDefaults: failed to restore fallback comms after preferred-baud attempt.");
-                return false;
-            }
-        }
-    }
-
-    {
-        std::lock_guard<std::mutex> readingLock(readingMutex);
-        resetPresenceStateLocked();
-    }
-
-    return true;
+    presenceEstimator_.setConfig(config);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////

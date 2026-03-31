@@ -37,6 +37,7 @@ SOFTWARE.
 #ifndef UTILS_H
 #include "utils.h"
 #endif
+#include <algorithm>
 #include <filesystem>
 #ifndef LOGGER_H
 #include <logger.h>
@@ -101,23 +102,10 @@ struct GlobalSettings {
         EMOTION_CAUTION,
         EMOTION_ANNOYANCE,
 
-        MMWAVE_MAX_MOVING_GATE,
-        MMWAVE_MAX_RESTING_GATE,
-        MMWAVE_UNMANNED_DURATION_SECS,
-        MMWAVE_MOTION_SENSITIVITY,
-        MMWAVE_RESTING_SENSITIVITY,
-        MMWAVE_DESK_DISTANCE_CM,
-        MMWAVE_DESK_INNER_RADIUS_CM,
-        MMWAVE_DESK_OUTER_RADIUS_CM,
-        MMWAVE_MOVING_ENERGY_FLOOR,
-        MMWAVE_MOVING_ENERGY_SAT,
-        MMWAVE_STATIONARY_ENERGY_FLOOR,
-        MMWAVE_STATIONARY_ENERGY_SAT,
-        MMWAVE_PRESENCE_ATTACK_MS,
-        MMWAVE_PRESENCE_RELEASE_MS,
-        MMWAVE_PRESENCE_OCCUPIED_THRESHOLD,
-        MMWAVE_PRESENCE_VACANT_THRESHOLD,
-        MMWAVE_IS_CALIBRATED,
+        MMWAVE_DETECTION_DISTANCE_AVERAGE_WINDOW_SECS,
+        MMWAVE_MOVING_DISTANCE_AVERAGE_WINDOW_SECS,
+        MMWAVE_STATIONARY_DISTANCE_AVERAGE_WINDOW_SECS,
+        MMWAVE_STATIONARY_ENERGY_AVERAGE_WINDOW_SECS,
 
         SETTING_TYPE_COUNT
     };
@@ -212,24 +200,11 @@ struct GlobalSettings {
         GlobalSettings::setSetting(SettingType::EMOTION_CAUTION, 50);
         // set the default emotion annoyance to 0
         GlobalSettings::setSetting(SettingType::EMOTION_ANNOYANCE, 0);
-        // mmWave sensor calibration defaults
-        GlobalSettings::setSetting(SettingType::MMWAVE_MAX_MOVING_GATE, 5);
-        GlobalSettings::setSetting(SettingType::MMWAVE_MAX_RESTING_GATE, 5);
-        GlobalSettings::setSetting(SettingType::MMWAVE_UNMANNED_DURATION_SECS, 5);
-        GlobalSettings::setSetting(SettingType::MMWAVE_MOTION_SENSITIVITY, 50);
-        GlobalSettings::setSetting(SettingType::MMWAVE_RESTING_SENSITIVITY, 50);
-        GlobalSettings::setSetting(SettingType::MMWAVE_DESK_DISTANCE_CM, 90.0f);
-        GlobalSettings::setSetting(SettingType::MMWAVE_DESK_INNER_RADIUS_CM, 35.0f);
-        GlobalSettings::setSetting(SettingType::MMWAVE_DESK_OUTER_RADIUS_CM, 90.0f);
-        GlobalSettings::setSetting(SettingType::MMWAVE_MOVING_ENERGY_FLOOR, 10.0f);
-        GlobalSettings::setSetting(SettingType::MMWAVE_MOVING_ENERGY_SAT, 80.0f);
-        GlobalSettings::setSetting(SettingType::MMWAVE_STATIONARY_ENERGY_FLOOR, 8.0f);
-        GlobalSettings::setSetting(SettingType::MMWAVE_STATIONARY_ENERGY_SAT, 70.0f);
-        GlobalSettings::setSetting(SettingType::MMWAVE_PRESENCE_ATTACK_MS, 500.0f);
-        GlobalSettings::setSetting(SettingType::MMWAVE_PRESENCE_RELEASE_MS, 8000.0f);
-        GlobalSettings::setSetting(SettingType::MMWAVE_PRESENCE_OCCUPIED_THRESHOLD, 0.65f);
-        GlobalSettings::setSetting(SettingType::MMWAVE_PRESENCE_VACANT_THRESHOLD, 0.35f);
-        GlobalSettings::setSetting(SettingType::MMWAVE_IS_CALIBRATED, false);
+        // mmWave presence classifier averaging-window defaults
+        GlobalSettings::setSetting(SettingType::MMWAVE_DETECTION_DISTANCE_AVERAGE_WINDOW_SECS, 10);
+        GlobalSettings::setSetting(SettingType::MMWAVE_MOVING_DISTANCE_AVERAGE_WINDOW_SECS, 10);
+        GlobalSettings::setSetting(SettingType::MMWAVE_STATIONARY_DISTANCE_AVERAGE_WINDOW_SECS, 10);
+        GlobalSettings::setSetting(SettingType::MMWAVE_STATIONARY_ENERGY_AVERAGE_WINDOW_SECS, 10);
     }
 
     static void setSettingCB(SettingType key, std::function<void()> callback)
@@ -249,6 +224,21 @@ struct GlobalSettings {
 
     static bool setSetting(SettingType key, nlohmann::json::value_type value)
     {
+        switch (key) {
+        case SettingType::MMWAVE_DETECTION_DISTANCE_AVERAGE_WINDOW_SECS:
+        case SettingType::MMWAVE_MOVING_DISTANCE_AVERAGE_WINDOW_SECS:
+        case SettingType::MMWAVE_STATIONARY_DISTANCE_AVERAGE_WINDOW_SECS:
+        case SettingType::MMWAVE_STATIONARY_ENERGY_AVERAGE_WINDOW_SECS: {
+            int clampedValue = 10;
+            if (value.is_number()) {
+                clampedValue = std::clamp(value.get<int>(), 1, 30);
+            }
+            value = clampedValue;
+            break;
+        }
+        default:
+            break;
+        }
         {
             std::unique_lock<std::mutex> lock(settingChangeMutex);
             settings[settingTypeStringMap[key]] = value;
