@@ -35,24 +35,67 @@ SOFTWARE.
 #ifndef PERIPHERALMANAGER_H
 #define PERIPHERALMANAGER_H
 
+#include "../api/api.h"
 #include "io_bridge/ioBridge.h"
 #include "mmWave.h"
 #include "nfc.h"
+#include <chrono>
 #include <memory>
+#include <mutex>
+#include <optional>
 
-class PeripheralManager {
+struct PresenceStatusSnapshot {
+    MmWavePresenceState immediateState = MmWavePresenceState::Unknown;
+    MmWavePresenceState delayedState = MmWavePresenceState::Unknown;
+    int absentTimeoutSecs = 15;
+};
+
+class DelayedPresenceTracker {
+public:
+    explicit DelayedPresenceTracker(int absentTimeoutSecs = 15);
+
+    void setAbsentTimeoutSecs(int absentTimeoutSecs, std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now());
+    int absentTimeoutSecs() const;
+
+    PresenceStatusSnapshot updateImmediateState(
+        MmWavePresenceState immediateState,
+        std::chrono::steady_clock::time_point now);
+    PresenceStatusSnapshot snapshot(std::chrono::steady_clock::time_point now);
+
+private:
+    static int clampAbsentTimeoutSecs(int value);
+    void reconcileDelayedState(std::chrono::steady_clock::time_point now);
+
+    int absentTimeoutSecs_ = 15;
+    MmWavePresenceState immediateState_ = MmWavePresenceState::Unknown;
+    MmWavePresenceState delayedState_ = MmWavePresenceState::Unknown;
+    std::optional<std::chrono::steady_clock::time_point> absentStateStartedAt_ {};
+};
+
+class PeripheralManager : public AutoRegisterAPI<PeripheralManager> {
 private:
     std::unique_ptr<mmWave> mmWaveSensor;
     // NFC nfcSensor;
     // IMU imuSensor;
+    mutable std::mutex presenceStatusMutex;
+    DelayedPresenceTracker delayedPresenceTracker_;
 
     void syncPresenceConfigFromSettings();
+    void syncPresenceAbsentTimeoutFromSettings();
+    void handleImmediatePresenceDecision(const MmWavePresenceDecision& decision);
 
 public:
     PeripheralManager();
+    explicit PeripheralManager(std::unique_ptr<mmWave> mmWaveSensorOverride, bool registerSettingCallbacks = true);
     ~PeripheralManager();
 
+    constexpr std::string getInterfaceName() const override { return "Presence"; }
+    HttpEndPointData_t getHttpEndpointData() override;
+
     bool isMmWavePresent();
+    MmWavePresenceState getImmediatePresenceState();
+    MmWavePresenceState getDelayedPresenceState();
+    PresenceStatusSnapshot getPresenceStatus();
 };
 
 #endif // PERIPHERALMANAGER_H

@@ -42,6 +42,11 @@ int clampAverageWindowSeconds(int value)
     return std::clamp(value, 1, 30);
 }
 
+int clampPresenceAbsentTimeoutSeconds(int value)
+{
+    return std::clamp(value, 1, 120);
+}
+
 MmWavePresenceConfig loadPresenceConfigFromSettings()
 {
     MmWavePresenceConfig config;
@@ -56,27 +61,166 @@ MmWavePresenceConfig loadPresenceConfigFromSettings()
     return config;
 }
 
+int loadPresenceAbsentTimeoutSecondsFromSettings()
+{
+    return clampPresenceAbsentTimeoutSeconds(
+        GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::PRESENCE_ABSENT_TIMEOUT_SECS));
+}
+
+const char* presenceStateToString(MmWavePresenceState state)
+{
+    switch (state) {
+    case MmWavePresenceState::Present:
+        return "present";
+    case MmWavePresenceState::Absent:
+        return "absent";
+    case MmWavePresenceState::Unknown:
+    default:
+        return "unknown";
+    }
+}
+
 } // namespace
 
-PeripheralManager::PeripheralManager()
+DelayedPresenceTracker::DelayedPresenceTracker(int absentTimeoutSecs)
+    : absentTimeoutSecs_(clampAbsentTimeoutSecs(absentTimeoutSecs))
 {
-    this->mmWaveSensor = std::make_unique<mmWave>();
-    syncPresenceConfigFromSettings();
+}
 
-    const auto registerConfigCallback = [this](GlobalSettings::SettingType settingType) {
-        GlobalSettings::setSettingCB(settingType, [this]() {
-            syncPresenceConfigFromSettings();
-        });
+void DelayedPresenceTracker::setAbsentTimeoutSecs(
+    int absentTimeoutSecs,
+    std::chrono::steady_clock::time_point now)
+{
+    absentTimeoutSecs_ = clampAbsentTimeoutSecs(absentTimeoutSecs);
+    reconcileDelayedState(now);
+}
+
+int DelayedPresenceTracker::absentTimeoutSecs() const
+{
+    return absentTimeoutSecs_;
+}
+
+PresenceStatusSnapshot DelayedPresenceTracker::updateImmediateState(
+    MmWavePresenceState immediateState,
+    std::chrono::steady_clock::time_point now)
+{
+    immediateState_ = immediateState;
+    switch (immediateState_) {
+    case MmWavePresenceState::Present:
+        delayedState_ = MmWavePresenceState::Present;
+        absentStateStartedAt_.reset();
+        break;
+    case MmWavePresenceState::Absent:
+        if (!absentStateStartedAt_.has_value()) {
+            absentStateStartedAt_ = now;
+        }
+        reconcileDelayedState(now);
+        break;
+    case MmWavePresenceState::Unknown:
+    default:
+        absentStateStartedAt_.reset();
+        break;
+    }
+
+    return snapshot(now);
+}
+
+PresenceStatusSnapshot DelayedPresenceTracker::snapshot(std::chrono::steady_clock::time_point now)
+{
+    reconcileDelayedState(now);
+    return {
+        .immediateState = immediateState_,
+        .delayedState = delayedState_,
+        .absentTimeoutSecs = absentTimeoutSecs_,
     };
+}
 
-    registerConfigCallback(GlobalSettings::SettingType::MMWAVE_DETECTION_DISTANCE_AVERAGE_WINDOW_SECS);
-    registerConfigCallback(GlobalSettings::SettingType::MMWAVE_MOVING_DISTANCE_AVERAGE_WINDOW_SECS);
-    registerConfigCallback(GlobalSettings::SettingType::MMWAVE_STATIONARY_DISTANCE_AVERAGE_WINDOW_SECS);
-    registerConfigCallback(GlobalSettings::SettingType::MMWAVE_STATIONARY_ENERGY_AVERAGE_WINDOW_SECS);
+int DelayedPresenceTracker::clampAbsentTimeoutSecs(int value)
+{
+    return clampPresenceAbsentTimeoutSeconds(value);
+}
+
+void DelayedPresenceTracker::reconcileDelayedState(std::chrono::steady_clock::time_point now)
+{
+    if (immediateState_ != MmWavePresenceState::Absent || !absentStateStartedAt_.has_value()) {
+        return;
+    }
+
+    const auto timeout = std::chrono::seconds(absentTimeoutSecs_);
+    if ((now - *absentStateStartedAt_) >= timeout) {
+        delayedState_ = MmWavePresenceState::Absent;
+    }
+}
+
+PeripheralManager::PeripheralManager()
+    : PeripheralManager(std::make_unique<mmWave>())
+{
+}
+
+PeripheralManager::PeripheralManager(
+    std::unique_ptr<mmWave> mmWaveSensorOverride,
+    bool registerSettingCallbacks)
+    : mmWaveSensor(std::move(mmWaveSensorOverride))
+    , delayedPresenceTracker_(loadPresenceAbsentTimeoutSecondsFromSettings())
+{
+    syncPresenceConfigFromSettings();
+    syncPresenceAbsentTimeoutFromSettings();
+
+    if (mmWaveSensor) {
+        mmWaveSensor->setPresenceUpdateCallback([this](const MmWavePresenceDecision& decision) {
+            handleImmediatePresenceDecision(decision);
+        });
+        handleImmediatePresenceDecision(mmWaveSensor->getPresenceDecision());
+    }
+
+    if (registerSettingCallbacks) {
+        const auto registerConfigCallback = [this](GlobalSettings::SettingType settingType) {
+            GlobalSettings::setSettingCB(settingType, [this]() {
+                syncPresenceConfigFromSettings();
+            });
+        };
+
+        registerConfigCallback(GlobalSettings::SettingType::MMWAVE_DETECTION_DISTANCE_AVERAGE_WINDOW_SECS);
+        registerConfigCallback(GlobalSettings::SettingType::MMWAVE_MOVING_DISTANCE_AVERAGE_WINDOW_SECS);
+        registerConfigCallback(GlobalSettings::SettingType::MMWAVE_STATIONARY_DISTANCE_AVERAGE_WINDOW_SECS);
+        registerConfigCallback(GlobalSettings::SettingType::MMWAVE_STATIONARY_ENERGY_AVERAGE_WINDOW_SECS);
+        GlobalSettings::setSettingCB(GlobalSettings::SettingType::PRESENCE_ABSENT_TIMEOUT_SECS, [this]() {
+            syncPresenceAbsentTimeoutFromSettings();
+        });
+    }
 }
 
 PeripheralManager::~PeripheralManager()
 {
+    if (mmWaveSensor) {
+        mmWaveSensor->setPresenceUpdateCallback({});
+    }
+}
+
+HttpEndPointData_t PeripheralManager::getHttpEndpointData()
+{
+    HttpEndPointData_t data;
+    data.push_back({
+        PUBLIC_ENDPOINT | GET_ENDPOINT,
+        [this](const httplib::Request& req, httplib::Response& res) {
+            (void)req;
+            const PresenceStatusSnapshot status = getPresenceStatus();
+            nlohmann::json response = {
+                { "immediateState", presenceStateToString(status.immediateState) },
+                { "delayedState", presenceStateToString(status.delayedState) },
+                { "immediatePresent", status.immediateState == MmWavePresenceState::Present },
+                { "delayedPresent", status.delayedState == MmWavePresenceState::Present },
+                { "absentTimeoutSecs", status.absentTimeoutSecs }
+            };
+            res.status = 200;
+            res.set_content(response.dump(), "application/json");
+            return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
+        },
+        "status",
+        nlohmann::json({ { "type", "object" }, { "properties", nlohmann::json::object() } }),
+        "Get immediate and delayed presence state"
+    });
+    return data;
 }
 
 void PeripheralManager::syncPresenceConfigFromSettings()
@@ -88,10 +232,45 @@ void PeripheralManager::syncPresenceConfigFromSettings()
     mmWaveSensor->setPresenceConfig(loadPresenceConfigFromSettings());
 }
 
+void PeripheralManager::syncPresenceAbsentTimeoutFromSettings()
+{
+    std::lock_guard<std::mutex> lock(presenceStatusMutex);
+    delayedPresenceTracker_.setAbsentTimeoutSecs(
+        loadPresenceAbsentTimeoutSecondsFromSettings(),
+        std::chrono::steady_clock::now());
+}
+
+void PeripheralManager::handleImmediatePresenceDecision(const MmWavePresenceDecision& decision)
+{
+    const auto now = decision.timestamp == std::chrono::steady_clock::time_point {}
+        ? std::chrono::steady_clock::now()
+        : decision.timestamp;
+
+    std::lock_guard<std::mutex> lock(presenceStatusMutex);
+    delayedPresenceTracker_.updateImmediateState(decision.state, now);
+}
+
 bool PeripheralManager::isMmWavePresent()
 {
-    if (!mmWaveSensor) {
-        return false;
+    return getImmediatePresenceState() == MmWavePresenceState::Present;
+}
+
+MmWavePresenceState PeripheralManager::getImmediatePresenceState()
+{
+    return getPresenceStatus().immediateState;
+}
+
+MmWavePresenceState PeripheralManager::getDelayedPresenceState()
+{
+    return getPresenceStatus().delayedState;
+}
+
+PresenceStatusSnapshot PeripheralManager::getPresenceStatus()
+{
+    if (mmWaveSensor) {
+        handleImmediatePresenceDecision(mmWaveSensor->getPresenceDecision());
     }
-    return mmWaveSensor->isPresent();
+
+    std::lock_guard<std::mutex> lock(presenceStatusMutex);
+    return delayedPresenceTracker_.snapshot(std::chrono::steady_clock::now());
 }

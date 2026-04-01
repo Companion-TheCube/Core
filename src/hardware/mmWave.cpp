@@ -348,16 +348,25 @@ bool mmWave::connectWithCandidatesLocked(const std::vector<std::string>& paths, 
 
 void mmWave::markDisconnected(const std::string& reason)
 {
-    std::lock_guard<std::mutex> serialLock(serialMutex);
-    if (isReady_.exchange(false)) {
-        CubeLog::warning("mmWave: connection lost. reason=" + reason);
-    } else {
-        CubeLog::warning("mmWave: still disconnected. reason=" + reason);
+    {
+        std::lock_guard<std::mutex> serialLock(serialMutex);
+        if (isReady_.exchange(false)) {
+            CubeLog::warning("mmWave: connection lost. reason=" + reason);
+        } else {
+            CubeLog::warning("mmWave: still disconnected. reason=" + reason);
+        }
+        closeSerialPortLocked();
     }
-    closeSerialPortLocked();
 
-    std::lock_guard<std::mutex> readingLock(readingMutex);
-    resetPresenceStateLocked();
+    MmWavePresenceDecision decision;
+    {
+        std::lock_guard<std::mutex> readingLock(readingMutex);
+        resetPresenceStateLocked();
+        decision = presenceEstimator_.decision();
+        decision.timestamp = std::chrono::steady_clock::now();
+    }
+
+    invokePresenceUpdateCallback(decision);
 }
 
 void mmWave::resetPresenceStateLocked()
@@ -375,6 +384,18 @@ void mmWave::invokeOnReadyCallback()
     }
     if (callback) {
         callback();
+    }
+}
+
+void mmWave::invokePresenceUpdateCallback(const MmWavePresenceDecision& decision)
+{
+    std::function<void(const MmWavePresenceDecision&)> callback;
+    {
+        std::lock_guard<std::mutex> callbackLock(callbackMutex);
+        callback = onPresenceUpdateCallback;
+    }
+    if (callback) {
+        callback(decision);
     }
 }
 
@@ -548,20 +569,24 @@ void mmWave::decodeDataFrame(Response response)
                 + ", frame=" + bytesToHexPreview(data));
             return;
         }
-        std::lock_guard<std::mutex> lock(readingMutex);
-        // target state, 1 byte
-        currentReading.targetState = data[4];
-        // moving target distance, 2 bytes, cm
-        currentReading.movingTargetDistance = data[5] | data[6] << 8;
-        // Exercise target energy value, 1 byte
-        currentReading.movingTargetEnergy = data[7];
-        // Stationary target distance, 2 byte, cm
-        currentReading.stationaryTargetDistance = data[8] | data[9] << 8;
-        // Stationary target energy, 1 byte
-        currentReading.stationaryTargetEnergy = data[10];
-        // Detection Distance, 2 byte, cm
-        currentReading.detectionDistance = data[11] | data[12] << 8;
-        presenceEstimator_.update(currentReading, std::chrono::steady_clock::now());
+        MmWavePresenceDecision decision;
+        {
+            std::lock_guard<std::mutex> lock(readingMutex);
+            // target state, 1 byte
+            currentReading.targetState = data[4];
+            // moving target distance, 2 bytes, cm
+            currentReading.movingTargetDistance = data[5] | data[6] << 8;
+            // Exercise target energy value, 1 byte
+            currentReading.movingTargetEnergy = data[7];
+            // Stationary target distance, 2 byte, cm
+            currentReading.stationaryTargetDistance = data[8] | data[9] << 8;
+            // Stationary target energy, 1 byte
+            currentReading.stationaryTargetEnergy = data[10];
+            // Detection Distance, 2 byte, cm
+            currentReading.detectionDistance = data[11] | data[12] << 8;
+            decision = presenceEstimator_.update(currentReading, std::chrono::steady_clock::now());
+        }
+        invokePresenceUpdateCallback(decision);
     } else if (dataType == 0x01) {
         CubeLog::info("Engineering data frame.");
         // Need at least 15 bytes to safely read gate counts at data[13] and data[14]
@@ -571,6 +596,7 @@ void mmWave::decodeDataFrame(Response response)
             return;
         }
         // target state, 1 byte
+        MmWavePresenceDecision decision;
         {
             std::lock_guard<std::mutex> lock(readingMutex);
             currentReading.targetState = data[4];
@@ -584,8 +610,9 @@ void mmWave::decodeDataFrame(Response response)
             currentReading.stationaryTargetEnergy = data[10];
             // Detection Distance, 2 byte, cm
             currentReading.detectionDistance = data[11] | data[12] << 8;
-            presenceEstimator_.update(currentReading, std::chrono::steady_clock::now());
+            decision = presenceEstimator_.update(currentReading, std::chrono::steady_clock::now());
         }
+        invokePresenceUpdateCallback(decision);
         // Max moving/stationary gate INDEX N means gates 0..N (N+1 energy values each)
         uint8_t maxMovingDistanceGateNumber = data[13];
         uint8_t maxStationaryDistanceGateNumber = data[14];
@@ -653,6 +680,12 @@ void mmWave::setOnReadyCallback(std::function<void()> callback)
     if (isReady_.load()) {
         invokeOnReadyCallback();
     }
+}
+
+void mmWave::setPresenceUpdateCallback(std::function<void(const MmWavePresenceDecision&)> callback)
+{
+    std::lock_guard<std::mutex> callbackLock(callbackMutex);
+    onPresenceUpdateCallback = std::move(callback);
 }
 
 void mmWave::setPresenceConfig(const MmWavePresenceConfig& config)

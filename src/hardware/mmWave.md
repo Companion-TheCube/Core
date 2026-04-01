@@ -31,5 +31,10 @@ Notes
 
 - Inactive distance channels are intentionally ignored because the sensor may
   leave stale values in those fields.
-- Sensor tuning and calibration flows have been removed. The only user-facing
-  controls are the four averaging windows exposed in the Sensors menu.
+- The classifier output is the immediate presence state.
+- A separate app-layer delayed presence state becomes `Present` immediately,
+  but only becomes `Absent` after the configured timeout has elapsed with the
+  immediate state continuously `Absent`.
+- The Sensors menu exposes the four averaging windows plus the delayed absence
+  timeout.
+- Sensor tuning and calibration flows have been removed.

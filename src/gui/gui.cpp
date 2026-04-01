@@ -114,6 +114,22 @@ void setMmWaveAverageWindowSetting(GlobalSettings::SettingType key, int value, c
     CubeLog::info(label + " set to " + std::to_string(clampedValue));
 }
 
+int getClampedPresenceAbsentTimeoutSetting()
+{
+    return clampAndSnapSliderValue(
+        GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::PRESENCE_ABSENT_TIMEOUT_SECS),
+        1,
+        120,
+        1);
+}
+
+void setPresenceAbsentTimeoutSetting(int value)
+{
+    const int clampedValue = clampAndSnapSliderValue(value, 1, 120, 1);
+    GlobalSettings::setSetting(GlobalSettings::SettingType::PRESENCE_ABSENT_TIMEOUT_SECS, clampedValue);
+    CubeLog::info("Presence Absent Timeout set to " + std::to_string(clampedValue));
+}
+
 bool configureHttpClientAuth(
     httplib::Client& client,
     const std::string& user,
@@ -967,7 +983,7 @@ void GUI::eventLoop(std::stop_token stopToken)
 
     ///////// Sensors Menu /////////
     auto sensorsMenu = createANewSubMenu(_("Sensors"), "Sensors", mainMenu);
-    this->renderer->addSetupTask([&sensorsMenu, addBackButton, addToParent]() {
+    this->renderer->addSetupTask([this, &sensorsMenu, addBackButton, addToParent]() {
         addBackButton(sensorsMenu);
         ///////// Sensors Menu - Microphone enable/disable /////////
         sensorsMenu->addMenuEntry(
@@ -995,6 +1011,19 @@ void GUI::eventLoop(std::stop_token stopToken)
             },
             [](void*) { return 0; },
             nullptr);
+        this->addPopupSliderMenuEntry(
+            sensorsMenu,
+            _("Presence Absent Timeout"),
+            "Presence Absent Timeout",
+            1,
+            120,
+            1,
+            []() {
+                return getClampedPresenceAbsentTimeoutSetting();
+            },
+            [](int value) {
+                setPresenceAbsentTimeoutSetting(value);
+            });
         sensorsMenu->setup();
         addToParent(sensorsMenu);
         sensorsMenu->setChildrenClickables_isClickable(false);

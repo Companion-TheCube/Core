@@ -94,6 +94,7 @@ struct GlobalSettings {
         NFC_ENABLED,
         MICROPHONE_ENABLED,
         PRESENCE_DETECTION_ENABLED,
+        PRESENCE_ABSENT_TIMEOUT_SECS,
         EMOTION_CURIOSITY,
         EMOTION_PLAYFULNESS,
         EMOTION_EMPATHY,
@@ -186,6 +187,8 @@ struct GlobalSettings {
         GlobalSettings::setSetting(SettingType::MICROPHONE_ENABLED, true);
         // set the default presence detection to true
         GlobalSettings::setSetting(SettingType::PRESENCE_DETECTION_ENABLED, true);
+        // set the default delayed-absence timeout to 15 seconds
+        GlobalSettings::setSetting(SettingType::PRESENCE_ABSENT_TIMEOUT_SECS, 15);
         // set the default emotion curiosity to 80
         GlobalSettings::setSetting(SettingType::EMOTION_CURIOSITY, 80);
         // set the default emotion playfulness to 70
@@ -232,6 +235,14 @@ struct GlobalSettings {
             int clampedValue = 10;
             if (value.is_number()) {
                 clampedValue = std::clamp(value.get<int>(), 1, 30);
+            }
+            value = clampedValue;
+            break;
+        }
+        case SettingType::PRESENCE_ABSENT_TIMEOUT_SECS: {
+            int clampedValue = 15;
+            if (value.is_number()) {
+                clampedValue = std::clamp(value.get<int>(), 1, 120);
             }
             value = clampedValue;
             break;

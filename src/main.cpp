@@ -281,6 +281,7 @@ int main(int argc, char* argv[])
         audioManager->registerInterface();
         auth->registerInterface();
         appPostgresAccess->registerInterface();
+        peripherals->registerInterface();
         decisions->registerInterface();
         // btManager->registerInterface();
         api_builder.start();

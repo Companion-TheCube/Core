@@ -213,6 +213,7 @@ class mmWave {
     int serialPort_h = -1;
     std::atomic<bool> isReady_ { false };
     std::function<void()> onReadyCallback;
+    std::function<void(const MmWavePresenceDecision&)> onPresenceUpdateCallback;
     std::unique_ptr<std::jthread> readerThread;
     std::string connectedSerialPath_;
     int connectedBaud_ = -1;
@@ -225,6 +226,7 @@ class mmWave {
     void markDisconnected(const std::string& reason);
     void resetPresenceStateLocked();
     void invokeOnReadyCallback();
+    void invokePresenceUpdateCallback(const MmWavePresenceDecision& decision);
 
 public:
     mmWave();
@@ -242,4 +244,5 @@ public:
 
     // Register a callback invoked once the serial port opens successfully.
     void setOnReadyCallback(std::function<void()> callback);
+    void setPresenceUpdateCallback(std::function<void(const MmWavePresenceDecision&)> callback);
 };
