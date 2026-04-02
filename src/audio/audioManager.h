@@ -36,6 +36,7 @@ SOFTWARE.
 #include "../threadsafeQueue.h"
 #include "audioOutput.h"
 #include "speechIn.h"
+#include <mutex>
 #include <utils.h>
 
 class AudioManager : public AutoRegisterAPI<AudioManager> {
@@ -53,6 +54,10 @@ public:
     HttpEndPointData_t getHttpEndpointData() override;
 
 private:
+    void syncMicrophoneCaptureFromSettings();
+
     std::unique_ptr<AudioOutput> audioOutput;
     std::shared_ptr<SpeechIn> speechIn;
+    std::mutex microphoneStateMutex;
+    bool microphoneCaptureEnabled = false;
 };

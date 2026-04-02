@@ -54,6 +54,7 @@ class DelayedPresenceTracker {
 public:
     explicit DelayedPresenceTracker(int absentTimeoutSecs = 15);
 
+    void reset();
     void setAbsentTimeoutSecs(int absentTimeoutSecs, std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now());
     int absentTimeoutSecs() const;
 
@@ -79,9 +80,13 @@ private:
     // IMU imuSensor;
     mutable std::mutex presenceStatusMutex;
     DelayedPresenceTracker delayedPresenceTracker_;
+    bool presenceDetectionEnabled_ = true;
 
     void syncPresenceConfigFromSettings();
     void syncPresenceAbsentTimeoutFromSettings();
+
+protected:
+    void syncPresenceDetectionEnabledFromSettings();
     void handleImmediatePresenceDecision(const MmWavePresenceDecision& decision);
 
 public:

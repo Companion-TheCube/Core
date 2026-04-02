@@ -206,6 +206,7 @@ class mmWave {
     std::mutex readingMutex;
     MmWaveReading currentReading;
     MmWavePresenceEstimator presenceEstimator_;
+    bool presenceDetectionEnabled_ = true;
 
     std::mutex serialMutex;
     std::mutex callbackMutex;
@@ -241,6 +242,7 @@ public:
     MmWavePresenceDecision getPresenceDecision();
 
     void setPresenceConfig(const MmWavePresenceConfig& config);
+    void setPresenceDetectionEnabled(bool enabled);
 
     // Register a callback invoked once the serial port opens successfully.
     void setOnReadyCallback(std::function<void()> callback);

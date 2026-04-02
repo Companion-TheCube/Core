@@ -35,6 +35,7 @@ SOFTWARE.
 #include <logger.h>
 #endif
 #include "audioManager.h"
+#include "../settings/globalSettings.h"
 
 std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> AudioManager::audioInQueue = nullptr;
 
@@ -50,10 +51,13 @@ AudioManager::AudioManager()
     audioOutput = std::make_unique<AudioOutput>();
     audioInQueue = std::make_shared<ThreadSafeQueue<std::vector<int16_t>>>();
     speechIn = std::make_shared<SpeechIn>();
-    speechIn->start();
     SpeechIn::subscribeToWakeWordDetection([this]() {
         CubeLog::info("Wake word detected.");
     });
+    GlobalSettings::setSettingCB(GlobalSettings::SettingType::MICROPHONE_ENABLED, [this]() {
+        syncMicrophoneCaptureFromSettings();
+    });
+    syncMicrophoneCaptureFromSettings();
 }
 
 AudioManager::~AudioManager()
@@ -64,12 +68,17 @@ AudioManager::~AudioManager()
 void AudioManager::start()
 {
     audioOutput->start();
+    syncMicrophoneCaptureFromSettings();
 }
 
 void AudioManager::stop()
 {
     audioOutput->stop();
-    speechIn->stop();
+    std::lock_guard<std::mutex> lock(microphoneStateMutex);
+    if (speechIn && microphoneCaptureEnabled) {
+        speechIn->stop();
+    }
+    microphoneCaptureEnabled = false;
 }
 
 void AudioManager::toggleSound()
@@ -80,6 +89,26 @@ void AudioManager::toggleSound()
 void AudioManager::setSound(bool soundOn)
 {
     AudioOutput::setSound(soundOn);
+}
+
+void AudioManager::syncMicrophoneCaptureFromSettings()
+{
+    const bool enabled = GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::MICROPHONE_ENABLED);
+
+    std::lock_guard<std::mutex> lock(microphoneStateMutex);
+    if (!speechIn || enabled == microphoneCaptureEnabled) {
+        return;
+    }
+
+    if (enabled) {
+        CubeLog::info("AudioManager: enabling microphone capture");
+        speechIn->start();
+    } else {
+        CubeLog::info("AudioManager: disabling microphone capture");
+        speechIn->stop();
+    }
+
+    microphoneCaptureEnabled = enabled;
 }
 
 HttpEndPointData_t AudioManager::getHttpEndpointData()

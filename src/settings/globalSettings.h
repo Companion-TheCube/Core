@@ -92,6 +92,7 @@ struct GlobalSettings {
         VOICE_COMMAND_SOUND,
         GENERAL_AI_RESPONSE_MODE,
         NFC_ENABLED,
+        PERSONALITY_ENABLED,
         MICROPHONE_ENABLED,
         PRESENCE_DETECTION_ENABLED,
         PRESENCE_ABSENT_TIMEOUT_SECS,
@@ -183,6 +184,8 @@ struct GlobalSettings {
         GlobalSettings::setSetting(SettingType::GENERAL_AI_RESPONSE_MODE, "popupOnly");
         // set the default NFC to true
         GlobalSettings::setSetting(SettingType::NFC_ENABLED, true);
+        // set the default personality to enabled
+        GlobalSettings::setSetting(SettingType::PERSONALITY_ENABLED, true);
         // set the default microphone to true
         GlobalSettings::setSetting(SettingType::MICROPHONE_ENABLED, true);
         // set the default presence detection to true

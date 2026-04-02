@@ -67,6 +67,12 @@ int loadPresenceAbsentTimeoutSecondsFromSettings()
         GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::PRESENCE_ABSENT_TIMEOUT_SECS));
 }
 
+bool loadPresenceDetectionEnabledFromSettings()
+{
+    return GlobalSettings::getSettingOfType<bool>(
+        GlobalSettings::SettingType::PRESENCE_DETECTION_ENABLED);
+}
+
 const char* presenceStateToString(MmWavePresenceState state)
 {
     switch (state) {
@@ -85,6 +91,13 @@ const char* presenceStateToString(MmWavePresenceState state)
 DelayedPresenceTracker::DelayedPresenceTracker(int absentTimeoutSecs)
     : absentTimeoutSecs_(clampAbsentTimeoutSecs(absentTimeoutSecs))
 {
+}
+
+void DelayedPresenceTracker::reset()
+{
+    immediateState_ = MmWavePresenceState::Unknown;
+    delayedState_ = MmWavePresenceState::Unknown;
+    absentStateStartedAt_.reset();
 }
 
 void DelayedPresenceTracker::setAbsentTimeoutSecs(
@@ -162,9 +175,11 @@ PeripheralManager::PeripheralManager(
     bool registerSettingCallbacks)
     : mmWaveSensor(std::move(mmWaveSensorOverride))
     , delayedPresenceTracker_(loadPresenceAbsentTimeoutSecondsFromSettings())
+    , presenceDetectionEnabled_(loadPresenceDetectionEnabledFromSettings())
 {
     syncPresenceConfigFromSettings();
     syncPresenceAbsentTimeoutFromSettings();
+    syncPresenceDetectionEnabledFromSettings();
 
     if (mmWaveSensor) {
         mmWaveSensor->setPresenceUpdateCallback([this](const MmWavePresenceDecision& decision) {
@@ -184,6 +199,9 @@ PeripheralManager::PeripheralManager(
         registerConfigCallback(GlobalSettings::SettingType::MMWAVE_MOVING_DISTANCE_AVERAGE_WINDOW_SECS);
         registerConfigCallback(GlobalSettings::SettingType::MMWAVE_STATIONARY_DISTANCE_AVERAGE_WINDOW_SECS);
         registerConfigCallback(GlobalSettings::SettingType::MMWAVE_STATIONARY_ENERGY_AVERAGE_WINDOW_SECS);
+        GlobalSettings::setSettingCB(GlobalSettings::SettingType::PRESENCE_DETECTION_ENABLED, [this]() {
+            syncPresenceDetectionEnabledFromSettings();
+        });
         GlobalSettings::setSettingCB(GlobalSettings::SettingType::PRESENCE_ABSENT_TIMEOUT_SECS, [this]() {
             syncPresenceAbsentTimeoutFromSettings();
         });
@@ -232,6 +250,20 @@ void PeripheralManager::syncPresenceConfigFromSettings()
     mmWaveSensor->setPresenceConfig(loadPresenceConfigFromSettings());
 }
 
+void PeripheralManager::syncPresenceDetectionEnabledFromSettings()
+{
+    const bool enabled = loadPresenceDetectionEnabledFromSettings();
+    {
+        std::lock_guard<std::mutex> lock(presenceStatusMutex);
+        presenceDetectionEnabled_ = enabled;
+        delayedPresenceTracker_.reset();
+    }
+
+    if (mmWaveSensor) {
+        mmWaveSensor->setPresenceDetectionEnabled(enabled);
+    }
+}
+
 void PeripheralManager::syncPresenceAbsentTimeoutFromSettings()
 {
     std::lock_guard<std::mutex> lock(presenceStatusMutex);
@@ -247,6 +279,9 @@ void PeripheralManager::handleImmediatePresenceDecision(const MmWavePresenceDeci
         : decision.timestamp;
 
     std::lock_guard<std::mutex> lock(presenceStatusMutex);
+    if (!presenceDetectionEnabled_) {
+        return;
+    }
     delayedPresenceTracker_.updateImmediateState(decision.state, now);
 }
 
@@ -267,6 +302,13 @@ MmWavePresenceState PeripheralManager::getDelayedPresenceState()
 
 PresenceStatusSnapshot PeripheralManager::getPresenceStatus()
 {
+    {
+        std::lock_guard<std::mutex> lock(presenceStatusMutex);
+        if (!presenceDetectionEnabled_) {
+            return delayedPresenceTracker_.snapshot(std::chrono::steady_clock::now());
+        }
+    }
+
     if (mmWaveSensor) {
         handleImmediatePresenceDecision(mmWaveSensor->getPresenceDecision());
     }

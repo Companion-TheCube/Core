@@ -72,6 +72,21 @@ int64_t nowEpochMs()
     return std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
 }
 
+bool isPersonalityRewriteEnabled()
+{
+    try {
+        const auto setting = GlobalSettings::getSetting(GlobalSettings::SettingType::PERSONALITY_ENABLED);
+        if (setting.is_boolean()) {
+            return setting.get<bool>();
+        }
+    } catch (const std::exception& e) {
+        CubeLog::warning(std::string("DecisionEngine: failed to read personality setting: ") + e.what());
+    } catch (...) {
+        CubeLog::warning("DecisionEngine: failed to read personality setting");
+    }
+    return true;
+}
+
 std::string nowIsoLocal()
 {
     const auto now = std::chrono::system_clock::now();
@@ -1254,6 +1269,7 @@ void DecisionEngineMain::presentTurnResult(const DecisionTurnResult& result)
     }
     if (personalityManager
         && remoteServerAPI
+        && isPersonalityRewriteEnabled()
         && !message.empty()
         && result.error != "voice_service_unavailable"
         && !remoteVoiceUnavailable) {

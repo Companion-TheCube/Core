@@ -172,6 +172,26 @@ void pushSpeechChunk(const std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>
     audioQueue->push(std::vector<int16_t>(256, 2000));
 }
 
+class ScopedBoolSettingOverride {
+public:
+    ScopedBoolSettingOverride(GlobalSettings::SettingType key, bool value)
+        : key_(key)
+    {
+        const auto original = GlobalSettings::getSetting(key_);
+        originalValue_ = original.is_boolean() ? original.get<bool>() : true;
+        GlobalSettings::setSetting(key_, value);
+    }
+
+    ~ScopedBoolSettingOverride()
+    {
+        GlobalSettings::setSetting(key_, originalValue_);
+    }
+
+private:
+    GlobalSettings::SettingType key_;
+    bool originalValue_ = true;
+};
+
 class FakeRewriteServerAPI : public TheCubeServer::TheCubeServerAPI {
 public:
     FakeRewriteServerAPI()
@@ -431,6 +451,38 @@ TEST_F(DecisionEngineChatHistoryTest, PresentTurnResultStoresOriginalMessageWhen
     ASSERT_TRUE(waitUntil(
         [&engine]() { return engine.turnState == DecisionEngine::DecisionEngineMain::TurnState::IDLE; },
         std::chrono::milliseconds(250)));
+    const auto storedHistory = engine.chatHistoryStore->getRecentHistory("core.get_time", 10);
+    ASSERT_EQ(storedHistory.size(), 1u);
+    EXPECT_EQ(storedHistory.back().displayResponse, "It's 5:00 PM right now.");
+}
+
+TEST_F(DecisionEngineChatHistoryTest, PresentTurnResultSkipsEmotionalRewriteWhenPersonalityIsDisabled)
+{
+    ScopedBoolSettingOverride personalityEnabled(GlobalSettings::SettingType::PERSONALITY_ENABLED, false);
+
+    DecisionEngine::DecisionEngineMain engine;
+    ASSERT_TRUE(engine.chatHistoryStore);
+
+    auto fakeRemote = std::make_shared<FakeRewriteServerAPI>();
+    fakeRemote->rewriteText = "This should not be used.";
+    engine.remoteServerAPI = fakeRemote;
+
+    DecisionEngine::DecisionTurnResult result;
+    result.transcript = "what time is it right now?";
+    result.intentName = "core.get_time";
+    result.capabilityName = "core.get_time";
+    result.historyKey = "core.get_time";
+    result.executionStatus = "success";
+    result.responseText = "It's 5:00 PM right now.";
+    result.timestampEpochMs = 3000;
+
+    engine.presentTurnResult(result);
+
+    ASSERT_TRUE(waitUntil(
+        [&engine]() { return engine.turnState == DecisionEngine::DecisionEngineMain::TurnState::IDLE; },
+        std::chrono::milliseconds(250)));
+    EXPECT_TRUE(fakeRemote->lastResponseText.empty());
+
     const auto storedHistory = engine.chatHistoryStore->getRecentHistory("core.get_time", 10);
     ASSERT_EQ(storedHistory.size(), 1u);
     EXPECT_EQ(storedHistory.back().displayResponse, "It's 5:00 PM right now.");

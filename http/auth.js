@@ -3,6 +3,53 @@ let authToken = null;
 let clientId = "webui"; // default; user can override below
 let pendingCode = null;
 
+function describeParamType(schema) {
+    if (!schema || typeof schema !== "object") {
+        return "string";
+    }
+    if (Array.isArray(schema.type)) {
+        return schema.type.join("|");
+    }
+    return schema.type || "string";
+}
+
+function extractParams(paramsSchema) {
+    if (Array.isArray(paramsSchema)) {
+        return paramsSchema.map((name) => ({
+            name,
+            required: false,
+            schema: { type: "string" }
+        }));
+    }
+
+    if (!paramsSchema || typeof paramsSchema !== "object") {
+        return [];
+    }
+
+    const properties = paramsSchema.properties && typeof paramsSchema.properties === "object"
+        ? paramsSchema.properties
+        : {};
+    const requiredFields = new Set(Array.isArray(paramsSchema.required) ? paramsSchema.required : []);
+
+    return Object.entries(properties).map(([name, schema]) => ({
+        name,
+        required: requiredFields.has(name),
+        schema: schema || { type: "string" }
+    }));
+}
+
+function renderEndpointLoadError(message) {
+    const endpoints = document.getElementById("endpoints");
+    if (!endpoints) {
+        return;
+    }
+    endpoints.replaceChildren();
+    const error = document.createElement("p");
+    error.style.color = "#b00020";
+    error.textContent = message;
+    endpoints.appendChild(error);
+}
+
 function getCookie(name) {
     const match = document.cookie.match(new RegExp("(?:^|; )" + name.replace(/([.$?*|{}()\[\]\\/+^])/g, "\\$1") + "=([^;]*)"));
     return match ? decodeURIComponent(match[1]) : null;
@@ -107,11 +154,14 @@ fetch("/getEndpoints")
                 endpointForm.action = `/${category}-${endpoint.name}`;
                 endpointForm.method = endpoint.endpoint_type;
                 console.log(endpoint);
-                for (const param of endpoint.params) {
+                const params = extractParams(endpoint.params);
+                for (const param of params) {
                     const input = document.createElement("input");
-                    input.type = "text";
-                    input.name = param;
-                    input.placeholder = param;
+                    const paramType = describeParamType(param.schema);
+                    input.type = paramType === "integer" || paramType === "number" ? "number" : "text";
+                    input.name = param.name;
+                    input.placeholder = `${param.name}${param.required ? " (required)" : ""} [${paramType}]`;
+                    input.required = param.required;
                     endpointForm.appendChild(input);
                 }
                 const submit = document.createElement("input");
@@ -143,9 +193,14 @@ fetch("/getEndpoints")
                 // create a link to the endpoint
                 const endpointLink = document.createElement("a");
                 endpointLink.href = `/${category}-${endpoint.name}`;
-                endpointLink.innerText = `${category}-${endpoint.name}, params: ${endpoint.params}, public: ${endpoint.public}`;
+                const paramNames = params.map((param) => param.name).join(", ") || "none";
+                endpointLink.innerText = `${category}-${endpoint.name}, params: ${paramNames}, public: ${endpoint.public}`;
                 endpoints.appendChild(endpointLink);
                 endpoints.appendChild(document.createElement("br"));
             }
         }
+    })
+    .catch((error) => {
+        console.error("Failed to load endpoints", error);
+        renderEndpointLoadError(`Failed to load endpoints: ${error}`);
     });

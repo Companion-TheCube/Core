@@ -258,7 +258,7 @@ int main(int argc, char* argv[])
         if (!appsManager.initialize()) {
             CubeLog::warning("AppsManager initialization completed with one or more manifest sync errors.");
         }
-
+        
         CubeLog::info("Loading GUI...");
         auto gui = std::make_shared<GUI>();
         auto audioManager = std::make_shared<AudioManager>();

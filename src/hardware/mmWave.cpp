@@ -570,6 +570,7 @@ void mmWave::decodeDataFrame(Response response)
             return;
         }
         MmWavePresenceDecision decision;
+        bool shouldPublishDecision = false;
         {
             std::lock_guard<std::mutex> lock(readingMutex);
             // target state, 1 byte
@@ -584,9 +585,14 @@ void mmWave::decodeDataFrame(Response response)
             currentReading.stationaryTargetEnergy = data[10];
             // Detection Distance, 2 byte, cm
             currentReading.detectionDistance = data[11] | data[12] << 8;
-            decision = presenceEstimator_.update(currentReading, std::chrono::steady_clock::now());
+            if (presenceDetectionEnabled_) {
+                decision = presenceEstimator_.update(currentReading, std::chrono::steady_clock::now());
+                shouldPublishDecision = true;
+            }
         }
-        invokePresenceUpdateCallback(decision);
+        if (shouldPublishDecision) {
+            invokePresenceUpdateCallback(decision);
+        }
     } else if (dataType == 0x01) {
         CubeLog::info("Engineering data frame.");
         // Need at least 15 bytes to safely read gate counts at data[13] and data[14]
@@ -597,6 +603,7 @@ void mmWave::decodeDataFrame(Response response)
         }
         // target state, 1 byte
         MmWavePresenceDecision decision;
+        bool shouldPublishDecision = false;
         {
             std::lock_guard<std::mutex> lock(readingMutex);
             currentReading.targetState = data[4];
@@ -610,9 +617,14 @@ void mmWave::decodeDataFrame(Response response)
             currentReading.stationaryTargetEnergy = data[10];
             // Detection Distance, 2 byte, cm
             currentReading.detectionDistance = data[11] | data[12] << 8;
-            decision = presenceEstimator_.update(currentReading, std::chrono::steady_clock::now());
+            if (presenceDetectionEnabled_) {
+                decision = presenceEstimator_.update(currentReading, std::chrono::steady_clock::now());
+                shouldPublishDecision = true;
+            }
         }
-        invokePresenceUpdateCallback(decision);
+        if (shouldPublishDecision) {
+            invokePresenceUpdateCallback(decision);
+        }
         // Max moving/stationary gate INDEX N means gates 0..N (N+1 energy values each)
         uint8_t maxMovingDistanceGateNumber = data[13];
         uint8_t maxStationaryDistanceGateNumber = data[14];
@@ -692,6 +704,27 @@ void mmWave::setPresenceConfig(const MmWavePresenceConfig& config)
 {
     std::lock_guard<std::mutex> lock(readingMutex);
     presenceEstimator_.setConfig(config);
+}
+
+void mmWave::setPresenceDetectionEnabled(bool enabled)
+{
+    MmWavePresenceDecision decision;
+    bool changed = false;
+    {
+        std::lock_guard<std::mutex> lock(readingMutex);
+        if (presenceDetectionEnabled_ == enabled) {
+            return;
+        }
+        presenceDetectionEnabled_ = enabled;
+        resetPresenceStateLocked();
+        decision = presenceEstimator_.decision();
+        decision.timestamp = std::chrono::steady_clock::now();
+        changed = true;
+    }
+
+    if (changed) {
+        invokePresenceUpdateCallback(decision);
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////

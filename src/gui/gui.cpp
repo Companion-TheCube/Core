@@ -920,11 +920,15 @@ void GUI::eventLoop(std::stop_token stopToken)
             MENUS::EntryType::MENUENTRY_TYPE_TOGGLE,
             [](void* data) {
                 CubeLog::info("Personality - Enable/Disable Personality clicked");
-                // TODO: make this actually enable/disable personality. the settings should have a callback registered with the GlobalSettings class that will enable/disable personality when the setting is changed.
-                // GlobalSettings::setSetting(GlobalSettings::SettingType::PERSONALITY_ENABLED, !GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::PERSONALITY_ENABLED));
+                const bool enabled = GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::PERSONALITY_ENABLED);
+                GlobalSettings::setSetting(GlobalSettings::SettingType::PERSONALITY_ENABLED, !enabled);
+                CubeLog::info(std::string("Personality set to ") + (!enabled ? "enabled" : "disabled"));
                 return 0;
             },
-            [](void*) { return 0; },
+            [](void*) {
+                return static_cast<unsigned int>(
+                    GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::PERSONALITY_ENABLED) ? 1 : 0);
+            },
             nullptr);
         ///////// Personality Menu - Personality reset /////////
         personalityMenu->addMenuEntry(
@@ -992,11 +996,15 @@ void GUI::eventLoop(std::stop_token stopToken)
             MENUS::EntryType::MENUENTRY_TYPE_TOGGLE,
             [](void* data) {
                 CubeLog::info("Microphone clicked");
-                // TODO: make this actually enable/disable the microphone. the settings should have a callback registered with the GlobalSettings class that will enable/disable the microphone when the setting is changed.
-                // GlobalSettings::setSetting(GlobalSettings::SettingType::MICROPHONE_ENABLED, !GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::MICROPHONE_ENABLED));
+                const bool enabled = GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::MICROPHONE_ENABLED);
+                GlobalSettings::setSetting(GlobalSettings::SettingType::MICROPHONE_ENABLED, !enabled);
+                CubeLog::info(std::string("Microphone set to ") + (!enabled ? "enabled" : "disabled"));
                 return 0;
             },
-            [](void*) { return 0; },
+            [](void*) {
+                return static_cast<unsigned int>(
+                    GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::MICROPHONE_ENABLED) ? 1 : 0);
+            },
             nullptr);
         ///////// Sensors Menu - Presence Detection enable/disable /////////
         sensorsMenu->addMenuEntry(
@@ -1005,11 +1013,15 @@ void GUI::eventLoop(std::stop_token stopToken)
             MENUS::EntryType::MENUENTRY_TYPE_TOGGLE,
             [](void* data) {
                 CubeLog::info("Presence Detection clicked");
-                // TODO: make this actually enable/disable the presence detection. the settings should have a callback registered with the GlobalSettings class that will enable/disable the presence detection when the setting is changed.
-                // GlobalSettings::setSetting(GlobalSettings::SettingType::PRESENCE_DETECTION_ENABLED, !GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::PRESENCE_DETECTION_ENABLED));
+                const bool enabled = GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::PRESENCE_DETECTION_ENABLED);
+                GlobalSettings::setSetting(GlobalSettings::SettingType::PRESENCE_DETECTION_ENABLED, !enabled);
+                CubeLog::info(std::string("Presence Detection set to ") + (!enabled ? "enabled" : "disabled"));
                 return 0;
             },
-            [](void*) { return 0; },
+            [](void*) {
+                return static_cast<unsigned int>(
+                    GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::PRESENCE_DETECTION_ENABLED) ? 1 : 0);
+            },
             nullptr);
         this->addPopupSliderMenuEntry(
             sensorsMenu,
