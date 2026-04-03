@@ -160,7 +160,7 @@ void API_Builder::start()
         }
     }
     staticFiles.push_back(std::filesystem::path("http/"));
-    // TODO: refactor to get rid of staticFiles vector. update: maybe not? update2: perhaps there should be a hardcoded list of static files so that we don't have to search the filesystem every time?
+
     for (auto file : staticFiles) {
         CubeLog::info("Adding static file: " + file.string());
         // strip off the ./http/ part of the path
@@ -191,9 +191,13 @@ void API_Builder::start()
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Error opening file: " + l_path);
             }
             std::streamsize fileSize = fileStream.tellg();
+            if (fileSize < 0) {
+                CubeLog::error("Error determining file size: " + l_path);
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Error determining file size: " + l_path);
+            }
             fileStream.seekg(0, std::ios::beg);
-            std::vector<char> buffer(fileSize);
-            if (!fileStream.read(buffer.data(), fileSize)) {
+            std::string buffer(static_cast<size_t>(fileSize), '\0');
+            if (fileSize > 0 && !fileStream.read(buffer.data(), fileSize)) {
                 CubeLog::error("Error reading file: " + l_path);
                 // return std::string("Error reading file: " + filePath);
                 return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Error reading file: " + l_path);
@@ -290,10 +294,7 @@ void API_Builder::start()
                 CubeLog::warning("Unknown file type: " + l_path);
                 contentType = "application/octet-stream";
             }
-            // TODO: This heap buffer copy is wasteful and easy to get wrong because ownership is split across unique_ptr + raw pointer APIs; pass a std::string/std::vector-backed buffer to set_content() directly if the library supports it.
-            std::unique_ptr<char[]> fileData(new char[fileSize]);
-            memcpy(fileData.get(), buffer.data(), fileSize);
-            res.set_content(fileData.get(), fileSize, contentType);
+            res.set_content(std::move(buffer), contentType);
             CubeLog::debug("File sent: " + l_path + " (" + std::to_string(fileSize) + " bytes)");
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         });
