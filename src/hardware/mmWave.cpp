@@ -41,6 +41,9 @@ SOFTWARE.
 #include <asm/termbits.h>
 #endif
 
+#define CONNECTION_FAILURE_THRESHOLD 5
+#define CONNECTION_FAILURE_RECONNECT_DELAY_MULTIPLIER 100
+
 // Serial helpers are implemented later under platform ifdefs.
 static int serialDataAvail(int fd);
 static uint8_t serialGetchar(int fd);
@@ -225,11 +228,10 @@ void mmWave::readerLoop(std::stop_token stopToken)
         paths.push_back(path);
     }
 
-
     while (!stopToken.stop_requested()) {
-        if(connectionFailureCount >= 10) {
+        if (connectionFailureCount >= CONNECTION_FAILURE_THRESHOLD) {
             CubeLog::error("mmWave: reached " + std::to_string(connectionFailureCount) + " consecutive connection failures. Will wait longer before next reconnect attempts.");
-            genericSleep(static_cast<int>(MMWAVE_RECONNECT_DELAY.count() * 50));
+            genericSleep(static_cast<int>(MMWAVE_RECONNECT_DELAY.count() * CONNECTION_FAILURE_RECONNECT_DELAY_MULTIPLIER));
             connectionFailureCount = 0;
         }
         bool newlyReady = false;
@@ -274,9 +276,9 @@ void mmWave::readerLoop(std::stop_token stopToken)
             CubeLog::debugSilly("Stationary Target Energy: " + std::to_string(r.stationaryTargetEnergy));
             CubeLog::debugSilly("Detection Distance: " + std::to_string(r.detectionDistance));
 
-            decision.state == MmWavePresenceState::Present ? CubeLog::moreInfo("Presence State: PRESENT")
-                : decision.state == MmWavePresenceState::Absent     ?  CubeLog::error("Presence State: ABSENT")
-                                                        : CubeLog::warning("Presence State: UNKNOWN");
+            decision.state == MmWavePresenceState::Present      ? CubeLog::moreInfo("Presence State: PRESENT")
+                : decision.state == MmWavePresenceState::Absent ? CubeLog::error("Presence State: ABSENT")
+                                                                : CubeLog::warning("Presence State: UNKNOWN");
             CubeLog::debugSilly("Averaged Detection Distance: "
                 + (decision.detectionDistanceAverageCm.has_value()
                         ? std::to_string(*decision.detectionDistanceAverageCm)
