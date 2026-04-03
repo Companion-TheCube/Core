@@ -693,7 +693,7 @@ if(DEFINED ONNXRUNTIME_RELATIVE_RPATH)
     )
 endif()
 
-target_compile_features(CubeCoreLib PUBLIC cxx_std_17)
+target_compile_features(CubeCoreLib PUBLIC cxx_std_23)
 
 # Include directories
 if(WIN32)
