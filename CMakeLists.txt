@@ -161,12 +161,8 @@ FetchContent_MakeAvailable(json_schema_validator)
 include_directories(${json_schema_validator_SOURCE_DIR}/src)
 
 
-FetchContent_Declare(
-    pqxx
-    GIT_REPOSITORY https://github.com/jtv/libpqxx
-    GIT_TAG master
-)
-FetchContent_MakeAvailable(pqxx)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(PQXX REQUIRED libpqxx)
 
 
 set(WHISPER_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
@@ -714,10 +710,12 @@ else()
         ${OPENGL_INCLUDE_DIRS}
         ${GLEW_INCLUDE_DIRS}
         ${whispercpp_SOURCE_DIR}
-        ${PQXX_INCLUDE_DIRS}
         ${websocketpp_SOURCE_DIR}
+        ${PQXX_INCLUDE_DIRS}
     )
 endif()
+
+target_link_libraries(CubeCore PUBLIC ${PQXX_LIBRARIES})
 
 # ##############################
 # Localization
