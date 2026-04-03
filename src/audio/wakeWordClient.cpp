@@ -15,7 +15,7 @@ Copyright (c) 2025 A-McD Technology LLC
 #include <sys/un.h>
 #include <unistd.h>
 
-static constexpr const char* kOpenWWSock = "/tmp/openww";
+static constexpr const char* kOpenWWSock = "/tmp/openww/openww";
 static constexpr int kWakeRetriggerMs = 5000;
 static constexpr int kHealthLogIntervalSec = 5;
 
