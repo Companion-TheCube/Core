@@ -162,9 +162,9 @@ const std::vector<DB_NS::Database_T> dbDefs = {
         { 
             { 
                 DB_NS::TableNames::APPS, 
-                { "id", "app_id", "app_name", "manifest_path", "install_root", "schema_version", "app_version", "app_type", "runtime_type", "runtime_distribution", "runtime_compatibility", "enabled", "is_system_app", "autostart", "policy_compile_status", "policy_compile_error", "socket_location", "last_started_at", "last_stopped_at", "last_exit_code", "last_failure_reason" },
-                { "INTEGER PRIMARY KEY", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "INTEGER NOT NULL DEFAULT 1", "INTEGER NOT NULL DEFAULT 0", "INTEGER NOT NULL DEFAULT 0", "TEXT NOT NULL DEFAULT 'pending'", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT" },
-                { true, true, false, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false }
+                { "id", "app_id", "app_name", "manifest_path", "install_root", "schema_version", "app_version", "app_type", "runtime_type", "runtime_distribution", "runtime_compatibility", "enabled", "is_system_app", "autostart", "policy_compile_status", "policy_compile_error", "socket_location", "app_auth_id", "last_started_at", "last_stopped_at", "last_exit_code", "last_failure_reason" },
+                { "INTEGER PRIMARY KEY", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "INTEGER NOT NULL DEFAULT 1", "INTEGER NOT NULL DEFAULT 0", "INTEGER NOT NULL DEFAULT 0", "TEXT NOT NULL DEFAULT 'pending'", "TEXT", "TEXT", "TEXT NOT NULL DEFAULT ''", "TEXT", "TEXT", "TEXT", "TEXT" },
+                { true, true, false, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false }
             } 
         } 
     },

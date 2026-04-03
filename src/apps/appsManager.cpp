@@ -35,6 +35,7 @@ SOFTWARE.
 #include <map>
 #include <nlohmann/json.hpp>
 #include <optional>
+#include <random>
 #include <regex>
 #include <set>
 #include <sstream>
@@ -112,10 +113,13 @@ struct PythonInstallState {
 std::string generateAppAuthId()
 {
     static const char alphanum[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    static thread_local std::mt19937 rng(std::random_device { }());
+    static thread_local std::uniform_int_distribution<std::size_t> dist(0, sizeof(alphanum) - 2);
+
     std::string authId;
     authId.reserve(32);
     for (int i = 0; i < 32; ++i) {
-        authId += alphanum[rand() % (sizeof(alphanum) - 1)];
+        authId += alphanum[dist(rng)];
     }
     return authId;
 }
@@ -149,7 +153,7 @@ std::string isoTimestampUtcNow()
 {
     const auto now = std::chrono::system_clock::now();
     const auto time = std::chrono::system_clock::to_time_t(now);
-    std::tm tm {};
+    std::tm tm { };
 #ifdef _WIN32
     gmtime_s(&tm, &time);
 #else
@@ -174,7 +178,7 @@ std::string trim(const std::string& input)
 {
     const auto begin = input.find_first_not_of(" \t\r\n");
     if (begin == std::string::npos) {
-        return {};
+        return { };
     }
     const auto end = input.find_last_not_of(" \t\r\n");
     return input.substr(begin, end - begin + 1);
@@ -390,19 +394,19 @@ fs::path resolvePathInsideRoot(const fs::path& installRoot, const std::string& r
 {
     if (relativePath.empty()) {
         error = "Relative path cannot be empty";
-        return {};
+        return { };
     }
 
     fs::path rel(relativePath);
     if (rel.is_absolute()) {
         error = "Manifest paths must be relative, not absolute";
-        return {};
+        return { };
     }
 
     const fs::path combined = (installRoot / rel).lexically_normal();
     if (!isPathWithinRoot(combined, installRoot.lexically_normal())) {
         error = "Manifest path escapes install root: " + relativePath;
-        return {};
+        return { };
     }
 
     return combined;
@@ -472,12 +476,12 @@ fs::path resolveTokenOrRelativePath(const std::string& appId, const fs::path& in
         return *tokenPath;
     }
     if (!error.empty()) {
-        return {};
+        return { };
     }
 
     if (value.find("://") != std::string::npos) {
         error = "Unsupported path token: " + value;
-        return {};
+        return { };
     }
 
     return resolvePathInsideRoot(installRoot, value, error);
@@ -774,9 +778,9 @@ bool upsertRegistryEntry(const ManifestSummary& summary, const std::string& poli
     }
 
     return -1 < db->insertData(
-                    kAppsTableName,
-                    { "app_id", "app_name", "manifest_path", "install_root", "schema_version", "app_version", "app_type", "runtime_type", "runtime_distribution", "runtime_compatibility", "enabled", "is_system_app", "autostart", "policy_compile_status", "policy_compile_error", "socket_location" },
-                    { summary.appId, summary.appName, manifestPath, installRoot, summary.schemaVersion, summary.appVersion, summary.appType, summary.runtimeType, summary.runtimeDistribution, summary.runtimeCompatibility, "1", boolToDb(summary.systemApp), boolToDb(summary.autostart), policyStatus, policyError, socketLocation });
+               kAppsTableName,
+               { "app_id", "app_name", "manifest_path", "install_root", "schema_version", "app_version", "app_type", "runtime_type", "runtime_distribution", "runtime_compatibility", "enabled", "is_system_app", "autostart", "policy_compile_status", "policy_compile_error", "socket_location" },
+               { summary.appId, summary.appName, manifestPath, installRoot, summary.schemaVersion, summary.appVersion, summary.appType, summary.runtimeType, summary.runtimeDistribution, summary.runtimeCompatibility, "1", boolToDb(summary.systemApp), boolToDb(summary.autostart), policyStatus, policyError, socketLocation });
 }
 
 void markManifestPathError(const fs::path& manifestPath, const std::string& error)
@@ -824,6 +828,49 @@ void updateStartFailure(const std::string& appId, const std::string& reason)
         { "last_failure_reason" },
         { reason },
         { DB_NS::Predicate { "app_id", appId } });
+}
+
+bool ensureAppAuthIdColumn(Database* db, std::string& error)
+{
+    if (db == nullptr) {
+        error = "Apps DB unavailable";
+        return false;
+    }
+
+    if (db->columnExists(kAppsTableName, "app_auth_id")) {
+        return true;
+    }
+
+    if (!db->execute("ALTER TABLE apps ADD COLUMN app_auth_id TEXT NOT NULL DEFAULT ''")) {
+        error = "Failed to add app_auth_id column to apps DB: " + db->getLastError();
+        return false;
+    }
+
+    return true;
+}
+
+bool updateAppAuthId(const std::string& appId, const std::string& authId, std::string& error)
+{
+    auto* db = CubeDB::getDBManager()->getDatabase(kAppsDatabaseName);
+    if (!db) {
+        error = "Apps DB unavailable while updating app auth id";
+        return false;
+    }
+
+    if (!ensureAppAuthIdColumn(db, error)) {
+        return false;
+    }
+
+    if (!db->updateData(
+            kAppsTableName,
+            { "app_auth_id" },
+            { authId },
+            { DB_NS::Predicate { "app_id", appId } })) {
+        error = "Failed to persist app auth id: " + db->getLastError();
+        return false;
+    }
+
+    return true;
 }
 
 void updateStartSuccess(const std::string& appId)
@@ -920,7 +967,7 @@ std::string pythonPackageName(const ManifestSummary& summary)
             return python["package_name"].get<std::string>();
         }
     }
-    return {};
+    return { };
 }
 
 fs::path pythonInstallStatePath(const std::string& appId)
@@ -1109,7 +1156,7 @@ bool appendFilesystemPaths(
     return true;
 }
 
-bool compileLaunchPolicy(const ManifestSummary& summary, nlohmann::json& policyOut, std::string& error)
+bool compileLaunchPolicy(const ManifestSummary& summary, const std::string& appAuthId, nlohmann::json& policyOut, std::string& error)
 {
     std::string workingDirectoryError;
     const auto workingDirectory = resolvePathInsideRoot(summary.installRoot, summary.workingDirectory, workingDirectoryError);
@@ -1354,7 +1401,7 @@ bool compileLaunchPolicy(const ManifestSummary& summary, nlohmann::json& policyO
         { "THECUBE_CACHE_DIR", runtimeCacheDir(summary.appId) },
         { "THECUBE_RUNTIME_DIR", runtimeRunDir(summary.appId) },
         { "THECUBE_CORE_SOCKET", kDefaultCoreSocket },
-        { "THECUBE_APP_AUTH_ID", generateAppAuthId() }
+        { "THECUBE_APP_AUTH_ID", appAuthId }
     };
     if (!AppPostgresAccess::appendLaunchEnvironment(summary.appId, summary.postgresqlDatabases, environmentSet, error)) {
         return false;
@@ -1373,6 +1420,9 @@ bool compileLaunchPolicy(const ManifestSummary& summary, nlohmann::json& policyO
         }
     }
 
+    // Always enforce the generated auth token even if the manifest sets this key.
+    environmentSet["THECUBE_APP_AUTH_ID"] = appAuthId;
+
     std::ifstream manifestFile(summary.manifestPath);
     std::stringstream buffer;
     buffer << manifestFile.rdbuf();
@@ -1381,45 +1431,13 @@ bool compileLaunchPolicy(const ManifestSummary& summary, nlohmann::json& policyO
         { "policy_version", "1.0" },
         { "launch_id", summary.appId + "-" + isoTimestampUtcNow() },
         { "generated_at", isoTimestampUtcNow() },
-        { "app", {
-              { "id", summary.appId },
-              { "name", summary.appName },
-              { "type", summary.appType },
-              { "version", summary.appVersion },
-              { "install_root", summary.installRoot.string() },
-              { "argv", argv },
-              { "working_directory", workingDirectory.string() }
-          } },
-        { "runtime", {
-              { "type", summary.runtimeType },
-              { "distribution", summary.runtimeDistribution },
-              { "compatibility", summary.runtimeCompatibility },
-              { "resolved_executable", resolvedExecutable },
-              { "launch_target", launchTarget }
-          } },
-        { "environment", {
-              { "clear_inherited", true },
-              { "allow_inherit", allowInherit },
-              { "set", environmentSet }
-          } },
-        { "filesystem", {
-              { "landlock", {
-                    { "read_only", readOnly },
-                    { "read_write", readWrite },
-                    { "create", nlohmann::json::array({ runtimeDataDir(summary.appId), runtimeCacheDir(summary.appId), runtimeRunDir(summary.appId) }) }
-                } }
-          } },
-        { "platform", {
-              { "allowed_permissions", summary.raw["permissions"].value("platform", nlohmann::json::array()) },
-              { "ipc", {
-                    { "core_socket", kDefaultCoreSocket },
-                    { "app_socket", defaultSocketLocation(summary.appId) }
-                } }
-          } },
+        { "app", { { "id", summary.appId }, { "name", summary.appName }, { "type", summary.appType }, { "version", summary.appVersion }, { "install_root", summary.installRoot.string() }, { "argv", argv }, { "working_directory", workingDirectory.string() } } },
+        { "runtime", { { "type", summary.runtimeType }, { "distribution", summary.runtimeDistribution }, { "compatibility", summary.runtimeCompatibility }, { "resolved_executable", resolvedExecutable }, { "launch_target", launchTarget } } },
+        { "environment", { { "clear_inherited", true }, { "allow_inherit", allowInherit }, { "set", environmentSet } } },
+        { "filesystem", { { "landlock", { { "read_only", readOnly }, { "read_write", readWrite }, { "create", nlohmann::json::array({ runtimeDataDir(summary.appId), runtimeCacheDir(summary.appId), runtimeRunDir(summary.appId) }) } } } } },
+        { "platform", { { "allowed_permissions", summary.raw["permissions"].value("platform", nlohmann::json::array()) }, { "ipc", { { "core_socket", kDefaultCoreSocket }, { "app_socket", defaultSocketLocation(summary.appId) } } } } },
         { "network", summary.raw["permissions"].value("network", nlohmann::json::object()) },
-        { "integrity", {
-              { "manifest_digest_sha256", sha256(buffer.str()) }
-          } }
+        { "integrity", { { "manifest_digest_sha256", sha256(buffer.str()) } } }
     };
 
     if (summary.runtimeType == "docker") {
@@ -1473,14 +1491,14 @@ std::string captureCommandOutput(const std::string& command)
 {
 #ifdef _WIN32
     (void)command;
-    return {};
+    return { };
 #else
-    std::array<char, 256> buffer {};
+    std::array<char, 256> buffer { };
     std::string output;
     // TODO: popen() on a composed shell command is risky because quoting/injection and cleanup are easy to get wrong here; switch to an argument-vector subprocess API with RAII-managed pipes.
     FILE* pipe = popen(command.c_str(), "r");
     if (!pipe) {
-        return {};
+        return { };
     }
 
     while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe) != nullptr) {
@@ -1510,7 +1528,7 @@ std::string systemctlShowValue(const std::string& output, const std::string& key
             return line.substr(prefix.size());
         }
     }
-    return {};
+    return { };
 }
 
 UnitInspection inspectUnit(const std::string& unitName)
@@ -1840,6 +1858,10 @@ bool AppsManager::initialize()
     return syncSucceeded;
 }
 
+// TODO: Add an AppsManager shutdown path (or destructor hook) that iterates
+// managed/running app units and calls stopApp(...) so apps started by CORE are
+// cleanly stopped when CORE exits.
+
 bool AppsManager::startApp(const std::string& appID)
 {
     if (!waitForDatabaseManager()) {
@@ -1915,12 +1937,22 @@ bool AppsManager::startApp(const std::string& appID)
         return false;
     }
 
+    const auto appAuthId = generateAppAuthId();
+
     nlohmann::json launchPolicy;
     std::string compileError;
-    if (!compileLaunchPolicy(*parsed.manifest, launchPolicy, compileError)) {
+    if (!compileLaunchPolicy(*parsed.manifest, appAuthId, launchPolicy, compileError)) {
         updateAppStatus(appID, "error", compileError);
         updateStartFailure(appID, compileError);
         CubeLog::error("AppsManager: launch policy compilation failed for " + appID + ": " + compileError);
+        return false;
+    }
+
+    std::string authPersistError;
+    if (!updateAppAuthId(appID, appAuthId, authPersistError)) {
+        updateAppStatus(appID, "error", authPersistError);
+        updateStartFailure(appID, authPersistError);
+        CubeLog::error("AppsManager: failed to persist app auth ID for " + appID + ": " + authPersistError);
         return false;
     }
 

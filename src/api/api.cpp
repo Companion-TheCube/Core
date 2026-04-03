@@ -218,6 +218,11 @@ void API::httpApiThreadFn()
         if (std::filesystem::exists(ipc)) {
             std::filesystem::remove(ipc);
         }
+        // Ensure the directory for the IPC socket exists
+        std::filesystem::path ipcDir = std::filesystem::path(ipc).parent_path();
+        if (!std::filesystem::exists(ipcDir)) {
+            std::filesystem::create_directories(ipcDir);
+        }
         // Use resolved IPC socket path
         this->serverIPC = std::make_unique<CubeHttpServer>(ipc, 0);
         for (size_t i = 0; i < this->endpoints.size(); i++) {
