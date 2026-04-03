@@ -109,6 +109,17 @@ struct PythonInstallState {
     std::string venvRoot;
 };
 
+std::string generateAppAuthId()
+{
+    static const char alphanum[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    std::string authId;
+    authId.reserve(32);
+    for (int i = 0; i < 32; ++i) {
+        authId += alphanum[rand() % (sizeof(alphanum) - 1)];
+    }
+    return authId;
+}
+
 std::string shellQuote(const std::string& value)
 {
     std::string quoted = "'";
@@ -1342,7 +1353,8 @@ bool compileLaunchPolicy(const ManifestSummary& summary, nlohmann::json& policyO
         { "THECUBE_DATA_DIR", runtimeDataDir(summary.appId) },
         { "THECUBE_CACHE_DIR", runtimeCacheDir(summary.appId) },
         { "THECUBE_RUNTIME_DIR", runtimeRunDir(summary.appId) },
-        { "THECUBE_CORE_SOCKET", kDefaultCoreSocket }
+        { "THECUBE_CORE_SOCKET", kDefaultCoreSocket },
+        { "THECUBE_APP_AUTH_ID", generateAppAuthId() }
     };
     if (!AppPostgresAccess::appendLaunchEnvironment(summary.appId, summary.postgresqlDatabases, environmentSet, error)) {
         return false;
