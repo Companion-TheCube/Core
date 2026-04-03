@@ -462,14 +462,11 @@ void GUI::eventLoop(std::stop_token stopToken)
             MENUS::EntryType::MENUENTRY_TYPE_TOGGLE,
             [](void* data) {
                 CubeLog::info("WiFi - Enable/Disable WiFi clicked");
-                // TODO: make this actually enable/disable wifi. the settings should have a callback registered with the GlobalSettings class that will enable/disable wifi when the setting is changed.
-                // GlobalSettings::setSetting(GlobalSettings::SettingType::WIFI_ENABLED, !GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::WIFI_ENABLED));
+                GlobalSettings::setSetting(GlobalSettings::SettingType::WIFI_ENABLED, !GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::WIFI_ENABLED));
                 return 0;
             },
             [](void*) {
-                // TODO: return GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::WIFI_ENABLED);
-                int random0or1 = rand() % 2;
-                return random0or1;
+                return GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::WIFI_ENABLED);
             },
             nullptr);
         ///////// Connections Menu - WiFi - Current Network /////////

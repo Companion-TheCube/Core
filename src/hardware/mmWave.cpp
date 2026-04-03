@@ -49,12 +49,6 @@ namespace {
 constexpr int MMWAVE_BAUD_PREFERRED = 115200;
 constexpr int MMWAVE_BAUD_MANUAL_FALLBACK = 256000;
 constexpr int MMWAVE_BAUD_ANALYZER_MEASURED = 263157;
-constexpr std::array<const char*, 4> MMWAVE_SERIAL_PATH_CANDIDATES = {
-    "/dev/ttyUSB0",
-    "/dev/ttyUSB1",
-    "/dev/ttyACM0",
-    "/dev/ttyACM1"
-};
 
 constexpr std::array<int, 7> MMWAVE_BAUD_CANDIDATES = {
     MMWAVE_BAUD_PREFERRED,
@@ -219,16 +213,30 @@ MmWaveSerialBackend makeRealSerialBackend()
 
 void mmWave::readerLoop(std::stop_token stopToken)
 {
+    connectionFailureCount = 0;
     unsigned long lastPrintTime = millis();
 
+    auto mmWaveSerialPaths = Config::get("MMWAVE_SERIAL_PATHS");
+    // break comma-separated paths into vector
+    std::vector<std::string> paths;
+    std::istringstream ss(mmWaveSerialPaths);
+    std::string path;
+    while (std::getline(ss, path, ',')) {
+        paths.push_back(path);
+    }
+
+
     while (!stopToken.stop_requested()) {
+        if(connectionFailureCount >= 10) {
+            CubeLog::error("mmWave: reached " + std::to_string(connectionFailureCount) + " consecutive connection failures. Will wait longer before next reconnect attempts.");
+            genericSleep(static_cast<int>(MMWAVE_RECONNECT_DELAY.count() * 50));
+            connectionFailureCount = 0;
+        }
         bool newlyReady = false;
         bool hasConnection = false;
         {
             std::lock_guard<std::mutex> serialLock(serialMutex);
             if (serialPort_h < 0) {
-                const std::vector<std::string> paths(
-                    MMWAVE_SERIAL_PATH_CANDIDATES.begin(), MMWAVE_SERIAL_PATH_CANDIDATES.end());
                 const std::vector<int> bauds(
                     MMWAVE_BAUD_CANDIDATES.begin(), MMWAVE_BAUD_CANDIDATES.end());
                 newlyReady = connectWithCandidatesLocked(paths, bauds, 500);
@@ -334,6 +342,7 @@ bool mmWave::connectWithCandidatesLocked(const std::vector<std::string>& paths, 
     if (result.fd < 0) {
         isReady_.store(false);
         CubeLog::warning("mmWave: sensor probe failed across all configured paths/bauds.");
+        connectionFailureCount++;
         return false;
     }
 

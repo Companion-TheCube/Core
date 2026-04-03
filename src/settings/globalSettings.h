@@ -218,6 +218,11 @@ struct GlobalSettings {
         settingChangeCallbacks.push_back({ key, callback });
     }
 
+    static void setSettingCB(SettingType key, std::function<void(const nlohmann::json&)> callback)
+    {
+        settingChangeCallbacks.push_back({ key, [callback, key]() { callback(GlobalSettings::getSetting(key)); } });
+    }
+
     static void callSettingCB(SettingType key)
     {
         CubeLog::debug("Calling setting change callback for " + std::to_string((int)key));

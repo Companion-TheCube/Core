@@ -61,6 +61,14 @@ std::mutex WifiManager::commandMutex;
 // TODO: finish implementing the WifiManager class
 WifiManager::WifiManager()
 {
+    // GlobalSettings::setSetting(GlobalSettings::SettingType::WIFI_ENABLED,
+    GlobalSettings::setSettingCB(GlobalSettings::SettingType::WIFI_ENABLED, [](const nlohmann::json& value) {
+        if (value.get<bool>()) {
+            WifiManager::enable();
+        } else {
+            WifiManager::disable();
+        }
+    });
     devName = findDevice();
     loopThread = std::jthread([&]() {
         while (true) {

@@ -211,6 +211,8 @@ class mmWave {
     std::mutex serialMutex;
     std::mutex callbackMutex;
 
+    size_t connectionFailureCount = 0;
+
     int serialPort_h = -1;
     std::atomic<bool> isReady_ { false };
     std::function<void()> onReadyCallback;
