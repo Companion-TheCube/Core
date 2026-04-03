@@ -68,9 +68,15 @@ bool ensureSodiumReady(std::string& error)
     return true;
 }
 
-void execNoRows(pqxx::transaction_base& tx, const std::string& sql)
+template <typename Transaction>
+void execNoRows(Transaction& tx, const std::string& sql)
 {
-    tx.exec(sql).no_rows();
+    // libpqxx 6.x uses exec0(); newer releases support result::no_rows().
+    if constexpr (requires { tx.exec(sql).no_rows(); }) {
+        tx.exec(sql).no_rows();
+    } else {
+        tx.exec0(sql);
+    }
 }
 
 std::string hexEncode(const unsigned char* data, size_t size)
