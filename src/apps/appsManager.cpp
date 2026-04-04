@@ -29,6 +29,7 @@ SOFTWARE.
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <exception>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -1706,6 +1707,67 @@ AppsManager::AppsManager(std::shared_ptr<AppRuntimeController> runtimeController
 {
 }
 
+AppsManager::~AppsManager()
+{
+    shutdown();
+}
+
+void AppsManager::shutdown()
+{
+    if (shutdownComplete) {
+        return;
+    }
+    shutdownComplete = true;
+
+    CubeLog::info("AppsManager: shutting down, stopping running apps");
+    if (!initialized || !runtimeController) {
+        return;
+    }
+
+    try {
+        auto dbManager = CubeDB::getDBManager();
+        if (dbManager == nullptr || !dbManager->isDatabaseManagerReady()) {
+            return;
+        }
+
+        auto* db = dbManager->getDatabase(kAppsDatabaseName);
+        if (!db) {
+            CubeLog::warning("AppsManager: apps DB unavailable during shutdown");
+            return;
+        }
+
+        const auto rows = db->selectData(kAppsTableName, { "app_id" });
+        std::vector<std::string> runningAppIds;
+        runningAppIds.reserve(rows.size());
+
+        for (const auto& row : rows) {
+            if (row.empty()) {
+                continue;
+            }
+
+            std::string controllerError;
+            if (runtimeController->isUnitActive(buildUnitName(row[0]), &controllerError)) {
+                runningAppIds.push_back(row[0]);
+                continue;
+            }
+
+            if (!controllerError.empty()) {
+                CubeLog::debug("AppsManager: app not active during shutdown (" + row[0] + "): " + controllerError);
+            }
+        }
+
+        for (const auto& appID : runningAppIds) {
+            if (!stopApp(appID)) {
+                CubeLog::warning("AppsManager: failed to stop app during shutdown: " + appID);
+            }
+        }
+    } catch (const std::exception& ex) {
+        CubeLog::error(std::string("AppsManager: exception during shutdown: ") + ex.what());
+    } catch (...) {
+        CubeLog::error("AppsManager: unknown exception during shutdown");
+    }
+}
+
 bool AppsManager::waitForDatabaseManager() const
 {
     for (int attempt = 0; attempt < 500; ++attempt) {
@@ -1857,10 +1919,6 @@ bool AppsManager::initialize()
     this->initialized = true;
     return syncSucceeded;
 }
-
-// TODO: Add an AppsManager shutdown path (or destructor hook) that iterates
-// managed/running app units and calls stopApp(...) so apps started by CORE are
-// cleanly stopped when CORE exits.
 
 bool AppsManager::startApp(const std::string& appID)
 {

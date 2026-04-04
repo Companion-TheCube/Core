@@ -49,9 +49,10 @@ class AppsManager {
 public:
     AppsManager();
     explicit AppsManager(std::shared_ptr<AppRuntimeController> runtimeController);
-    ~AppsManager() = default;
+    ~AppsManager();
 
     bool initialize();
+    void shutdown();
     bool startApp(const std::string& appID);
     bool stopApp(const std::string& appID);
     bool isAppRunning(const std::string& appID) const;
@@ -65,6 +66,7 @@ public:
 private:
     std::shared_ptr<AppRuntimeController> runtimeController;
     bool initialized = false;
+    bool shutdownComplete = false;
 
     bool waitForDatabaseManager() const;
     bool syncRegistry();

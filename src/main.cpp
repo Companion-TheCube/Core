@@ -307,6 +307,7 @@ int main(int argc, char* argv[])
 #ifndef PRODUCTION_BUILD
         cpuAndMemoryThread.request_stop();
 #endif
+        appsManager.shutdown();
         CubeLog::info("Stopping GUI...");
         gui->stop();
     }
