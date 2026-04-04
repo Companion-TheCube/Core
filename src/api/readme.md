@@ -121,10 +121,15 @@ Current IPC behavior:
 
 * the IPC server is intended to be the local transport for trusted on-device
   clients and apps
-* in the current implementation, IPC endpoints are still registered without
-  auth enforcement
-* manifest-driven app authorization for IPC access is planned, but is not yet
-  implemented
+* every IPC request must include `X-TheCube-App-Auth-Id`
+* the header value must be the runtime `THECUBE_APP_AUTH_ID`, not manifest
+  `app.id`
+* requests with missing, empty, stale, or unknown app auth IDs are rejected
+  with `403`
+* public IPC endpoints are allowed once the app identity resolves to an enabled
+  installed app
+* non-public IPC endpoints additionally require an explicit grant in the
+  `authorized_endpoints` table in `apps.db`
 
 ### Static Web Content
 
@@ -138,7 +143,8 @@ Current static web behavior:
 
 Because this area is still evolving, client code should not assume that every
 documented interface endpoint is safe to call unauthenticated over HTTP, and it
-should not assume that IPC authz hardening already exists.
+should treat IPC access as requiring both app identity and, for non-public
+routes, an explicit endpoint grant.
 
 ## Current Network Auth Flow
 
@@ -191,6 +197,21 @@ If `HTTP_PORT` is overridden in `.env`, use that port instead.
 
 Use `/getCubeSocketPath` to discover the resolved socket path if you are not
 already controlling `IPC_SOCKET_PATH`.
+
+IPC requests from local apps must include:
+
+* `X-TheCube-App-Auth-Id: <THECUBE_APP_AUTH_ID>`
+
+Endpoint grants in `authorized_endpoints.endpoint_name` use the full endpoint
+ID, for example `GUI-messageBox`.
+
+Example:
+
+```bash
+curl --unix-socket /tmp/thecube/cube.sock \
+  -H 'X-TheCube-App-Auth-Id: abc123runtimeauthid' \
+  http://localhost/getEndpoints
+```
 
 ## Notes
 

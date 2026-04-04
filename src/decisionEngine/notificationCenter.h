@@ -17,6 +17,7 @@ Copyright (c) 2025 A-McD Technology LLC
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
+#include <thread>
 #include <unordered_map>
 #include <vector>
 
@@ -137,6 +138,7 @@ private:
     std::unordered_map<long, uint32_t> scheduledHandles_;
     PresenterCallbacks presenterCallbacks_;
     std::atomic<uint64_t> alarmPlaybackGeneration_ { 0 };
+    std::jthread alarmPlaybackThread_;
     long activeAlarmId_ = -1;
     bool started_ = false;
 
@@ -145,6 +147,7 @@ private:
     void scheduleItem(const Item& item);
     void unscheduleItem(long id);
     void deliverItem(long id);
+    std::jthread takeAlarmPlaybackThreadLocked();
     void startAlarmLoop(long id);
     void stopAlarmLoop();
     void presentItem(const Item& item);

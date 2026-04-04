@@ -3,6 +3,7 @@
 #include <chrono>
 #include <filesystem>
 #include <memory>
+#include <sys/socket.h>
 #include <thread>
 
 #include "../../src/api/api.h"
@@ -24,6 +25,7 @@ static void addInterfaceEndpoints(API& api, I_API_Interface& iface)
 
 namespace {
 constexpr const char* kAuthRequestsTable = "client_auth_requests";
+constexpr const char* kIpcAppAuthHeaderName = "X-TheCube-App-Auth-Id";
 constexpr int kApiStartupDelayMs = 200;
 
 DB_NS::PredicateList authRequestFilters(const std::string& clientId, const std::string& initialCode)
@@ -101,11 +103,24 @@ protected:
         if (ipcPath.empty()) {
             ipcPath = "test_ipc.sock";
         }
-        api_->setIpcPath(ipcPath);
+        fs::path resolvedIpcPath = fs::path(ipcPath);
+        if (!resolvedIpcPath.is_absolute()) {
+            resolvedIpcPath = tmpRoot_ / resolvedIpcPath;
+        }
+        ipcPath_ = resolvedIpcPath.lexically_normal().string();
+        api_->setIpcPath(ipcPath_);
 
         auth_ = std::make_unique<CubeAuth>();
         addInterfaceEndpoints(*api_, *auth_);
 
+        api_->addEndpoint("Test-publicEcho", publicPath(), PUBLIC_ENDPOINT | POST_ENDPOINT,
+            [](const httplib::Request& req, httplib::Response& res) {
+                nlohmann::json j;
+                j["ok"] = true;
+                j["payload"] = nlohmann::json::parse(req.body);
+                res.set_content(j.dump(), "application/json");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
+            });
         api_->addEndpoint("Test-privateEcho", testPath(), PRIVATE_ENDPOINT | POST_ENDPOINT,
             [](const httplib::Request& req, httplib::Response& res) {
                 nlohmann::json j;
@@ -149,9 +164,19 @@ protected:
         return "/Test-privateEcho";
     }
 
+    static std::string publicPath()
+    {
+        return "/Test-publicEcho";
+    }
+
     std::string baseUrl() const
     {
         return "http://127.0.0.1:" + std::to_string(httpPort_);
+    }
+
+    std::string ipcPath() const
+    {
+        return ipcPath_;
     }
 
     Database* authDb() const
@@ -162,6 +187,48 @@ protected:
         return db;
     }
 
+    Database* appsDb() const
+    {
+        auto* db = CubeDB::getDBManager()->getDatabase("apps");
+        EXPECT_NE(db, nullptr);
+        EXPECT_TRUE(db != nullptr && db->isOpen());
+        return db;
+    }
+
+    void insertApp(const std::string& appId, const std::string& appName, const std::string& appAuthId, const std::string& enabled = "1")
+    {
+        auto* db = appsDb();
+        ASSERT_NE(db, nullptr);
+        ASSERT_LT(-1, db->insertData(
+                          DB_NS::TableNames::APPS,
+                          { "app_id", "app_name", "enabled", "app_auth_id" },
+                          { appId, appName, enabled, appAuthId }));
+    }
+
+    void ensureAuthorizedEndpointsTableForTest()
+    {
+        auto* db = appsDb();
+        ASSERT_NE(db, nullptr);
+        if (!db->tableExists("authorized_endpoints")) {
+            ASSERT_TRUE(db->createTable(
+                "authorized_endpoints",
+                { "id", "app_id", "endpoint_name" },
+                { "INTEGER PRIMARY KEY", "TEXT", "TEXT" },
+                { true, false, false }));
+        }
+    }
+
+    void grantEndpoint(const std::string& appId, const std::string& endpointName)
+    {
+        ensureAuthorizedEndpointsTableForTest();
+        auto* db = appsDb();
+        ASSERT_NE(db, nullptr);
+        ASSERT_LT(-1, db->insertData(
+                          "authorized_endpoints",
+                          { "app_id", "endpoint_name" },
+                          { appId, endpointName }));
+    }
+
 private:
     std::filesystem::path prevCwd_;
     std::filesystem::path tmpRoot_;
@@ -170,6 +237,7 @@ private:
     std::unique_ptr<API> api_;
     std::unique_ptr<CubeAuth> auth_;
     int httpPort_ = 55281;
+    std::string ipcPath_;
 };
 } // namespace
 
@@ -342,4 +410,81 @@ TEST_F(AuthApiIntegrationTest, InitCodeDoesNotReturnCodeByDefault)
     auto jInit = nlohmann::json::parse(resInit->body);
     EXPECT_TRUE(jInit.value("success", false));
     EXPECT_FALSE(jInit.contains("initial_code"));
+}
+
+TEST_F(AuthApiIntegrationTest, IpcRequestWithoutAppAuthHeaderIsDenied)
+{
+    httplib::Client ipc(ipcPath().c_str(), 0);
+    ipc.set_address_family(AF_UNIX);
+
+    nlohmann::json payload;
+    payload["msg"] = "hello";
+    auto res = ipc.Post(publicPath().c_str(), payload.dump(), "application/json");
+    ASSERT_TRUE(res);
+    EXPECT_EQ(res->status, 403);
+}
+
+TEST_F(AuthApiIntegrationTest, IpcRequestWithUnknownAppAuthIdIsDenied)
+{
+    httplib::Client ipc(ipcPath().c_str(), 0);
+    ipc.set_address_family(AF_UNIX);
+
+    httplib::Headers headers = { { kIpcAppAuthHeaderName, "unknown-app-auth-id" } };
+    nlohmann::json payload;
+    payload["msg"] = "hello";
+    auto res = ipc.Post(publicPath().c_str(), headers, payload.dump(), "application/json");
+    ASSERT_TRUE(res);
+    EXPECT_EQ(res->status, 403);
+}
+
+TEST_F(AuthApiIntegrationTest, PublicIpcEndpointAllowsKnownAppIdentity)
+{
+    insertApp("com.example.echo", "Echo", "echo-app-auth-id");
+
+    httplib::Client ipc(ipcPath().c_str(), 0);
+    ipc.set_address_family(AF_UNIX);
+
+    httplib::Headers headers = { { kIpcAppAuthHeaderName, "echo-app-auth-id" } };
+    nlohmann::json payload;
+    payload["msg"] = "hello";
+    auto res = ipc.Post(publicPath().c_str(), headers, payload.dump(), "application/json");
+    ASSERT_TRUE(res);
+    ASSERT_EQ(res->status, 200);
+    auto body = nlohmann::json::parse(res->body);
+    EXPECT_TRUE(body.value("ok", false));
+    EXPECT_EQ(body["payload"]["msg"].get<std::string>(), "hello");
+}
+
+TEST_F(AuthApiIntegrationTest, PrivateIpcEndpointDeniesKnownAppWithoutGrant)
+{
+    insertApp("com.example.echo", "Echo", "echo-app-auth-id");
+
+    httplib::Client ipc(ipcPath().c_str(), 0);
+    ipc.set_address_family(AF_UNIX);
+
+    httplib::Headers headers = { { kIpcAppAuthHeaderName, "echo-app-auth-id" } };
+    nlohmann::json payload;
+    payload["msg"] = "hello";
+    auto res = ipc.Post(testPath().c_str(), headers, payload.dump(), "application/json");
+    ASSERT_TRUE(res);
+    EXPECT_EQ(res->status, 403);
+}
+
+TEST_F(AuthApiIntegrationTest, PrivateIpcEndpointAllowsKnownAppWithGrant)
+{
+    insertApp("com.example.echo", "Echo", "echo-app-auth-id");
+    grantEndpoint("com.example.echo", "Test-privateEcho");
+
+    httplib::Client ipc(ipcPath().c_str(), 0);
+    ipc.set_address_family(AF_UNIX);
+
+    httplib::Headers headers = { { kIpcAppAuthHeaderName, "echo-app-auth-id" } };
+    nlohmann::json payload;
+    payload["msg"] = "hello";
+    auto res = ipc.Post(testPath().c_str(), headers, payload.dump(), "application/json");
+    ASSERT_TRUE(res);
+    ASSERT_EQ(res->status, 200);
+    auto body = nlohmann::json::parse(res->body);
+    EXPECT_TRUE(body.value("ok", false));
+    EXPECT_EQ(body["payload"]["msg"].get<std::string>(), "hello");
 }

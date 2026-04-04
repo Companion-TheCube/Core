@@ -43,6 +43,7 @@ SOFTWARE.
 
 namespace {
 constexpr const char* kClientAuthRequestsTable = "client_auth_requests";
+constexpr const char* kAuthorizedEndpointsTable = "authorized_endpoints";
 constexpr const char* kAuthRequestStatusPending = "pending";
 constexpr const char* kAuthRequestStatusApproved = "approved";
 constexpr const char* kAuthRequestStatusDenied = "denied";
@@ -120,6 +121,19 @@ DB_NS::PredicateList appIdFilter(const std::string& appID)
     return { DB_NS::Predicate { "app_id", appID } };
 }
 
+DB_NS::PredicateList appAuthIdFilter(const std::string& appAuthId)
+{
+    return { DB_NS::Predicate { "app_auth_id", appAuthId } };
+}
+
+DB_NS::PredicateList authorizedEndpointFilter(const std::string& appID, const std::string& endpointName)
+{
+    return {
+        DB_NS::Predicate { "app_id", appID },
+        DB_NS::Predicate { "endpoint_name", endpointName }
+    };
+}
+
 DB_NS::PredicateList authRequestKeyFilter(const std::string& clientID, const std::string& initialCode)
 {
     return {
@@ -139,6 +153,56 @@ bool ensureAuthRequestTable(Database* db)
             { "INTEGER PRIMARY KEY", "TEXT", "TEXT", "TEXT", "INTEGER", "INTEGER", "INTEGER", "INTEGER", "INTEGER" },
             { true, true, false, false, false, false, false, false, false });
     }
+    return true;
+}
+
+bool ensureAuthorizedEndpointsTable(Database* db, std::string& error)
+{
+    if (db == nullptr || !db->isOpen()) {
+        error = "Apps database not open.";
+        return false;
+    }
+    if (db->tableExists(kAuthorizedEndpointsTable)) {
+        return true;
+    }
+    if (!db->createTable(kAuthorizedEndpointsTable,
+            { "id", "app_id", "endpoint_name" },
+            { "INTEGER PRIMARY KEY", "TEXT", "TEXT" },
+            { true, false, false })) {
+        error = "Failed to create authorized_endpoints table: " + db->getLastError();
+        return false;
+    }
+    return true;
+}
+
+bool resolveAppAuthId(const std::string& appAuthId, std::string& appIdOut, std::string& error)
+{
+    if (appAuthId.empty()) {
+        error = "App auth ID is required.";
+        return false;
+    }
+
+    auto* db = CubeDB::getDBManager()->getDatabase("apps");
+    if (db == nullptr || !db->isOpen()) {
+        error = "Apps database not open.";
+        return false;
+    }
+
+    const auto rows = db->selectData(DB_NS::TableNames::APPS, { "app_id", "enabled" }, appAuthIdFilter(appAuthId));
+    if (rows.empty()) {
+        error = "App auth ID not found.";
+        return false;
+    }
+    if (rows.size() != 1 || rows.front().size() < 2) {
+        error = "App auth ID resolved ambiguously.";
+        return false;
+    }
+    if (rows.front()[1] != "1") {
+        error = "App is disabled.";
+        return false;
+    }
+
+    appIdOut = rows.front()[0];
     return true;
 }
 
@@ -685,6 +749,47 @@ std::string CubeAuth::getLastError()
 {
     CubeLog::debug("Getting last error: " + CubeAuth::lastError);
     return CubeAuth::lastError;
+}
+
+bool CubeAuth::hasValidAppIdentity(const std::string& appAuthId)
+{
+    std::string resolvedAppId;
+    std::string error;
+    const bool resolved = resolveAppAuthId(appAuthId, resolvedAppId, error);
+    CubeAuth::lastError = resolved ? "" : error;
+    return resolved;
+}
+
+bool CubeAuth::isAuthorizedApp(const std::string& appAuthId, const std::string& endpointName)
+{
+    if (endpointName.empty()) {
+        CubeAuth::lastError = "Endpoint name is required.";
+        return false;
+    }
+
+    std::string resolvedAppId;
+    std::string error;
+    if (!resolveAppAuthId(appAuthId, resolvedAppId, error)) {
+        CubeAuth::lastError = error;
+        return false;
+    }
+
+    auto* db = CubeDB::getDBManager()->getDatabase("apps");
+    if (db == nullptr || !db->isOpen()) {
+        CubeAuth::lastError = "Apps database not open.";
+        return false;
+    }
+    if (!ensureAuthorizedEndpointsTable(db, error)) {
+        CubeAuth::lastError = error;
+        return false;
+    }
+    if (!db->rowExists(kAuthorizedEndpointsTable, authorizedEndpointFilter(resolvedAppId, endpointName))) {
+        CubeAuth::lastError = "App is not authorized to access endpoint.";
+        return false;
+    }
+
+    CubeAuth::lastError = "";
+    return true;
 }
 
 /**

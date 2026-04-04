@@ -220,11 +220,12 @@ void API::httpApiThreadFn()
         }
         // Ensure the directory for the IPC socket exists
         std::filesystem::path ipcDir = std::filesystem::path(ipc).parent_path();
-        if (!std::filesystem::exists(ipcDir)) {
+        if (!ipcDir.empty() && !std::filesystem::exists(ipcDir)) {
             std::filesystem::create_directories(ipcDir);
         }
         // Use resolved IPC socket path
         this->serverIPC = std::make_unique<CubeHttpServer>(ipc, 0);
+        static constexpr const char* kIpcAppAuthHeaderName = "X-TheCube-App-Auth-Id";
         for (size_t i = 0; i < this->endpoints.size(); i++) {
             // Public endpoints are accessible by any device on the
             // network. Non public endpoints are only available to devices that have been authenticated. The authentication process is implemented but not tested yet.
@@ -484,8 +485,36 @@ void API::httpApiThreadFn()
                 }
                 this->server->addEndpoint(this->endpoints.at(i)->isGetType(), this->endpoints.at(i)->getPath(), validatedAction);
             }
-            // IPC server is always public. It is only accessible from localhost.
-            this->serverIPC->addEndpoint(this->endpoints.at(i)->isGetType(), this->endpoints.at(i)->getPath(), publicAction);
+            const std::string endpointName = this->endpoints.at(i)->getName();
+            const bool endpointIsPublic = this->endpoints.at(i)->isPublic();
+            std::function<void(const httplib::Request&, httplib::Response&)> ipcAction = [publicAction, endpointName, endpointIsPublic](const httplib::Request& req, httplib::Response& res) {
+                if (!req.has_header(kIpcAppAuthHeaderName)) {
+                    res.set_content("IPC app auth header not present", "text/plain");
+                    res.status = httplib::StatusCode::Forbidden_403;
+                    return;
+                }
+
+                std::string appAuthId = req.get_header_value(kIpcAppAuthHeaderName);
+                if (appAuthId.empty()) {
+                    res.set_content("IPC app auth header not present", "text/plain");
+                    res.status = httplib::StatusCode::Forbidden_403;
+                    return;
+                }
+
+                const bool authorized = endpointIsPublic
+                    ? CubeAuth::hasValidAppIdentity(appAuthId)
+                    : CubeAuth::isAuthorizedApp(appAuthId, endpointName);
+                if (!authorized) {
+                    const std::string authError = CubeAuth::getLastError();
+                    CubeLog::error("IPC authorization failed for endpoint " + endpointName + ": " + authError);
+                    res.set_content(authError.empty() ? "IPC app authorization failed" : authError, "text/plain");
+                    res.status = httplib::StatusCode::Forbidden_403;
+                    return;
+                }
+
+                publicAction(req, res);
+            };
+            this->serverIPC->addEndpoint(this->endpoints.at(i)->isGetType(), this->endpoints.at(i)->getPath(), ipcAction);
         }
         this->server->start();
         this->serverIPC->start();
@@ -681,6 +710,9 @@ void CubeHttpServer::start()
 void CubeHttpServer::stop()
 {
     CubeLog::info("HTTP server stopping...");
+    if (!this->server) {
+        return;
+    }
     this->server->stop();
     genericSleep(250);
     // Workaround for httplib with AF_UNIX: if bound to a UNIX socket and no client
@@ -699,8 +731,13 @@ void CubeHttpServer::stop()
         genericSleep(100);
     }
     this->server.reset();
-    serverThread->request_stop();
-    serverThread->join();
+    if (serverThread) {
+        serverThread->request_stop();
+        if (serverThread->joinable()) {
+            serverThread->join();
+        }
+        serverThread.reset();
+    }
 }
 
 /**

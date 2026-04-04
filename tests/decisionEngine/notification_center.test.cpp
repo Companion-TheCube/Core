@@ -222,6 +222,34 @@ TEST_F(NotificationCenterTest, AcknowledgingRepeatingAlarmReschedulesIt)
     scheduler->stop();
 }
 
+TEST_F(NotificationCenterTest, StopJoinsAlarmPlaybackBeforeDestroy)
+{
+    auto scheduler = std::make_shared<Scheduler>();
+    auto center = makeCenter(scheduler);
+    scheduler->start();
+    center->start();
+
+    const auto dueMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+                           std::chrono::system_clock::now().time_since_epoch())
+                           .count()
+        + 150;
+    const auto id = center->createAlarm("Shutdown alarm", "Shutdown alarm", dueMs);
+    ASSERT_GT(id, 0);
+
+    ASSERT_TRUE(waitUntil([&]() {
+        const auto item = center->getItem(id);
+        return item.has_value() && item->deliveredAtEpochMs > 0 && item->active;
+    }, std::chrono::seconds(3)));
+
+    center->stop();
+    scheduler->stop();
+    center.reset();
+    scheduler.reset();
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(2200));
+    SUCCEED();
+}
+
 TEST_F(NotificationCenterTest, VoiceAlarmParserPreservesMinutesForExplicitToday)
 {
     const auto now = std::chrono::system_clock::now();

@@ -1143,11 +1143,32 @@ void NotificationCenter::presentItem(const Item& item)
     }
 }
 
+std::jthread NotificationCenter::takeAlarmPlaybackThreadLocked()
+{
+    if (!alarmPlaybackThread_.joinable()) {
+        return {};
+    }
+
+    alarmPlaybackThread_.request_stop();
+    return std::move(alarmPlaybackThread_);
+}
+
 void NotificationCenter::startAlarmLoop(long id)
 {
     const auto generation = alarmPlaybackGeneration_.fetch_add(1, std::memory_order_relaxed) + 1;
-    std::thread([this, id, generation]() {
-        while (alarmPlaybackGeneration_.load(std::memory_order_relaxed) == generation) {
+    std::jthread previousThread;
+    {
+        std::scoped_lock lock(mutex_);
+        previousThread = takeAlarmPlaybackThreadLocked();
+    }
+    if (previousThread.joinable()) {
+        previousThread.join();
+    }
+
+    std::scoped_lock lock(mutex_);
+    alarmPlaybackThread_ = std::jthread([this, id, generation](std::stop_token stopToken) {
+        while (!stopToken.stop_requested()
+               && alarmPlaybackGeneration_.load(std::memory_order_relaxed) == generation) {
             auto item = getItem(id);
             if (!item || !item->active || item->acknowledged) {
                 break;
@@ -1160,7 +1181,9 @@ void NotificationCenter::startAlarmLoop(long id)
             if (callbacks.startAlarmSound) {
                 callbacks.startAlarmSound();
             }
-            std::this_thread::sleep_for(std::chrono::seconds(2));
+            for (int i = 0; i < 20 && !stopToken.stop_requested(); ++i) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
         }
         PresenterCallbacks callbacks;
         {
@@ -1170,17 +1193,22 @@ void NotificationCenter::startAlarmLoop(long id)
         if (callbacks.stopAlarmSound) {
             callbacks.stopAlarmSound();
         }
-    }).detach();
+    });
 }
 
 void NotificationCenter::stopAlarmLoop()
 {
     alarmPlaybackGeneration_.fetch_add(1, std::memory_order_relaxed);
+    std::jthread alarmThread;
     PresenterCallbacks callbacks;
     {
         std::scoped_lock lock(mutex_);
         activeAlarmId_ = -1;
         callbacks = presenterCallbacks_;
+        alarmThread = takeAlarmPlaybackThreadLocked();
+    }
+    if (alarmThread.joinable()) {
+        alarmThread.join();
     }
     if (callbacks.stopAlarmSound) {
         callbacks.stopAlarmSound();

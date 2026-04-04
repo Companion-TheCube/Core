@@ -62,7 +62,7 @@ constexpr const char* kDefaultLocalLaunchRoot = "run/thecube/launch";
 constexpr const char* kDefaultLocalRuntimeRoot = "run/thecube/apps";
 constexpr const char* kDefaultLocalDataRoot = "data/apps";
 constexpr const char* kDefaultLocalCacheRoot = "cache/apps";
-constexpr const char* kDefaultCoreSocket = "/run/thecube/core/core.sock";
+constexpr const char* kDefaultCoreSocket = "/tmp/thecube/cube.sock";
 constexpr const char* kDefaultLauncherBinaryName = "CubeAppLauncher";
 constexpr const char* kDefaultInstalledLauncherPath = "/opt/thecube/bin/CubeAppLauncher";
 constexpr const char* kDefaultManagedPostgresAppId = "com.thecube.postgresql";
@@ -1402,7 +1402,7 @@ bool compileLaunchPolicy(const ManifestSummary& summary, const std::string& appA
         { "THECUBE_CACHE_DIR", runtimeCacheDir(summary.appId) },
         { "THECUBE_RUNTIME_DIR", runtimeRunDir(summary.appId) },
         { "THECUBE_CORE_SOCKET", kDefaultCoreSocket },
-        { "THECUBE_APP_AUTH_ID", appAuthId }
+        { "THECUBE_APP_AUTH_ID", appAuthId } // This is used to id the app at runtime for the purpose of authorizing access to endpoints over the IPC socket.
     };
     if (!AppPostgresAccess::appendLaunchEnvironment(summary.appId, summary.postgresqlDatabases, environmentSet, error)) {
         return false;
