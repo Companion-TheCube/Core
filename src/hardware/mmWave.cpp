@@ -89,6 +89,84 @@ std::string byteToHex(uint8_t value)
     return oss.str();
 }
 
+const char* presenceStateToString(MmWavePresenceState state)
+{
+    switch (state) {
+    case MmWavePresenceState::Present:
+        return "present";
+    case MmWavePresenceState::Absent:
+        return "absent";
+    case MmWavePresenceState::Unknown:
+    default:
+        return "unknown";
+    }
+}
+
+std::string formatOptionalFloat(const std::optional<float>& value)
+{
+    if (!value.has_value()) {
+        return "n/a";
+    }
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(1) << *value;
+    return oss.str();
+}
+
+std::string formatReading(const MmWaveReading& reading)
+{
+    return "targetState=" + std::to_string(reading.targetState)
+        + ", movingDistanceCm=" + std::to_string(reading.movingTargetDistance)
+        + ", movingEnergy=" + std::to_string(reading.movingTargetEnergy)
+        + ", stationaryDistanceCm=" + std::to_string(reading.stationaryTargetDistance)
+        + ", stationaryEnergy=" + std::to_string(reading.stationaryTargetEnergy)
+        + ", detectionDistanceCm=" + std::to_string(reading.detectionDistance);
+}
+
+std::string formatDecision(const MmWavePresenceDecision& decision)
+{
+    return "state=" + std::string(presenceStateToString(decision.state))
+        + ", latestTargetState="
+        + (decision.latestTargetState.has_value() ? std::to_string(*decision.latestTargetState) : std::string("n/a"))
+        + ", detectionAvgCm=" + formatOptionalFloat(decision.detectionDistanceAverageCm)
+        + " (samples=" + std::to_string(decision.detectionDistanceAverageSampleCount) + ")"
+        + ", movingAvgCm=" + formatOptionalFloat(decision.movingTargetDistanceAverageCm)
+        + " (samples=" + std::to_string(decision.movingTargetDistanceAverageSampleCount) + ")"
+        + ", stationaryAvgCm=" + formatOptionalFloat(decision.stationaryTargetDistanceAverageCm)
+        + " (samples=" + std::to_string(decision.stationaryTargetDistanceAverageSampleCount) + ")"
+        + ", stationaryEnergyAvg=" + formatOptionalFloat(decision.stationaryTargetEnergyAverage)
+        + " (samples=" + std::to_string(decision.stationaryTargetEnergyAverageSampleCount) + ")"
+        + ", absentThresholdsCm={detection=" + std::to_string(decision.absentDetectionDistanceThresholdCm)
+        + ", moving=" + std::to_string(decision.absentMovingDistanceThresholdCm)
+        + ", stationary=" + std::to_string(decision.absentStationaryDistanceThresholdCm) + "}";
+}
+
+bool isBinaryPresenceTransition(MmWavePresenceState previousState, MmWavePresenceState nextState)
+{
+    return previousState != nextState
+        && previousState != MmWavePresenceState::Unknown
+        && nextState != MmWavePresenceState::Unknown;
+}
+
+void logPresenceTransition(
+    const MmWaveReading& previousReading,
+    const MmWavePresenceDecision& previousDecision,
+    const MmWaveReading& currentReading,
+    const MmWavePresenceDecision& currentDecision)
+{
+    if (!isBinaryPresenceTransition(previousDecision.state, currentDecision.state)) {
+        return;
+    }
+
+    CubeLog::warning(
+        "mmWave presence transition: "
+        + std::string(presenceStateToString(previousDecision.state))
+        + " -> " + presenceStateToString(currentDecision.state)
+        + " | previousRaw={" + formatReading(previousReading)
+        + "} currentRaw={" + formatReading(currentReading)
+        + "} | previousDecision={" + formatDecision(previousDecision)
+        + "} currentDecision={" + formatDecision(currentDecision) + "}");
+}
+
 bool containsSubsequence(const std::vector<uint8_t>& haystack, const std::vector<uint8_t>& needle)
 {
     if (needle.empty()) {
@@ -581,9 +659,14 @@ void mmWave::decodeDataFrame(Response response)
             return;
         }
         MmWavePresenceDecision decision;
+        MmWavePresenceDecision previousDecision;
         bool shouldPublishDecision = false;
+        MmWaveReading previousReading;
+        MmWaveReading updatedReading;
         {
             std::lock_guard<std::mutex> lock(readingMutex);
+            previousReading = currentReading;
+            previousDecision = presenceEstimator_.decision();
             // target state, 1 byte
             currentReading.targetState = data[4];
             // moving target distance, 2 bytes, cm
@@ -596,12 +679,14 @@ void mmWave::decodeDataFrame(Response response)
             currentReading.stationaryTargetEnergy = data[10];
             // Detection Distance, 2 byte, cm
             currentReading.detectionDistance = data[11] | data[12] << 8;
+            updatedReading = currentReading;
             if (presenceDetectionEnabled_) {
                 decision = presenceEstimator_.update(currentReading, std::chrono::steady_clock::now());
                 shouldPublishDecision = true;
             }
         }
         if (shouldPublishDecision) {
+            logPresenceTransition(previousReading, previousDecision, updatedReading, decision);
             invokePresenceUpdateCallback(decision);
         }
     } else if (dataType == 0x01) {
@@ -614,9 +699,14 @@ void mmWave::decodeDataFrame(Response response)
         }
         // target state, 1 byte
         MmWavePresenceDecision decision;
+        MmWavePresenceDecision previousDecision;
         bool shouldPublishDecision = false;
+        MmWaveReading previousReading;
+        MmWaveReading updatedReading;
         {
             std::lock_guard<std::mutex> lock(readingMutex);
+            previousReading = currentReading;
+            previousDecision = presenceEstimator_.decision();
             currentReading.targetState = data[4];
             // Moving target distance, 2 bytes, cm
             currentReading.movingTargetDistance = data[5] | data[6] << 8;
@@ -628,12 +718,14 @@ void mmWave::decodeDataFrame(Response response)
             currentReading.stationaryTargetEnergy = data[10];
             // Detection Distance, 2 byte, cm
             currentReading.detectionDistance = data[11] | data[12] << 8;
+            updatedReading = currentReading;
             if (presenceDetectionEnabled_) {
                 decision = presenceEstimator_.update(currentReading, std::chrono::steady_clock::now());
                 shouldPublishDecision = true;
             }
         }
         if (shouldPublishDecision) {
+            logPresenceTransition(previousReading, previousDecision, updatedReading, decision);
             invokePresenceUpdateCallback(decision);
         }
         // Max moving/stationary gate INDEX N means gates 0..N (N+1 energy values each)

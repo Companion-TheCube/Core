@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <deque>
 #include <optional>
@@ -27,6 +28,10 @@ struct MmWavePresenceDecision {
     std::optional<float> movingTargetDistanceAverageCm;
     std::optional<float> stationaryTargetDistanceAverageCm;
     std::optional<float> stationaryTargetEnergyAverage;
+    size_t detectionDistanceAverageSampleCount = 0;
+    size_t movingTargetDistanceAverageSampleCount = 0;
+    size_t stationaryTargetDistanceAverageSampleCount = 0;
+    size_t stationaryTargetEnergyAverageSampleCount = 0;
     std::optional<uint8_t> latestTargetState;
     float absentDetectionDistanceThresholdCm = 150.0f;
     float absentMovingDistanceThresholdCm = 200.0f;

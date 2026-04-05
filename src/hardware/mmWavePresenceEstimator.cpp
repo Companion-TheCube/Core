@@ -18,15 +18,20 @@ constexpr float MMWAVE_LOW_STATIONARY_ENERGY_ABSENT_REDUCTION = 0.10f;
 constexpr float MMWAVE_LOW_STATIONARY_ENERGY_THRESHOLD = 75.0f;
 constexpr float MMWAVE_MIN_ABSENT_THRESHOLD_MULTIPLIER = 0.5f;
 
+struct AveragedMetric {
+    std::optional<float> average;
+    size_t sampleCount = 0;
+};
+
 template <typename Accessor>
-std::optional<float> averageMetric(
+AveragedMetric averageMetric(
     const auto& samples,
     std::chrono::steady_clock::time_point latestTimestamp,
     int windowSeconds,
     Accessor accessor)
 {
     if (samples.empty()) {
-        return std::nullopt;
+        return {};
     }
 
     const auto cutoff = latestTimestamp - std::chrono::seconds(windowSeconds);
@@ -43,10 +48,13 @@ std::optional<float> averageMetric(
     }
 
     if (count == 0) {
-        return std::nullopt;
+        return {};
     }
 
-    return total / static_cast<float>(count);
+    return {
+        .average = total / static_cast<float>(count),
+        .sampleCount = count
+    };
 }
 
 struct MetricComparison {
@@ -172,34 +180,45 @@ void MmWavePresenceEstimator::recomputeDecision(std::chrono::steady_clock::time_
     const uint8_t latestTargetState = latestReading.targetState & 0x03u;
     nextDecision.latestTargetState = latestTargetState;
 
-    nextDecision.detectionDistanceAverageCm = averageMetric(
+    const AveragedMetric detectionDistanceAverage = averageMetric(
         samples_,
         latestTimestamp,
         config_.detectionDistanceAverageWindowSecs,
         [](const BufferedReading& reading) {
             return static_cast<float>(reading.detectionDistance);
         });
-    nextDecision.movingTargetDistanceAverageCm = averageMetric(
+    nextDecision.detectionDistanceAverageCm = detectionDistanceAverage.average;
+    nextDecision.detectionDistanceAverageSampleCount = detectionDistanceAverage.sampleCount;
+
+    const AveragedMetric movingTargetDistanceAverage = averageMetric(
         samples_,
         latestTimestamp,
         config_.movingDistanceAverageWindowSecs,
         [](const BufferedReading& reading) {
             return static_cast<float>(reading.movingTargetDistance);
         });
-    nextDecision.stationaryTargetDistanceAverageCm = averageMetric(
+    nextDecision.movingTargetDistanceAverageCm = movingTargetDistanceAverage.average;
+    nextDecision.movingTargetDistanceAverageSampleCount = movingTargetDistanceAverage.sampleCount;
+
+    const AveragedMetric stationaryTargetDistanceAverage = averageMetric(
         samples_,
         latestTimestamp,
         config_.stationaryDistanceAverageWindowSecs,
         [](const BufferedReading& reading) {
             return static_cast<float>(reading.stationaryTargetDistance);
         });
-    nextDecision.stationaryTargetEnergyAverage = averageMetric(
+    nextDecision.stationaryTargetDistanceAverageCm = stationaryTargetDistanceAverage.average;
+    nextDecision.stationaryTargetDistanceAverageSampleCount = stationaryTargetDistanceAverage.sampleCount;
+
+    const AveragedMetric stationaryTargetEnergyAverage = averageMetric(
         samples_,
         latestTimestamp,
         config_.stationaryEnergyAverageWindowSecs,
         [](const BufferedReading& reading) {
             return static_cast<float>(reading.stationaryTargetEnergy);
         });
+    nextDecision.stationaryTargetEnergyAverage = stationaryTargetEnergyAverage.average;
+    nextDecision.stationaryTargetEnergyAverageSampleCount = stationaryTargetEnergyAverage.sampleCount;
 
     float reduction = 0.0f;
     if (latestTargetState == 0u) {
