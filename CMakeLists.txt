@@ -225,27 +225,29 @@ FetchContent_MakeAvailable(msgpack_c)
 include_directories(${msgpack_c_SOURCE_DIR}/include)
 
 
+set(
+    WEBSOCKETPP_GIT_REPOSITORY
+    "https://github.com/Companion-TheCube/websocketpp.git"
+    CACHE STRING
+    "Git repository used to fetch websocketpp"
+)
+set(
+    WEBSOCKETPP_GIT_TAG
+    "master"
+    CACHE STRING
+    "Git ref used to fetch websocketpp"
+)
+
+message(STATUS "websocketpp repository: ${WEBSOCKETPP_GIT_REPOSITORY}")
+message(STATUS "websocketpp ref: ${WEBSOCKETPP_GIT_TAG}")
+
 FetchContent_Declare(
     websocketpp
-    GIT_REPOSITORY https://github.com/zaphoyd/websocketpp.git
-    GIT_TAG 0.8.2
+    GIT_REPOSITORY ${WEBSOCKETPP_GIT_REPOSITORY}
+    GIT_TAG ${WEBSOCKETPP_GIT_TAG}
 )
 FetchContent_MakeAvailable(websocketpp)
-configure_file(
-    ${CMAKE_SOURCE_DIR}/cmake/patch_websocketpp_boost188.cmake
-    ${CMAKE_BINARY_DIR}/generated/patch_websocketpp_boost188.cmake
-    COPYONLY
-)
-execute_process(
-    COMMAND
-        ${CMAKE_COMMAND}
-        -DWEBSOCKETPP_SOURCE_DIR=${websocketpp_SOURCE_DIR}
-        -P ${CMAKE_BINARY_DIR}/generated/patch_websocketpp_boost188.cmake
-    RESULT_VARIABLE WEBSOCKETPP_PATCH_RESULT
-)
-if(NOT WEBSOCKETPP_PATCH_RESULT EQUAL 0)
-    message(FATAL_ERROR "Failed to patch websocketpp for Boost.Asio 1.88 compatibility")
-endif()
+message(STATUS "websocketpp source dir: ${websocketpp_SOURCE_DIR}")
 
 FetchContent_Declare(
     silero_vad
