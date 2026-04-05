@@ -49,6 +49,23 @@ void glfwErrorCallback(int error, const char* description)
     CubeLog::error("GLFW error " + std::to_string(error) + ": " + (description != nullptr ? description : "unknown"));
 }
 
+#ifdef __linux__
+void configureLinuxGlfwInitHints()
+{
+    // These init hints were added in newer GLFW releases. Guard them so
+    // distro-provided older GLFW builds on the Pi still compile.
+#if defined(GLFW_WAYLAND_LIBDECOR) && defined(GLFW_WAYLAND_DISABLE_LIBDECOR)
+    glfwInitHint(GLFW_WAYLAND_LIBDECOR, GLFW_WAYLAND_DISABLE_LIBDECOR);
+#endif
+
+#if defined(GLFW_PLATFORM) && defined(GLFW_PLATFORM_X11)
+    if (std::getenv("DISPLAY") != nullptr) {
+        glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
+    }
+#endif
+}
+#endif
+
 }
 
 Renderer::Renderer(std::latch& latch)
@@ -187,14 +204,9 @@ void Renderer::scrollCallback(GLFWwindow* window, double xoffset, double yoffset
 
 int Renderer::thread()
 {
+    glfwSetErrorCallback(glfwErrorCallback);
 #ifdef __linux__
-    glfwSetErrorCallback(glfwErrorCallback);
-    glfwInitHint(GLFW_WAYLAND_LIBDECOR, GLFW_WAYLAND_DISABLE_LIBDECOR);
-    if (std::getenv("DISPLAY") != nullptr) {
-        glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
-    }
-#else
-    glfwSetErrorCallback(glfwErrorCallback);
+    configureLinuxGlfwInitHints();
 #endif
     if (!glfwInit()) {
         CubeLog::error("Failed to initialize GLFW");
