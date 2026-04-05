@@ -51,6 +51,12 @@ void WakeWordClient::submit(const std::vector<int16_t>& block)
 
 void WakeWordClient::run(std::stop_token st)
 {
+    // ensure that kOpenWWSock exists before starting the loop. If the folder does not exist, create it.
+    std::string sockDir = std::string(kOpenWWSock).substr(0, std::string(kOpenWWSock).find_last_of('/'));
+    if (!sockDir.empty()) {
+        mkdir(sockDir.c_str(), 0777);
+    }
+
     using clock = std::chrono::steady_clock;
     size_t reconnects = 0;
     size_t wakeCount = 0;
