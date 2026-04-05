@@ -947,6 +947,43 @@ add_custom_command(
     ${APPS_DEST_DIR}/openwakeword/
     COMMAND ${CMAKE_COMMAND} -E echo "Copying openwakeword to apps directory"
 )
+
+set(OPENWAKEWORD_RESOURCE_MODELS_DIR "")
+foreach(OPENWAKEWORD_RESOURCE_MODELS_CANDIDATE
+    "${CMAKE_HOME_DIRECTORY}/openwakeword/resources/models"
+    "${CMAKE_HOME_DIRECTORY}/openwakeword/lib/python3.12/site-packages/openwakeword/resources/models"
+    "${CMAKE_HOME_DIRECTORY}/openwakeword/lib/python3.13/site-packages/openwakeword/resources/models"
+)
+    if(
+        EXISTS "${OPENWAKEWORD_RESOURCE_MODELS_CANDIDATE}/melspectrogram.onnx"
+        AND EXISTS "${OPENWAKEWORD_RESOURCE_MODELS_CANDIDATE}/embedding_model.onnx"
+    )
+        set(OPENWAKEWORD_RESOURCE_MODELS_DIR "${OPENWAKEWORD_RESOURCE_MODELS_CANDIDATE}")
+        break()
+    endif()
+endforeach()
+
+if(OPENWAKEWORD_RESOURCE_MODELS_DIR)
+    add_custom_command(
+        TARGET CubeCore POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+        "${APPS_DEST_DIR}/openwakeword/resources/models"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${OPENWAKEWORD_RESOURCE_MODELS_DIR}/melspectrogram.onnx"
+        "${APPS_DEST_DIR}/openwakeword/resources/models/melspectrogram.onnx"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${OPENWAKEWORD_RESOURCE_MODELS_DIR}/embedding_model.onnx"
+        "${APPS_DEST_DIR}/openwakeword/resources/models/embedding_model.onnx"
+        COMMENT "Copying OpenWakeWord preprocessing models to app bundle"
+    )
+else()
+    message(
+        WARNING
+        "OpenWakeWord preprocessing models were not found in the source app bundle. "
+        "The bundled app may still depend on the runtime package resources."
+    )
+endif()
+
 add_custom_command(
     TARGET CubeCore POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
