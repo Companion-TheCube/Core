@@ -36,18 +36,32 @@ SOFTWARE.
 #define PERIPHERALMANAGER_H
 
 #include "../api/api.h"
+#include "fanCtrl.h"
+#include "hardwareInfo.h"
 #include "io_bridge/ioBridge.h"
 #include "mmWave.h"
 #include "nfc.h"
 #include <chrono>
+#include <condition_variable>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <thread>
 
 struct PresenceStatusSnapshot {
     MmWavePresenceState immediateState = MmWavePresenceState::Unknown;
     MmWavePresenceState delayedState = MmWavePresenceState::Unknown;
     int absentTimeoutSecs = 15;
+};
+
+struct ThermalStatusSnapshot {
+    bool controlEnabled = true;
+    bool fanConfigured = false;
+    bool failsafeActive = false;
+    std::optional<double> cpuTemperatureC;
+    std::optional<double> systemTemperatureC;
+    uint8_t appliedDutyPercent = 0;
 };
 
 class DelayedPresenceTracker {
@@ -74,24 +88,56 @@ private:
 };
 
 class PeripheralManager : public AutoRegisterAPI<PeripheralManager> {
+public:
+    using TemperatureReader = std::function<std::optional<double>()>;
+
 private:
+    struct SettingsCallbackGate {
+        PeripheralManager* owner = nullptr;
+    };
+
     std::unique_ptr<mmWave> mmWaveSensor;
+    std::unique_ptr<FanController> fanController_;
     // NFC nfcSensor;
     // IMU imuSensor;
+    TemperatureReader cpuTemperatureReader_;
+    TemperatureReader systemTemperatureReader_;
     mutable std::mutex presenceStatusMutex;
+    mutable std::mutex thermalStatusMutex_;
     DelayedPresenceTracker delayedPresenceTracker_;
     bool presenceDetectionEnabled_ = true;
+    ThermalStatusSnapshot thermalStatus_;
+    std::optional<double> lastAppliedDutyTemperatureC_;
+    std::jthread thermalControlThread_;
+    std::condition_variable thermalControlWakeCv_;
+    std::mutex thermalControlWakeMutex_;
+    bool thermalControlWakeRequested_ = false;
+    std::shared_ptr<SettingsCallbackGate> settingsCallbackGate_;
 
     void syncPresenceConfigFromSettings();
     void syncPresenceAbsentTimeoutFromSettings();
+    void registerSettingsCallbacks();
+    void startThermalControlLoop();
+    void thermalControlLoop(std::stop_token stopToken);
+    void setThermalStatusSnapshot(const ThermalStatusSnapshot& status, std::optional<double> appliedDutyTemperatureC = std::nullopt);
+    std::expected<void, I2CError> applyFanDutyPercent(uint8_t dutyPercent);
 
 protected:
     void syncPresenceDetectionEnabledFromSettings();
     void handleImmediatePresenceDecision(const MmWavePresenceDecision& decision);
+    void runThermalControlIteration();
+    void requestThermalControlWake();
 
 public:
     PeripheralManager();
     explicit PeripheralManager(std::unique_ptr<mmWave> mmWaveSensorOverride, bool registerSettingCallbacks = true);
+    PeripheralManager(
+        std::unique_ptr<mmWave> mmWaveSensorOverride,
+        std::unique_ptr<FanController> fanControllerOverride,
+        TemperatureReader cpuTemperatureReader = {},
+        TemperatureReader systemTemperatureReader = {},
+        bool registerSettingCallbacks = true,
+        bool startThermalControlLoopThread = true);
     ~PeripheralManager();
 
     std::string getInterfaceName() const override { return "Presence"; }
@@ -101,6 +147,7 @@ public:
     MmWavePresenceState getImmediatePresenceState();
     MmWavePresenceState getDelayedPresenceState();
     PresenceStatusSnapshot getPresenceStatus();
+    ThermalStatusSnapshot getThermalStatus() const;
 };
 
 #endif // PERIPHERALMANAGER_H

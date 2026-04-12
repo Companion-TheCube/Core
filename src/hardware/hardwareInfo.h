@@ -34,9 +34,63 @@ SOFTWARE.
 #pragma once
 #ifndef HARDWAREINFO_H
 #define HARDWAREINFO_H
-#include "infoware/version.hpp"
+
+#include "infoware/cpu.hpp"
 #include "infoware/system.hpp"
+#include "infoware/version.hpp"
 
+#include <cstdint>
+#include <filesystem>
+#include <functional>
+#include <optional>
+#include <string>
+#include <vector>
 
+struct HardwareTemperatureReading {
+    std::string name;
+    std::string sourcePath;
+    double celsius = 0.0;
+    bool cpuLike = false;
+};
 
-#endif// HARDWAREINFO_H
+struct HardwareInfoSnapshot {
+    std::string infowareVersion;
+    iware::system::OS_info_t osInfo {};
+    iware::system::kernel_info_t kernelInfo {};
+    iware::cpu::architecture_t cpuArchitecture = iware::cpu::architecture_t::unknown;
+    iware::cpu::endianness_t cpuEndianness = iware::cpu::endianness_t::little;
+    std::string cpuVendor;
+    std::string cpuVendorId;
+    std::string cpuModelName;
+    std::uint64_t cpuFrequencyHz = 0;
+    iware::cpu::quantities_t cpuQuantities {};
+    iware::system::memory_t memory {};
+    std::vector<HardwareTemperatureReading> thermalSensors;
+    std::optional<double> cpuTemperatureC;
+    std::optional<double> systemTemperatureC;
+};
+
+class HardwareInfo {
+public:
+    using FileReader = std::function<std::optional<std::string>(const std::filesystem::path&)>;
+
+    static HardwareInfoSnapshot snapshot();
+    static std::vector<HardwareTemperatureReading> thermalSensors();
+    static std::optional<double> cpuTemperatureCelsius();
+    static std::optional<double> systemTemperatureCelsius();
+
+    static HardwareInfoSnapshot snapshot(
+        const std::filesystem::path& sysRoot,
+        FileReader fileReader = {});
+    static std::vector<HardwareTemperatureReading> thermalSensors(
+        const std::filesystem::path& sysRoot,
+        FileReader fileReader = {});
+    static std::optional<double> cpuTemperatureCelsius(
+        const std::filesystem::path& sysRoot,
+        FileReader fileReader = {});
+    static std::optional<double> systemTemperatureCelsius(
+        const std::filesystem::path& sysRoot,
+        FileReader fileReader = {});
+};
+
+#endif // HARDWAREINFO_H

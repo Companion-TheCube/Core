@@ -108,6 +108,11 @@ struct GlobalSettings {
         MMWAVE_MOVING_DISTANCE_AVERAGE_WINDOW_SECS,
         MMWAVE_STATIONARY_DISTANCE_AVERAGE_WINDOW_SECS,
         MMWAVE_STATIONARY_ENERGY_AVERAGE_WINDOW_SECS,
+        FAN_CONTROL_ENABLED,
+        FAN_CONTROL_POLL_INTERVAL_MS,
+        FAN_CONTROL_HYSTERESIS_C,
+        FAN_CONTROL_FAILSAFE_PERCENT,
+        FAN_CONTROL_CURVE_POINTS,
 
         SETTING_TYPE_COUNT
     };
@@ -211,6 +216,12 @@ struct GlobalSettings {
         GlobalSettings::setSetting(SettingType::MMWAVE_MOVING_DISTANCE_AVERAGE_WINDOW_SECS, 10);
         GlobalSettings::setSetting(SettingType::MMWAVE_STATIONARY_DISTANCE_AVERAGE_WINDOW_SECS, 10);
         GlobalSettings::setSetting(SettingType::MMWAVE_STATIONARY_ENERGY_AVERAGE_WINDOW_SECS, 10);
+        // thermal-management defaults
+        GlobalSettings::setSetting(SettingType::FAN_CONTROL_ENABLED, true);
+        GlobalSettings::setSetting(SettingType::FAN_CONTROL_POLL_INTERVAL_MS, 2000);
+        GlobalSettings::setSetting(SettingType::FAN_CONTROL_HYSTERESIS_C, 2.0);
+        GlobalSettings::setSetting(SettingType::FAN_CONTROL_FAILSAFE_PERCENT, 100);
+        GlobalSettings::setSetting(SettingType::FAN_CONTROL_CURVE_POINTS, defaultFanControlCurvePoints());
     }
 
     static void setSettingCB(SettingType key, std::function<void()> callback)
@@ -255,6 +266,33 @@ struct GlobalSettings {
             value = clampedValue;
             break;
         }
+        case SettingType::FAN_CONTROL_POLL_INTERVAL_MS: {
+            int clampedValue = 2000;
+            if (value.is_number()) {
+                clampedValue = clampFanControlPollIntervalMs(value.get<int>());
+            }
+            value = clampedValue;
+            break;
+        }
+        case SettingType::FAN_CONTROL_HYSTERESIS_C: {
+            double clampedValue = 2.0;
+            if (value.is_number()) {
+                clampedValue = clampFanControlHysteresisC(value.get<double>());
+            }
+            value = clampedValue;
+            break;
+        }
+        case SettingType::FAN_CONTROL_FAILSAFE_PERCENT: {
+            int clampedValue = 100;
+            if (value.is_number()) {
+                clampedValue = clampFanControlFailsafePercent(value.get<int>());
+            }
+            value = clampedValue;
+            break;
+        }
+        case SettingType::FAN_CONTROL_CURVE_POINTS:
+            value = normalizeFanControlCurvePoints(value);
+            break;
         default:
             break;
         }
@@ -397,6 +435,69 @@ private:
     static std::vector<std::pair<SettingType, std::function<void()>>> settingChangeCallbacks;
     static std::mutex settingChangeMutex;
     static nlohmann::json settings;
+
+    static int clampFanControlPollIntervalMs(int value)
+    {
+        return std::clamp(value, 250, 10000);
+    }
+
+    static double clampFanControlHysteresisC(double value)
+    {
+        return std::clamp(value, 0.0, 10.0);
+    }
+
+    static int clampFanControlFailsafePercent(int value)
+    {
+        return std::clamp(value, 0, 100);
+    }
+
+    static nlohmann::json defaultFanControlCurvePoints()
+    {
+        return nlohmann::json::array({
+            nlohmann::json::array({ 35.0, 25 }),
+            nlohmann::json::array({ 50.0, 40 }),
+            nlohmann::json::array({ 65.0, 70 }),
+            nlohmann::json::array({ 80.0, 100 }),
+        });
+    }
+
+    static nlohmann::json normalizeFanControlCurvePoints(const nlohmann::json& value)
+    {
+        struct CurvePoint {
+            double temperatureC = 0.0;
+            int dutyPercent = 0;
+        };
+
+        if (!value.is_array()) {
+            return defaultFanControlCurvePoints();
+        }
+
+        std::vector<CurvePoint> points;
+        points.reserve(value.size());
+        for (const auto& point : value) {
+            if (!point.is_array() || point.size() != 2 || !point[0].is_number() || !point[1].is_number()) {
+                return defaultFanControlCurvePoints();
+            }
+            points.push_back({
+                .temperatureC = std::clamp(point[0].get<double>(), 0.0, 120.0),
+                .dutyPercent = std::clamp(point[1].get<int>(), 0, 100),
+            });
+        }
+
+        if (points.size() < 2) {
+            return defaultFanControlCurvePoints();
+        }
+
+        std::sort(points.begin(), points.end(), [](const CurvePoint& left, const CurvePoint& right) {
+            return left.temperatureC < right.temperatureC;
+        });
+
+        nlohmann::json normalized = nlohmann::json::array();
+        for (const auto& point : points) {
+            normalized.push_back(nlohmann::json::array({ point.temperatureC, point.dutyPercent }));
+        }
+        return normalized;
+    }
 
     static std::vector<std::string> loadFontPaths(std::filesystem::path fontPath = "fonts")
     {

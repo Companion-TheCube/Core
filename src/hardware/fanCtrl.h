@@ -42,16 +42,39 @@ FanController depends on ILocalI2CBus so fan-control behavior can be tested with
 
 #include "pi_i2c.h"
 
+#include <cstdint>
 #include <expected>
 #include <memory>
+#include <optional>
+
+enum class FanControlMode : uint8_t {
+    Disabled = 0,
+    ManualDuty = 1,
+};
+
+struct FanStatus {
+    bool enabled = false;
+    FanControlMode mode = FanControlMode::Disabled;
+    uint8_t targetDutyPercent = 0;
+    std::optional<uint16_t> tachRpm;
+    uint8_t statusFlags = 0;
+    uint8_t faultFlags = 0;
+    uint8_t protocolVersion = 0;
+};
 
 class FanController {
 public:
     FanController(std::shared_ptr<ILocalI2CBus> bus, uint16_t address, bool tenBitAddress = false);
+    virtual ~FanController() = default;
 
-    bool isConfigured() const;
-    std::expected<void, I2CError> writeCommand(uint8_t command, const I2CBytes& payload = { }) const;
-    std::expected<I2CBytes, I2CError> readRegister(uint8_t reg, size_t length) const;
+    virtual bool isConfigured() const;
+    virtual std::expected<void, I2CError> writeCommand(uint8_t command, const I2CBytes& payload = { }) const;
+    virtual std::expected<I2CBytes, I2CError> readRegister(uint8_t reg, size_t length) const;
+    virtual std::expected<void, I2CError> setEnabled(bool enabled) const;
+    virtual std::expected<void, I2CError> setControlMode(FanControlMode mode) const;
+    virtual std::expected<void, I2CError> setManualDutyPercent(uint8_t dutyPercent) const;
+    virtual std::expected<FanStatus, I2CError> readStatus() const;
+    virtual std::expected<uint8_t, I2CError> readProtocolVersion() const;
 
 private:
     std::shared_ptr<ILocalI2CBus> bus_;

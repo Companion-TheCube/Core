@@ -82,7 +82,12 @@ std::unordered_map<GlobalSettings::SettingType, std::string> GlobalSettings::set
     { SettingType::MMWAVE_DETECTION_DISTANCE_AVERAGE_WINDOW_SECS, "mmwaveDetectionDistanceAverageWindowSecs" },
     { SettingType::MMWAVE_MOVING_DISTANCE_AVERAGE_WINDOW_SECS, "mmwaveMovingDistanceAverageWindowSecs" },
     { SettingType::MMWAVE_STATIONARY_DISTANCE_AVERAGE_WINDOW_SECS, "mmwaveStationaryDistanceAverageWindowSecs" },
-    { SettingType::MMWAVE_STATIONARY_ENERGY_AVERAGE_WINDOW_SECS, "mmwaveStationaryEnergyAverageWindowSecs" }
+    { SettingType::MMWAVE_STATIONARY_ENERGY_AVERAGE_WINDOW_SECS, "mmwaveStationaryEnergyAverageWindowSecs" },
+    { SettingType::FAN_CONTROL_ENABLED, "fanControlEnabled" },
+    { SettingType::FAN_CONTROL_POLL_INTERVAL_MS, "fanControlPollIntervalMs" },
+    { SettingType::FAN_CONTROL_HYSTERESIS_C, "fanControlHysteresisC" },
+    { SettingType::FAN_CONTROL_FAILSAFE_PERCENT, "fanControlFailsafePercent" },
+    { SettingType::FAN_CONTROL_CURVE_POINTS, "fanControlCurvePoints" }
 };
 std::unordered_map<std::string, GlobalSettings::SettingType> GlobalSettings::stringSettingTypeMap = {
     { "logVerbosity", SettingType::LOG_VERBOSITY },
@@ -130,5 +135,10 @@ std::unordered_map<std::string, GlobalSettings::SettingType> GlobalSettings::str
     { "mmwaveDetectionDistanceAverageWindowSecs", SettingType::MMWAVE_DETECTION_DISTANCE_AVERAGE_WINDOW_SECS },
     { "mmwaveMovingDistanceAverageWindowSecs", SettingType::MMWAVE_MOVING_DISTANCE_AVERAGE_WINDOW_SECS },
     { "mmwaveStationaryDistanceAverageWindowSecs", SettingType::MMWAVE_STATIONARY_DISTANCE_AVERAGE_WINDOW_SECS },
-    { "mmwaveStationaryEnergyAverageWindowSecs", SettingType::MMWAVE_STATIONARY_ENERGY_AVERAGE_WINDOW_SECS }
+    { "mmwaveStationaryEnergyAverageWindowSecs", SettingType::MMWAVE_STATIONARY_ENERGY_AVERAGE_WINDOW_SECS },
+    { "fanControlEnabled", SettingType::FAN_CONTROL_ENABLED },
+    { "fanControlPollIntervalMs", SettingType::FAN_CONTROL_POLL_INTERVAL_MS },
+    { "fanControlHysteresisC", SettingType::FAN_CONTROL_HYSTERESIS_C },
+    { "fanControlFailsafePercent", SettingType::FAN_CONTROL_FAILSAFE_PERCENT },
+    { "fanControlCurvePoints", SettingType::FAN_CONTROL_CURVE_POINTS }
 };
