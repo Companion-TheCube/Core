@@ -48,6 +48,41 @@ jobs:
           echo "gcc=$(/usr/bin/gcc-15 -dumpfullversion -dumpversion)" >> $GITHUB_OUTPUT
           echo "gpp=$(/usr/bin/g++-15 -dumpfullversion -dumpversion)" >> $GITHUB_OUTPUT
 
+      - name: Capture system dependency fingerprint
+        id: sysdeps
+        shell: bash
+        run: |
+          {
+            echo "ImageOS=${ImageOS:-unknown}"
+            echo "ImageVersion=${ImageVersion:-unknown}"
+            dpkg-query -W -f='${Package}=${Version}\n' \
+              build-essential \
+              cmake \
+              pkg-config \
+              libglew-dev \
+              libfreetype6-dev \
+              libgl1-mesa-dev \
+              libglu1-mesa-dev \
+              libglfw3-dev \
+              libasound2-dev \
+              libpulse-dev \
+              libssl-dev \
+              libsodium-dev \
+              libsqlite3-dev \
+              libglm-dev \
+              libpq-dev \
+              gettext \
+              libboost-all-dev \
+              libudev-dev \
+              zlib1g-dev \
+              nlohmann-json3-dev \
+              libsdbus-c++-dev \
+              libsystemd-dev \
+              libpqxx-dev
+          } | sort > /tmp/system-deps.txt
+          cat /tmp/system-deps.txt
+          echo "deps_sha=$(sha256sum /tmp/system-deps.txt | cut -d' ' -f1)" >> $GITHUB_OUTPUT
+
       - name: Restore ccache
         uses: actions/cache@v4
         with:
@@ -72,10 +107,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build
-          key: ${{ runner.os }}-build-gcc${{ steps.compver.outputs.gcc }}-Debug-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake', 'install-deps.sh', '.gitmodules') }}
+          key: ${{ runner.os }}-build-gcc${{ steps.compver.outputs.gcc }}-Debug-${{ steps.sysdeps.outputs.deps_sha }}-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake', 'install-deps.sh', '.gitmodules') }}
           restore-keys: |
-            ${{ runner.os }}-build-gcc${{ steps.compver.outputs.gcc }}-Debug-
-            ${{ runner.os }}-build-
+            ${{ runner.os }}-build-gcc${{ steps.compver.outputs.gcc }}-Debug-${{ steps.sysdeps.outputs.deps_sha }}-
 
       - name: Create SSL certs
         run: |
