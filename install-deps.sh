@@ -79,7 +79,7 @@ if [[ "$MODE" == "dev" ]]; then
     libasound2-dev libpulse-dev \
     libssl-dev libsodium-dev libsqlite3-dev libglm-dev libpq-dev gettext libboost-all-dev \
     libudev-dev zlib1g-dev nlohmann-json3-dev \
-    libsdbus-c++-dev libsystemd-dev
+    libsdbus-c++-dev libsystemd-dev libpqxx-dev
 else
   # Install only runtime libraries needed by the application, excluding -dev packages
   # to keep the final image smaller and reduce attack surface.
