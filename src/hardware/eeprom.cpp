@@ -34,6 +34,66 @@ SOFTWARE.
 /*
 This file implements the EEPROM driver boundary for hardware wired directly to the Raspberry Pi.
 EepromDevice handles offset-prefixed reads and writes over the injected local I2C bus so the driver can be tested without hardware.
+
+Planned logical EEPROM contents
+===============================
+
+TheCube EEPROM is intended to hold factory provisioning data and a small amount
+of service / recovery state. The expectation is that roughly half of the
+address space is write-protected after factory flashing, while the remaining
+half stays writable for controlled field updates.
+
+Write-protected region after factory flashing
+---------------------------------------------
+- Layout header:
+  - EEPROM format version
+  - total size / region sizes
+  - CRCs or other integrity markers for each region
+- Device identity:
+  - serial number
+  - model / SKU
+  - hardware revision
+  - manufacturing lot / batch
+  - manufacturing date or timestamp
+- Factory image metadata:
+  - factory image / recovery image version
+  - build number used during factory flash
+  - provisioning revision
+- Hardware capability map:
+  - installed storage configuration
+  - presence of mmWave, NFC, IMU, bridge board, etc.
+  - board-specific capability flags and fitted-option bitmasks
+  - bridge or coprocessor board revision where applicable
+- Factory calibration / tuning:
+  - mmWave installation or calibration data
+  - audio-front-end defaults such as baseline mic gain or clipping thresholds
+  - any per-board calibration blobs required for reliable bring-up
+- Device trust bootstrap:
+  - per-device secret, seed, or key material used to derive recovery /
+    provisioning credentials
+  - do not rely on storing long-lived plaintext operational passwords here
+
+Writable region
+---------------
+- Recovery / provisioning connectivity:
+  - WiFi SSID and password printed on the device sticker
+  - optional recovery AP/static-IP provisioning parameters
+- Service metadata:
+  - factory reset counter
+  - last factory reset timestamp
+  - last service / rework timestamp
+  - calibration blob version currently applied
+- Last-known-good provisioning state:
+  - provisioning completion marker
+  - schema migration marker
+  - recovery credentials revision
+
+Intentionally not EEPROM-backed
+-------------------------------
+- Everyday user preferences such as volume, brightness, developer mode,
+  personality toggles, and other mutable runtime settings. Those belong in the
+  normal settings store so a factory reset can return them to defaults without
+  rewriting immutable factory data.
 */
 
 #include "eeprom.h"
