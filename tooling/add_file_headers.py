@@ -45,6 +45,11 @@ SRC_DIR = ROOT / "src"
 CURRENT_YEAR = datetime.now().year
 COPYRIGHT_HOLDER = "A-McD Technology LLC"
 
+# Files that should not receive headers (paths relative to ROOT)
+EXCLUDED = {
+    SRC_DIR / "api/InterfaceCount.h",
+}
+
 MIT_LICENSE_TEMPLATE = """\
 /*
 MIT License
@@ -200,7 +205,10 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    files = sorted(f for f in SRC_DIR.rglob("*") if f.suffix in (".cpp", ".h"))
+    files = sorted(
+        f for f in SRC_DIR.rglob("*")
+        if f.suffix in (".cpp", ".h") and f not in EXCLUDED
+    )
 
     tag = " [DRY RUN]" if args.dry_run else ""
     print(f"Scanning {len(files)} files under {SRC_DIR.relative_to(ROOT)}{tag}")
