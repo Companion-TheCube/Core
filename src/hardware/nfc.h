@@ -10,7 +10,7 @@
 /*
 MIT License
 
-Copyright (c) 2025 A-McD Technology LLC
+Copyright (c) 2026 A-McD Technology LLC
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -31,9 +31,34 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+/*
+This file defines the NFC driver boundary for hardware wired directly to the Raspberry Pi.
+NfcDevice depends on ILocalI2CBus so protocol logic can be exercised in tests without NFC hardware.
+*/
+
 #pragma once
 #ifndef NFC_H
 #define NFC_H
 
+#include "pi_i2c.h"
 
-#endif// NFC_H
+#include <expected>
+#include <memory>
+
+class NfcDevice {
+public:
+    NfcDevice(std::shared_ptr<ILocalI2CBus> bus, uint16_t address, bool tenBitAddress = false);
+
+    bool isConfigured() const;
+    uint16_t address() const;
+
+    std::expected<void, I2CError> writeFrame(const I2CBytes& frame) const;
+    std::expected<I2CBytes, I2CError> transceive(const I2CBytes& txFrame, size_t rxLen) const;
+
+private:
+    std::shared_ptr<ILocalI2CBus> bus_;
+    uint16_t address_ = 0;
+    bool tenBitAddress_ = false;
+};
+
+#endif

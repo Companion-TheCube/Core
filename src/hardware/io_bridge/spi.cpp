@@ -1,7 +1,16 @@
 /*
+███████╗██████╗ ██╗    ██████╗██████╗ ██████╗
+██╔════╝██╔══██╗██║   ██╔════╝██╔══██╗██╔══██╗
+███████╗██████╔╝██║   ██║     ██████╔╝██████╔╝
+╚════██║██╔═══╝ ██║   ██║     ██╔═══╝ ██╔═══╝
+███████║██║     ██║██╗╚██████╗██║     ██║
+╚══════╝╚═╝     ╚═╝╚═╝ ╚═════╝╚═╝     ╚═╝
+*/
+
+/*
 MIT License
 
-Copyright (c) 2025 A-McD Technology LLC
+Copyright (c) 2026 A-McD Technology LLC
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,38 +31,38 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-
 /*
-
-The SPI class is responsible for managing SPI communication with the Cube hardware.
-It provides methods to initialize the SPI interface, send and receive data, and handle
-communication with the Cube's hardware components.
-
-Apps will use an API endpoint to send commands to the Cube, which will then be processed by the SPI class.
-Example payload for sending a command to the Cube:
-App → CORE Req: {"op":"SPI.transfer","handle":"accel","tx":"AQAIAAA=", "rxLen": 6}
-CORE ← App Res: {"ok":true,"rx":"..."}
-
-Tx and Rx data is base64 encoded to ensure safe transmission over HTTP.
-Apps will have to request a specific SPI handle to communicate with the Cube hardware. Each handle corresponds to a 
-specific hardware component (e.g., accelerometer, gyroscope, etc.) with specific SPI settings.
-The SPI class will handle the actual communication with the hardware, including setting up the SPI interface,
-sending commands, and receiving responses.
-
-There should be a separate SPI class for registering handles.
-
+This file implements the app-facing SPI endpoint wrapper for devices connected through the IO bridge.
+SPI stores bridge-managed endpoint settings and forwards transfers through IoBridgeSession instead of Linux host SPI APIs.
 */
 
 #include "spi.h"
 
 SPI::SPI()
 {
-    CubeLog::info("SPI class initialized");
+    CubeLog::info("Bridge SPI endpoint wrapper initialized");
+}
+
+SPI::SPI(std::shared_ptr<IoBridgeSession> bridgeSession)
+    : bridgeSession_(std::move(bridgeSession))
+{
+    CubeLog::info("Bridge SPI endpoint wrapper initialized");
 }
 
 SPI::~SPI()
 {
-    CubeLog::info("SPI class destroyed");
+    CubeLog::info("Bridge SPI endpoint wrapper destroyed");
+}
+
+void SPI::attachBridgeSession(std::shared_ptr<IoBridgeSession> bridgeSession)
+{
+    std::lock_guard<std::mutex> lock(spiMutex);
+    bridgeSession_ = std::move(bridgeSession);
+}
+
+bool SPI::hasBridgeSession() const
+{
+    return static_cast<bool>(bridgeSession_);
 }
 
 std::expected<int, SPIError> SPI::registerHandle(const std::string& handle, int speed, int mode)
@@ -75,11 +84,6 @@ std::expected<int, SPIError> SPI::registerHandle(const std::string& handle, int 
     if (isHandleRegistered(handle)) {
         CubeLog::error("SPI handle already registered: " + handle);
         return std::unexpected(SPIError::HANDLE_ALREADY_REGISTERED);
-    }
-
-    if (!initializeSPI(handle, speed, mode)) {
-        CubeLog::error("Failed to initialize SPI handle: " + handle);
-        return std::unexpected(SPIError::NOT_INITIALIZED);
     }
 
     nlohmann::json settings;
@@ -119,114 +123,56 @@ std::optional<base64String> SPI::transferTx(const std::string& handle, const std
 
 std::optional<base64String> SPI::transfer(const std::string& handle, const base64String& txData, size_t rxLen)
 {
-    std::lock_guard<std::mutex> lock(spiMutex);
-    if (!isHandleRegistered(handle)) {
-        CubeLog::error("SPI handle not registered: " + handle);
+    std::shared_ptr<IoBridgeSession> bridgeSession;
+    nlohmann::json handleSettings;
+    {
+        std::lock_guard<std::mutex> lock(spiMutex);
+        if (!isHandleRegistered(handle)) {
+            CubeLog::error("SPI handle not registered: " + handle);
+            return std::nullopt;
+        }
+
+        bridgeSession = bridgeSession_;
+        handleSettings = spiHandles[handle];
+    }
+
+    if (!bridgeSession) {
+        CubeLog::error("Bridge SPI transfer requested without an attached bridge session.");
         return std::nullopt;
     }
 
-    // Decode the base64 encoded txData
-    std::vector<unsigned char> txBytes;
     try {
-        txBytes = cppcodec::base64_rfc4648::decode(txData);
+        cppcodec::base64_rfc4648::decode(txData);
     } catch (const std::exception& e) {
         CubeLog::error("Failed to decode base64 txData: " + std::string(e.what()));
         return std::nullopt;
     }
 
-    /*
-    
-    TODO:
-    The code below interacts directly with the SPI device but we need to make it so that it instead interacts with
-    the IO Bridge (which will then interact with the Pi's SPI device).
+    nlohmann::json payloadJson = {
+        { "handle", handle },
+        { "mode", handleSettings["mode"] },
+        { "speed", handleSettings["speed"] },
+        { "tx", txData },
+        { "rxLen", rxLen }
+    };
+    const std::string payloadString = payloadJson.dump();
 
-    The IO Bridge is an RP2354 IC connected via SPI that provides I2C, SPI, UART, GPIO, and other interfaces to the Cube.
-    See ioBridge.h and ioBridge.cpp for more information.
-    
-    */
+    IoBridgeTransaction transaction;
+    transaction.endpoint = IoBridgeEndpoint::Spi;
+    transaction.payload = IoBridgePayload(payloadString.begin(), payloadString.end());
+    transaction.expectedResponseLength = rxLen;
 
-    uint8_t mode = spiHandles[handle]["mode"];
-    int speed = spiHandles[handle]["speed"];
-    // int fd = open(spiDevicePath.c_str(), O_RDWR | O_CLOEXEC);
-    // if (fd < 0) {
-    //     CubeLog::error("Failed to open SPI device: " + spiDevicePath);
-    //     return std::nullopt;
-    // }
-
-    // // Set SPI mode
-    // if (ioctl(fd, SPI_IOC_WR_MODE, &mode) == -1) {
-    //     CubeLog::error("Failed to set SPI mode for handle: " + handle);
-    //     close(fd);
-    //     return std::nullopt;
-    // }
-    // // Read back SPI mode to verify
-    // uint8_t modeRead = 0;
-    // if (ioctl(fd, SPI_IOC_RD_MODE, &modeRead) == -1) {
-    //     CubeLog::error("Failed to read back SPI mode for handle: " + handle);
-    //     close(fd);
-    //     return std::nullopt;
-    // }
-    // if (modeRead != mode) {
-    //     CubeLog::error("SPI mode verification failed for handle: " + handle +
-    //                    ". Written mode: " + std::to_string(mode) +
-    //                    ", Read mode: " + std::to_string(modeRead));
-    //     close(fd);
-    //     return std::nullopt;
-    // }
-
-    // // Set SPI speed
-    // if (ioctl(fd, SPI_IOC_WR_MAX_SPEED_HZ, &speed) == -1) {
-    //     CubeLog::error("Failed to set SPI speed for handle: " + handle);
-    //     close(fd);
-    //     return std::nullopt;
-    // }
-
-    // std::vector<unsigned char> rxBytes(rxLen, 0);
-
-    // struct spi_ioc_transfer tr;
-    // memset(&tr, 0, sizeof(tr));
-    // tr.len = txBytes.size() > rxLen ? txBytes.size() : rxLen;
-    // // if tx.len is longer than txBytes.size(), pad the rest with 0s
-    // if (tr.len > txBytes.size()) {
-    //     std::vector<unsigned char> paddedTx(tr.len, 0);
-    //     std::copy(txBytes.begin(), txBytes.end(), paddedTx.begin());
-    //     tr.tx_buf = static_cast<__u64>(reinterpret_cast<uintptr_t>(paddedTx.data()));
-    // } else {
-    //     tr.tx_buf = static_cast<__u64>(reinterpret_cast<uintptr_t>(txBytes.data()));
-    // }
-    // tr.rx_buf = static_cast<__u64>(reinterpret_cast<uintptr_t>(rxBytes.data()));
-    // tr.speed_hz = speed;
-    // tr.delay_usecs = 0;
-    // tr.bits_per_word = 8;
-
-    // if (ioctl(fd, SPI_IOC_MESSAGE(1), &tr) < 1) {
-    //     CubeLog::error("Failed to perform SPI transfer for handle: " + handle);
-    //     close(fd);
-    //     return std::nullopt;
-    // }
-
-    // close(fd);
-
-    // Encode the received data back to base64
-    return base64_encode_cube(txBytes); // TODO: Placeholder: return txBytes as rxBytes for now 
-}
-
-bool SPI::setSpiDevicePath(const std::string& path)
-{
-    std::lock_guard<std::mutex> lock(spiMutex);
-    // Check if the path exists and is a character device
-    struct stat st;
-    if (stat(path.c_str(), &st) != 0) {
-        CubeLog::error("SPI device path does not exist: " + path);
-        return false;
+    auto bridgeResponse = bridgeSession->transact(transaction);
+    if (!bridgeResponse) {
+        CubeLog::error("Bridge SPI transfer failed for handle: " + handle);
+        return std::nullopt;
     }
-    if (!S_ISCHR(st.st_mode)) {
-        CubeLog::error("SPI device path is not a character device: " + path);
-        return false;
+
+    if (rxLen == 0) {
+        return base64_encode_cube(IoBridgePayload { });
     }
-    spiDevicePath = path;
-    CubeLog::info("SPI device path set to: " + path);
-    return true;
+
+    return base64_encode_cube(*bridgeResponse);
 }
 
 nlohmann::json SPI::getHandleSettings(const std::string& handle)
@@ -242,17 +188,6 @@ nlohmann::json SPI::getHandleSettings(const std::string& handle)
 bool SPI::isHandleRegistered(const std::string& handle) const
 {
     return spiHandles.find(handle) != spiHandles.end();
-}
-
-bool SPI::initializeSPI(const std::string& handle, int speed, int mode)
-{
-    // For now, just check if the device path is set
-    if (spiDevicePath.empty()) {
-        CubeLog::error("SPI device path is not set. Cannot initialize handle: " + handle);
-        return false;
-    }
-    // Additional initialization steps can be added here if needed
-    return true;
 }
 
 HttpEndPointData_t SPI::getHttpEndpointData()
@@ -336,8 +271,7 @@ HttpEndPointData_t SPI::getHttpEndpointData()
         },
         "SPI_transfer_txrx",
         nlohmann::json({ { "type", "object" }, { "properties", { } } }),
-        "Transfer data over SPI and receive a response"
-    });
+        "Transfer data over SPI and receive a response" });
     // TODO: Implement the other endpoints
     // Endpoint to transfer data over SPI without response
     // endpoints.push_back({ PRIVATE_ENDPOINT | POST_ENDPOINT,
@@ -352,4 +286,3 @@ HttpEndPointData_t SPI::getHttpEndpointData()
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-

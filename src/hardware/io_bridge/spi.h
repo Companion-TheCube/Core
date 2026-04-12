@@ -1,7 +1,16 @@
 /*
+███████╗██████╗ ██╗   ██╗  ██╗
+██╔════╝██╔══██╗██║   ██║  ██║
+███████╗██████╔╝██║   ███████║
+╚════██║██╔═══╝ ██║   ██╔══██║
+███████║██║     ██║██╗██║  ██║
+╚══════╝╚═╝     ╚═╝╚═╝╚═╝  ╚═╝
+*/
+
+/*
 MIT License
 
-Copyright (c) 2025 A-McD Technology LLC
+Copyright (c) 2026 A-McD Technology LLC
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,26 +31,28 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+/*
+This file defines the app-facing SPI endpoint wrapper for devices connected through the IO bridge.
+SPI represents bridge SPI endpoint access, not Linux host SPI device access, and depends on IoBridgeSession for transport.
+*/
+
 #pragma once
 #ifndef SPI_H
 #define SPI_H
-#include <string>
-#include <vector>
-#include <memory>
+
 #include <cstdint>
-#include <iostream>
-#include <thread>
-#include <fcntl.h>
-#include <sys/ioctl.h>
-#include <linux/spi/spidev.h>
-#include <unistd.h>
-#include <stdexcept>
-#include <mutex>
-#include <unordered_map>
-#include <optional>
 #include <expected>
+#include <memory>
+#include <mutex>
+#include <optional>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
 #include <nlohmann/json.hpp>
+
 #include <utils.h>
+
 #ifndef LOGGER_H
 #include <logger.h>
 #endif
@@ -49,13 +60,15 @@ SOFTWARE.
 #include "../api/api.h"
 #endif
 
+#include "ioBridge.h"
+
 using base64String = std::string;
 
 enum class SPIMode {
     MODE_0 = 0, // CPOL=0, CPHA=0
     MODE_1 = 1, // CPOL=0, CPHA=1
     MODE_2 = 2, // CPOL=1, CPHA=0
-    MODE_3 = 3  // CPOL=1, CPHA=1
+    MODE_3 = 3 // CPOL=1, CPHA=1
 };
 
 enum class SPIError {
@@ -95,25 +108,22 @@ enum class SPIError {
 };
 
 /**
- * @brief SPI class for managing SPI communication.
- * This class provides methods to register SPI handles, transfer data, and manage SPI settings.
+ * @brief Bridge-backed SPI endpoint wrapper for app-facing expansion devices.
+ * This class stores per-handle SPI settings and forwards transfers through the shared IoBridgeSession.
  */
-class SPI: public AutoRegisterAPI<SPI> {
+class SPI : public AutoRegisterAPI<SPI> {
 public:
     SPI();
+    explicit SPI(std::shared_ptr<IoBridgeSession> bridgeSession);
     ~SPI();
+    void attachBridgeSession(std::shared_ptr<IoBridgeSession> bridgeSession);
+    bool hasBridgeSession() const;
     /**
-     * @brief Set the SPI device path (e.g., /dev/spidev0.0).
-     * @param path The path to the SPI device.
-     * @return true if the path was set successfully, false otherwise.
-     */
-    bool setSpiDevicePath(const std::string& path);
-    /**
-     * @brief Initialize the SPI interface with the given settings.
-     * @param handle The requested handle for the SPI device.
+     * @brief Register settings for a bridge-managed SPI endpoint handle.
+     * @param handle The requested handle for the bridge SPI endpoint.
      * @param speed The speed of the SPI communication.
      * @param mode The mode of the SPI communication.
-     * @return true if initialization was successful, false otherwise.
+     * @return 0 when the handle was stored successfully.
      */
     std::expected<int, SPIError> registerHandle(const std::string& handle, int speed, int mode);
     /**
@@ -122,11 +132,11 @@ public:
      * @param txData The data to send (as a base64 encoded string).
      * @param rxLen The length of the expected response.
      * @return std::optional<std::string> The response data as a base64 encoded string, or an empty optional if the transfer failed.
-    */
+     */
     std::optional<base64String> transferTxRx(const std::string& handle, const base64String& txData, size_t rxLen);
     /**
-     * @brief Get the SPI settings for a specific handle.
-     * @param handle The handle of the SPI device.
+     * @brief Get the SPI settings for a specific bridge handle.
+     * @param handle The handle of the bridge SPI endpoint.
      * @return A JSON object containing the SPI settings.
      */
     nlohmann::json getSettings(const std::string& handle);
@@ -136,16 +146,17 @@ public:
      */
     std::vector<std::string> getRegisteredHandles();
     /**
-     * @brief Transfer data over SPI without expecting a response.
-     * @param handle The handle of the SPI device to communicate with.
+     * @brief Transfer data over bridge-backed SPI without expecting a response.
+     * @param handle The handle of the bridge SPI endpoint to communicate with.
      * @param txData The data to send (as a base64 encoded string).
      * @return true if the transfer was successful, false otherwise.
      */
     std::optional<base64String> transferTx(const std::string& handle, const std::string& txData);
+
 private:
     /**
-     * @brief Internal method to perform the SPI transfer.
-     * @param handle The handle of the SPI device.
+     * @brief Internal method to perform the bridge SPI transfer.
+     * @param handle The handle of the bridge SPI endpoint.
      * @param txData The data to send (as a base64 encoded string).
      * @param rxLen The length of the expected response.
      * @return std::optional<std::string> The response data as a base64 encoded string, or an empty optional if the transfer failed.
@@ -155,18 +166,14 @@ private:
     std::mutex spiMutex;
     // Map to store registered SPI handles and their settings
     std::unordered_map<std::string, nlohmann::json> spiHandles;
-
-    std::string spiDevicePath;
-
-    // Internal method to initialize the SPI interface
-    bool initializeSPI(const std::string& handle, int speed, int mode);
     // Internal method to check if a handle is registered
     bool isHandleRegistered(const std::string& handle) const;
     // Internal method to get the SPI settings for a handle
     nlohmann::json getHandleSettings(const std::string& handle);
+    std::shared_ptr<IoBridgeSession> bridgeSession_;
 
     // I_API_Interface implementation
     std::string getInterfaceName() const override { return "SPI"; }
     HttpEndPointData_t getHttpEndpointData() override;
 };
-#endif// IMU_H
+#endif

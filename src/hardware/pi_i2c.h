@@ -1,90 +1,109 @@
-// I2C.hpp
+/*
+██████╗ ██╗        ██╗██████╗  ██████╗   ██╗  ██╗
+██╔══██╗██║        ██║╚════██╗██╔════╝   ██║  ██║
+██████╔╝██║        ██║ █████╔╝██║        ███████║
+██╔═══╝ ██║        ██║██╔═══╝ ██║        ██╔══██║
+██║     ██║███████╗██║███████╗╚██████╗██╗██║  ██║
+╚═╝     ╚═╝╚══════╝╚═╝╚══════╝ ╚═════╝╚═╝╚═╝  ╚═╝
+*/
+
+/*
+MIT License
+
+Copyright (c) 2026 A-McD Technology LLC
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+/*
+This file defines the local I2C abstraction used by internal hardware drivers.
+ILocalI2CBus is the test seam for NFC, EEPROM, and fan-control logic.
+PiI2CBus is the concrete Linux /dev/i2c-* implementation for devices wired directly to the Raspberry Pi.
+*/
+
 #pragma once
-#include <cppcodec/base64_rfc4648.hpp>
+#ifndef PI_I2C_H
+#define PI_I2C_H
+
 #include <expected>
 #include <fcntl.h>
 #include <linux/i2c-dev.h>
+#include <linux/i2c.h>
 #include <mutex>
-#include <nlohmann/json.hpp>
-#include <optional>
 #include <string>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <unordered_map>
-#include <utils.h>
 #include <vector>
+
 #ifndef LOGGER_H
 #include <logger.h>
 #endif
 
-// TODO: Break the I2C class out into header and implementation files like SPI class.
-
-// TODO: This needs a bit of a rewrite so that it is more easily used by NFC, FANCTRL, and other I2C related classes.
-
-// Define i2c_msg if not included from <linux/i2c-dev.h>
-#ifndef I2C_MSG_DEFINED
-#define I2C_MSG_DEFINED
-struct i2c_msg {
-    __u16 addr;    // slave address
-    __u16 flags;
-    __u16 len;     // msg length
-    __u8* buf;     // pointer to msg data
-};
-#endif
-
-// Define I2C_M_TEN and I2C_M_RD if not included from <linux/i2c.h>
-#ifndef I2C_M_TEN
-#define I2C_M_TEN 0x0010
-#endif
-#ifndef I2C_M_RD
-#define I2C_M_RD 0x0001
-#endif
-
-
-using base64String = std::string;
+using I2CBytes = std::vector<unsigned char>;
 
 enum class I2CError {
-    INVALID_HANDLE,
-    HANDLE_ALREADY_REGISTERED,
     INVALID_ADDRESS,
     INVALID_DEVICE_PATH,
+    INVALID_ARGUMENT,
     NOT_INITIALIZED,
     OPEN_FAILED,
     IOCTL_FAILED,
     IO_FAILED
 };
 
-class I2C {
+class ILocalI2CBus {
 public:
-    I2C();
-    ~I2C();
+    virtual ~ILocalI2CBus() = default;
 
-    // Register a logical handle for a target device address
-    // addr is 7-bit by default; set tenbit=true for 10-bit addressing.
-    // std::expected<int, I2CError> registerHandle(const std::string& handle, uint16_t addr, bool tenbit = false);
-    std::expected<unsigned int, I2CError> registerHandle(const std::string& handle, uint16_t addr, bool tenbit = false);
-    // Same signature style as your SPI class
-    std::optional<base64String> transferTx(const std::string& handle, const base64String& txBase64);
-    std::optional<base64String> transferTxRx(const std::string& handle, const base64String& txBase64, size_t rxLen);
-    std::optional<base64String> transferTx(const unsigned int handle, const base64String& txBase64);
-    std::optional<base64String> transferTxRx(const unsigned int handle, const base64String& txBase64, size_t rxLen);
-    nlohmann::json getSettings(const std::string& handle);
-    std::vector<std::string> getRegisteredHandles();
+    virtual std::expected<void, I2CError> write(uint16_t address, const I2CBytes& txData, bool tenBit = false) = 0;
+    virtual std::expected<I2CBytes, I2CError> writeRead(
+        uint16_t address,
+        const I2CBytes& txData,
+        size_t rxLen,
+        bool tenBit = false) = 0;
+};
+
+class PiI2CBus final : public ILocalI2CBus {
+public:
+    explicit PiI2CBus(const std::string& devicePath = "");
+    ~PiI2CBus();
+
     bool setI2cDevicePath(const std::string& path);
+    const std::string& getI2cDevicePath() const;
+
+    std::expected<void, I2CError> write(uint16_t address, const I2CBytes& txData, bool tenBit = false) override;
+    std::expected<I2CBytes, I2CError> writeRead(
+        uint16_t address,
+        const I2CBytes& txData,
+        size_t rxLen,
+        bool tenBit = false) override;
 
 private:
-    std::mutex mutex_;
-    std::string i2cDevicePath_;
-    std::unordered_map<std::string, nlohmann::json> handles_;
+    bool validateAddress(uint16_t address, bool tenBit) const;
+    bool bindAddress(int fd, uint16_t address, bool tenBit) const;
+    int openDevice() const;
 
-    bool isHandleRegistered(const std::string& handle) const;
-    nlohmann::json getHandleSettings(const std::string& handle);
-    // Bind address, set 10-bit if needed
-    bool bindAddress(int fd, uint16_t addr, bool tenbit);
-    // write-only transaction (STOP after)
-    std::optional<base64String> writeOnly(const unsigned int handle, const base64String& txBase64);
-    // combined repeated-start write→read in one I2C_RDWR
-    std::optional<base64String> writeRead(const unsigned int handle, const base64String& txBase64, size_t rxLen);
-    static unsigned int nextHandleIndex;
+    mutable std::mutex mutex_;
+    std::string i2cDevicePath_;
 };
+
+using I2C = PiI2CBus;
+
+#endif
