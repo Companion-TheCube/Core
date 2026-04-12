@@ -37,6 +37,16 @@ PiI2CBus performs Linux I2C transactions against /dev/i2c-* and is intended to b
 */
 
 #include "pi_i2c.h"
+#include <utils.h>
+
+namespace {
+
+bool hardwareI2cEnabled()
+{
+    return Config::getBool("HARDWARE_I2C_ENABLED", true);
+}
+
+} // namespace
 
 PiI2CBus::PiI2CBus(const std::string& devicePath)
     : i2cDevicePath_(devicePath)
@@ -74,6 +84,10 @@ const std::string& PiI2CBus::getI2cDevicePath() const
 std::expected<void, I2CError> PiI2CBus::write(uint16_t address, const I2CBytes& txData, bool tenBit)
 {
     std::lock_guard<std::mutex> lock(mutex_);
+    if (!hardwareI2cEnabled()) {
+        CubeLog::warning("I2C write blocked by HARDWARE_I2C_ENABLED=0.");
+        return std::unexpected(I2CError::DISABLED_BY_CONFIG);
+    }
     if (!validateAddress(address, tenBit)) {
         CubeLog::error("Invalid I2C address: " + std::to_string(address));
         return std::unexpected(I2CError::INVALID_ADDRESS);
@@ -115,6 +129,10 @@ std::expected<I2CBytes, I2CError> PiI2CBus::writeRead(
     bool tenBit)
 {
     std::lock_guard<std::mutex> lock(mutex_);
+    if (!hardwareI2cEnabled()) {
+        CubeLog::warning("I2C writeRead blocked by HARDWARE_I2C_ENABLED=0.");
+        return std::unexpected(I2CError::DISABLED_BY_CONFIG);
+    }
     if (!validateAddress(address, tenBit)) {
         CubeLog::error("Invalid I2C address: " + std::to_string(address));
         return std::unexpected(I2CError::INVALID_ADDRESS);

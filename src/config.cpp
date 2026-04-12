@@ -33,6 +33,8 @@ SOFTWARE.
 
 
 #include "utils.h"
+#include <algorithm>
+#include <cctype>
 #include <unordered_map>
 #include <mutex>
 #include <fstream>
@@ -48,6 +50,24 @@ static std::string trim(const std::string& s)
     size_t e = s.find_last_not_of(" \t\r\n");
     if (b == std::string::npos) return std::string();
     return s.substr(b, e - b + 1);
+}
+
+static bool parseBoolValue(const std::string& rawValue, bool fallback)
+{
+    std::string normalized = trim(rawValue);
+    if (normalized.empty()) return fallback;
+
+    std::transform(normalized.begin(), normalized.end(), normalized.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
+
+    if (normalized == "1" || normalized == "true" || normalized == "yes" || normalized == "on") {
+        return true;
+    }
+    if (normalized == "0" || normalized == "false" || normalized == "no" || normalized == "off") {
+        return false;
+    }
+    return fallback;
 }
 
 static void ensure_loaded()
@@ -91,6 +111,11 @@ std::string get(const std::string& key, const std::string& defaultValue)
     if (it != g_cfg.end()) return it->second;
     if (const char* envp = std::getenv(key.c_str())) return std::string(envp);
     return defaultValue;
+}
+
+bool getBool(const std::string& key, bool defaultValue)
+{
+    return parseBoolValue(get(key, ""), defaultValue);
 }
 
 void set(const std::string& key, const std::string& value)

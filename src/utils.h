@@ -182,6 +182,10 @@ void loadFromDotEnv(const std::string& path = ".env");
 // from ".env" automatically. Returns defaultValue if key is not present.
 std::string get(const std::string& key, const std::string& defaultValue = "");
 
+// Parse a boolean config value using common truthy/falsy forms such as
+// 1/0, true/false, yes/no, and on/off.
+bool getBool(const std::string& key, bool defaultValue = false);
+
 // Insert or override a key at runtime (useful for tests or dynamic config).
 void set(const std::string& key, const std::string& value);
 

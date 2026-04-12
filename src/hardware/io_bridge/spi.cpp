@@ -123,6 +123,11 @@ std::optional<base64String> SPI::transferTx(const std::string& handle, const std
 
 std::optional<base64String> SPI::transfer(const std::string& handle, const base64String& txData, size_t rxLen)
 {
+    if (!Config::getBool("HARDWARE_SPI_ENABLED", true)) {
+        CubeLog::warning("SPI transfer blocked by HARDWARE_SPI_ENABLED=0.");
+        return std::nullopt;
+    }
+
     std::shared_ptr<IoBridgeSession> bridgeSession;
     nlohmann::json handleSettings;
     {

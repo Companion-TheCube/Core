@@ -35,7 +35,6 @@ SOFTWARE.
 #include "../settings/globalSettings.h"
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 
 namespace {
@@ -198,31 +197,16 @@ uint8_t interpolateFanDutyPercent(double cpuTemperatureC, const std::vector<FanC
     return curvePoints.back().dutyPercent;
 }
 
-bool parseBoolConfigValue(const std::string& value, bool fallback)
-{
-    if (value.empty()) {
-        return fallback;
-    }
-
-    std::string normalized = value;
-    std::transform(normalized.begin(), normalized.end(), normalized.begin(), [](unsigned char ch) {
-        return static_cast<char>(std::tolower(ch));
-    });
-
-    if (normalized == "1" || normalized == "true" || normalized == "yes" || normalized == "on") {
-        return true;
-    }
-    if (normalized == "0" || normalized == "false" || normalized == "no" || normalized == "off") {
-        return false;
-    }
-    return fallback;
-}
-
 std::unique_ptr<FanController> createFanControllerFromConfig()
 {
     const std::string devicePath = Config::get("FAN_CONTROLLER_I2C_DEVICE", "");
     const std::string addressString = Config::get("FAN_CONTROLLER_I2C_ADDRESS", "");
-    const bool tenBitAddress = parseBoolConfigValue(Config::get("FAN_CONTROLLER_I2C_10BIT", ""), false);
+    const bool tenBitAddress = Config::getBool("FAN_CONTROLLER_I2C_10BIT", false);
+
+    if (!Config::getBool("HARDWARE_I2C_ENABLED", true)) {
+        CubeLog::info("PeripheralManager: HARDWARE_I2C_ENABLED=0, leaving fan control disabled.");
+        return nullptr;
+    }
 
     if (devicePath.empty() || addressString.empty()) {
         CubeLog::info("PeripheralManager: fan controller config missing, leaving fan control disabled.");
