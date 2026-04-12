@@ -42,7 +42,8 @@ SOFTWARE.
 
 namespace {
 
-constexpr auto kTargetFrameDuration = std::chrono::duration<double>(1.0 / 30.0);
+// Aim for 30 FPS with a 5% buffer to avoid going over
+constexpr auto kTargetFrameDuration = std::chrono::duration<double>(1.0 / 30.0 * .95); 
 
 void glfwErrorCallback(int error, const char* description)
 {
