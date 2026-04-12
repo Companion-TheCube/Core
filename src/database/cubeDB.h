@@ -65,7 +65,7 @@ public:
     static std::shared_ptr<BlobsManager> getBlobsManager();
     // API Interface
     HttpEndPointData_t getHttpEndpointData() override;
-    constexpr std::string getInterfaceName() const override;
+    std::string getInterfaceName() const override;
 };
 
 

@@ -78,7 +78,7 @@ public:
     void resume();
 
     HttpEndPointData_t getHttpEndpointData() override;
-    constexpr std::string getInterfaceName() const override { return "DecisionEngine"; }
+    std::string getInterfaceName() const override { return "DecisionEngine"; }
 
 private:
     struct TurnTimingMetrics {

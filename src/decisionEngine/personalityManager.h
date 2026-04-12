@@ -154,7 +154,7 @@ public:
     float calculateEmotionalMatchScore(std::vector<EmotionRange> emotionRanges);
     // API Interface
     HttpEndPointData_t getHttpEndpointData() override;
-    constexpr std::string getInterfaceName() const override;
+    std::string getInterfaceName() const override;
 
 private:
     void managerThreadFunction(std::stop_token st);

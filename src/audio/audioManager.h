@@ -50,7 +50,7 @@ public:
     static std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioInQueue;
 
     // API Interface
-    constexpr std::string getInterfaceName() const override { return "AudioManager"; }
+    std::string getInterfaceName() const override { return "AudioManager"; }
     HttpEndPointData_t getHttpEndpointData() override;
 
 private:

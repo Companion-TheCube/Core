@@ -967,7 +967,7 @@ HttpEndPointData_t IntentRegistry::getHttpEndpointData()
     return data;
 }
 
-constexpr std::string IntentRegistry::getInterfaceName() const
+std::string IntentRegistry::getInterfaceName() const
 {
     return "IntentRegistry";
 }

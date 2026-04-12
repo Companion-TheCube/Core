@@ -94,7 +94,7 @@ public:
     explicit PeripheralManager(std::unique_ptr<mmWave> mmWaveSensorOverride, bool registerSettingCallbacks = true);
     ~PeripheralManager();
 
-    constexpr std::string getInterfaceName() const override { return "Presence"; }
+    std::string getInterfaceName() const override { return "Presence"; }
     HttpEndPointData_t getHttpEndpointData() override;
 
     bool isMmWavePresent();

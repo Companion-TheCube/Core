@@ -200,7 +200,7 @@ public:
     static std::string getScreenMessage();
     static std::string getSizeOfCubeLog();
     // API Interface
-    constexpr std::string getInterfaceName() const override;
+    std::string getInterfaceName() const override;
     HttpEndPointData_t getHttpEndpointData() override;
 };
 

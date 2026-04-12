@@ -44,7 +44,7 @@ public:
     static std::string endpointEnvVarName();
 
     HttpEndPointData_t getHttpEndpointData() override;
-    constexpr std::string getInterfaceName() const override
+    std::string getInterfaceName() const override
     {
         return "AppPostgresAccess";
     }

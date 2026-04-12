@@ -170,7 +170,7 @@ public:
         std::function<void(const nlohmann::json&)> onComplete = nullptr);
     // API Interface
     HttpEndPointData_t getHttpEndpointData() override;
-    constexpr std::string getInterfaceName() const override;
+    std::string getInterfaceName() const override;
 
 private:
     std::shared_ptr<Scheduler> scheduler;

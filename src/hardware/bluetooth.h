@@ -195,7 +195,7 @@ public:
     void removeService(BTService* service);
     // CUBE API Interface
     HttpEndPointData_t getHttpEndpointData() override;
-    constexpr std::string getInterfaceName() const override;
+    std::string getInterfaceName() const override;
 };
 
 #endif // BLUETOOTH_H

@@ -166,7 +166,7 @@ private:
     nlohmann::json getHandleSettings(const std::string& handle);
 
     // I_API_Interface implementation
-    constexpr std::string getInterfaceName() const override { return "SPI"; }
+    std::string getInterfaceName() const override { return "SPI"; }
     HttpEndPointData_t getHttpEndpointData() override;
 };
 #endif// IMU_H

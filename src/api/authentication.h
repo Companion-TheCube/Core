@@ -89,7 +89,7 @@ public:
     static std::string getLastError();
 
     // API Interface
-    constexpr std::string getInterfaceName() const override;
+    std::string getInterfaceName() const override;
     HttpEndPointData_t getHttpEndpointData() override;
 };
 

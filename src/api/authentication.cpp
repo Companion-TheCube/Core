@@ -847,7 +847,7 @@ bool CubeAuth::isAuthorized_authHeader(const std::string& authHeader)
  *
  * @return std::string
  */
-constexpr std::string CubeAuth::getInterfaceName() const
+std::string CubeAuth::getInterfaceName() const
 {
     return "CubeAuth";
 }

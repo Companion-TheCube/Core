@@ -487,7 +487,7 @@ float PersonalityManager::calculateEmotionalMatchScore(std::vector<EmotionRange>
     return std::sqrt(sumOfSquares);
 }
 
-constexpr std::string PersonalityManager::getInterfaceName() const
+std::string PersonalityManager::getInterfaceName() const
 {
     return "PersonalityManager";
 }

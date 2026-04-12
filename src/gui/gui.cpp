@@ -2488,7 +2488,7 @@ HttpEndPointData_t GUI::getHttpEndpointData()
  *
  * @return std::string the name of the interface
  */
-constexpr std::string GUI::getInterfaceName() const
+std::string GUI::getInterfaceName() const
 {
     return "GUI";
 }
@@ -3303,7 +3303,7 @@ void NotificationsManager::showNotificationWithCallback(const std::string& title
     CubeLog::info("Notification shown with callback: " + title + " - " + message);
 }
 
-constexpr std::string NotificationsManager::getInterfaceName() const
+std::string NotificationsManager::getInterfaceName() const
 {
     return "Notifications";
 }

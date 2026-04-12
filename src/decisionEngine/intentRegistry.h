@@ -199,7 +199,7 @@ public:
     std::vector<std::shared_ptr<Intent>> getRegisteredIntents();
     // API Interface
     HttpEndPointData_t getHttpEndpointData() override;
-    constexpr std::string getInterfaceName() const override;
+    std::string getInterfaceName() const override;
     void setFunctionRegistry(std::shared_ptr<FunctionRegistry> registry);
 
 private:

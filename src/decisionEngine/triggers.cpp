@@ -559,7 +559,7 @@ HttpEndPointData_t TriggerManager::getHttpEndpointData()
     return data;
 }
 
-constexpr std::string TriggerManager::getInterfaceName() const
+std::string TriggerManager::getInterfaceName() const
 {
     return "TriggerManager";
 }
