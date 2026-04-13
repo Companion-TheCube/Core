@@ -76,6 +76,7 @@ The application reads configuration from a `.env` file in the current working di
 - HTTP: `HTTP_ADDRESS` (e.g., `0.0.0.0`), `HTTP_PORT` (e.g., `55280`).
 - IPC: `IPC_SOCKET_PATH` (UNIX domain socket path, e.g., `cube.sock`).
 - Hardware safety: `HARDWARE_I2C_ENABLED`, `HARDWARE_SPI_ENABLED` (set either to `0` on non-target dev machines to block hardware bus access).
+- Accelerometer: `ACCEL_I2C_DEVICE`, `ACCEL_I2C_ADDRESS`, `ACCEL_I2C_10BIT` for the BMI270 transport path.
 - Tests: `HTTP_PORT_TEST` (e.g., `55281`), `IPC_SOCKET_PATH_TEST` (e.g., `test_ipc.sock`).
 - Apps/runtime: `THECUBE_APP_LAUNCHER_BIN`, `THECUBE_LAUNCH_ROOT`, `THECUBE_RUNTIME_ROOT`, `THECUBE_DATA_ROOT`, `THECUBE_CACHE_ROOT`.
 

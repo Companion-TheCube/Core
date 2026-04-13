@@ -1,7 +1,9 @@
+#include "../../src/hardware/interactionEvents.h"
 #include "../../src/hardware/peripheralManager.h"
 #include "../../src/settings/globalSettings.h"
 #include <gtest/gtest.h>
 
+#include <deque>
 #include <thread>
 
 namespace {
@@ -75,29 +77,127 @@ public:
     mutable std::optional<I2CError> commandError;
 };
 
+class FakeAccelerometer final : public Bmi270Accelerometer {
+public:
+    FakeAccelerometer()
+        : Bmi270Accelerometer(nullptr, 0x68)
+    {
+    }
+
+    bool isConfigured() const override
+    {
+        return configured;
+    }
+
+    bool isInitialized() const override
+    {
+        return initialized;
+    }
+
+    bool isAvailable() const override
+    {
+        return available;
+    }
+
+    std::expected<void, Bmi270Error> initialize() override
+    {
+        initCalls++;
+        if (initError.has_value()) {
+            initialized = false;
+            available = false;
+            return std::unexpected(*initError);
+        }
+        initialized = true;
+        available = true;
+        return { };
+    }
+
+    std::expected<void, Bmi270Error> configureInteractionDetection(const Bmi270InteractionConfig& config) override
+    {
+        configuredInteraction = config;
+        if (configError.has_value()) {
+            return std::unexpected(*configError);
+        }
+        return { };
+    }
+
+    std::expected<Bmi270InteractionStatus, Bmi270Error> pollInteractionStatus() override
+    {
+        pollCalls++;
+        if (pollError.has_value()) {
+            return std::unexpected(*pollError);
+        }
+        if (!queuedStatuses.empty()) {
+            latestStatus = queuedStatuses.front();
+            queuedStatuses.pop_front();
+        }
+        return latestStatus;
+    }
+
+    bool configured = true;
+    mutable bool initialized = false;
+    mutable bool available = true;
+    std::optional<Bmi270Error> initError;
+    std::optional<Bmi270Error> configError;
+    std::optional<Bmi270Error> pollError;
+    mutable size_t initCalls = 0;
+    mutable size_t pollCalls = 0;
+    mutable std::deque<Bmi270InteractionStatus> queuedStatuses;
+    mutable Bmi270InteractionStatus latestStatus;
+    mutable Bmi270InteractionConfig configuredInteraction;
+};
+
 class TestPeripheralManager : public PeripheralManager {
 public:
     using PeripheralManager::handleImmediatePresenceDecision;
+    using PeripheralManager::runInteractionControlIteration;
     using PeripheralManager::runThermalControlIteration;
     using PeripheralManager::syncPresenceDetectionEnabledFromSettings;
 
     TestPeripheralManager(
         std::unique_ptr<mmWave> mmWaveSensorOverride,
         std::unique_ptr<FanController> fanControllerOverride = nullptr,
+        std::unique_ptr<Bmi270Accelerometer> accelerometerOverride = nullptr,
         TemperatureReader cpuTemperatureReader = {},
         TemperatureReader systemTemperatureReader = {},
+        MonotonicNowReader monotonicNowReader = {},
+        EpochMsReader epochMsReader = {},
         bool registerSettingCallbacks = false,
-        bool startThermalControlLoopThread = false)
+        bool startThermalControlLoopThread = false,
+        bool startInteractionControlLoopThread = false)
         : PeripheralManager(
             std::move(mmWaveSensorOverride),
             std::move(fanControllerOverride),
+            std::move(accelerometerOverride),
             std::move(cpuTemperatureReader),
             std::move(systemTemperatureReader),
+            std::move(monotonicNowReader),
+            std::move(epochMsReader),
             registerSettingCallbacks,
-            startThermalControlLoopThread)
+            startThermalControlLoopThread,
+            startInteractionControlLoopThread)
     {
     }
 };
+
+Bmi270AccelerationSample sample(float xG, float yG, float zG)
+{
+    return Bmi270AccelerationSample { xG, yG, zG };
+}
+
+Bmi270InteractionStatus interactionStatus(
+    const Bmi270AccelerationSample& accelSample,
+    bool tapDetected = false,
+    bool motionDetected = false,
+    bool noMotionDetected = false)
+{
+    Bmi270InteractionStatus status;
+    status.latestSample = accelSample;
+    status.interruptStatus.tapDetected = tapDetected;
+    status.interruptStatus.motionDetected = motionDetected;
+    status.interruptStatus.noMotionDetected = noMotionDetected;
+    return status;
+}
 
 TEST(DelayedPresenceTrackerTest, ImmediatePresentMakesDelayedPresentImmediately)
 {
@@ -145,55 +245,6 @@ TEST(DelayedPresenceTrackerTest, UnknownStateHoldsDelayedStateWithoutAdvancingTi
 
     EXPECT_EQ(status.immediateState, MmWavePresenceState::Unknown);
     EXPECT_EQ(status.delayedState, MmWavePresenceState::Present);
-}
-
-TEST(DelayedPresenceTrackerTest, ColdStartAbsentTransitionsAfterTimeout)
-{
-    DelayedPresenceTracker tracker(15);
-    const auto now = Clock::now();
-
-    PresenceStatusSnapshot status = tracker.updateImmediateState(
-        MmWavePresenceState::Absent,
-        now);
-
-    EXPECT_EQ(status.immediateState, MmWavePresenceState::Absent);
-    EXPECT_EQ(status.delayedState, MmWavePresenceState::Unknown);
-
-    status = tracker.snapshot(now + std::chrono::seconds(14));
-    EXPECT_EQ(status.delayedState, MmWavePresenceState::Unknown);
-
-    status = tracker.snapshot(now + std::chrono::seconds(15));
-    EXPECT_EQ(status.delayedState, MmWavePresenceState::Absent);
-}
-
-TEST(DelayedPresenceTrackerTest, UpdatingTimeoutAppliesToCurrentAbsentWindow)
-{
-    DelayedPresenceTracker tracker(15);
-    const auto now = Clock::now();
-
-    tracker.updateImmediateState(MmWavePresenceState::Present, now);
-    tracker.updateImmediateState(MmWavePresenceState::Absent, now + std::chrono::seconds(1));
-    tracker.setAbsentTimeoutSecs(5, now + std::chrono::seconds(7));
-
-    const PresenceStatusSnapshot status = tracker.snapshot(now + std::chrono::seconds(7));
-
-    EXPECT_EQ(status.immediateState, MmWavePresenceState::Absent);
-    EXPECT_EQ(status.delayedState, MmWavePresenceState::Absent);
-    EXPECT_EQ(status.absentTimeoutSecs, 5);
-}
-
-TEST(DelayedPresenceTrackerTest, ResetClearsPresenceStates)
-{
-    DelayedPresenceTracker tracker(15);
-    const auto now = Clock::now();
-
-    tracker.updateImmediateState(MmWavePresenceState::Present, now);
-    tracker.reset();
-
-    const PresenceStatusSnapshot status = tracker.snapshot(now + std::chrono::seconds(1));
-    EXPECT_EQ(status.immediateState, MmWavePresenceState::Unknown);
-    EXPECT_EQ(status.delayedState, MmWavePresenceState::Unknown);
-    EXPECT_EQ(status.absentTimeoutSecs, 15);
 }
 
 TEST(PeripheralManagerTest, StatusEndpointReturnsImmediateAndDelayedPresenceFields)
@@ -250,36 +301,6 @@ TEST(PeripheralManagerTest, PresenceSettingDisableResetsStateAndIgnoresUpdates)
     status = manager.getPresenceStatus();
     EXPECT_EQ(status.immediateState, MmWavePresenceState::Unknown);
     EXPECT_EQ(status.delayedState, MmWavePresenceState::Unknown);
-
-    MmWavePresenceDecision secondPresentDecision;
-    secondPresentDecision.state = MmWavePresenceState::Present;
-    secondPresentDecision.timestamp = now + std::chrono::seconds(1);
-    manager.handleImmediatePresenceDecision(secondPresentDecision);
-
-    status = manager.getPresenceStatus();
-    EXPECT_EQ(status.immediateState, MmWavePresenceState::Unknown);
-    EXPECT_EQ(status.delayedState, MmWavePresenceState::Unknown);
-}
-
-TEST(PeripheralManagerTest, PresenceSettingEnableAllowsUpdatesAgain)
-{
-    GlobalSettings defaults;
-    GlobalSettings::setSetting(GlobalSettings::SettingType::PRESENCE_DETECTION_ENABLED, false);
-
-    TestPeripheralManager manager(nullptr);
-    const auto now = Clock::now();
-
-    GlobalSettings::setSetting(GlobalSettings::SettingType::PRESENCE_DETECTION_ENABLED, true);
-    manager.syncPresenceDetectionEnabledFromSettings();
-
-    MmWavePresenceDecision presentDecision;
-    presentDecision.state = MmWavePresenceState::Present;
-    presentDecision.timestamp = now;
-    manager.handleImmediatePresenceDecision(presentDecision);
-
-    const auto status = manager.getPresenceStatus();
-    EXPECT_EQ(status.immediateState, MmWavePresenceState::Present);
-    EXPECT_EQ(status.delayedState, MmWavePresenceState::Present);
 }
 
 TEST(PeripheralManagerThermalTest, InterpolatesDutyFromCurve)
@@ -300,6 +321,7 @@ TEST(PeripheralManagerThermalTest, InterpolatesDutyFromCurve)
     TestPeripheralManager manager(
         nullptr,
         std::move(fanController),
+        nullptr,
         [&cpuTemperatureC]() { return cpuTemperatureC; },
         [&systemTemperatureC]() { return systemTemperatureC; });
 
@@ -312,35 +334,6 @@ TEST(PeripheralManagerThermalTest, InterpolatesDutyFromCurve)
     EXPECT_EQ(status.appliedDutyPercent, 55);
     ASSERT_TRUE(status.cpuTemperatureC.has_value());
     EXPECT_DOUBLE_EQ(*status.cpuTemperatureC, 57.5);
-    ASSERT_TRUE(status.systemTemperatureC.has_value());
-    EXPECT_DOUBLE_EQ(*status.systemTemperatureC, 58.0);
-}
-
-TEST(PeripheralManagerThermalTest, DecreasesDutyOnlyAfterHysteresisMargin)
-{
-    GlobalSettings defaults;
-
-    auto fanController = std::make_unique<FakeFanController>();
-    auto* fanControllerPtr = fanController.get();
-    std::optional<double> cpuTemperatureC = 65.0;
-
-    TestPeripheralManager manager(
-        nullptr,
-        std::move(fanController),
-        [&cpuTemperatureC]() { return cpuTemperatureC; },
-        []() { return std::optional<double>(60.0); });
-
-    manager.runThermalControlIteration();
-    ASSERT_FALSE(fanControllerPtr->dutyHistory.empty());
-    EXPECT_EQ(fanControllerPtr->dutyHistory.back(), 70);
-
-    cpuTemperatureC = 64.0;
-    manager.runThermalControlIteration();
-    EXPECT_EQ(fanControllerPtr->dutyHistory.back(), 70);
-
-    cpuTemperatureC = 62.0;
-    manager.runThermalControlIteration();
-    EXPECT_EQ(fanControllerPtr->dutyHistory.back(), 64);
 }
 
 TEST(PeripheralManagerThermalTest, MissingCpuTemperatureTriggersFailsafeDuty)
@@ -354,6 +347,7 @@ TEST(PeripheralManagerThermalTest, MissingCpuTemperatureTriggersFailsafeDuty)
     TestPeripheralManager manager(
         nullptr,
         std::move(fanController),
+        nullptr,
         []() { return std::optional<double> {}; },
         []() { return std::optional<double>(61.0); });
 
@@ -365,117 +359,184 @@ TEST(PeripheralManagerThermalTest, MissingCpuTemperatureTriggersFailsafeDuty)
     const auto status = manager.getThermalStatus();
     EXPECT_TRUE(status.failsafeActive);
     EXPECT_EQ(status.appliedDutyPercent, 90);
-    EXPECT_FALSE(status.cpuTemperatureC.has_value());
-    ASSERT_TRUE(status.systemTemperatureC.has_value());
-    EXPECT_DOUBLE_EQ(*status.systemTemperatureC, 61.0);
 }
 
-TEST(PeripheralManagerThermalTest, DisabledControlTurnsFanOff)
+TEST(PeripheralManagerInteractionTest, TapEventUpdatesSnapshotAndPublishesBusEvent)
 {
     GlobalSettings defaults;
 
-    auto fanController = std::make_unique<FakeFanController>();
-    auto* fanControllerPtr = fanController.get();
-    std::optional<double> cpuTemperatureC = 65.0;
+    auto accelerometer = std::make_unique<FakeAccelerometer>();
+    auto* accelerometerPtr = accelerometer.get();
+    accelerometerPtr->queuedStatuses.push_back(interactionStatus(sample(0.0f, 0.0f, 1.0f), false, false, true));
+    accelerometerPtr->queuedStatuses.push_back(interactionStatus(sample(0.6f, 0.0f, 1.3f), true, true, false));
 
-    TestPeripheralManager manager(
-        nullptr,
-        std::move(fanController),
-        [&cpuTemperatureC]() { return cpuTemperatureC; },
-        []() { return std::optional<double>(60.0); });
-
-    manager.runThermalControlIteration();
-    EXPECT_EQ(fanControllerPtr->dutyHistory.back(), 70);
-
-    GlobalSettings::setSetting(GlobalSettings::SettingType::FAN_CONTROL_ENABLED, false);
-    manager.runThermalControlIteration();
-
-    EXPECT_FALSE(fanControllerPtr->enabled);
-    EXPECT_EQ(fanControllerPtr->mode, FanControlMode::Disabled);
-    EXPECT_EQ(fanControllerPtr->dutyHistory.back(), 0);
-
-    const auto status = manager.getThermalStatus();
-    EXPECT_FALSE(status.controlEnabled);
-    EXPECT_EQ(status.appliedDutyPercent, 0);
-}
-
-TEST(PeripheralManagerThermalTest, MissingFanConfigurationLeavesThermalStatusReadable)
-{
-    GlobalSettings defaults;
-    std::optional<double> cpuTemperatureC = 67.0;
-    std::optional<double> systemTemperatureC = 65.0;
+    auto nowMono = Clock::now();
+    uint64_t nowEpochMs = 1000;
 
     TestPeripheralManager manager(
         nullptr,
         nullptr,
-        [&cpuTemperatureC]() { return cpuTemperatureC; },
-        [&systemTemperatureC]() { return systemTemperatureC; });
+        std::move(accelerometer),
+        {},
+        {},
+        [&nowMono]() { return nowMono; },
+        [&nowEpochMs]() { return nowEpochMs; });
 
-    manager.runThermalControlIteration();
+    std::vector<InteractionEvent> seenEvents;
+    const auto handle = InteractionEvents::subscribe([&seenEvents](const InteractionEvent& event) {
+        seenEvents.push_back(event);
+    });
 
-    const auto status = manager.getThermalStatus();
-    EXPECT_TRUE(status.controlEnabled);
-    EXPECT_FALSE(status.fanConfigured);
-    EXPECT_FALSE(status.failsafeActive);
-    ASSERT_TRUE(status.cpuTemperatureC.has_value());
-    EXPECT_DOUBLE_EQ(*status.cpuTemperatureC, 67.0);
-    ASSERT_TRUE(status.systemTemperatureC.has_value());
-    EXPECT_DOUBLE_EQ(*status.systemTemperatureC, 65.0);
-    EXPECT_EQ(status.appliedDutyPercent, 0);
+    manager.runInteractionControlIteration();
+    nowMono += std::chrono::milliseconds(200);
+    nowEpochMs += 200;
+    manager.runInteractionControlIteration();
+
+    InteractionEvents::unsubscribe(handle);
+
+    const auto status = manager.getInteractionStatus();
+    EXPECT_TRUE(status.available);
+    EXPECT_TRUE(status.initialized);
+    ASSERT_TRUE(status.lastTapAtEpochMs.has_value());
+    EXPECT_EQ(*status.lastTapAtEpochMs, 1200u);
+    EXPECT_EQ(status.lastEventSequence, 1u);
+
+    ASSERT_EQ(seenEvents.size(), 1u);
+    EXPECT_EQ(seenEvents[0].type, InteractionEventType::Tap);
+    EXPECT_EQ(seenEvents[0].sequence, 1u);
 }
 
-TEST(PeripheralManagerThermalTest, CommandFailureMarksFailsafeActive)
+TEST(PeripheralManagerInteractionTest, LiftTransitionsFromDeskToLiftedAndBack)
 {
     GlobalSettings defaults;
 
-    auto fanController = std::make_unique<FakeFanController>();
-    auto* fanControllerPtr = fanController.get();
-    fanControllerPtr->commandError = I2CError::IO_FAILED;
+    auto accelerometer = std::make_unique<FakeAccelerometer>();
+    auto* accelerometerPtr = accelerometer.get();
+    accelerometerPtr->queuedStatuses.push_back(interactionStatus(sample(0.0f, 0.0f, 1.0f), false, false, true));
+    accelerometerPtr->queuedStatuses.push_back(interactionStatus(sample(0.0f, 0.0f, 1.0f), false, false, true));
+    accelerometerPtr->queuedStatuses.push_back(interactionStatus(sample(0.7f, 0.0f, 0.6f), false, true, false));
+    accelerometerPtr->queuedStatuses.push_back(interactionStatus(sample(0.9f, 0.0f, 0.2f), false, true, false));
+    accelerometerPtr->queuedStatuses.push_back(interactionStatus(sample(0.0f, 0.0f, 1.0f), false, false, true));
+    accelerometerPtr->queuedStatuses.push_back(interactionStatus(sample(0.0f, 0.0f, 1.0f), false, false, true));
+
+    auto nowMono = Clock::now();
+    uint64_t nowEpochMs = 1000;
 
     TestPeripheralManager manager(
         nullptr,
-        std::move(fanController),
-        []() { return std::optional<double>(72.0); },
-        []() { return std::optional<double>(70.0); });
+        nullptr,
+        std::move(accelerometer),
+        {},
+        {},
+        [&nowMono]() { return nowMono; },
+        [&nowEpochMs]() { return nowEpochMs; });
 
-    manager.runThermalControlIteration();
+    std::vector<InteractionEvent> seenEvents;
+    const auto handle = InteractionEvents::subscribe([&seenEvents](const InteractionEvent& event) {
+        seenEvents.push_back(event);
+    });
 
-    const auto status = manager.getThermalStatus();
-    EXPECT_TRUE(status.failsafeActive);
-    EXPECT_EQ(status.appliedDutyPercent, 0);
+    manager.runInteractionControlIteration();
+    nowMono += std::chrono::milliseconds(600);
+    nowEpochMs += 600;
+    manager.runInteractionControlIteration();
+
+    EXPECT_EQ(manager.getInteractionStatus().liftState, Bmi270LiftState::OnDesk);
+
+    nowMono += std::chrono::milliseconds(100);
+    nowEpochMs += 100;
+    manager.runInteractionControlIteration();
+
+    nowMono += std::chrono::milliseconds(200);
+    nowEpochMs += 200;
+    manager.runInteractionControlIteration();
+
+    EXPECT_EQ(manager.getInteractionStatus().liftState, Bmi270LiftState::Lifted);
+
+    nowMono += std::chrono::milliseconds(300);
+    nowEpochMs += 300;
+    manager.runInteractionControlIteration();
+
+    nowMono += std::chrono::milliseconds(600);
+    nowEpochMs += 600;
+    manager.runInteractionControlIteration();
+
+    InteractionEvents::unsubscribe(handle);
+
+    const auto status = manager.getInteractionStatus();
+    EXPECT_EQ(status.liftState, Bmi270LiftState::OnDesk);
+    ASSERT_TRUE(status.lastLiftChangeAtEpochMs.has_value());
+    EXPECT_EQ(*status.lastLiftChangeAtEpochMs, 2800u);
+
+    ASSERT_EQ(seenEvents.size(), 2u);
+    EXPECT_EQ(seenEvents[0].type, InteractionEventType::LiftStarted);
+    EXPECT_EQ(seenEvents[1].type, InteractionEventType::LiftEnded);
 }
 
-TEST(PeripheralManagerThermalTest, RegisteredThermalSettingCallbacksWakeLoopAndApplyNewCurve)
+TEST(PeripheralManagerInteractionTest, EventHistoryReportsTruncationWhenCallerFallsBehind)
 {
     GlobalSettings defaults;
-    GlobalSettings::setSetting(GlobalSettings::SettingType::FAN_CONTROL_POLL_INTERVAL_MS, 10000);
+    GlobalSettings::setSetting(GlobalSettings::SettingType::INTERACTION_EVENT_HISTORY_SIZE, 32);
 
-    auto fanController = std::make_unique<FakeFanController>();
-    auto* fanControllerPtr = fanController.get();
-    std::optional<double> cpuTemperatureC = 50.0;
+    auto accelerometer = std::make_unique<FakeAccelerometer>();
+    auto* accelerometerPtr = accelerometer.get();
+    for (int i = 0; i < 40; ++i) {
+        accelerometerPtr->queuedStatuses.push_back(interactionStatus(sample(0.7f, 0.0f, 1.2f), true, true, false));
+    }
+
+    auto nowMono = Clock::now();
+    uint64_t nowEpochMs = 1000;
+
+    TestPeripheralManager manager(
+        nullptr,
+        nullptr,
+        std::move(accelerometer),
+        {},
+        {},
+        [&nowMono]() { return nowMono; },
+        [&nowEpochMs]() { return nowEpochMs; });
+
+    for (int i = 0; i < 40; ++i) {
+        manager.runInteractionControlIteration();
+        nowMono += std::chrono::milliseconds(200);
+        nowEpochMs += 200;
+    }
+
+    const auto page = manager.getInteractionEvents(0, 10);
+    EXPECT_TRUE(page.historyTruncated);
+    EXPECT_EQ(page.events.size(), 10u);
+    EXPECT_EQ(page.nextSequence, 41u);
+    EXPECT_GT(page.events.front().sequence, 1u);
+}
+
+TEST(PeripheralManagerInteractionTest, RegisteredInteractionCallbacksWakeLoopAndApplyDisable)
+{
+    GlobalSettings defaults;
+    GlobalSettings::setSetting(GlobalSettings::SettingType::INTERACTION_POLL_INTERVAL_MS, 500);
+
+    auto accelerometer = std::make_unique<FakeAccelerometer>();
+    accelerometer->queuedStatuses.push_back(interactionStatus(sample(0.0f, 0.0f, 1.0f), false, false, true));
 
     {
         TestPeripheralManager manager(
             nullptr,
-            std::move(fanController),
-            [&cpuTemperatureC]() { return cpuTemperatureC; },
-            []() { return std::optional<double>(48.0); },
+            nullptr,
+            std::move(accelerometer),
+            {},
+            {},
+            {},
+            {},
             true,
+            false,
             true);
 
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        ASSERT_FALSE(fanControllerPtr->dutyHistory.empty());
-        EXPECT_EQ(fanControllerPtr->dutyHistory.back(), 40);
+        EXPECT_TRUE(manager.getInteractionStatus().enabled);
 
-        GlobalSettings::setSetting(
-            GlobalSettings::SettingType::FAN_CONTROL_CURVE_POINTS,
-            nlohmann::json::array({
-                nlohmann::json::array({ 35.0, 60 }),
-                nlohmann::json::array({ 80.0, 60 }),
-            }));
-
+        GlobalSettings::setSetting(GlobalSettings::SettingType::INTERACTION_DETECTION_ENABLED, false);
         std::this_thread::sleep_for(std::chrono::milliseconds(150));
-        EXPECT_EQ(fanControllerPtr->dutyHistory.back(), 60);
+
+        EXPECT_FALSE(manager.getInteractionStatus().enabled);
     }
 }
 

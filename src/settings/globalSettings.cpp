@@ -87,7 +87,14 @@ std::unordered_map<GlobalSettings::SettingType, std::string> GlobalSettings::set
     { SettingType::FAN_CONTROL_POLL_INTERVAL_MS, "fanControlPollIntervalMs" },
     { SettingType::FAN_CONTROL_HYSTERESIS_C, "fanControlHysteresisC" },
     { SettingType::FAN_CONTROL_FAILSAFE_PERCENT, "fanControlFailsafePercent" },
-    { SettingType::FAN_CONTROL_CURVE_POINTS, "fanControlCurvePoints" }
+    { SettingType::FAN_CONTROL_CURVE_POINTS, "fanControlCurvePoints" },
+    { SettingType::INTERACTION_DETECTION_ENABLED, "interactionDetectionEnabled" },
+    { SettingType::INTERACTION_POLL_INTERVAL_MS, "interactionPollIntervalMs" },
+    { SettingType::INTERACTION_EVENT_HISTORY_SIZE, "interactionEventHistorySize" },
+    { SettingType::INTERACTION_TAP_DEBOUNCE_MS, "interactionTapDebounceMs" },
+    { SettingType::INTERACTION_LIFT_CONFIRM_MS, "interactionLiftConfirmMs" },
+    { SettingType::INTERACTION_REST_STABLE_MS, "interactionRestStableMs" },
+    { SettingType::INTERACTION_LIFT_DELTA_THRESHOLD_MG, "interactionLiftDeltaThresholdMg" }
 };
 std::unordered_map<std::string, GlobalSettings::SettingType> GlobalSettings::stringSettingTypeMap = {
     { "logVerbosity", SettingType::LOG_VERBOSITY },
@@ -140,5 +147,12 @@ std::unordered_map<std::string, GlobalSettings::SettingType> GlobalSettings::str
     { "fanControlPollIntervalMs", SettingType::FAN_CONTROL_POLL_INTERVAL_MS },
     { "fanControlHysteresisC", SettingType::FAN_CONTROL_HYSTERESIS_C },
     { "fanControlFailsafePercent", SettingType::FAN_CONTROL_FAILSAFE_PERCENT },
-    { "fanControlCurvePoints", SettingType::FAN_CONTROL_CURVE_POINTS }
+    { "fanControlCurvePoints", SettingType::FAN_CONTROL_CURVE_POINTS },
+    { "interactionDetectionEnabled", SettingType::INTERACTION_DETECTION_ENABLED },
+    { "interactionPollIntervalMs", SettingType::INTERACTION_POLL_INTERVAL_MS },
+    { "interactionEventHistorySize", SettingType::INTERACTION_EVENT_HISTORY_SIZE },
+    { "interactionTapDebounceMs", SettingType::INTERACTION_TAP_DEBOUNCE_MS },
+    { "interactionLiftConfirmMs", SettingType::INTERACTION_LIFT_CONFIRM_MS },
+    { "interactionRestStableMs", SettingType::INTERACTION_REST_STABLE_MS },
+    { "interactionLiftDeltaThresholdMg", SettingType::INTERACTION_LIFT_DELTA_THRESHOLD_MG }
 };

@@ -113,6 +113,13 @@ struct GlobalSettings {
         FAN_CONTROL_HYSTERESIS_C,
         FAN_CONTROL_FAILSAFE_PERCENT,
         FAN_CONTROL_CURVE_POINTS,
+        INTERACTION_DETECTION_ENABLED,
+        INTERACTION_POLL_INTERVAL_MS,
+        INTERACTION_EVENT_HISTORY_SIZE,
+        INTERACTION_TAP_DEBOUNCE_MS,
+        INTERACTION_LIFT_CONFIRM_MS,
+        INTERACTION_REST_STABLE_MS,
+        INTERACTION_LIFT_DELTA_THRESHOLD_MG,
 
         SETTING_TYPE_COUNT
     };
@@ -222,6 +229,14 @@ struct GlobalSettings {
         GlobalSettings::setSetting(SettingType::FAN_CONTROL_HYSTERESIS_C, 2.0);
         GlobalSettings::setSetting(SettingType::FAN_CONTROL_FAILSAFE_PERCENT, 100);
         GlobalSettings::setSetting(SettingType::FAN_CONTROL_CURVE_POINTS, defaultFanControlCurvePoints());
+        // interaction defaults
+        GlobalSettings::setSetting(SettingType::INTERACTION_DETECTION_ENABLED, true);
+        GlobalSettings::setSetting(SettingType::INTERACTION_POLL_INTERVAL_MS, 50);
+        GlobalSettings::setSetting(SettingType::INTERACTION_EVENT_HISTORY_SIZE, 128);
+        GlobalSettings::setSetting(SettingType::INTERACTION_TAP_DEBOUNCE_MS, 120);
+        GlobalSettings::setSetting(SettingType::INTERACTION_LIFT_CONFIRM_MS, 150);
+        GlobalSettings::setSetting(SettingType::INTERACTION_REST_STABLE_MS, 500);
+        GlobalSettings::setSetting(SettingType::INTERACTION_LIFT_DELTA_THRESHOLD_MG, 200);
     }
 
     static void setSettingCB(SettingType key, std::function<void()> callback)
@@ -293,6 +308,54 @@ struct GlobalSettings {
         case SettingType::FAN_CONTROL_CURVE_POINTS:
             value = normalizeFanControlCurvePoints(value);
             break;
+        case SettingType::INTERACTION_POLL_INTERVAL_MS: {
+            int clampedValue = 50;
+            if (value.is_number()) {
+                clampedValue = clampInteractionPollIntervalMs(value.get<int>());
+            }
+            value = clampedValue;
+            break;
+        }
+        case SettingType::INTERACTION_EVENT_HISTORY_SIZE: {
+            int clampedValue = 128;
+            if (value.is_number()) {
+                clampedValue = clampInteractionEventHistorySize(value.get<int>());
+            }
+            value = clampedValue;
+            break;
+        }
+        case SettingType::INTERACTION_TAP_DEBOUNCE_MS: {
+            int clampedValue = 120;
+            if (value.is_number()) {
+                clampedValue = clampInteractionTapDebounceMs(value.get<int>());
+            }
+            value = clampedValue;
+            break;
+        }
+        case SettingType::INTERACTION_LIFT_CONFIRM_MS: {
+            int clampedValue = 150;
+            if (value.is_number()) {
+                clampedValue = clampInteractionLiftConfirmMs(value.get<int>());
+            }
+            value = clampedValue;
+            break;
+        }
+        case SettingType::INTERACTION_REST_STABLE_MS: {
+            int clampedValue = 500;
+            if (value.is_number()) {
+                clampedValue = clampInteractionRestStableMs(value.get<int>());
+            }
+            value = clampedValue;
+            break;
+        }
+        case SettingType::INTERACTION_LIFT_DELTA_THRESHOLD_MG: {
+            int clampedValue = 200;
+            if (value.is_number()) {
+                clampedValue = clampInteractionLiftDeltaThresholdMg(value.get<int>());
+            }
+            value = clampedValue;
+            break;
+        }
         default:
             break;
         }
@@ -449,6 +512,36 @@ private:
     static int clampFanControlFailsafePercent(int value)
     {
         return std::clamp(value, 0, 100);
+    }
+
+    static int clampInteractionPollIntervalMs(int value)
+    {
+        return std::clamp(value, 20, 500);
+    }
+
+    static int clampInteractionEventHistorySize(int value)
+    {
+        return std::clamp(value, 32, 1024);
+    }
+
+    static int clampInteractionTapDebounceMs(int value)
+    {
+        return std::clamp(value, 50, 1000);
+    }
+
+    static int clampInteractionLiftConfirmMs(int value)
+    {
+        return std::clamp(value, 50, 1000);
+    }
+
+    static int clampInteractionRestStableMs(int value)
+    {
+        return std::clamp(value, 100, 3000);
+    }
+
+    static int clampInteractionLiftDeltaThresholdMg(int value)
+    {
+        return std::clamp(value, 50, 1000);
     }
 
     static nlohmann::json defaultFanControlCurvePoints()

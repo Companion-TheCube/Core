@@ -43,6 +43,15 @@ constexpr int kDefaultFanControlPollIntervalMs = 2000;
 constexpr double kDefaultFanControlHysteresisC = 2.0;
 constexpr uint8_t kDefaultFanControlFailsafePercent = 100;
 
+constexpr int kDefaultInteractionPollIntervalMs = 50;
+constexpr int kDefaultInteractionEventHistorySize = 128;
+constexpr int kDefaultInteractionTapDebounceMs = 120;
+constexpr int kDefaultInteractionLiftConfirmMs = 150;
+constexpr int kDefaultInteractionRestStableMs = 500;
+constexpr int kDefaultInteractionLiftDeltaThresholdMg = 200;
+constexpr float kRestMagnitudeToleranceG = 0.25f;
+constexpr float kMinimumStillDeltaG = 0.05f;
+
 struct FanCurvePoint {
     double temperatureC = 0.0;
     uint8_t dutyPercent = 0;
@@ -56,6 +65,55 @@ int clampAverageWindowSeconds(int value)
 int clampPresenceAbsentTimeoutSeconds(int value)
 {
     return std::clamp(value, 1, 120);
+}
+
+int clampInteractionPollIntervalMs(int value)
+{
+    return std::clamp(value, 20, 500);
+}
+
+int clampInteractionEventHistorySize(int value)
+{
+    return std::clamp(value, 32, 1024);
+}
+
+int clampInteractionTapDebounceMs(int value)
+{
+    return std::clamp(value, 50, 1000);
+}
+
+int clampInteractionLiftConfirmMs(int value)
+{
+    return std::clamp(value, 50, 1000);
+}
+
+int clampInteractionRestStableMs(int value)
+{
+    return std::clamp(value, 100, 3000);
+}
+
+int clampInteractionLiftDeltaThresholdMg(int value)
+{
+    return std::clamp(value, 50, 1000);
+}
+
+float sampleMagnitude(const Bmi270AccelerationSample& sample)
+{
+    return std::sqrt((sample.xG * sample.xG) + (sample.yG * sample.yG) + (sample.zG * sample.zG));
+}
+
+float sampleDistance(const Bmi270AccelerationSample& left, const Bmi270AccelerationSample& right)
+{
+    const float dx = left.xG - right.xG;
+    const float dy = left.yG - right.yG;
+    const float dz = left.zG - right.zG;
+    return std::sqrt((dx * dx) + (dy * dy) + (dz * dz));
+}
+
+uint64_t defaultEpochMsNow()
+{
+    return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count());
 }
 
 MmWavePresenceConfig loadPresenceConfigFromSettings()
@@ -197,6 +255,47 @@ uint8_t interpolateFanDutyPercent(double cpuTemperatureC, const std::vector<FanC
     return curvePoints.back().dutyPercent;
 }
 
+bool loadInteractionDetectionEnabledFromSettings()
+{
+    return GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::INTERACTION_DETECTION_ENABLED);
+}
+
+int loadInteractionPollIntervalMsFromSettings()
+{
+    return clampInteractionPollIntervalMs(
+        GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::INTERACTION_POLL_INTERVAL_MS));
+}
+
+size_t loadInteractionEventHistorySizeFromSettings()
+{
+    return static_cast<size_t>(clampInteractionEventHistorySize(
+        GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::INTERACTION_EVENT_HISTORY_SIZE)));
+}
+
+int loadInteractionTapDebounceMsFromSettings()
+{
+    return clampInteractionTapDebounceMs(
+        GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::INTERACTION_TAP_DEBOUNCE_MS));
+}
+
+int loadInteractionLiftConfirmMsFromSettings()
+{
+    return clampInteractionLiftConfirmMs(
+        GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::INTERACTION_LIFT_CONFIRM_MS));
+}
+
+int loadInteractionRestStableMsFromSettings()
+{
+    return clampInteractionRestStableMs(
+        GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::INTERACTION_REST_STABLE_MS));
+}
+
+int loadInteractionLiftDeltaThresholdMgFromSettings()
+{
+    return clampInteractionLiftDeltaThresholdMg(
+        GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::INTERACTION_LIFT_DELTA_THRESHOLD_MG));
+}
+
 std::unique_ptr<FanController> createFanControllerFromConfig()
 {
     const std::string devicePath = Config::get("FAN_CONTROLLER_I2C_DEVICE", "");
@@ -230,6 +329,38 @@ std::unique_ptr<FanController> createFanControllerFromConfig()
         return std::make_unique<FanController>(bus, static_cast<uint16_t>(rawAddress), tenBitAddress);
     } catch (...) {
         CubeLog::warning("PeripheralManager: failed to parse fan controller I2C address: " + addressString);
+        return nullptr;
+    }
+}
+
+std::unique_ptr<Bmi270Accelerometer> createAccelerometerFromConfig()
+{
+    if (!Config::getBool("HARDWARE_I2C_ENABLED", true)) {
+        CubeLog::info("PeripheralManager: HARDWARE_I2C_ENABLED=0, leaving accelerometer disabled.");
+        return nullptr;
+    }
+
+    const std::string devicePath = Config::get("ACCEL_I2C_DEVICE", "/dev/i2c-1");
+    const std::string addressString = Config::get("ACCEL_I2C_ADDRESS", "0x68");
+    const bool tenBitAddress = Config::getBool("ACCEL_I2C_10BIT", false);
+
+    try {
+        const unsigned long rawAddress = std::stoul(addressString, nullptr, 0);
+        const unsigned long maxAddress = tenBitAddress ? 0x03FFUL : 0x007FUL;
+        if (rawAddress > maxAddress) {
+            CubeLog::warning("PeripheralManager: accelerometer I2C address out of range: " + addressString);
+            return nullptr;
+        }
+
+        auto bus = std::make_shared<PiI2CBus>();
+        if (!bus->setI2cDevicePath(devicePath)) {
+            CubeLog::warning("PeripheralManager: invalid accelerometer I2C device path: " + devicePath);
+            return nullptr;
+        }
+
+        return std::make_unique<Bmi270Accelerometer>(bus, static_cast<uint16_t>(rawAddress), tenBitAddress);
+    } catch (...) {
+        CubeLog::warning("PeripheralManager: failed to parse accelerometer I2C address: " + addressString);
         return nullptr;
     }
 }
@@ -324,9 +455,13 @@ PeripheralManager::PeripheralManager(
     : PeripheralManager(
         std::move(mmWaveSensorOverride),
         nullptr,
+        nullptr,
+        {},
+        {},
         {},
         {},
         registerSettingCallbacks,
+        true,
         true)
 {
 }
@@ -338,13 +473,45 @@ PeripheralManager::PeripheralManager(
     TemperatureReader systemTemperatureReader,
     bool registerSettingCallbacks,
     bool startThermalControlLoopThread)
-    : mmWaveSensor(std::move(mmWaveSensorOverride))
+    : PeripheralManager(
+        std::move(mmWaveSensorOverride),
+        std::move(fanControllerOverride),
+        nullptr,
+        std::move(cpuTemperatureReader),
+        std::move(systemTemperatureReader),
+        {},
+        {},
+        registerSettingCallbacks,
+        startThermalControlLoopThread,
+        true)
+{
+}
+
+PeripheralManager::PeripheralManager(
+    std::unique_ptr<mmWave> mmWaveSensorOverride,
+    std::unique_ptr<FanController> fanControllerOverride,
+    std::unique_ptr<Bmi270Accelerometer> accelerometerOverride,
+    TemperatureReader cpuTemperatureReader,
+    TemperatureReader systemTemperatureReader,
+    MonotonicNowReader monotonicNowReader,
+    EpochMsReader epochMsReader,
+    bool registerSettingCallbacks,
+    bool startThermalControlLoopThread,
+    bool startInteractionControlLoopThread)
+    : mmWaveSensor_(std::move(mmWaveSensorOverride))
     , fanController_(fanControllerOverride ? std::move(fanControllerOverride) : createFanControllerFromConfig())
+    , accelerometer_(accelerometerOverride ? std::move(accelerometerOverride) : createAccelerometerFromConfig())
     , cpuTemperatureReader_(cpuTemperatureReader ? std::move(cpuTemperatureReader) : TemperatureReader([]() {
         return HardwareInfo::cpuTemperatureCelsius();
     }))
     , systemTemperatureReader_(systemTemperatureReader ? std::move(systemTemperatureReader) : TemperatureReader([]() {
         return HardwareInfo::systemTemperatureCelsius();
+    }))
+    , monotonicNowReader_(monotonicNowReader ? std::move(monotonicNowReader) : MonotonicNowReader([]() {
+        return std::chrono::steady_clock::now();
+    }))
+    , epochMsReader_(epochMsReader ? std::move(epochMsReader) : EpochMsReader([]() {
+        return defaultEpochMsNow();
     }))
     , delayedPresenceTracker_(loadPresenceAbsentTimeoutSecondsFromSettings())
     , presenceDetectionEnabled_(loadPresenceDetectionEnabledFromSettings())
@@ -352,15 +519,19 @@ PeripheralManager::PeripheralManager(
     thermalStatus_.controlEnabled = loadFanControlEnabledFromSettings();
     thermalStatus_.fanConfigured = fanController_ && fanController_->isConfigured();
 
+    interactionStatus_.enabled = loadInteractionDetectionEnabledFromSettings();
+    interactionStatus_.available = accelerometer_ && accelerometer_->isConfigured() && accelerometer_->isAvailable();
+    interactionStatus_.initialized = accelerometer_ && accelerometer_->isInitialized();
+
     syncPresenceConfigFromSettings();
     syncPresenceAbsentTimeoutFromSettings();
     syncPresenceDetectionEnabledFromSettings();
 
-    if (mmWaveSensor) {
-        mmWaveSensor->setPresenceUpdateCallback([this](const MmWavePresenceDecision& decision) {
+    if (mmWaveSensor_) {
+        mmWaveSensor_->setPresenceUpdateCallback([this](const MmWavePresenceDecision& decision) {
             handleImmediatePresenceDecision(decision);
         });
-        handleImmediatePresenceDecision(mmWaveSensor->getPresenceDecision());
+        handleImmediatePresenceDecision(mmWaveSensor_->getPresenceDecision());
     }
 
     if (registerSettingCallbacks) {
@@ -369,6 +540,9 @@ PeripheralManager::PeripheralManager(
 
     if (startThermalControlLoopThread) {
         startThermalControlLoop();
+    }
+    if (startInteractionControlLoopThread) {
+        startInteractionControlLoop();
     }
 }
 
@@ -388,8 +562,17 @@ PeripheralManager::~PeripheralManager()
         thermalControlWakeCv_.notify_all();
     }
 
-    if (mmWaveSensor) {
-        mmWaveSensor->setPresenceUpdateCallback({});
+    if (interactionControlThread_.joinable()) {
+        interactionControlThread_.request_stop();
+        {
+            std::lock_guard<std::mutex> lock(interactionControlWakeMutex_);
+            interactionControlWakeRequested_ = true;
+        }
+        interactionControlWakeCv_.notify_all();
+    }
+
+    if (mmWaveSensor_) {
+        mmWaveSensor_->setPresenceUpdateCallback({});
     }
 }
 
@@ -435,6 +618,20 @@ void PeripheralManager::registerSettingsCallbacks()
     registerThermalCallback(GlobalSettings::SettingType::FAN_CONTROL_HYSTERESIS_C);
     registerThermalCallback(GlobalSettings::SettingType::FAN_CONTROL_FAILSAFE_PERCENT);
     registerThermalCallback(GlobalSettings::SettingType::FAN_CONTROL_CURVE_POINTS);
+
+    const auto registerInteractionCallback = [&makeGuardedCallback](GlobalSettings::SettingType settingType) {
+        GlobalSettings::setSettingCB(settingType, makeGuardedCallback([](PeripheralManager& owner) {
+            owner.requestInteractionControlWake();
+        }));
+    };
+
+    registerInteractionCallback(GlobalSettings::SettingType::INTERACTION_DETECTION_ENABLED);
+    registerInteractionCallback(GlobalSettings::SettingType::INTERACTION_POLL_INTERVAL_MS);
+    registerInteractionCallback(GlobalSettings::SettingType::INTERACTION_EVENT_HISTORY_SIZE);
+    registerInteractionCallback(GlobalSettings::SettingType::INTERACTION_TAP_DEBOUNCE_MS);
+    registerInteractionCallback(GlobalSettings::SettingType::INTERACTION_LIFT_CONFIRM_MS);
+    registerInteractionCallback(GlobalSettings::SettingType::INTERACTION_REST_STABLE_MS);
+    registerInteractionCallback(GlobalSettings::SettingType::INTERACTION_LIFT_DELTA_THRESHOLD_MG);
 }
 
 void PeripheralManager::startThermalControlLoop()
@@ -593,6 +790,218 @@ void PeripheralManager::runThermalControlIteration()
     setThermalStatusSnapshot(nextStatus, cpuTemperatureC);
 }
 
+void PeripheralManager::startInteractionControlLoop()
+{
+    if (interactionControlThread_.joinable()) {
+        return;
+    }
+
+    interactionControlThread_ = std::jthread([this](std::stop_token stopToken) {
+        interactionControlLoop(stopToken);
+    });
+}
+
+void PeripheralManager::interactionControlLoop(std::stop_token stopToken)
+{
+    while (!stopToken.stop_requested()) {
+        runInteractionControlIteration();
+
+        std::unique_lock<std::mutex> lock(interactionControlWakeMutex_);
+        interactionControlWakeCv_.wait_for(
+            lock,
+            std::chrono::milliseconds(loadInteractionPollIntervalMsFromSettings()),
+            [this, &stopToken]() {
+                return stopToken.stop_requested() || interactionControlWakeRequested_;
+            });
+        interactionControlWakeRequested_ = false;
+    }
+}
+
+void PeripheralManager::requestInteractionControlWake()
+{
+    {
+        std::lock_guard<std::mutex> lock(interactionControlWakeMutex_);
+        interactionControlWakeRequested_ = true;
+    }
+    interactionControlWakeCv_.notify_all();
+}
+
+void PeripheralManager::setInteractionStatusSnapshot(const InteractionStatusSnapshot& status)
+{
+    std::lock_guard<std::mutex> lock(interactionStatusMutex_);
+    interactionStatus_ = status;
+}
+
+void PeripheralManager::trimInteractionHistoryLocked(size_t maxEntries)
+{
+    while (interactionHistory_.size() > maxEntries) {
+        interactionHistory_.pop_front();
+    }
+}
+
+InteractionEvent PeripheralManager::recordInteractionEvent(
+    InteractionEventType type,
+    Bmi270LiftState liftStateAfter,
+    const std::optional<Bmi270AccelerationSample>& sample,
+    uint64_t occurredAtEpochMs)
+{
+    std::lock_guard<std::mutex> lock(interactionHistoryMutex_);
+
+    InteractionEvent event;
+    event.sequence = nextInteractionSequence_++;
+    event.type = type;
+    event.occurredAtEpochMs = occurredAtEpochMs;
+    event.liftStateAfter = liftStateAfter;
+    event.sample = sample;
+
+    interactionHistory_.push_back(event);
+    trimInteractionHistoryLocked(loadInteractionEventHistorySizeFromSettings());
+    return event;
+}
+
+void PeripheralManager::runInteractionControlIteration()
+{
+    const bool enabled = loadInteractionDetectionEnabledFromSettings();
+    const int tapDebounceMs = loadInteractionTapDebounceMsFromSettings();
+    const int liftConfirmMs = loadInteractionLiftConfirmMsFromSettings();
+    const int restStableMs = loadInteractionRestStableMsFromSettings();
+    const float liftDeltaThresholdG = static_cast<float>(loadInteractionLiftDeltaThresholdMgFromSettings()) / 1000.0f;
+
+    {
+        std::lock_guard<std::mutex> lock(interactionHistoryMutex_);
+        trimInteractionHistoryLocked(loadInteractionEventHistorySizeFromSettings());
+    }
+
+    InteractionStatusSnapshot previousStatus;
+    {
+        std::lock_guard<std::mutex> lock(interactionStatusMutex_);
+        previousStatus = interactionStatus_;
+    }
+
+    InteractionStatusSnapshot nextStatus = previousStatus;
+    nextStatus.enabled = enabled;
+    nextStatus.available = accelerometer_ && accelerometer_->isConfigured() && accelerometer_->isAvailable();
+    nextStatus.initialized = accelerometer_ && accelerometer_->isInitialized();
+
+    if (!accelerometer_ || !accelerometer_->isConfigured()) {
+        nextStatus.available = false;
+        nextStatus.initialized = false;
+        setInteractionStatusSnapshot(nextStatus);
+        return;
+    }
+
+    if (!enabled) {
+        deskBaselineSample_.reset();
+        stableSince_.reset();
+        liftCandidateSince_.reset();
+        nextStatus.liftState = Bmi270LiftState::Unknown;
+        setInteractionStatusSnapshot(nextStatus);
+        return;
+    }
+
+    Bmi270InteractionConfig config;
+    config.tapDebounceMs = static_cast<uint16_t>(tapDebounceMs);
+    config.liftAccelerationDeltaThresholdG = liftDeltaThresholdG;
+
+    if (auto configResult = accelerometer_->configureInteractionDetection(config); !configResult) {
+        nextStatus.available = false;
+        nextStatus.initialized = accelerometer_->isInitialized();
+        setInteractionStatusSnapshot(nextStatus);
+        return;
+    }
+
+    const auto interaction = accelerometer_->pollInteractionStatus();
+    if (!interaction) {
+        nextStatus.available = false;
+        nextStatus.initialized = accelerometer_->isInitialized();
+        setInteractionStatusSnapshot(nextStatus);
+        return;
+    }
+
+    nextStatus.available = true;
+    nextStatus.initialized = accelerometer_->isInitialized();
+    nextStatus.latestSample = interaction->latestSample;
+
+    const auto nowMono = monotonicNowReader_ ? monotonicNowReader_() : std::chrono::steady_clock::now();
+    const uint64_t nowEpochMs = epochMsReader_ ? epochMsReader_() : defaultEpochMsNow();
+
+    std::vector<InteractionEvent> publishedEvents;
+    auto emitEvent = [&](InteractionEventType type, Bmi270LiftState liftStateAfter) mutable {
+        const InteractionEvent event = recordInteractionEvent(type, liftStateAfter, interaction->latestSample, nowEpochMs);
+        nextStatus.lastEventSequence = event.sequence;
+        if (type == InteractionEventType::Tap) {
+            nextStatus.lastTapAtEpochMs = event.occurredAtEpochMs;
+        } else {
+            nextStatus.lastLiftChangeAtEpochMs = event.occurredAtEpochMs;
+        }
+        publishedEvents.push_back(event);
+    };
+
+    if (interaction->interruptStatus.tapDetected) {
+        const bool managerDebounceExpired = !nextStatus.lastTapAtEpochMs.has_value()
+            || (nowEpochMs >= *nextStatus.lastTapAtEpochMs
+                && (nowEpochMs - *nextStatus.lastTapAtEpochMs) >= static_cast<uint64_t>(tapDebounceMs));
+        if (managerDebounceExpired) {
+            emitEvent(InteractionEventType::Tap, nextStatus.liftState);
+        }
+    }
+
+    if (interaction->latestSample.has_value()) {
+        const auto& sample = *interaction->latestSample;
+        const float magnitude = sampleMagnitude(sample);
+        const bool nearRest = std::fabs(magnitude - 1.0f) <= kRestMagnitudeToleranceG;
+        const float baselineDelta = deskBaselineSample_.has_value()
+            ? sampleDistance(sample, *deskBaselineSample_)
+            : std::fabs(magnitude - 1.0f);
+        const bool moving = interaction->interruptStatus.motionDetected || baselineDelta >= liftDeltaThresholdG;
+        const bool still = interaction->interruptStatus.noMotionDetected
+            || (baselineDelta <= std::max(liftDeltaThresholdG * 0.35f, kMinimumStillDeltaG) && nearRest);
+
+        if (still) {
+            if (!stableSince_.has_value()) {
+                stableSince_ = nowMono;
+            }
+        } else {
+            stableSince_.reset();
+        }
+
+        if (moving) {
+            if (!liftCandidateSince_.has_value()) {
+                liftCandidateSince_ = nowMono;
+            }
+        } else {
+            liftCandidateSince_.reset();
+        }
+
+        if (stableSince_.has_value()
+            && nearRest
+            && std::chrono::duration_cast<std::chrono::milliseconds>(nowMono - *stableSince_).count() >= restStableMs) {
+            deskBaselineSample_ = sample;
+            if (nextStatus.liftState == Bmi270LiftState::Lifted) {
+                nextStatus.liftState = Bmi270LiftState::OnDesk;
+                emitEvent(InteractionEventType::LiftEnded, nextStatus.liftState);
+            } else if (nextStatus.liftState == Bmi270LiftState::Unknown) {
+                nextStatus.liftState = Bmi270LiftState::OnDesk;
+            }
+        }
+
+        if (liftCandidateSince_.has_value()
+            && std::chrono::duration_cast<std::chrono::milliseconds>(nowMono - *liftCandidateSince_).count() >= liftConfirmMs) {
+            if (nextStatus.liftState != Bmi270LiftState::Lifted) {
+                nextStatus.liftState = Bmi270LiftState::Lifted;
+                emitEvent(InteractionEventType::LiftStarted, nextStatus.liftState);
+            }
+            stableSince_.reset();
+        }
+    }
+
+    setInteractionStatusSnapshot(nextStatus);
+
+    for (const auto& event : publishedEvents) {
+        InteractionEvents::publish(event);
+    }
+}
+
 HttpEndPointData_t PeripheralManager::getHttpEndpointData()
 {
     HttpEndPointData_t data;
@@ -621,30 +1030,30 @@ HttpEndPointData_t PeripheralManager::getHttpEndpointData()
 
 void PeripheralManager::syncPresenceConfigFromSettings()
 {
-    if (!mmWaveSensor) {
+    if (!mmWaveSensor_) {
         return;
     }
 
-    mmWaveSensor->setPresenceConfig(loadPresenceConfigFromSettings());
+    mmWaveSensor_->setPresenceConfig(loadPresenceConfigFromSettings());
 }
 
 void PeripheralManager::syncPresenceDetectionEnabledFromSettings()
 {
     const bool enabled = loadPresenceDetectionEnabledFromSettings();
     {
-        std::lock_guard<std::mutex> lock(presenceStatusMutex);
+        std::lock_guard<std::mutex> lock(presenceStatusMutex_);
         presenceDetectionEnabled_ = enabled;
         delayedPresenceTracker_.reset();
     }
 
-    if (mmWaveSensor) {
-        mmWaveSensor->setPresenceDetectionEnabled(enabled);
+    if (mmWaveSensor_) {
+        mmWaveSensor_->setPresenceDetectionEnabled(enabled);
     }
 }
 
 void PeripheralManager::syncPresenceAbsentTimeoutFromSettings()
 {
-    std::lock_guard<std::mutex> lock(presenceStatusMutex);
+    std::lock_guard<std::mutex> lock(presenceStatusMutex_);
     delayedPresenceTracker_.setAbsentTimeoutSecs(
         loadPresenceAbsentTimeoutSecondsFromSettings(),
         std::chrono::steady_clock::now());
@@ -656,7 +1065,7 @@ void PeripheralManager::handleImmediatePresenceDecision(const MmWavePresenceDeci
         ? std::chrono::steady_clock::now()
         : decision.timestamp;
 
-    std::lock_guard<std::mutex> lock(presenceStatusMutex);
+    std::lock_guard<std::mutex> lock(presenceStatusMutex_);
     if (!presenceDetectionEnabled_) {
         return;
     }
@@ -681,17 +1090,17 @@ MmWavePresenceState PeripheralManager::getDelayedPresenceState()
 PresenceStatusSnapshot PeripheralManager::getPresenceStatus()
 {
     {
-        std::lock_guard<std::mutex> lock(presenceStatusMutex);
+        std::lock_guard<std::mutex> lock(presenceStatusMutex_);
         if (!presenceDetectionEnabled_) {
             return delayedPresenceTracker_.snapshot(std::chrono::steady_clock::now());
         }
     }
 
-    if (mmWaveSensor) {
-        handleImmediatePresenceDecision(mmWaveSensor->getPresenceDecision());
+    if (mmWaveSensor_) {
+        handleImmediatePresenceDecision(mmWaveSensor_->getPresenceDecision());
     }
 
-    std::lock_guard<std::mutex> lock(presenceStatusMutex);
+    std::lock_guard<std::mutex> lock(presenceStatusMutex_);
     return delayedPresenceTracker_.snapshot(std::chrono::steady_clock::now());
 }
 
@@ -699,4 +1108,44 @@ ThermalStatusSnapshot PeripheralManager::getThermalStatus() const
 {
     std::lock_guard<std::mutex> lock(thermalStatusMutex_);
     return thermalStatus_;
+}
+
+InteractionStatusSnapshot PeripheralManager::getInteractionStatus() const
+{
+    std::lock_guard<std::mutex> lock(interactionStatusMutex_);
+    return interactionStatus_;
+}
+
+InteractionEventPage PeripheralManager::getInteractionEvents(uint64_t sinceSequence, size_t limit) const
+{
+    InteractionEventPage page;
+    page.nextSequence = nextInteractionSequence_;
+
+    if (limit == 0) {
+        limit = 1;
+    }
+
+    std::lock_guard<std::mutex> lock(interactionHistoryMutex_);
+    page.nextSequence = nextInteractionSequence_;
+    if (interactionHistory_.empty()) {
+        return page;
+    }
+
+    const uint64_t oldestSequence = interactionHistory_.front().sequence;
+    if (sinceSequence + 1 < oldestSequence) {
+        page.historyTruncated = true;
+        sinceSequence = oldestSequence - 1;
+    }
+
+    for (const auto& event : interactionHistory_) {
+        if (event.sequence <= sinceSequence) {
+            continue;
+        }
+        if (page.events.size() >= limit) {
+            break;
+        }
+        page.events.push_back(event);
+    }
+
+    return page;
 }

@@ -272,6 +272,7 @@ int main(int argc, char* argv[])
         auto auth = std::make_shared<CubeAuth>();
         auto appPostgresAccess = std::make_shared<AppPostgresAccess>();
         auto peripherals = std::make_shared<PeripheralManager>();
+        auto interactionApi = std::make_shared<InteractionAPI>(peripherals);
         auto decisions = std::make_shared<DecisionEngine::DecisionEngineMain>();
 
         API_Builder api_builder(api);
@@ -282,6 +283,7 @@ int main(int argc, char* argv[])
         auth->registerInterface();
         appPostgresAccess->registerInterface();
         peripherals->registerInterface();
+        interactionApi->registerInterface();
         decisions->registerInterface();
         // btManager->registerInterface();
         api_builder.start();

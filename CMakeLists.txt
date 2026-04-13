@@ -446,6 +446,35 @@ if(NOT EXISTS ${DR_WAV_HEADER})
     )
 endif()
 
+set(BMI270_VENDOR_DIR ${CMAKE_SOURCE_DIR}/libraries/bmi270)
+file(MAKE_DIRECTORY ${BMI270_VENDOR_DIR})
+set(BMI270_VENDOR_BASE_URL "https://raw.githubusercontent.com/boschsensortec/BMI270_SensorAPI/master")
+set(BMI270_VENDOR_FILES
+    LICENSE
+    bmi2.c
+    bmi2.h
+    bmi2_defs.h
+    bmi270_legacy.c
+    bmi270_legacy.h
+)
+
+foreach(BMI270_VENDOR_FILE IN LISTS BMI270_VENDOR_FILES)
+    if(NOT EXISTS ${BMI270_VENDOR_DIR}/${BMI270_VENDOR_FILE})
+        file(DOWNLOAD
+            ${BMI270_VENDOR_BASE_URL}/${BMI270_VENDOR_FILE}
+            ${BMI270_VENDOR_DIR}/${BMI270_VENDOR_FILE}
+            SHOW_PROGRESS
+            STATUS BMI270_DOWNLOAD_STATUS
+            TLS_VERIFY ON
+        )
+        list(GET BMI270_DOWNLOAD_STATUS 0 BMI270_DOWNLOAD_STATUS_CODE)
+        if(NOT BMI270_DOWNLOAD_STATUS_CODE EQUAL 0)
+            list(GET BMI270_DOWNLOAD_STATUS 1 BMI270_DOWNLOAD_STATUS_MESSAGE)
+            message(FATAL_ERROR "Failed to download ${BMI270_VENDOR_FILE}: ${BMI270_DOWNLOAD_STATUS_MESSAGE}")
+        endif()
+    endif()
+endforeach()
+
 # Add libsodium
 # add_definitions(-DSODIUM_STATIC)
 if(WIN32)
@@ -473,6 +502,7 @@ endif()
 include_directories(${CMAKE_SOURCE_DIR}/src)
 include_directories(${CMAKE_SOURCE_DIR}/src/logger)
 include_directories(${CMAKE_SOURCE_DIR}/libraries)
+include_directories(${CMAKE_SOURCE_DIR}/libraries/bmi270)
 include_directories(${CMAKE_SOURCE_DIR}/src/settings)
 
 if(WIN32)
@@ -704,6 +734,7 @@ if(WIN32)
         "C:/Users/Andrew/Documents/glm-1.0.1-light"
         ${whispercpp_SOURCE_DIR}
         ${websocketpp_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/libraries/bmi270
    )
 else()
     target_include_directories(CubeCoreLib PUBLIC
@@ -713,6 +744,7 @@ else()
         ${GLEW_INCLUDE_DIRS}
         ${whispercpp_SOURCE_DIR}
         ${websocketpp_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/libraries/bmi270
         ${PQXX_INCLUDE_DIRS}
     )
 endif()

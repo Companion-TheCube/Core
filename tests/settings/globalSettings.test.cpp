@@ -21,6 +21,19 @@ TEST(GlobalSettingsTest, ThermalDefaultsAreInitialized)
         }));
 }
 
+TEST(GlobalSettingsTest, InteractionDefaultsAreInitialized)
+{
+    GlobalSettings defaults;
+
+    EXPECT_TRUE(GlobalSettings::getSettingOfType<bool>(GlobalSettings::SettingType::INTERACTION_DETECTION_ENABLED));
+    EXPECT_EQ(GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::INTERACTION_POLL_INTERVAL_MS), 50);
+    EXPECT_EQ(GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::INTERACTION_EVENT_HISTORY_SIZE), 128);
+    EXPECT_EQ(GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::INTERACTION_TAP_DEBOUNCE_MS), 120);
+    EXPECT_EQ(GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::INTERACTION_LIFT_CONFIRM_MS), 150);
+    EXPECT_EQ(GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::INTERACTION_REST_STABLE_MS), 500);
+    EXPECT_EQ(GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::INTERACTION_LIFT_DELTA_THRESHOLD_MG), 200);
+}
+
 TEST(GlobalSettingsTest, ThermalNumericSettingsAreClamped)
 {
     GlobalSettings defaults;
@@ -42,6 +55,29 @@ TEST(GlobalSettingsTest, ThermalNumericSettingsAreClamped)
 
     GlobalSettings::setSetting(GlobalSettings::SettingType::FAN_CONTROL_FAILSAFE_PERCENT, 150);
     EXPECT_EQ(GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::FAN_CONTROL_FAILSAFE_PERCENT), 100);
+}
+
+TEST(GlobalSettingsTest, InteractionNumericSettingsAreClamped)
+{
+    GlobalSettings defaults;
+
+    GlobalSettings::setSetting(GlobalSettings::SettingType::INTERACTION_POLL_INTERVAL_MS, 1);
+    EXPECT_EQ(GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::INTERACTION_POLL_INTERVAL_MS), 20);
+
+    GlobalSettings::setSetting(GlobalSettings::SettingType::INTERACTION_EVENT_HISTORY_SIZE, 5000);
+    EXPECT_EQ(GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::INTERACTION_EVENT_HISTORY_SIZE), 1024);
+
+    GlobalSettings::setSetting(GlobalSettings::SettingType::INTERACTION_TAP_DEBOUNCE_MS, 5);
+    EXPECT_EQ(GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::INTERACTION_TAP_DEBOUNCE_MS), 50);
+
+    GlobalSettings::setSetting(GlobalSettings::SettingType::INTERACTION_LIFT_CONFIRM_MS, 2000);
+    EXPECT_EQ(GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::INTERACTION_LIFT_CONFIRM_MS), 1000);
+
+    GlobalSettings::setSetting(GlobalSettings::SettingType::INTERACTION_REST_STABLE_MS, 50);
+    EXPECT_EQ(GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::INTERACTION_REST_STABLE_MS), 100);
+
+    GlobalSettings::setSetting(GlobalSettings::SettingType::INTERACTION_LIFT_DELTA_THRESHOLD_MG, 5000);
+    EXPECT_EQ(GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::INTERACTION_LIFT_DELTA_THRESHOLD_MG), 1000);
 }
 
 TEST(GlobalSettingsTest, ThermalCurvePointsAreSortedAndClamped)

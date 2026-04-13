@@ -48,6 +48,7 @@ SOFTWARE.
 #include "database/cubeDB.h"
 #include "gui/gui.h"
 #include "hardware/bluetooth.h"
+#include "hardware/interactionAPI.h"
 #include "hardware/peripheralManager.h"
 #include "hardware/wifi.h"
 #include "decisionEngine/decisions.h"

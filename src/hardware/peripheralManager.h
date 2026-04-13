@@ -36,18 +36,24 @@ SOFTWARE.
 #define PERIPHERALMANAGER_H
 
 #include "../api/api.h"
+#include "accel.h"
 #include "fanCtrl.h"
 #include "hardwareInfo.h"
+#include "interactionEvents.h"
 #include "io_bridge/ioBridge.h"
 #include "mmWave.h"
 #include "nfc.h"
+
 #include <chrono>
 #include <condition_variable>
+#include <cstdint>
+#include <deque>
 #include <functional>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <thread>
+#include <vector>
 
 struct PresenceStatusSnapshot {
     MmWavePresenceState immediateState = MmWavePresenceState::Unknown;
@@ -62,6 +68,17 @@ struct ThermalStatusSnapshot {
     std::optional<double> cpuTemperatureC;
     std::optional<double> systemTemperatureC;
     uint8_t appliedDutyPercent = 0;
+};
+
+struct InteractionStatusSnapshot {
+    bool available = false;
+    bool enabled = true;
+    bool initialized = false;
+    Bmi270LiftState liftState = Bmi270LiftState::Unknown;
+    std::optional<Bmi270AccelerationSample> latestSample;
+    std::optional<uint64_t> lastTapAtEpochMs;
+    std::optional<uint64_t> lastLiftChangeAtEpochMs;
+    uint64_t lastEventSequence = 0;
 };
 
 class DelayedPresenceTracker {
@@ -90,43 +107,78 @@ private:
 class PeripheralManager : public AutoRegisterAPI<PeripheralManager> {
 public:
     using TemperatureReader = std::function<std::optional<double>()>;
+    using MonotonicNowReader = std::function<std::chrono::steady_clock::time_point()>;
+    using EpochMsReader = std::function<uint64_t()>;
 
 private:
     struct SettingsCallbackGate {
         PeripheralManager* owner = nullptr;
     };
 
-    std::unique_ptr<mmWave> mmWaveSensor;
+    std::unique_ptr<mmWave> mmWaveSensor_;
     std::unique_ptr<FanController> fanController_;
-    // NFC nfcSensor;
-    // IMU imuSensor;
+    std::unique_ptr<Bmi270Accelerometer> accelerometer_;
+
     TemperatureReader cpuTemperatureReader_;
     TemperatureReader systemTemperatureReader_;
-    mutable std::mutex presenceStatusMutex;
+    MonotonicNowReader monotonicNowReader_;
+    EpochMsReader epochMsReader_;
+
+    mutable std::mutex presenceStatusMutex_;
     mutable std::mutex thermalStatusMutex_;
+    mutable std::mutex interactionStatusMutex_;
+    mutable std::mutex interactionHistoryMutex_;
+
     DelayedPresenceTracker delayedPresenceTracker_;
     bool presenceDetectionEnabled_ = true;
     ThermalStatusSnapshot thermalStatus_;
+    InteractionStatusSnapshot interactionStatus_;
     std::optional<double> lastAppliedDutyTemperatureC_;
+    std::deque<InteractionEvent> interactionHistory_;
+    uint64_t nextInteractionSequence_ = 1;
+    std::optional<Bmi270AccelerationSample> deskBaselineSample_;
+    std::optional<std::chrono::steady_clock::time_point> stableSince_;
+    std::optional<std::chrono::steady_clock::time_point> liftCandidateSince_;
+
     std::jthread thermalControlThread_;
     std::condition_variable thermalControlWakeCv_;
     std::mutex thermalControlWakeMutex_;
     bool thermalControlWakeRequested_ = false;
+
+    std::jthread interactionControlThread_;
+    std::condition_variable interactionControlWakeCv_;
+    std::mutex interactionControlWakeMutex_;
+    bool interactionControlWakeRequested_ = false;
+
     std::shared_ptr<SettingsCallbackGate> settingsCallbackGate_;
 
     void syncPresenceConfigFromSettings();
     void syncPresenceAbsentTimeoutFromSettings();
     void registerSettingsCallbacks();
+
     void startThermalControlLoop();
     void thermalControlLoop(std::stop_token stopToken);
     void setThermalStatusSnapshot(const ThermalStatusSnapshot& status, std::optional<double> appliedDutyTemperatureC = std::nullopt);
     std::expected<void, I2CError> applyFanDutyPercent(uint8_t dutyPercent);
+
+    void startInteractionControlLoop();
+    void interactionControlLoop(std::stop_token stopToken);
+    void setInteractionStatusSnapshot(const InteractionStatusSnapshot& status);
+    void trimInteractionHistoryLocked(size_t maxEntries);
+    InteractionEvent recordInteractionEvent(
+        InteractionEventType type,
+        Bmi270LiftState liftStateAfter,
+        const std::optional<Bmi270AccelerationSample>& sample,
+        uint64_t occurredAtEpochMs);
 
 protected:
     void syncPresenceDetectionEnabledFromSettings();
     void handleImmediatePresenceDecision(const MmWavePresenceDecision& decision);
     void runThermalControlIteration();
     void requestThermalControlWake();
+
+    void runInteractionControlIteration();
+    void requestInteractionControlWake();
 
 public:
     PeripheralManager();
@@ -138,6 +190,17 @@ public:
         TemperatureReader systemTemperatureReader = {},
         bool registerSettingCallbacks = true,
         bool startThermalControlLoopThread = true);
+    PeripheralManager(
+        std::unique_ptr<mmWave> mmWaveSensorOverride,
+        std::unique_ptr<FanController> fanControllerOverride,
+        std::unique_ptr<Bmi270Accelerometer> accelerometerOverride,
+        TemperatureReader cpuTemperatureReader = {},
+        TemperatureReader systemTemperatureReader = {},
+        MonotonicNowReader monotonicNowReader = {},
+        EpochMsReader epochMsReader = {},
+        bool registerSettingCallbacks = true,
+        bool startThermalControlLoopThread = true,
+        bool startInteractionControlLoopThread = true);
     ~PeripheralManager();
 
     std::string getInterfaceName() const override { return "Presence"; }
@@ -148,6 +211,8 @@ public:
     MmWavePresenceState getDelayedPresenceState();
     PresenceStatusSnapshot getPresenceStatus();
     ThermalStatusSnapshot getThermalStatus() const;
+    InteractionStatusSnapshot getInteractionStatus() const;
+    InteractionEventPage getInteractionEvents(uint64_t sinceSequence = 0, size_t limit = 50) const;
 };
 
 #endif // PERIPHERALMANAGER_H
