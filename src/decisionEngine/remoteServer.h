@@ -195,6 +195,7 @@ private:
     class HttpClientHolder;
     std::unique_ptr<HttpClientHolder> httpClient;
 
+    void reloadRuntimeConfig();
     bool openAudioStreamLocked();
     void resetActiveSessionLocked();
     void setVoiceFailure(VoiceFailureCategory category, std::string message);

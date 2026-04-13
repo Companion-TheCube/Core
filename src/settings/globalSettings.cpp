@@ -36,6 +36,7 @@ SOFTWARE.
 std::vector<std::pair<GlobalSettings::SettingType, std::function<void()>>> GlobalSettings::settingChangeCallbacks = {};
 std::mutex GlobalSettings::settingChangeMutex;
 nlohmann::json GlobalSettings::settings = nlohmann::json();
+bool GlobalSettings::settingsInitialized = false;
 std::unordered_map<GlobalSettings::SettingType, std::string> GlobalSettings::settingTypeStringMap = {
     { SettingType::LOG_VERBOSITY, "logVerbosity" },
     { SettingType::SELECTED_FONT_PATH, "selectedFontPath" },

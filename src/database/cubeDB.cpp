@@ -66,7 +66,7 @@ CubeDB::CubeDB(std::shared_ptr<CubeDatabaseManager> dbManager, std::shared_ptr<B
 void CubeDB::setCubeDBManager(std::shared_ptr<CubeDatabaseManager> dbManager)
 {
     CubeDB::dbManager = dbManager;
-    CubeDB::isDBManagerSet = true;
+    CubeDB::isDBManagerSet = static_cast<bool>(dbManager);
 }
 
 /**
@@ -77,7 +77,7 @@ void CubeDB::setCubeDBManager(std::shared_ptr<CubeDatabaseManager> dbManager)
 void CubeDB::setBlobsManager(std::shared_ptr<BlobsManager> blobsManager)
 {
     CubeDB::blobsManager = blobsManager;
-    CubeDB::isBlobsManagerSet = true;
+    CubeDB::isBlobsManagerSet = static_cast<bool>(blobsManager);
 }
 
 /**
@@ -87,7 +87,7 @@ void CubeDB::setBlobsManager(std::shared_ptr<BlobsManager> blobsManager)
  */
 std::shared_ptr<CubeDatabaseManager> CubeDB::getDBManager()
 {
-    if (!CubeDB::isDBManagerSet) {
+    if (!CubeDB::isDBManagerSet || !CubeDB::dbManager) {
         throw std::runtime_error("CubeDBManager not set");
     }
     return CubeDB::dbManager;
@@ -100,7 +100,7 @@ std::shared_ptr<CubeDatabaseManager> CubeDB::getDBManager()
  */
 std::shared_ptr<BlobsManager> CubeDB::getBlobsManager()
 {
-    if (!CubeDB::isBlobsManagerSet) {
+    if (!CubeDB::isBlobsManagerSet || !CubeDB::blobsManager) {
         throw std::runtime_error("BlobsManager not set");
     }
     return CubeDB::blobsManager;

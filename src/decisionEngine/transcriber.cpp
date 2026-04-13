@@ -187,12 +187,15 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
         auto sessionStart = std::chrono::steady_clock::now();
         auto speechDetectionWindowStart = sessionStart;
         auto lastSpeechAt = sessionStart;
+        std::optional<std::chrono::steady_clock::time_point> lastAudioAt;
         std::optional<std::chrono::steady_clock::time_point> firstChunkAt;
         std::optional<std::chrono::steady_clock::time_point> firstSpeechAt;
         std::optional<std::chrono::steady_clock::time_point> finishRequestedAt;
         std::optional<std::chrono::steady_clock::time_point> finalTranscriptAt;
         std::string endReason = "unknown";
         bool speechDetectionActive = wakewordVadDelay.count() <= 0;
+        bool observedAudioDuringDelay = false;
+        bool observedSpeechDuringDelay = false;
         const auto speechDetectionStartsAt = sessionStart + wakewordVadDelay;
         if (!speechDetectionActive) {
             CubeLog::info(
@@ -204,11 +207,19 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
                 return;
             }
             speechDetectionActive = true;
-            heardSpeech = false;
             speechDetectionWindowStart = now;
-            lastSpeechAt = now;
-            firstSpeechAt.reset();
-            if (voiceActivityDetector) {
+            if (observedSpeechDuringDelay) {
+                // Do not let wake-word-era speech immediately trigger silence handling.
+                lastSpeechAt = now;
+            } else if (observedAudioDuringDelay) {
+                // Give low-confidence early audio one silence window after activation.
+                lastAudioAt = now;
+            } else {
+                heardSpeech = false;
+                lastSpeechAt = now;
+                firstSpeechAt.reset();
+            }
+            if (voiceActivityDetector && !observedSpeechDuringDelay && !observedAudioDuringDelay) {
                 voiceActivityDetector->reset();
             }
             CubeLog::info(
@@ -253,6 +264,11 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
                     endReason = "silence_timeout";
                     break;
                 }
+                if (!heardSpeech && observedAudioDuringDelay && lastAudioAt.has_value() && (now - *lastAudioAt) >= silenceTimeout) {
+                    CubeLog::info("RemoteTranscriber: silence after delayed wake audio reached, finishing session");
+                    endReason = "post_delay_audio_silence_timeout";
+                    break;
+                }
                 std::this_thread::sleep_for(idlePoll);
                 continue;
             }
@@ -269,6 +285,8 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
                     " firstChunkMs=" + formatDurationMs(sessionStart, chunkTime)
                     + ", samples=" + std::to_string(audioOpt->size()));
             }
+            lastAudioAt = chunkTime;
+            observedAudioDuringDelay = observedAudioDuringDelay || !speechDetectionActive;
             if (!remoteAudioClient->sendAudioChunk(std::span<const int16_t>(audioOpt->data(), audioOpt->size()))) {
                 CubeLog::error("RemoteTranscriber: failed while streaming audio; cancelling session");
                 cancelActiveSession();
@@ -280,12 +298,10 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
             }
 
             ++chunksSent;
-            if (!speechDetectionActive) {
-                continue;
-            }
             const auto speechAnalysis = analyzeSpeechChunk(*audioOpt);
             if (speechAnalysis.speechObserved) {
                 heardSpeech = true;
+                observedSpeechDuringDelay = observedSpeechDuringDelay || !speechDetectionActive;
                 lastSpeechAt = chunkTime;
                 if (!firstSpeechAt.has_value()) {
                     firstSpeechAt = chunkTime;
@@ -297,6 +313,9 @@ std::shared_ptr<ThreadSafeQueue<std::string>> RemoteTranscriber::transcribeQueue
                 }
             }
 
+            if (!speechDetectionActive) {
+                continue;
+            }
             if (speechAnalysis.speechEnded) {
                 CubeLog::info(
                     "RemoteTranscriber: Silero VAD detected end of speech"

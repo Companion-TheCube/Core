@@ -42,36 +42,42 @@ nlohmann::json canonicalEventToJson(const ApiEvent& event)
 
 std::expected<EventDaemonHello, EventDaemonProtocolError> EventDaemonProtocol::parseHelloFrame(const std::string& line)
 {
-    nlohmann::json payload;
-    try {
-        payload = nlohmann::json::parse(line);
-    } catch (const std::exception& e) {
-        return invalidRequest(std::string("Malformed JSON: ") + e.what());
+    const nlohmann::json payload = nlohmann::json::parse(line, nullptr, false);
+    if (payload.is_discarded()) {
+        return invalidRequest("Malformed JSON.");
     }
 
     if (!payload.is_object()) {
         return invalidRequest("Hello frame must be a JSON object.");
     }
-    if (payload.value("type", "") != "hello") {
+
+    const auto typeIt = payload.find("type");
+    if (typeIt == payload.end() || !typeIt->is_string() || typeIt->get_ref<const std::string&>() != "hello") {
         return invalidRequest("First frame must have type 'hello'.");
     }
-    if (!payload.contains("appAuthId") || !payload["appAuthId"].is_string() || payload["appAuthId"].get<std::string>().empty()) {
+
+    const auto appAuthIdIt = payload.find("appAuthId");
+    if (appAuthIdIt == payload.end() || !appAuthIdIt->is_string() || appAuthIdIt->get_ref<const std::string&>().empty()) {
         return invalidRequest("Hello frame must include non-empty string field 'appAuthId'.");
     }
-    if (payload.contains("sinceSeq") && !payload["sinceSeq"].is_number_unsigned()) {
+
+    const auto sinceSeqIt = payload.find("sinceSeq");
+    if (sinceSeqIt != payload.end() && !sinceSeqIt->is_number_unsigned()) {
         return invalidRequest("Field 'sinceSeq' must be an unsigned integer.");
     }
-    if (payload.contains("sources") && !payload["sources"].is_array()) {
+
+    const auto sourcesIt = payload.find("sources");
+    if (sourcesIt != payload.end() && !sourcesIt->is_array()) {
         return invalidRequest("Field 'sources' must be an array of strings.");
     }
 
     EventDaemonHello hello;
-    hello.appAuthId = payload["appAuthId"].get<std::string>();
-    hello.sinceSequence = payload.value("sinceSeq", 0ULL);
+    hello.appAuthId = appAuthIdIt->get_ref<const std::string&>();
+    hello.sinceSequence = sinceSeqIt != payload.end() ? sinceSeqIt->get<uint64_t>() : 0ULL;
 
-    if (payload.contains("sources")) {
+    if (sourcesIt != payload.end()) {
         ApiEventBroker::SourceSet sources;
-        for (const auto& source : payload["sources"]) {
+        for (const auto& source : *sourcesIt) {
             if (!source.is_string() || source.get<std::string>().empty()) {
                 return invalidRequest("Field 'sources' must contain only non-empty strings.");
             }

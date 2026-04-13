@@ -299,7 +299,11 @@ nlohmann::json emotionsToJson(const std::vector<Personality::EmotionSimple>& emo
 {
     nlohmann::json state = nlohmann::json::object();
     for (const auto& emotion : emotions) {
-        state[Personality::emotionToString(emotion.emotion)] = emotion.value;
+        std::string key = Personality::emotionToString(emotion.emotion);
+        std::transform(key.begin(), key.end(), key.begin(), [](unsigned char ch) {
+            return static_cast<char>(std::tolower(ch));
+        });
+        state[key] = emotion.value;
     }
     return state;
 }
@@ -1291,7 +1295,8 @@ void DecisionEngineMain::presentTurnResult(const DecisionTurnResult& result)
             responseCategory,
             rewriteContext);
         using namespace std::chrono_literals;
-        if (rewriteFuture.wait_for(2500ms) == std::future_status::ready) {
+        const auto rewriteStatus = rewriteFuture.wait_for(2500ms);
+        if (rewriteStatus == std::future_status::ready || rewriteStatus == std::future_status::deferred) {
             try {
                 const auto rewritten = rewriteFuture.get();
                 if (!rewritten.empty()) {

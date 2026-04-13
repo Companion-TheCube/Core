@@ -106,12 +106,12 @@ std::optional<fs::path> resolveModelPathFromConfig(const std::string& configured
             candidates.push_back(fs::current_path() / ".." / configured);
             candidates.push_back(fs::current_path() / "build" / "bin" / configured);
         }
+    } else {
+        candidates.push_back(fs::path("data") / "silero_vad.onnx");
+        candidates.push_back(fs::current_path() / "data" / "silero_vad.onnx");
+        candidates.push_back(fs::current_path() / ".." / "data" / "silero_vad.onnx");
+        candidates.push_back(fs::current_path() / "build" / "bin" / "data" / "silero_vad.onnx");
     }
-
-    candidates.push_back(fs::path("data") / "silero_vad.onnx");
-    candidates.push_back(fs::current_path() / "data" / "silero_vad.onnx");
-    candidates.push_back(fs::current_path() / ".." / "data" / "silero_vad.onnx");
-    candidates.push_back(fs::current_path() / "build" / "bin" / "data" / "silero_vad.onnx");
 
     std::error_code ec;
     for (const auto& candidate : candidates) {

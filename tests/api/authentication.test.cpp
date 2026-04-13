@@ -147,3 +147,12 @@ TEST_F(AuthAppAuthorizationTest, IsAuthorizedAppDeniesStaleAppAuthIdAfterRotatio
     EXPECT_TRUE(CubeAuth::isAuthorizedApp("clock-auth-id-rotated", "GUI-messageBox"));
     EXPECT_EQ(CubeAuth::getLastError(), "");
 }
+
+TEST(CubeDBGlobalsTest, NullManagersAreTreatedAsUnset)
+{
+    CubeDB::setBlobsManager(nullptr);
+    CubeDB::setCubeDBManager(nullptr);
+
+    EXPECT_THROW((void)CubeDB::getDBManager(), std::runtime_error);
+    EXPECT_THROW((void)CubeDB::getBlobsManager(), std::runtime_error);
+}

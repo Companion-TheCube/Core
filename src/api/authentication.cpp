@@ -39,7 +39,6 @@ SOFTWARE.
 #include <cctype>
 #include <chrono>
 #include <optional>
-#include <thread>
 
 namespace {
 constexpr const char* kClientAuthRequestsTable = "client_auth_requests";
@@ -89,6 +88,19 @@ bool isTruthyConfigValue(std::string value)
 bool configFlagEnabled(const std::string& key)
 {
     return isTruthyConfigValue(Config::get(key, "0"));
+}
+
+Database* tryGetDatabase(const std::string& dbName)
+{
+    try {
+        const auto dbManager = CubeDB::getDBManager();
+        if (!dbManager) {
+            return nullptr;
+        }
+        return dbManager->getDatabase(dbName);
+    } catch (...) {
+        return nullptr;
+    }
 }
 
 void respondJson(httplib::Response& res, const nlohmann::json& body, int status = 200)
@@ -1080,13 +1092,13 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
                 std::string("Client: ") + clientID + "\nCode: " + initialCode + "\nTap to approve, or deny to reject.",
                 NotificationsManager::NotificationType::NOTIFICATION_YES_NO,
                 [clientID, initialCode]() {
-                    Database* dbInner = CubeDB::getDBManager()->getDatabase("auth");
+                    Database* dbInner = tryGetDatabase("auth");
                     if (dbInner != nullptr && dbInner->isOpen()) {
                         approveAuthRequest(dbInner, clientID, initialCode, nowEpochMs());
                     }
                 },
                 [clientID, initialCode]() {
-                    Database* dbInner = CubeDB::getDBManager()->getDatabase("auth");
+                    Database* dbInner = tryGetDatabase("auth");
                     if (dbInner == nullptr || !dbInner->isOpen()) {
                         return;
                     }
@@ -1102,14 +1114,6 @@ HttpEndPointData_t CubeAuth::getHttpEndpointData()
                         denyAuthRequest(dbInner, clientID, initialCode, currentTimeMs);
                     }
                 });
-
-            std::thread([clientID, initialCode]() {
-                std::this_thread::sleep_for(std::chrono::milliseconds(kAuthRequestTtlMs));
-                Database* dbInner = CubeDB::getDBManager()->getDatabase("auth");
-                if (dbInner != nullptr && dbInner->isOpen()) {
-                    expireAuthRequestIfOutstanding(dbInner, clientID, initialCode);
-                }
-            }).detach();
             return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_NO_ERROR, "");
         },
         "initCode", 

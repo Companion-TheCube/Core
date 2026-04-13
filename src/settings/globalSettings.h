@@ -137,106 +137,7 @@ struct GlobalSettings {
     GlobalSettings()
     {
         std::unique_lock<std::mutex> lock(settingChangeMutex);
-        settings = nlohmann::json::object();
-        bool defaultFound = false;
-        for (auto fontPath : loadFontPaths()) {
-            // set the default font to Roboto-Regular.ttf
-            if (fontPath.find("Roboto-Regular.ttf") != std::string::npos) {
-                lock.unlock();
-                GlobalSettings::setSetting(SettingType::SELECTED_FONT_PATH, fontPath);
-                defaultFound = true;
-            }
-        }
-        if (!defaultFound) {
-            CubeLog::fatal("Default font not found.");
-        }
-        // set the default log verbosity to TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE
-        GlobalSettings::setSetting(SettingType::LOG_VERBOSITY, Logger::LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE);
-        // set the default log level for printing to INFO
-        GlobalSettings::setSetting(SettingType::LOG_LEVEL_PRINT, Logger::LogLevel::LOGGER_INFO);
-        // set the default log level for writing to file to INFO
-        GlobalSettings::setSetting(SettingType::LOG_LEVEL_FILE, Logger::LogLevel::LOGGER_INFO);
-        // set the default developer mode to false
-        GlobalSettings::setSetting(SettingType::DEVELOPER_MODE_ENABLED, false);
-        // set the default CPU and memory display to false
-        GlobalSettings::setSetting(SettingType::CPU_AND_MEMORY_DISPLAY_ENABLED, false);
-        // set the default SSH to false
-        GlobalSettings::setSetting(SettingType::SSH_ENABLED, false);
-        // set the default WiFi to true
-        GlobalSettings::setSetting(SettingType::WIFI_ENABLED, true);
-        // set the default BT to true
-        GlobalSettings::setSetting(SettingType::BT_ENABLED, true);
-        // set the default idle animation to true
-        GlobalSettings::setSetting(SettingType::IDLE_ANIMATION_ENABLED, true);
-        // set the default screen brightness to 100
-        GlobalSettings::setSetting(SettingType::SCREEN_BRIGHTNESS, 100);
-        // set the default screen auto off to true
-        GlobalSettings::setSetting(SettingType::SCREEN_AUTO_OFF, true);
-        // set the default screen auto off time to 5 minutes
-        GlobalSettings::setSetting(SettingType::SCREEN_AUTO_OFF_TIME, 5);
-        // set the default notifications from network to true
-        GlobalSettings::setSetting(SettingType::NOTIFICATIONS_FROM_NETWORK_ENABLED, true);
-        // set the default system volume to 100
-        GlobalSettings::setSetting(SettingType::SYSTEM_VOLUME, 100);
-        // set the default notification sound volume to 100
-        GlobalSettings::setSetting(SettingType::NOTIFICATION_SOUND_VOLUME, 100);
-        // set the default alarm sound volume to 100
-        GlobalSettings::setSetting(SettingType::ALARM_SOUND_VOLUME, 100);
-        // set the default alarm snooze duration to 10 minutes
-        GlobalSettings::setSetting(SettingType::ALARM_SNOOZE_MINUTES, 10);
-        // set the default voice command sound volume to 100
-        GlobalSettings::setSetting(SettingType::VOICE_COMMAND_SOUND_VOLUME, 100);
-        // set the default notification sound to default
-        GlobalSettings::setSetting(SettingType::NOTIFICATION_SOUND, "default");
-        // set the default alarm sound to default
-        GlobalSettings::setSetting(SettingType::ALARM_SOUND, "default");
-        // set the default voice command sound to default
-        GlobalSettings::setSetting(SettingType::VOICE_COMMAND_SOUND, "default");
-        // general AI answers default to popup-only presentation
-        GlobalSettings::setSetting(SettingType::GENERAL_AI_RESPONSE_MODE, "popupOnly");
-        // set the default NFC to true
-        GlobalSettings::setSetting(SettingType::NFC_ENABLED, true);
-        // set the default personality to enabled
-        GlobalSettings::setSetting(SettingType::PERSONALITY_ENABLED, true);
-        // set the default microphone to true
-        GlobalSettings::setSetting(SettingType::MICROPHONE_ENABLED, true);
-        // set the default presence detection to true
-        GlobalSettings::setSetting(SettingType::PRESENCE_DETECTION_ENABLED, true);
-        // set the default delayed-absence timeout to 15 seconds
-        GlobalSettings::setSetting(SettingType::PRESENCE_ABSENT_TIMEOUT_SECS, 15);
-        // set the default emotion curiosity to 80
-        GlobalSettings::setSetting(SettingType::EMOTION_CURIOSITY, 80);
-        // set the default emotion playfulness to 70
-        GlobalSettings::setSetting(SettingType::EMOTION_PLAYFULNESS, 70);
-        // set the default emotion empathy to 85
-        GlobalSettings::setSetting(SettingType::EMOTION_EMPATHY, 85);
-        // set the default emotion assertiveness to 60
-        GlobalSettings::setSetting(SettingType::EMOTION_ASSERTIVENESS, 60);
-        // set the default emotion attentiveness to 90
-        GlobalSettings::setSetting(SettingType::EMOTION_ATTENTIVENESS, 90);
-        // set the default emotion caution to 50
-        GlobalSettings::setSetting(SettingType::EMOTION_CAUTION, 50);
-        // set the default emotion annoyance to 0
-        GlobalSettings::setSetting(SettingType::EMOTION_ANNOYANCE, 0);
-        // mmWave presence classifier averaging-window defaults
-        GlobalSettings::setSetting(SettingType::MMWAVE_DETECTION_DISTANCE_AVERAGE_WINDOW_SECS, 10);
-        GlobalSettings::setSetting(SettingType::MMWAVE_MOVING_DISTANCE_AVERAGE_WINDOW_SECS, 10);
-        GlobalSettings::setSetting(SettingType::MMWAVE_STATIONARY_DISTANCE_AVERAGE_WINDOW_SECS, 10);
-        GlobalSettings::setSetting(SettingType::MMWAVE_STATIONARY_ENERGY_AVERAGE_WINDOW_SECS, 10);
-        // thermal-management defaults
-        GlobalSettings::setSetting(SettingType::FAN_CONTROL_ENABLED, true);
-        GlobalSettings::setSetting(SettingType::FAN_CONTROL_POLL_INTERVAL_MS, 2000);
-        GlobalSettings::setSetting(SettingType::FAN_CONTROL_HYSTERESIS_C, 2.0);
-        GlobalSettings::setSetting(SettingType::FAN_CONTROL_FAILSAFE_PERCENT, 100);
-        GlobalSettings::setSetting(SettingType::FAN_CONTROL_CURVE_POINTS, defaultFanControlCurvePoints());
-        // interaction defaults
-        GlobalSettings::setSetting(SettingType::INTERACTION_DETECTION_ENABLED, true);
-        GlobalSettings::setSetting(SettingType::INTERACTION_POLL_INTERVAL_MS, 50);
-        GlobalSettings::setSetting(SettingType::INTERACTION_EVENT_HISTORY_SIZE, 128);
-        GlobalSettings::setSetting(SettingType::INTERACTION_TAP_DEBOUNCE_MS, 120);
-        GlobalSettings::setSetting(SettingType::INTERACTION_LIFT_CONFIRM_MS, 150);
-        GlobalSettings::setSetting(SettingType::INTERACTION_REST_STABLE_MS, 500);
-        GlobalSettings::setSetting(SettingType::INTERACTION_LIFT_DELTA_THRESHOLD_MG, 200);
+        populateDefaultSettingsLocked();
     }
 
     static void setSettingCB(SettingType key, std::function<void()> callback)
@@ -261,6 +162,7 @@ struct GlobalSettings {
 
     static bool setSetting(SettingType key, nlohmann::json::value_type value)
     {
+        ensureInitialized();
         switch (key) {
         case SettingType::MMWAVE_DETECTION_DISTANCE_AVERAGE_WINDOW_SECS:
         case SettingType::MMWAVE_MOVING_DISTANCE_AVERAGE_WINDOW_SECS:
@@ -368,17 +270,20 @@ struct GlobalSettings {
     }
     static nlohmann::json getSettings()
     {
+        ensureInitialized();
         std::unique_lock<std::mutex> lock(settingChangeMutex);
         return settings;
     }
     static nlohmann::json::value_type getSetting(SettingType key)
     {
+        ensureInitialized();
         std::unique_lock<std::mutex> lock(settingChangeMutex);
         return settings[settingTypeStringMap[key]];
     }
     template <typename T>
     static T getSettingOfType(SettingType key)
     {
+        ensureInitialized();
         std::unique_lock<std::mutex> lock(settingChangeMutex);
         T s;
         try {
@@ -498,6 +403,99 @@ private:
     static std::vector<std::pair<SettingType, std::function<void()>>> settingChangeCallbacks;
     static std::mutex settingChangeMutex;
     static nlohmann::json settings;
+    static bool settingsInitialized;
+
+    static void ensureInitialized()
+    {
+        std::unique_lock<std::mutex> lock(settingChangeMutex);
+        if (!settingsInitialized) {
+            populateDefaultSettingsLocked();
+        }
+    }
+
+    static std::string findDefaultFontPath()
+    {
+        const std::array<std::filesystem::path, 4> fontRoots = {
+            std::filesystem::path("fonts"),
+            std::filesystem::current_path() / "fonts",
+            std::filesystem::current_path() / ".." / "fonts",
+            std::filesystem::current_path() / "build" / "bin" / "fonts"
+        };
+
+        for (const auto& root : fontRoots) {
+            for (const auto& fontPath : loadFontPaths(root)) {
+                if (fontPath.find("Roboto-Regular.ttf") != std::string::npos) {
+                    return fontPath;
+                }
+            }
+        }
+        return {};
+    }
+
+    static void populateDefaultSettingsLocked()
+    {
+        settings = nlohmann::json::object();
+        settingsInitialized = true;
+
+        const std::string defaultFontPath = findDefaultFontPath();
+        if (defaultFontPath.empty()) {
+            CubeLog::warning("Default font not found while initializing GlobalSettings.");
+            settings[settingTypeStringMap[SettingType::SELECTED_FONT_PATH]] = "";
+        } else {
+            settings[settingTypeStringMap[SettingType::SELECTED_FONT_PATH]] = defaultFontPath;
+        }
+
+        settings[settingTypeStringMap[SettingType::LOG_VERBOSITY]] = Logger::LogVerbosity::TIMESTAMP_AND_LEVEL_AND_FILE_AND_LINE;
+        settings[settingTypeStringMap[SettingType::LOG_LEVEL_PRINT]] = Logger::LogLevel::LOGGER_INFO;
+        settings[settingTypeStringMap[SettingType::LOG_LEVEL_FILE]] = Logger::LogLevel::LOGGER_INFO;
+        settings[settingTypeStringMap[SettingType::DEVELOPER_MODE_ENABLED]] = false;
+        settings[settingTypeStringMap[SettingType::CPU_AND_MEMORY_DISPLAY_ENABLED]] = false;
+        settings[settingTypeStringMap[SettingType::SSH_ENABLED]] = false;
+        settings[settingTypeStringMap[SettingType::WIFI_ENABLED]] = true;
+        settings[settingTypeStringMap[SettingType::BT_ENABLED]] = true;
+        settings[settingTypeStringMap[SettingType::IDLE_ANIMATION_ENABLED]] = true;
+        settings[settingTypeStringMap[SettingType::SCREEN_BRIGHTNESS]] = 100;
+        settings[settingTypeStringMap[SettingType::SCREEN_AUTO_OFF]] = true;
+        settings[settingTypeStringMap[SettingType::SCREEN_AUTO_OFF_TIME]] = 5;
+        settings[settingTypeStringMap[SettingType::NOTIFICATIONS_FROM_NETWORK_ENABLED]] = true;
+        settings[settingTypeStringMap[SettingType::SYSTEM_VOLUME]] = 100;
+        settings[settingTypeStringMap[SettingType::NOTIFICATION_SOUND_VOLUME]] = 100;
+        settings[settingTypeStringMap[SettingType::ALARM_SOUND_VOLUME]] = 100;
+        settings[settingTypeStringMap[SettingType::ALARM_SNOOZE_MINUTES]] = 10;
+        settings[settingTypeStringMap[SettingType::VOICE_COMMAND_SOUND_VOLUME]] = 100;
+        settings[settingTypeStringMap[SettingType::NOTIFICATION_SOUND]] = "default";
+        settings[settingTypeStringMap[SettingType::ALARM_SOUND]] = "default";
+        settings[settingTypeStringMap[SettingType::VOICE_COMMAND_SOUND]] = "default";
+        settings[settingTypeStringMap[SettingType::GENERAL_AI_RESPONSE_MODE]] = "popupOnly";
+        settings[settingTypeStringMap[SettingType::NFC_ENABLED]] = true;
+        settings[settingTypeStringMap[SettingType::PERSONALITY_ENABLED]] = true;
+        settings[settingTypeStringMap[SettingType::MICROPHONE_ENABLED]] = true;
+        settings[settingTypeStringMap[SettingType::PRESENCE_DETECTION_ENABLED]] = true;
+        settings[settingTypeStringMap[SettingType::PRESENCE_ABSENT_TIMEOUT_SECS]] = 15;
+        settings[settingTypeStringMap[SettingType::EMOTION_CURIOSITY]] = 80;
+        settings[settingTypeStringMap[SettingType::EMOTION_PLAYFULNESS]] = 70;
+        settings[settingTypeStringMap[SettingType::EMOTION_EMPATHY]] = 85;
+        settings[settingTypeStringMap[SettingType::EMOTION_ASSERTIVENESS]] = 60;
+        settings[settingTypeStringMap[SettingType::EMOTION_ATTENTIVENESS]] = 90;
+        settings[settingTypeStringMap[SettingType::EMOTION_CAUTION]] = 50;
+        settings[settingTypeStringMap[SettingType::EMOTION_ANNOYANCE]] = 0;
+        settings[settingTypeStringMap[SettingType::MMWAVE_DETECTION_DISTANCE_AVERAGE_WINDOW_SECS]] = 10;
+        settings[settingTypeStringMap[SettingType::MMWAVE_MOVING_DISTANCE_AVERAGE_WINDOW_SECS]] = 10;
+        settings[settingTypeStringMap[SettingType::MMWAVE_STATIONARY_DISTANCE_AVERAGE_WINDOW_SECS]] = 10;
+        settings[settingTypeStringMap[SettingType::MMWAVE_STATIONARY_ENERGY_AVERAGE_WINDOW_SECS]] = 10;
+        settings[settingTypeStringMap[SettingType::FAN_CONTROL_ENABLED]] = true;
+        settings[settingTypeStringMap[SettingType::FAN_CONTROL_POLL_INTERVAL_MS]] = 2000;
+        settings[settingTypeStringMap[SettingType::FAN_CONTROL_HYSTERESIS_C]] = 2.0;
+        settings[settingTypeStringMap[SettingType::FAN_CONTROL_FAILSAFE_PERCENT]] = 100;
+        settings[settingTypeStringMap[SettingType::FAN_CONTROL_CURVE_POINTS]] = defaultFanControlCurvePoints();
+        settings[settingTypeStringMap[SettingType::INTERACTION_DETECTION_ENABLED]] = true;
+        settings[settingTypeStringMap[SettingType::INTERACTION_POLL_INTERVAL_MS]] = 50;
+        settings[settingTypeStringMap[SettingType::INTERACTION_EVENT_HISTORY_SIZE]] = 128;
+        settings[settingTypeStringMap[SettingType::INTERACTION_TAP_DEBOUNCE_MS]] = 120;
+        settings[settingTypeStringMap[SettingType::INTERACTION_LIFT_CONFIRM_MS]] = 150;
+        settings[settingTypeStringMap[SettingType::INTERACTION_REST_STABLE_MS]] = 500;
+        settings[settingTypeStringMap[SettingType::INTERACTION_LIFT_DELTA_THRESHOLD_MG]] = 200;
+    }
 
     static int clampFanControlPollIntervalMs(int value)
     {
@@ -595,7 +593,14 @@ private:
     static std::vector<std::string> loadFontPaths(std::filesystem::path fontPath = "fonts")
     {
         std::vector<std::string> fontPaths = {};
-        for (const auto& entry : std::filesystem::directory_iterator(fontPath)) {
+        std::error_code ec;
+        if (fontPath.empty() || !std::filesystem::exists(fontPath, ec) || !std::filesystem::is_directory(fontPath, ec)) {
+            return fontPaths;
+        }
+        for (const auto& entry : std::filesystem::directory_iterator(fontPath, ec)) {
+            if (ec) {
+                return fontPaths;
+            }
             if (entry.is_regular_file() && entry.path().extension() == ".ttf") {
                 fontPaths.push_back(entry.path().string());
             } else if (entry.is_directory()) {

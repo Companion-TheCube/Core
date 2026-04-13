@@ -652,20 +652,7 @@ struct TheCubeServerAPI::WsBridge {
 TheCubeServerAPI::TheCubeServerAPI(std::shared_ptr<ThreadSafeQueue<std::vector<int16_t>>> audioBuffer)
     : audioBuffer(std::move(audioBuffer))
 {
-    const std::string configuredBase = Config::get(
-        "REMOTE_SERVER_BASE_URL",
-        Config::get("REMOTE_TRANSCRIPTION_BASE_URL", "https://api.4thecube.com"));
-    baseUrl = normalizeHttpBaseUrl(configuredBase);
-    websocketUrl = normalizeWebSocketBaseUrl(configuredBase) + "/API/audio/stream";
-
-    bearerToken = Config::get("REMOTE_SERVER_BEARER_TOKEN", Config::get("REMOTE_AUTH_KEY", ""));
-    apiKey = Config::get(
-        "REMOTE_SERVER_API_KEY",
-        Config::get("REMOTE_TRANSCRIPTION_API_KEY", Config::get("REMOTE_API_KEY", "")));
-    serialNumber = Config::get("REMOTE_SERVER_SERIAL", Config::get("DEVICE_SERIAL_NUMBER", ""));
-
-    httpClient = std::make_unique<HttpClientHolder>(baseUrl);
-    configureHttpAuth(httpClient->client, bearerToken, apiKey, serialNumber);
+    reloadRuntimeConfig();
     wsBridge = std::make_unique<WsBridge>();
 
     services.set(3);
@@ -1360,8 +1347,27 @@ bool TheCubeServerAPI::stopTranscribing()
     return !waitForFinalTranscript(std::chrono::milliseconds(15000)).empty();
 }
 
+void TheCubeServerAPI::reloadRuntimeConfig()
+{
+    const std::string configuredBase = Config::get(
+        "REMOTE_SERVER_BASE_URL",
+        Config::get("REMOTE_TRANSCRIPTION_BASE_URL", "https://api.4thecube.com"));
+    baseUrl = normalizeHttpBaseUrl(configuredBase);
+    websocketUrl = normalizeWebSocketBaseUrl(configuredBase) + "/API/audio/stream";
+
+    bearerToken = Config::get("REMOTE_SERVER_BEARER_TOKEN", Config::get("REMOTE_AUTH_KEY", ""));
+    apiKey = Config::get(
+        "REMOTE_SERVER_API_KEY",
+        Config::get("REMOTE_TRANSCRIPTION_API_KEY", Config::get("REMOTE_API_KEY", "")));
+    serialNumber = Config::get("REMOTE_SERVER_SERIAL", Config::get("DEVICE_SERIAL_NUMBER", ""));
+
+    httpClient = std::make_unique<HttpClientHolder>(baseUrl);
+    configureHttpAuth(httpClient->client, bearerToken, apiKey, serialNumber);
+}
+
 bool TheCubeServerAPI::initServerConnection()
 {
+    reloadRuntimeConfig();
     if (baseUrl.empty()) {
         status = ServerStatus::SERVER_STATUS_ERROR;
         error = ServerError::SERVER_ERROR_INTERNAL_ERROR;

@@ -275,6 +275,7 @@ bool EventManager::checkClickableAreas(const CubeEvent& event)
 
     if (event.type == CubeEventType::MouseButtonPressed) {
         this->mouseDownPosition = { event.x, event.y };
+        this->lastPointerPosition = { event.x, event.y };
         if (event.mouseButton == CubeMouseButton::Left) {
             this->primaryPointerDown = true;
         }

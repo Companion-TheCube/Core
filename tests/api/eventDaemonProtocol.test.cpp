@@ -31,6 +31,14 @@ TEST(EventDaemonProtocolTest, RejectsMissingAppAuthId)
     EXPECT_EQ(hello.error().code, "invalid_request");
 }
 
+TEST(EventDaemonProtocolTest, RejectsWrongTypedTypeField)
+{
+    const auto hello = EventDaemonProtocol::parseHelloFrame(R"({"type":123,"appAuthId":"app-auth-123"})");
+
+    ASSERT_FALSE(hello.has_value());
+    EXPECT_EQ(hello.error().code, "invalid_request");
+}
+
 TEST(EventDaemonProtocolTest, SerializesHeartbeatAndErrorFrames)
 {
     const auto heartbeat = EventDaemonProtocol::serializeHeartbeat(55);
