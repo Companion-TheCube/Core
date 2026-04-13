@@ -47,7 +47,7 @@ SOFTWARE.
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
-#include <deque>
+#include <atomic>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -127,15 +127,13 @@ private:
     mutable std::mutex presenceStatusMutex_;
     mutable std::mutex thermalStatusMutex_;
     mutable std::mutex interactionStatusMutex_;
-    mutable std::mutex interactionHistoryMutex_;
 
     DelayedPresenceTracker delayedPresenceTracker_;
     bool presenceDetectionEnabled_ = true;
     ThermalStatusSnapshot thermalStatus_;
     InteractionStatusSnapshot interactionStatus_;
     std::optional<double> lastAppliedDutyTemperatureC_;
-    std::deque<InteractionEvent> interactionHistory_;
-    uint64_t nextInteractionSequence_ = 1;
+    std::atomic<uint64_t> nextInteractionSequence_ { 1 };
     std::optional<Bmi270AccelerationSample> deskBaselineSample_;
     std::optional<std::chrono::steady_clock::time_point> stableSince_;
     std::optional<std::chrono::steady_clock::time_point> liftCandidateSince_;
@@ -164,7 +162,6 @@ private:
     void startInteractionControlLoop();
     void interactionControlLoop(std::stop_token stopToken);
     void setInteractionStatusSnapshot(const InteractionStatusSnapshot& status);
-    void trimInteractionHistoryLocked(size_t maxEntries);
     InteractionEvent recordInteractionEvent(
         InteractionEventType type,
         Bmi270LiftState liftStateAfter,
@@ -212,7 +209,6 @@ public:
     PresenceStatusSnapshot getPresenceStatus();
     ThermalStatusSnapshot getThermalStatus() const;
     InteractionStatusSnapshot getInteractionStatus() const;
-    InteractionEventPage getInteractionEvents(uint64_t sinceSequence = 0, size_t limit = 50) const;
 };
 
 #endif // PERIPHERALMANAGER_H

@@ -37,19 +37,33 @@ SOFTWARE.
 #ifndef API_H
 #include "api.h"
 #endif
+#include "apiEventBroker.h"
+#include "eventDaemon/eventDaemonService.h"
 #ifndef AUTHENTICATION_H
 #include "authentication.h"
 #include <fstream>
 #include <sstream>
 #endif
 
+namespace {
 
+std::string resolveSocketPathToAbsolute(const std::string& rawPath)
+{
+    std::filesystem::path path = rawPath.empty() ? std::filesystem::path(CUBE_SOCKET_PATH) : std::filesystem::path(rawPath);
+    if (!path.is_absolute()) {
+        path = std::filesystem::current_path() / path;
+    }
+    return path.lexically_normal().string();
+}
+
+} // namespace
 
 /**
  * @brief Construct a new API::API object. This creates a new CubeAuth object for authentication.
  *
  */
 API::API()
+    : eventBroker_(std::make_shared<ApiEventBroker>())
 {
     // TODO: Since we need to make sure that the entire API is built before letting any clients connect,
     // We should make a http server that will operate on a different port with public access that lets
@@ -90,6 +104,9 @@ void API::start()
 {
     // start the API
     CubeLog::info("API starting...");
+    if (listenerThread.joinable()) {
+        return;
+    }
     this->listenerThread = std::jthread(&API::httpApiThreadFn, this);
 }
 
@@ -101,13 +118,24 @@ void API::stop()
 {
     // stop the API
     CubeLog::info("API stopping...");
-    this->listenerThread.request_stop();
-    // TODO: add checks to make sure these are valid calls.
-    // this->server->stop();
-    // this->serverIPC->stop();
-    //this->listenerThread.join();
-    // delete this->server;
-    // this->server = nullptr;
+    if (this->listenerThread.joinable()) {
+        this->listenerThread.request_stop();
+    }
+    if (eventDaemonService_) {
+        eventDaemonService_->stop();
+        eventDaemonService_.reset();
+    }
+    if (this->server) {
+        this->server->stop();
+        this->server.reset();
+    }
+    if (this->serverIPC) {
+        this->serverIPC->stop();
+        this->serverIPC.reset();
+    }
+    if (this->listenerThread.joinable()) {
+        this->listenerThread.join();
+    }
     CubeLog::info("API stopped");
 }
 
@@ -121,6 +149,49 @@ void API::restart()
     CubeLog::info("API restarting...");
     this->stop();
     this->start();
+}
+
+std::shared_ptr<ApiEventBroker> API::getEventBroker() const
+{
+    return eventBroker_;
+}
+
+std::string API::getResolvedIpcPath() const
+{
+    std::lock_guard<std::mutex> lock(stateMutex_);
+    if (!resolvedIpcPath_.empty() && std::filesystem::path(resolvedIpcPath_).is_absolute()) {
+        return resolvedIpcPath_;
+    }
+    return resolveSocketPathToAbsolute(Config::get("IPC_SOCKET_PATH", ipcPath));
+}
+
+std::string API::getResolvedEventDaemonPath() const
+{
+    std::lock_guard<std::mutex> lock(stateMutex_);
+    if (!resolvedEventDaemonPath_.empty() && std::filesystem::path(resolvedEventDaemonPath_).is_absolute()) {
+        return resolvedEventDaemonPath_;
+    }
+    return deriveEventDaemonSocketPath(Config::get("IPC_SOCKET_PATH", ipcPath));
+}
+
+std::string API::deriveEventDaemonSocketPath(const std::string& ipcPath)
+{
+    const std::filesystem::path resolvedIpc = resolveSocketPathToAbsolute(ipcPath);
+    const std::filesystem::path socketDir = resolvedIpc.parent_path().empty()
+        ? std::filesystem::current_path()
+        : resolvedIpc.parent_path();
+    return (socketDir / "cube-events.sock").lexically_normal().string();
+}
+
+void API::resolveSocketPaths()
+{
+    const std::string rawIpcPath = Config::get("IPC_SOCKET_PATH", this->ipcPath);
+    const std::string resolvedIpcPath = resolveSocketPathToAbsolute(rawIpcPath);
+    const std::string resolvedEventDaemonPath = deriveEventDaemonSocketPath(resolvedIpcPath);
+
+    std::lock_guard<std::mutex> lock(stateMutex_);
+    resolvedIpcPath_ = resolvedIpcPath;
+    resolvedEventDaemonPath_ = resolvedEventDaemonPath;
 }
 
 /**
@@ -205,16 +276,17 @@ void API::httpApiThreadFn()
                 try { this->httpPort = std::stoi(portStr); } catch (...) { /* keep default on parse error */ }
             }
         }
+        resolveSocketPaths();
         // Use configured binding for HTTP server
         this->server = std::make_unique<CubeHttpServer>(this->httpAddress, this->httpPort);
         // Set timeouts so that the server does not block indefinitely
-        this->server->getServer()->set_read_timeout(10, 0); // 10 seconds read timeout
-        this->server->getServer()->set_write_timeout(10, 0); // 10 seconds write timeout
-        this->server->getServer()->set_keep_alive_timeout(10); // 10 seconds keep-alive timeout
+        this->server->getServer()->set_read_timeout(40, 0); // 40 seconds read timeout for long-poll endpoints
+        this->server->getServer()->set_write_timeout(40, 0); // 40 seconds write timeout for long-poll endpoints
+        this->server->getServer()->set_keep_alive_timeout(40); // 40 seconds keep-alive timeout
         this->server->getServer()->set_idle_interval(5); // 5 seconds idle interval
         this->server->getServer()->set_keep_alive_max_count(100); // 100 keep-alive connections max
         // Resolve IPC socket path from centralized config (utils Config)
-        std::string ipc = Config::get("IPC_SOCKET_PATH", this->ipcPath);
+        const std::string ipc = getResolvedIpcPath();
         if (std::filesystem::exists(ipc)) {
             std::filesystem::remove(ipc);
         }
@@ -225,6 +297,16 @@ void API::httpApiThreadFn()
         }
         // Use resolved IPC socket path
         this->serverIPC = std::make_unique<CubeHttpServer>(ipc, 0);
+        this->serverIPC->getServer()->set_read_timeout(40, 0);
+        this->serverIPC->getServer()->set_write_timeout(40, 0);
+        this->serverIPC->getServer()->set_keep_alive_timeout(40);
+        this->serverIPC->getServer()->set_idle_interval(5);
+        this->serverIPC->getServer()->set_keep_alive_max_count(100);
+        eventDaemonService_ = std::make_unique<EventDaemonService>(eventBroker_, getResolvedEventDaemonPath());
+        if (!eventDaemonService_->start()) {
+            CubeLog::warning("API: failed to start local event daemon service.");
+            eventDaemonService_.reset();
+        }
         static constexpr const char* kIpcAppAuthHeaderName = "X-TheCube-App-Auth-Id";
         for (size_t i = 0; i < this->endpoints.size(); i++) {
             // Public endpoints are accessible by any device on the

@@ -44,7 +44,6 @@ constexpr double kDefaultFanControlHysteresisC = 2.0;
 constexpr uint8_t kDefaultFanControlFailsafePercent = 100;
 
 constexpr int kDefaultInteractionPollIntervalMs = 50;
-constexpr int kDefaultInteractionEventHistorySize = 128;
 constexpr int kDefaultInteractionTapDebounceMs = 120;
 constexpr int kDefaultInteractionLiftConfirmMs = 150;
 constexpr int kDefaultInteractionRestStableMs = 500;
@@ -264,12 +263,6 @@ int loadInteractionPollIntervalMsFromSettings()
 {
     return clampInteractionPollIntervalMs(
         GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::INTERACTION_POLL_INTERVAL_MS));
-}
-
-size_t loadInteractionEventHistorySizeFromSettings()
-{
-    return static_cast<size_t>(clampInteractionEventHistorySize(
-        GlobalSettings::getSettingOfType<int>(GlobalSettings::SettingType::INTERACTION_EVENT_HISTORY_SIZE)));
 }
 
 int loadInteractionTapDebounceMsFromSettings()
@@ -832,30 +825,18 @@ void PeripheralManager::setInteractionStatusSnapshot(const InteractionStatusSnap
     interactionStatus_ = status;
 }
 
-void PeripheralManager::trimInteractionHistoryLocked(size_t maxEntries)
-{
-    while (interactionHistory_.size() > maxEntries) {
-        interactionHistory_.pop_front();
-    }
-}
-
 InteractionEvent PeripheralManager::recordInteractionEvent(
     InteractionEventType type,
     Bmi270LiftState liftStateAfter,
     const std::optional<Bmi270AccelerationSample>& sample,
     uint64_t occurredAtEpochMs)
 {
-    std::lock_guard<std::mutex> lock(interactionHistoryMutex_);
-
     InteractionEvent event;
-    event.sequence = nextInteractionSequence_++;
+    event.sequence = nextInteractionSequence_.fetch_add(1);
     event.type = type;
     event.occurredAtEpochMs = occurredAtEpochMs;
     event.liftStateAfter = liftStateAfter;
     event.sample = sample;
-
-    interactionHistory_.push_back(event);
-    trimInteractionHistoryLocked(loadInteractionEventHistorySizeFromSettings());
     return event;
 }
 
@@ -866,11 +847,6 @@ void PeripheralManager::runInteractionControlIteration()
     const int liftConfirmMs = loadInteractionLiftConfirmMsFromSettings();
     const int restStableMs = loadInteractionRestStableMsFromSettings();
     const float liftDeltaThresholdG = static_cast<float>(loadInteractionLiftDeltaThresholdMgFromSettings()) / 1000.0f;
-
-    {
-        std::lock_guard<std::mutex> lock(interactionHistoryMutex_);
-        trimInteractionHistoryLocked(loadInteractionEventHistorySizeFromSettings());
-    }
 
     InteractionStatusSnapshot previousStatus;
     {
@@ -897,6 +873,17 @@ void PeripheralManager::runInteractionControlIteration()
         nextStatus.liftState = Bmi270LiftState::Unknown;
         setInteractionStatusSnapshot(nextStatus);
         return;
+    }
+
+    if (!accelerometer_->isInitialized()) {
+        if (auto initResult = accelerometer_->initialize(); !initResult) {
+            nextStatus.available = accelerometer_->isAvailable();
+            nextStatus.initialized = accelerometer_->isInitialized();
+            setInteractionStatusSnapshot(nextStatus);
+            return;
+        }
+        nextStatus.available = accelerometer_->isAvailable();
+        nextStatus.initialized = accelerometer_->isInitialized();
     }
 
     Bmi270InteractionConfig config;
@@ -1114,38 +1101,4 @@ InteractionStatusSnapshot PeripheralManager::getInteractionStatus() const
 {
     std::lock_guard<std::mutex> lock(interactionStatusMutex_);
     return interactionStatus_;
-}
-
-InteractionEventPage PeripheralManager::getInteractionEvents(uint64_t sinceSequence, size_t limit) const
-{
-    InteractionEventPage page;
-    page.nextSequence = nextInteractionSequence_;
-
-    if (limit == 0) {
-        limit = 1;
-    }
-
-    std::lock_guard<std::mutex> lock(interactionHistoryMutex_);
-    page.nextSequence = nextInteractionSequence_;
-    if (interactionHistory_.empty()) {
-        return page;
-    }
-
-    const uint64_t oldestSequence = interactionHistory_.front().sequence;
-    if (sinceSequence + 1 < oldestSequence) {
-        page.historyTruncated = true;
-        sinceSequence = oldestSequence - 1;
-    }
-
-    for (const auto& event : interactionHistory_) {
-        if (event.sequence <= sinceSequence) {
-            continue;
-        }
-        if (page.events.size() >= limit) {
-            break;
-        }
-        page.events.push_back(event);
-    }
-
-    return page;
 }

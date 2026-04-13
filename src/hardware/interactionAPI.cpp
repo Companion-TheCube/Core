@@ -1,10 +1,10 @@
 /*
-██╗███╗   ██╗████████╗███████╗██████╗  █████╗  ██████╗████████╗██╗ ██████╗ ███╗   ██╗     █████╗ ██████╗ ██╗
-██║████╗  ██║╚══██╔══╝██╔════╝██╔══██╗██╔══██╗██╔════╝╚══██╔══╝██║██╔═══██╗████╗  ██║    ██╔══██╗██╔══██╗██║
-██║██╔██╗ ██║   ██║   █████╗  ██████╔╝███████║██║        ██║   ██║██║   ██║██╔██╗ ██║    ███████║██████╔╝██║
-██║██║╚██╗██║   ██║   ██╔══╝  ██╔══██╗██╔══██║██║        ██║   ██║██║   ██║██║╚██╗██║    ██╔══██║██╔═══╝ ██║
-██║██║ ╚████║   ██║   ███████╗██║  ██║██║  ██║╚██████╗   ██║   ██║╚██████╔╝██║ ╚████║    ██║  ██║██║     ██║
-╚═╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝    ╚═╝  ╚═╝╚═╝     ╚═╝
+██╗███╗   ██╗████████╗███████╗██████╗  █████╗  ██████╗████████╗██╗ ██████╗ ███╗   ██╗ █████╗ ██████╗ ██╗    ██████╗██████╗ ██████╗
+██║████╗  ██║╚══██╔══╝██╔════╝██╔══██╗██╔══██╗██╔════╝╚══██╔══╝██║██╔═══██╗████╗  ██║██╔══██╗██╔══██╗██║   ██╔════╝██╔══██╗██╔══██╗
+██║██╔██╗ ██║   ██║   █████╗  ██████╔╝███████║██║        ██║   ██║██║   ██║██╔██╗ ██║███████║██████╔╝██║   ██║     ██████╔╝██████╔╝
+██║██║╚██╗██║   ██║   ██╔══╝  ██╔══██╗██╔══██║██║        ██║   ██║██║   ██║██║╚██╗██║██╔══██║██╔═══╝ ██║   ██║     ██╔═══╝ ██╔═══╝
+██║██║ ╚████║   ██║   ███████╗██║  ██║██║  ██║╚██████╗   ██║   ██║╚██████╔╝██║ ╚████║██║  ██║██║     ██║██╗╚██████╗██║     ██║
+╚═╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝ ╚═════╝╚═╝     ╚═╝
 */
 
 /*
@@ -17,6 +17,7 @@ Copyright (c) 2026 A-McD Technology LLC
 #include "interactionEvents.h"
 
 #include <algorithm>
+#include <chrono>
 
 namespace {
 
@@ -33,14 +34,19 @@ nlohmann::json accelerationSampleToJson(const std::optional<Bmi270AccelerationSa
     };
 }
 
-nlohmann::json interactionEventToJson(const InteractionEvent& event)
+nlohmann::json canonicalInteractionEventToJson(const ApiEvent& event)
 {
+    nlohmann::json sample = nullptr;
+    if (event.payload.contains("sample")) {
+        sample = event.payload["sample"];
+    }
+
     return nlohmann::json {
         { "sequence", event.sequence },
-        { "type", interactionEventTypeToString(event.type) },
+        { "type", event.event },
         { "occurredAtEpochMs", event.occurredAtEpochMs },
-        { "liftStateAfter", interactionLiftStateToString(event.liftStateAfter) },
-        { "sample", accelerationSampleToJson(event.sample) },
+        { "liftStateAfter", event.payload.value("liftStateAfter", "unknown") },
+        { "sample", sample },
     };
 }
 
@@ -74,9 +80,15 @@ uint64_t parseSinceSequence(const httplib::Request& req)
 
 } // namespace
 
-InteractionAPI::InteractionAPI(std::shared_ptr<PeripheralManager> peripheralManager)
+InteractionAPI::InteractionAPI(
+    std::shared_ptr<PeripheralManager> peripheralManager,
+    std::shared_ptr<ApiEventBroker> broker)
     : peripheralManager_(std::move(peripheralManager))
+    , broker_(std::move(broker))
 {
+    if (broker_) {
+        broker_->registerSource("interaction");
+    }
 }
 
 HttpEndPointData_t InteractionAPI::getHttpEndpointData()
@@ -116,19 +128,21 @@ HttpEndPointData_t InteractionAPI::getHttpEndpointData()
     data.push_back({
         PRIVATE_ENDPOINT | GET_ENDPOINT,
         [this](const httplib::Request& req, httplib::Response& res) {
-            if (!peripheralManager_) {
+            if (!broker_) {
                 res.status = 500;
-                res.set_content(R"({"error":"peripheral_manager_unavailable"})", "application/json");
-                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Peripheral manager unavailable");
+                res.set_content(R"({"error":"event_broker_unavailable"})", "application/json");
+                return EndpointError(EndpointError::ERROR_TYPES::ENDPOINT_INTERNAL_ERROR, "Event broker unavailable");
             }
 
-            const auto page = peripheralManager_->getInteractionEvents(
+            const auto page = broker_->waitForEvents(
                 parseSinceSequence(req),
-                clampRequestedLimit(req));
+                ApiEventBroker::SourceSet { "interaction" },
+                clampRequestedLimit(req),
+                std::chrono::milliseconds::zero());
 
             nlohmann::json events = nlohmann::json::array();
             for (const auto& event : page.events) {
-                events.push_back(interactionEventToJson(event));
+                events.push_back(canonicalInteractionEventToJson(event));
             }
 
             nlohmann::json response = {

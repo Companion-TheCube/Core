@@ -36,6 +36,8 @@ These documents describe intended subsystem contracts, requirements, or partial 
 * [src/hardware/io_bridge/IO_Bridge_Specification.md](src/hardware/io_bridge/IO_Bridge_Specification.md)
 * [src/hardware/io_bridge/ioBridge.md](src/hardware/io_bridge/ioBridge.md)
 * [src/hardware/io_bridge/IO_Bridge_Conversation.md](src/hardware/io_bridge/IO_Bridge_Conversation.md)
+* [docs/contracts/events-v1/openapi.yaml](docs/contracts/events-v1/openapi.yaml)
+* [docs/contracts/events-v1/event.schema.json](docs/contracts/events-v1/event.schema.json)
 * [Planning-Docs specs index](https://github.com/Companion-TheCube/Planning-Docs/blob/main/specs/README.md)
 * [Planning-Docs API spec](https://github.com/Companion-TheCube/Planning-Docs/blob/main/specs/api-spec.md)
 * [Planning-Docs software requirements](https://github.com/Companion-TheCube/Planning-Docs/blob/main/specs/software-requirements.md)

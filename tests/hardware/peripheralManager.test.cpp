@@ -473,42 +473,6 @@ TEST(PeripheralManagerInteractionTest, LiftTransitionsFromDeskToLiftedAndBack)
     EXPECT_EQ(seenEvents[1].type, InteractionEventType::LiftEnded);
 }
 
-TEST(PeripheralManagerInteractionTest, EventHistoryReportsTruncationWhenCallerFallsBehind)
-{
-    GlobalSettings defaults;
-    GlobalSettings::setSetting(GlobalSettings::SettingType::INTERACTION_EVENT_HISTORY_SIZE, 32);
-
-    auto accelerometer = std::make_unique<FakeAccelerometer>();
-    auto* accelerometerPtr = accelerometer.get();
-    for (int i = 0; i < 40; ++i) {
-        accelerometerPtr->queuedStatuses.push_back(interactionStatus(sample(0.7f, 0.0f, 1.2f), true, true, false));
-    }
-
-    auto nowMono = Clock::now();
-    uint64_t nowEpochMs = 1000;
-
-    TestPeripheralManager manager(
-        nullptr,
-        nullptr,
-        std::move(accelerometer),
-        {},
-        {},
-        [&nowMono]() { return nowMono; },
-        [&nowEpochMs]() { return nowEpochMs; });
-
-    for (int i = 0; i < 40; ++i) {
-        manager.runInteractionControlIteration();
-        nowMono += std::chrono::milliseconds(200);
-        nowEpochMs += 200;
-    }
-
-    const auto page = manager.getInteractionEvents(0, 10);
-    EXPECT_TRUE(page.historyTruncated);
-    EXPECT_EQ(page.events.size(), 10u);
-    EXPECT_EQ(page.nextSequence, 41u);
-    EXPECT_GT(page.events.front().sequence, 1u);
-}
-
 TEST(PeripheralManagerInteractionTest, RegisteredInteractionCallbacksWakeLoopAndApplyDisable)
 {
     GlobalSettings defaults;

@@ -60,6 +60,9 @@ SOFTWARE.
 #include <fstream>
 #include <utils.h>
 
+class ApiEventBroker;
+class EventDaemonService;
+
 #define CUBE_SOCKET_PATH "cube.sock"
 #define PUBLIC_ENDPOINT (int)1
 #define PRIVATE_ENDPOINT (int)2
@@ -137,12 +140,18 @@ private:
     std::jthread listenerThread;
     std::unique_ptr<CubeHttpServer> server;
     std::unique_ptr<CubeHttpServer> serverIPC;
+    std::shared_ptr<ApiEventBroker> eventBroker_;
+    std::unique_ptr<EventDaemonService> eventDaemonService_;
     std::vector<std::pair<std::string, bool>> endpointTriggers = {};
     void httpApiThreadFn();
+    void resolveSocketPaths();
     // Binding configuration (can be set before start())
     std::string httpAddress = "0.0.0.0";
     int httpPort = 55280;
     std::string ipcPath = CUBE_SOCKET_PATH;
+    std::string resolvedIpcPath_ = CUBE_SOCKET_PATH;
+    std::string resolvedEventDaemonPath_ = "cube-events.sock";
+    mutable std::mutex stateMutex_;
 
 public:
     API();
@@ -153,6 +162,10 @@ public:
     // Configure HTTP and IPC bindings prior to start()
     void setHttpBinding(const std::string& address, int port) { httpAddress = address; httpPort = port; }
     void setIpcPath(const std::string& path) { ipcPath = path; }
+    std::shared_ptr<ApiEventBroker> getEventBroker() const;
+    std::string getResolvedIpcPath() const;
+    std::string getResolvedEventDaemonPath() const;
+    static std::string deriveEventDaemonSocketPath(const std::string& ipcPath);
     void addEndpoint(const std::string& name, const std::string& path, int endpointType, EndpointAction_t action);
     std::vector<std::shared_ptr<Endpoint>> getEndpoints();
     std::shared_ptr<Endpoint> getEndpointByName(const std::string& name);

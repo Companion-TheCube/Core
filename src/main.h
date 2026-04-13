@@ -40,6 +40,7 @@ SOFTWARE.
 #include <sys/wait.h>
 #include <unistd.h>
 #include "api/api.h"
+#include "api/eventsAPI.h"
 #include "api/authentication.h"
 #include "apps/appPostgresAccess.h"
 #include "apps/appsManager.h"
@@ -49,6 +50,7 @@ SOFTWARE.
 #include "gui/gui.h"
 #include "hardware/bluetooth.h"
 #include "hardware/interactionAPI.h"
+#include "hardware/interactionEventBridge.h"
 #include "hardware/peripheralManager.h"
 #include "hardware/wifi.h"
 #include "decisionEngine/decisions.h"

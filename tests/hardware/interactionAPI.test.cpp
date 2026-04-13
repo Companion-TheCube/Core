@@ -1,4 +1,6 @@
+#include "../../src/api/apiEventBroker.h"
 #include "../../src/hardware/interactionAPI.h"
+#include "../../src/hardware/interactionEventBridge.h"
 #include "../../src/settings/globalSettings.h"
 #include <gtest/gtest.h>
 
@@ -92,6 +94,8 @@ TEST(InteractionApiTest, StatusEndpointReturnsCurrentSnapshot)
 
     auto nowMono = Clock::now();
     uint64_t nowEpochMs = 1000;
+    auto broker = std::make_shared<ApiEventBroker>();
+    auto bridge = std::make_shared<InteractionEventBridge>(broker);
     auto manager = std::make_shared<TestPeripheralManager>(
         std::move(accelerometer),
         [&nowMono]() { return nowMono; },
@@ -102,7 +106,7 @@ TEST(InteractionApiTest, StatusEndpointReturnsCurrentSnapshot)
     nowEpochMs += 200;
     manager->runInteractionControlIteration();
 
-    InteractionAPI api(manager);
+    InteractionAPI api(manager, broker);
     const auto endpoints = api.getHttpEndpointData();
 
     ASSERT_EQ(endpoints.size(), 2u);
@@ -134,6 +138,8 @@ TEST(InteractionApiTest, EventsEndpointRespectsSinceSequenceAndLimit)
 
     auto nowMono = Clock::now();
     uint64_t nowEpochMs = 1000;
+    auto broker = std::make_shared<ApiEventBroker>();
+    auto bridge = std::make_shared<InteractionEventBridge>(broker);
     auto manager = std::make_shared<TestPeripheralManager>(
         std::move(accelerometer),
         [&nowMono]() { return nowMono; },
@@ -147,7 +153,7 @@ TEST(InteractionApiTest, EventsEndpointRespectsSinceSequenceAndLimit)
     nowEpochMs += 200;
     manager->runInteractionControlIteration();
 
-    InteractionAPI api(manager);
+    InteractionAPI api(manager, broker);
     const auto endpoints = api.getHttpEndpointData();
 
     httplib::Request req;
@@ -164,7 +170,7 @@ TEST(InteractionApiTest, EventsEndpointRespectsSinceSequenceAndLimit)
     ASSERT_TRUE(body.contains("events"));
     ASSERT_EQ(body["events"].size(), 1u);
     EXPECT_EQ(body["events"][0].value("sequence", 0u), 2u);
-    EXPECT_EQ(body.value("nextSequence", 0u), 3u);
+    EXPECT_EQ(body.value("nextSequence", 0u), 2u);
     EXPECT_FALSE(body.value("historyTruncated", true));
 }
 
